@@ -1,0 +1,8 @@
+node_modules/**
+elm-stuff/**
+dist/**
+tags
+.ctags
+index.html
+css/Icon.less
+css/preview.html

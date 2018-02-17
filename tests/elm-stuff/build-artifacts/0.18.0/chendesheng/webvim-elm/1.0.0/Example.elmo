@@ -1,0 +1,173 @@
+var _chendesheng$webvim_elm$Example$cases = {
+	ctor: '::',
+	_0: {
+		ctor: '_Tuple2',
+		_0: 'w',
+		_1: {
+			ctor: '_Tuple2',
+			_0: _elm_lang$core$Native_Utils.update(
+				_chendesheng$webvim_elm$Vim_State$initialMode,
+				{
+					edit: _elm_lang$core$Maybe$Just(
+						_chendesheng$webvim_elm$Vim_State$Move(
+							_chendesheng$webvim_elm$Vim_State$ByClass(
+								{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart})))
+				}),
+			_1: ''
+		}
+	},
+	_1: {
+		ctor: '::',
+		_0: {
+			ctor: '_Tuple2',
+			_0: 'b',
+			_1: {
+				ctor: '_Tuple2',
+				_0: _elm_lang$core$Native_Utils.update(
+					_chendesheng$webvim_elm$Vim_State$initialMode,
+					{
+						edit: _elm_lang$core$Maybe$Just(
+							_chendesheng$webvim_elm$Vim_State$Move(
+								_chendesheng$webvim_elm$Vim_State$ByClass(
+									{direction: _chendesheng$webvim_elm$Vim_State$Backward, $class: _chendesheng$webvim_elm$Vim_State$WordStart})))
+					}),
+				_1: ''
+			}
+		},
+		_1: {
+			ctor: '::',
+			_0: {
+				ctor: '_Tuple2',
+				_0: 'g',
+				_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'g'}
+			},
+			_1: {
+				ctor: '::',
+				_0: {
+					ctor: '_Tuple2',
+					_0: 'gg',
+					_1: {
+						ctor: '_Tuple2',
+						_0: _elm_lang$core$Native_Utils.update(
+							_chendesheng$webvim_elm$Vim_State$initialMode,
+							{
+								edit: _elm_lang$core$Maybe$Just(
+									_chendesheng$webvim_elm$Vim_State$Move(
+										_chendesheng$webvim_elm$Vim_State$LineNumber(0)))
+							}),
+						_1: ''
+					}
+				},
+				_1: {
+					ctor: '::',
+					_0: {
+						ctor: '_Tuple2',
+						_0: 'c',
+						_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'c'}
+					},
+					_1: {
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'c<esc>',
+							_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+						},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'cw',
+								_1: {
+									ctor: '_Tuple2',
+									_0: _elm_lang$core$Native_Utils.update(
+										_chendesheng$webvim_elm$Vim_State$initialMode,
+										{
+											mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+											edit: _elm_lang$core$Maybe$Just(
+												_chendesheng$webvim_elm$Vim_State$Delete(
+													A2(
+														_chendesheng$webvim_elm$Vim_State$MotionRange,
+														_chendesheng$webvim_elm$Vim_State$Exclusive,
+														_chendesheng$webvim_elm$Vim_State$ByClass(
+															{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+										}),
+									_1: 'cw'
+								}
+							},
+							_1: {
+								ctor: '::',
+								_0: {
+									ctor: '_Tuple2',
+									_0: 'cv',
+									_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'cv'}
+								},
+								_1: {
+									ctor: '::',
+									_0: {
+										ctor: '_Tuple2',
+										_0: 'cvw',
+										_1: {
+											ctor: '_Tuple2',
+											_0: _elm_lang$core$Native_Utils.update(
+												_chendesheng$webvim_elm$Vim_State$initialMode,
+												{
+													mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+													edit: _elm_lang$core$Maybe$Just(
+														_chendesheng$webvim_elm$Vim_State$Delete(
+															A2(
+																_chendesheng$webvim_elm$Vim_State$MotionRange,
+																_chendesheng$webvim_elm$Vim_State$Inclusive,
+																_chendesheng$webvim_elm$Vim_State$ByClass(
+																	{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+												}),
+											_1: 'cvw'
+										}
+									},
+									_1: {
+										ctor: '::',
+										_0: {
+											ctor: '_Tuple2',
+											_0: 'cw<esc>',
+											_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+										},
+										_1: {
+											ctor: '::',
+											_0: {
+												ctor: '_Tuple2',
+												_0: 'cvw<esc>',
+												_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+											},
+											_1: {ctor: '[]'}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+};
+var _chendesheng$webvim_elm$Example$suite = A2(
+	_elm_community$elm_test$Test$describe,
+	'Vim key parser module',
+	A2(
+		_elm_lang$core$List$map,
+		function (_p0) {
+			var _p1 = _p0;
+			var _p3 = _p1._0;
+			return A2(
+				_elm_community$elm_test$Test$test,
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					'parse `',
+					A2(_elm_lang$core$Basics_ops['++'], _p3, '` correctly')),
+				function (_p2) {
+					return A2(
+						_elm_community$elm_test$Expect$equal,
+						_p1._1,
+						A2(_chendesheng$webvim_elm$Vim_Parser$parse, _p3, ''));
+				});
+		},
+		_chendesheng$webvim_elm$Example$cases));

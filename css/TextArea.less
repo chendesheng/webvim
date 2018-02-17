@@ -1,0 +1,40 @@
+.multipleText {
+  border: 1px solid #ddd;
+  padding: 5px;
+  outline: none;
+  transition: border-color 0.2s;
+  border-radius: 2px;
+  width: 100%;
+  font-size: 1em;
+  overflow: auto;
+  -webkit-appearance: none;
+}
+
+.multipleText:disabled {
+  background-color: #f5f5f5;
+}
+
+.multipleText:focus {
+  border-color: @main-color;
+  outline: none;
+}
+
+.multipleText.error,
+.multipleText.error:hover,
+.multipleText.error:focus {
+  border-color: #d34747;
+}
+
+.window--classic .multipleText {
+  border-radius: 2px;
+}
+
+.window--circle .multipleText {
+  border-radius: 20px;
+  padding: 15px;
+}
+
+.window--bubble .multipleText {
+  border-radius: 8px;
+  padding: 5px 10px;
+}

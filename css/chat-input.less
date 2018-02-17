@@ -1,0 +1,376 @@
+.chatInputContainer {
+  /* position: absolute;*/
+  position: relative;
+  z-index: 99;
+  flex-shrink: 0;
+  // overflow: hidden;
+  height: 80px;
+
+  /* bottom: 29px;*/
+  // width: 100%;
+  // opacity: 0;
+  // transform: translateY(100%);
+}
+
+.chatInputContainer--fadeInUp {
+  animation: fadeInUp 0.458s cubic-bezier(0.785, 0.135, 0.15, 0.86) both;
+}
+
+.window--ie .chatInputContainer--fadeInUp {
+  animation: none;
+}
+
+.chat-input__controlbox {
+  height: 100%;
+}
+
+// .chatInputContainer--fadeInUp {
+//   opacity: 1;
+//   transform: translateY(0);
+//   transition: all 0.292s cubic-bezier(0.785, 0.135, 0.15, 0.86) 1.792s;
+// }
+
+.window__chatInputControl {
+  display: block;
+  width: 100%;
+  height: 100%;
+
+  /* 自动变高需要 */
+  padding-top: 0;
+  padding-bottom: 0;
+  border: none;
+  font-size: 1em;
+  color: #000;
+  outline: none;
+}
+
+.chatInput--ripple {
+  position: absolute;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  background: #ddd;
+  -webkit-animation: chatInput--ripple 2s;
+  animation: chatInput--ripple 2s;
+
+  /* z-index: -1;*/
+}
+
+@keyframes chatInput--ripple {
+  from {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0.4;
+  }
+
+  to {
+    -webkit-transform: scale(100);
+    transform: scale(100);
+    opacity: 0;
+  }
+}
+
+.window__chatSender {
+  position: absolute;
+  bottom: 14px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ddd;
+  padding: 7px;
+  border-radius: 100%;
+  top: 50%;
+  margin-top: -20px;
+}
+
+.window__chatSender--active {
+  border-color: @main-light-color;
+}
+
+.window__chatSender--active:hover {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.window--mobile .window__chatSender--active {
+  box-shadow: none;
+}
+
+.window__chatSenderSVG {
+  margin-top: 2px;
+}
+
+.window__chatSenderSVGPath {
+  fill-rule: evenodd;
+  clip-rule: evenodd;
+  fill: #bbb;
+}
+
+.window__chatSender--active .window__chatSenderSVGPath {
+  fill: @main-color;
+}
+
+.window__chatSender .icon-input-send {
+  color: #bbb;
+  font-size: 1.33em;
+  margin-top: 3px;
+  margin-right: 3px;
+}
+
+.window__chatSender--active .icon-input-send {
+  color: @main-color;
+}
+
+.window--classic .chatInputContainer {
+  /* position: absolute;
+  bottom: 30px;*/
+  background: #fff;
+  height: auto;
+}
+// .window--classic .chatInputContainer--active {
+//   box-shadow: 0 -5px 40px rgba(0,0,0,.1);
+//   transition: all 0.292s cubic-bezier(0.785, 0.135, 0.15, 0.86);
+// }
+.window--classic .chatInputContainer--active .window__chatInputControl,
+.window--classic .window__chatInputControl:focus {
+  border-top-color: @main-light-color;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.08);
+  transition: all 0.292s cubic-bezier(0.785, 0.135, 0.15, 0.86);
+}
+
+.window__chatInput--Drag::before {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: rgba(250, 245, 205, 0.85);
+  z-index: 99;
+  text-align: center;
+  color: #d2b067;
+  font-size: 2.133em;
+}
+
+.window--classic .chat-input__controlbox {
+  // overflow: hidden;
+  border-top: 1px solid #ddd;
+  // padding: 8px 15px;
+  background: #fff;
+}
+
+.window--classic .chatInputContainer--active .chat-input__controlbox {
+  border-top-color: @main-light-color;
+}
+
+.window--classic .window__chatInputControl {
+  border: none;
+  background-color: transparent;
+  padding: 8px 75px 8px 10px;
+  max-height: 100px;
+  min-height: 70px;
+  overflow-y: hidden;
+
+  /*
+   * Firefox has bug with textarea
+   * Details see here: [https://stackoverflow.com/questions/7695945/height-of-textarea-does-not-match-the-rows-in-firefox]
+   */
+  overflow-x: hidden;
+  height: 70px;
+  line-height: inherit;
+}
+
+.window--circle .chatInputContainer {
+  /* height: 40px;*/
+
+  /* position: absolute;
+    bottom: 30px;*/
+  height: auto;
+  margin-left: 15px;
+  margin-right: 15px;
+}
+
+.window--circle .window__chatInputControl {
+  /* border: 1px solid #ddd;*/
+  background-color: #fff;
+
+  /* padding: 8px 15px;*/
+
+  /* border-radius: 20px;*/
+
+  /* height: 24px;*/
+  line-height: 21px;
+  max-height: 85px;
+  height: 21px;
+  overflow-y: hidden;
+
+  /*
+   * Firefox has bug with textarea
+   * Details see here: [https://stackoverflow.com/questions/7695945/height-of-textarea-does-not-match-the-rows-in-firefox]
+   */
+  overflow-x: hidden;
+  border: none;
+  padding: 0;
+}
+
+.window--circle .window__chatInput--Drag::before {
+  border-radius: 20px;
+}
+
+.window--circle .chatInputContainer--active .chat-input__controlbox {
+  border-color: @main-color;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.08);
+  transition: all 0.292s cubic-bezier(0.785, 0.135, 0.15, 0.86);
+}
+
+.window--mobile .window--circle .chatInputContainer--active .footer__operation {
+  transform: none;
+}
+
+.window--circle .chat-input__controlbox {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 9px 20px;
+  background: #fff;
+}
+
+.window--circle .chatInputContainer--active .chat-input__controlbox,
+.window--bubble .chatInputContainer--active .chat-input__controlbox {
+  overflow-x: hidden;
+}
+
+.window--bubble .chatInputContainer {
+  /* height: 40px;*/
+  height: auto;
+  // padding-left: 15px;
+  // padding-right: 15px;
+}
+
+.window--bubble .window__chatInputControl {
+  /* border: 1px solid #ddd;*/
+  background-color: #fff;
+
+  /* padding: 8px 15px;*/
+
+  /* border-radius: 20px;*/
+
+  /* height: 24px;*/
+  max-height: 85px;
+  height: 21px;
+  line-height: 21px;
+  overflow-y: hidden;
+
+  /*
+   * Firefox has bug with textarea
+   * Details see here: [https://stackoverflow.com/questions/7695945/height-of-textarea-does-not-match-the-rows-in-firefox]
+   */
+  overflow-x: hidden;
+  border: none;
+  padding: 0;
+}
+
+.window--bubble.window-rtl .window__chatInputControl {
+  overflow-x: hidden;
+}
+
+.window--bubble .window__chatInput--Drag::before {
+  border-radius: 8px;
+}
+
+.window--bubble .chat-input__controlbox {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 9px 15px;
+  background: #fff;
+}
+
+.window--bubble .chatInputContainer--active .chat-input__controlbox {
+  border-color: @main-color;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.08);
+  transition: all 0.292s cubic-bezier(0.785, 0.135, 0.15, 0.86);
+}
+
+.window--circle .chatInputContainer--typed .footer__operation,
+.window--bubble .chatInputContainer--typed .footer__operation {
+  transform: translateX(100%);
+}
+
+.window--circle.window--rtl .chatInputContainer--typed .footer__operation,
+.window--bubble.window--rtl .chatInputContainer--typed .footer__operation {
+  transform: translateX(-100%);
+}
+
+.window--mobile .window--circle .chatInputContainer--typed .footer__operation,
+.window--mobile .window--bubble .chatInputContainer--typed .footer__operation {
+  transform: none;
+}
+
+.window--circle .chat-input__controlbox .bubble-box--show .bubble {
+  // position: fixed;
+  // bottom: 78px;
+  // left: auto;
+  // right: 10px;
+  // z-index: 9;
+  // left: -205px;
+}
+
+.window--circle .chat-input__controlbox .bubble-box--show .bubble,
+.window--bubble .chat-input__controlbox .bubble-box--show .bubble {
+  position: fixed;
+  bottom: 74px;
+  left: auto;
+  right: 35px;
+  z-index: 9;
+  // left: -170px;
+}
+
+.window--bubble.window--embedded .chat-input__controlbox .bubble-box--show .bubble,
+.window--circle.window--embedded .chat-input__controlbox .bubble-box--show .bubble {
+  bottom: 104px;
+}
+
+// .window--bubble .chat-input__controlbox.chat-input__controlbox--disabled .bubble-box--show .bubble {
+//   left: -250px;
+// }
+
+.window--circle.window--rtl .chat-input__controlbox .bubble-box--show .bubble {
+  left: 40px;
+}
+
+.window--bubble.window--rtl .chat-input__controlbox .bubble-box--show .bubble {
+  left: 40px;
+}
+
+// .window--bubble.window--rtl .chat-input__controlbox.chat-input__controlbox--disabled .bubble-box--show .bubble {
+//   left: -10px;
+// }
+
+.window--circle.window--embedded .chat-input__controlbox .bubble-box--show .bubble,
+.window--bubble.window--embedded .chat-input__controlbox .bubble-box--show .bubble {
+  // right: 40px;
+}
+
+.window--circle.window--embedded .chat-input__controlbox .bubble-box--show .bubble,
+.window--bubble.window--embedded .chat-input__controlbox .bubble-box--show .bubble {
+  // bottom: 108px;
+}
+
+.window--circle .chat-input__controlbox--disabled,
+.window--bubble .chat-input__controlbox--disabled,
+.window--circle .chat-input__controlbox--disabled .window__chatInputControl,
+.window--bubble .chat-input__controlbox--disabled .window__chatInputControl {
+  background: #ebebeb;
+}
+
+.window--circle .chat-input__controlbox--disabled,
+.window--bubble .chat-input__controlbox--disabled {
+  position: static;
+}
+// .windpw--mobile .window--bubble.window--embedded .chat-input__controlbox .bubble-box--show .bubble,
+// .windpw--mobile .window--circle.window--embedded .chat-input__controlbox .bubble-box--show .bubble {
+//   bottom: auto;
+//   left: 50%;
+//   transform-origin: 0 0!important;
+// }

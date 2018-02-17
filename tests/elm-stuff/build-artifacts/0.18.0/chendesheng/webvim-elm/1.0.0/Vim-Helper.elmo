@@ -1,0 +1,394 @@
+var _chendesheng$webvim_elm$Vim_Helper$aggregateModeName = function (changes) {
+	return A2(
+		_elm_lang$core$Maybe$withDefault,
+		_chendesheng$webvim_elm$Vim_State$ModeNameNormal,
+		_elm_lang$core$List$head(
+			A3(
+				_elm_lang$core$List$foldl,
+				F2(
+					function (change, modes) {
+						var _p0 = change;
+						switch (_p0.ctor) {
+							case 'PushMode':
+								return {ctor: '::', _0: _p0._0, _1: modes};
+							case 'PopMode':
+								return A2(
+									_elm_lang$core$Maybe$withDefault,
+									{ctor: '[]'},
+									_elm_lang$core$List$tail(modes));
+							default:
+								return modes;
+						}
+					}),
+				{ctor: '[]'},
+				changes)));
+};
+var _chendesheng$webvim_elm$Vim_Helper$aggregateOperator = function (modeDelta) {
+	return _elm_lang$core$List$head(
+		A3(
+			_elm_lang$core$List$foldl,
+			F2(
+				function (change, ops) {
+					var _p1 = change;
+					switch (_p1.ctor) {
+						case 'PushOperator':
+							return {ctor: '::', _0: _p1._0, _1: ops};
+						case 'PopOperator':
+							return A2(
+								_elm_lang$core$Maybe$withDefault,
+								{ctor: '[]'},
+								_elm_lang$core$List$tail(ops));
+						default:
+							return ops;
+					}
+				}),
+			{ctor: '[]'},
+			modeDelta));
+};
+var _chendesheng$webvim_elm$Vim_Helper$makePushKeys = F2(
+	function (k1, k2) {
+		return {
+			ctor: '::',
+			_0: _chendesheng$webvim_elm$Vim_State$PushKeys(
+				{
+					ctor: '::',
+					_0: k1,
+					_1: {
+						ctor: '::',
+						_0: k2,
+						_1: {ctor: '[]'}
+					}
+				}),
+			_1: {ctor: '[]'}
+		};
+	});
+var _chendesheng$webvim_elm$Vim_Helper$popComplete = A2(
+	_elm_lang$core$Basics$flip,
+	F2(
+		function (x, y) {
+			return A2(_elm_lang$core$Basics_ops['++'], x, y);
+		}),
+	{
+		ctor: '::',
+		_0: _chendesheng$webvim_elm$Vim_State$PopComplete,
+		_1: {ctor: '[]'}
+	});
+var _chendesheng$webvim_elm$Vim_Helper$pushComplete = A2(
+	_elm_lang$core$Basics$flip,
+	F2(
+		function (x, y) {
+			return A2(_elm_lang$core$Basics_ops['++'], x, y);
+		}),
+	{
+		ctor: '::',
+		_0: _chendesheng$webvim_elm$Vim_State$PushComplete,
+		_1: {ctor: '[]'}
+	});
+var _chendesheng$webvim_elm$Vim_Helper$parserPopKeys2 = function (modeDelta) {
+	return _elm_tools$parser$Parser$succeed(
+		A2(
+			_elm_lang$core$Basics_ops['++'],
+			modeDelta,
+			{
+				ctor: '::',
+				_0: _chendesheng$webvim_elm$Vim_State$PopKey,
+				_1: {
+					ctor: '::',
+					_0: _chendesheng$webvim_elm$Vim_State$PopKey,
+					_1: {ctor: '[]'}
+				}
+			}));
+};
+var _chendesheng$webvim_elm$Vim_Helper$parserPopKey = function (modeDelta) {
+	return _elm_tools$parser$Parser$succeed(
+		A2(
+			_elm_lang$core$Basics_ops['++'],
+			modeDelta,
+			{
+				ctor: '::',
+				_0: _chendesheng$webvim_elm$Vim_State$PopKey,
+				_1: {ctor: '[]'}
+			}));
+};
+var _chendesheng$webvim_elm$Vim_Helper$aggregateRecordingMacro = function (modeDelta) {
+	return _elm_lang$core$List$head(
+		A3(
+			_elm_lang$core$List$foldl,
+			F2(
+				function (change, ops) {
+					var _p2 = change;
+					switch (_p2.ctor) {
+						case 'PushRecordMacro':
+							return {ctor: '::', _0: _p2._0, _1: ops};
+						case 'PopRecordMacro':
+							return A2(
+								_elm_lang$core$Maybe$withDefault,
+								{ctor: '[]'},
+								_elm_lang$core$List$tail(ops));
+						default:
+							return ops;
+					}
+				}),
+			{ctor: '[]'},
+			modeDelta));
+};
+var _chendesheng$webvim_elm$Vim_Helper$aggregateCount = A2(
+	_elm_lang$core$List$foldl,
+	F2(
+		function (change, res) {
+			var _p3 = change;
+			if (_p3.ctor === 'PushCount') {
+				return res * _p3._0;
+			} else {
+				return res;
+			}
+		}),
+	1);
+var _chendesheng$webvim_elm$Vim_Helper$aggregateChanges = F3(
+	function (push, pop, modeDelta) {
+		return _elm_lang$core$Native_Utils.cmp(
+			A3(
+				_elm_lang$core$List$foldl,
+				F2(
+					function (change, res) {
+						return _elm_lang$core$Native_Utils.eq(change, push) ? (res + 1) : (_elm_lang$core$Native_Utils.eq(change, pop) ? (res - 1) : res);
+					}),
+				0,
+				modeDelta),
+			0) > 0;
+	});
+var _chendesheng$webvim_elm$Vim_Helper$isComplete = A2(_chendesheng$webvim_elm$Vim_Helper$aggregateChanges, _chendesheng$webvim_elm$Vim_State$PushComplete, _chendesheng$webvim_elm$Vim_State$PopComplete);
+var _chendesheng$webvim_elm$Vim_Helper$completeAndThen = F2(
+	function (f, p) {
+		return A2(
+			_elm_tools$parser$Parser$andThen,
+			function (modeDelta) {
+				return _chendesheng$webvim_elm$Vim_Helper$isComplete(modeDelta) ? f(modeDelta) : _elm_tools$parser$Parser$succeed(modeDelta);
+			},
+			p);
+	});
+var _chendesheng$webvim_elm$Vim_Helper$keyParserAndThen = F4(
+	function (keyParser, partialResult, escapeResult, nextOps) {
+		return A2(
+			_elm_tools$parser$Parser$andThen,
+			function (key) {
+				return _elm_tools$parser$Parser$oneOf(
+					{
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser_ops['|.'],
+							_elm_tools$parser$Parser$succeed(
+								partialResult(key)),
+							_elm_tools$parser$Parser$end),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_tools$parser$Parser_ops['|.'],
+								_elm_tools$parser$Parser$succeed(escapeResult),
+								_elm_tools$parser$Parser$symbol('<esc>')),
+							_1: {
+								ctor: '::',
+								_0: nextOps,
+								_1: {ctor: '[]'}
+							}
+						}
+					});
+			},
+			keyParser);
+	});
+var _chendesheng$webvim_elm$Vim_Helper$readKeyAndThen = F4(
+	function (key, partialResult, escapeResult, nextOps) {
+		return A2(
+			_elm_tools$parser$Parser_ops['|='],
+			A2(
+				_elm_tools$parser$Parser_ops['|.'],
+				_elm_tools$parser$Parser$succeed(_elm_lang$core$Basics$identity),
+				_elm_tools$parser$Parser$symbol(key)),
+			_elm_tools$parser$Parser$oneOf(
+				{
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser_ops['|.'],
+						_elm_tools$parser$Parser$succeed(partialResult),
+						_elm_tools$parser$Parser$end),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser_ops['|.'],
+							_elm_tools$parser$Parser$succeed(escapeResult),
+							_elm_tools$parser$Parser$symbol('<esc>')),
+						_1: {
+							ctor: '::',
+							_0: nextOps,
+							_1: {ctor: '[]'}
+						}
+					}
+				}));
+	});
+var _chendesheng$webvim_elm$Vim_Helper$mapTuple = F3(
+	function (m1, m2, _p4) {
+		var _p5 = _p4;
+		return {
+			ctor: '_Tuple2',
+			_0: m1(_p5._0),
+			_1: m2(_p5._1)
+		};
+	});
+var _chendesheng$webvim_elm$Vim_Helper$tuple = F2(
+	function (a, b) {
+		return {ctor: '_Tuple2', _0: a, _1: b};
+	});
+var _chendesheng$webvim_elm$Vim_Helper$tupleFlip = _elm_lang$core$Basics$flip(_chendesheng$webvim_elm$Vim_Helper$tuple);
+var _chendesheng$webvim_elm$Vim_Helper$getLast = function (xs) {
+	getLast:
+	while (true) {
+		var _p6 = xs;
+		if (_p6.ctor === '[]') {
+			return _elm_lang$core$Maybe$Nothing;
+		} else {
+			if (_p6._1.ctor === '[]') {
+				return _elm_lang$core$Maybe$Just(_p6._0);
+			} else {
+				var _v6 = _p6._1;
+				xs = _v6;
+				continue getLast;
+			}
+		}
+	}
+};
+var _chendesheng$webvim_elm$Vim_Helper$aggregateRegister = function (modeDelta) {
+	return A2(
+		_elm_lang$core$Maybe$withDefault,
+		_chendesheng$webvim_elm$Vim_State$defaultRegister,
+		A2(
+			_elm_lang$core$Maybe$map,
+			function (change) {
+				var _p7 = change;
+				if (_p7.ctor === 'PushRegister') {
+					return _p7._0;
+				} else {
+					return _chendesheng$webvim_elm$Vim_State$defaultRegister;
+				}
+			},
+			_chendesheng$webvim_elm$Vim_Helper$getLast(
+				A2(
+					_elm_lang$core$List$filter,
+					function (change) {
+						var _p8 = change;
+						if (_p8.ctor === 'PushRegister') {
+							return true;
+						} else {
+							return false;
+						}
+					},
+					modeDelta))));
+};
+var _chendesheng$webvim_elm$Vim_Helper$dropLast = function (l) {
+	var _p9 = l;
+	if (_p9.ctor === '[]') {
+		return {ctor: '[]'};
+	} else {
+		if (_p9._1.ctor === '[]') {
+			return {ctor: '[]'};
+		} else {
+			return {
+				ctor: '::',
+				_0: _p9._0,
+				_1: _chendesheng$webvim_elm$Vim_Helper$dropLast(_p9._1)
+			};
+		}
+	}
+};
+var _chendesheng$webvim_elm$Vim_Helper$keepChar = function (pred) {
+	return A2(
+		_elm_tools$parser$Parser$keep,
+		_elm_tools$parser$Parser$Exactly(1),
+		pred);
+};
+var _chendesheng$webvim_elm$Vim_Helper$ignoreChar = function (pred) {
+	return A2(
+		_elm_tools$parser$Parser$ignore,
+		_elm_tools$parser$Parser$Exactly(1),
+		pred);
+};
+var _chendesheng$webvim_elm$Vim_Helper$isBetween = F3(
+	function (low, high, $char) {
+		var code = _elm_lang$core$Char$toCode($char);
+		return (_elm_lang$core$Native_Utils.cmp(
+			code,
+			_elm_lang$core$Char$toCode(low)) > -1) && (_elm_lang$core$Native_Utils.cmp(
+			code,
+			_elm_lang$core$Char$toCode(high)) < 1);
+	});
+var _chendesheng$webvim_elm$Vim_Helper$countParser = A2(
+	_elm_tools$parser$Parser$andThen,
+	function (s) {
+		var n = _elm_lang$core$String$toInt(s);
+		var _p10 = n;
+		if (_p10.ctor === 'Ok') {
+			var _p11 = _p10._0;
+			return (_elm_lang$core$Native_Utils.cmp(
+				_p11,
+				Math.pow(2, 30)) > 0) ? _elm_tools$parser$Parser$fail('too large count') : _elm_tools$parser$Parser$succeed(_p11);
+		} else {
+			return _elm_tools$parser$Parser$fail('not a valid count');
+		}
+	},
+	_elm_tools$parser$Parser$source(
+		A2(
+			_elm_tools$parser$Parser_ops['|.'],
+			A2(
+				_elm_tools$parser$Parser$ignore,
+				_elm_tools$parser$Parser$Exactly(1),
+				A2(
+					_chendesheng$webvim_elm$Vim_Helper$isBetween,
+					_elm_lang$core$Native_Utils.chr('1'),
+					_elm_lang$core$Native_Utils.chr('9'))),
+			A2(_elm_tools$parser$Parser$ignore, _elm_tools$parser$Parser$zeroOrMore, _elm_lang$core$Char$isDigit))));
+var _chendesheng$webvim_elm$Vim_Helper$escapeKey = function (key) {
+	return _elm_lang$core$Native_Utils.eq(key, '<') ? '\\<' : (_elm_lang$core$Native_Utils.eq(key, '\\') ? '\\\\' : key);
+};
+var _chendesheng$webvim_elm$Vim_Helper$aggregateKeys = function (changes) {
+	return A2(
+		_elm_lang$core$String$join,
+		'',
+		A2(
+			_elm_lang$core$List$map,
+			_chendesheng$webvim_elm$Vim_Helper$escapeKey,
+			A3(
+				_elm_lang$core$List$foldl,
+				F2(
+					function (change, keys) {
+						var _p12 = change;
+						switch (_p12.ctor) {
+							case 'PushKey':
+								return {ctor: '::', _0: _p12._0, _1: keys};
+							case 'PushKeys':
+								return A2(_elm_lang$core$Basics_ops['++'], _p12._0, keys);
+							default:
+								return keys;
+						}
+					}),
+				{ctor: '[]'},
+				A3(
+					_elm_lang$core$List$foldl,
+					F2(
+						function (change, result) {
+							var _p13 = change;
+							switch (_p13.ctor) {
+								case 'PushKey':
+									return {ctor: '::', _0: change, _1: result};
+								case 'PushKeys':
+									return {ctor: '::', _0: change, _1: result};
+								case 'PopKey':
+									return A2(
+										_elm_lang$core$Maybe$withDefault,
+										{ctor: '[]'},
+										_elm_lang$core$List$tail(result));
+								default:
+									return result;
+							}
+						}),
+					{ctor: '[]'},
+					changes))));
+};

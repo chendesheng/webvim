@@ -1,0 +1,13 @@
+{
+    "elm-community/elm-test": "4.2.0",
+    "elm-tools/parser-primitives": "1.0.0",
+    "elm-lang/virtual-dom": "2.0.4",
+    "eeue56/elm-lazy": "1.0.0",
+    "mgold/elm-random-pcg": "5.0.2",
+    "eeue56/elm-lazy-list": "1.0.0",
+    "elm-lang/html": "2.0.0",
+    "elm-tools/parser": "2.0.1",
+    "elm-lang/http": "1.0.0",
+    "eeue56/elm-shrink": "1.0.0",
+    "elm-lang/core": "5.1.1"
+}

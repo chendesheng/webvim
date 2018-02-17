@@ -1,0 +1,147 @@
+.rating {
+  position: relative;
+}
+
+.rating .star {
+  display: inline-block;
+  // margin: 5px;
+  margin-right: 10px;
+  font-size: 2em;
+  line-height: 30px;
+  color: #c8c8c8;
+  position: relative;
+  cursor: pointer;
+}
+
+.rating .star:last-child {
+  margin-right: 0;
+}
+
+.window--bubble .form-fields--horizonal .rating .star {
+  font-size: 1.06em;
+  line-height: 16px;
+  margin-right: 6px;
+}
+
+.window--circle .form-fields--horizonal .rating .star {
+  font-size: 1.66em;
+  line-height: 25px;
+}
+
+.rating .star.animate {
+  color: #ffd051;
+  animation: stretch-bounce 0.542s ease-in-out both;
+  // color: #ffd051 \0;
+}
+
+.window--ie .rating .animate.star {
+  animation: none;
+}
+
+.rating .star.hidden {
+  opacity: 0;
+}
+
+.rating .full::before {
+  // font-family: icons;
+  display: inline-block;
+  // content: "\f112";
+  position: relative;
+  float: right;
+  z-index: 2;
+}
+
+.rating .full {
+  outline: none;
+}
+
+.rating .half::before {
+  // font-family: icons;
+  // content: "\f105";
+  position: absolute;
+  float: left;
+  z-index: 3;
+}
+
+.rating .starColour {
+  color: #ffd051;
+  outline: none;
+}
+
+@keyframes stretch-bounce {
+  0% {
+    transform: scale(1);
+    color: #c8c8c8;
+  }
+
+  38.5% {
+    transform: scale(1.2);
+    color: #c8c8c8;
+  }
+
+  61.5% {
+    transform: scale(0);
+    color: #c8c8c8;
+  }
+
+  100% {
+    transform: scale(1);
+    color: #ffd051;
+  }
+}
+
+.rating .selected::before {
+  // font-family: icons;
+  display: inline-block;
+  // content: "\f112";
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: scale(1);
+  opacity: 1;
+  z-index: 1;
+}
+
+.rating .selected.pulse::before {
+  transform: scale(3);
+  opacity: 0;
+}
+
+.rating .selected.isAnimated::before {
+  -webkit-transition: 1s ease-out;
+  transition: 1s ease-out;
+}
+
+/* .score {
+  font-family: arial;
+  font-size: 1.33em;
+  color: green;
+  margin-top: 20px;
+  margin-left: 50px;
+}
+.score-rating {
+  vertical-align: sup;
+  top: -5px;
+  position: relative;
+  font-size: 150%;
+}
+.total {
+  vertical-align: sub;
+  top: 0px;
+  position: relative;
+  font-size: 100%;
+}
+.average {
+  font-family: arial;
+  font-size: 1.33em;
+  color: indianred;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+  text-align: center;
+}
+.average .score-average {
+  padding-top: 30px;
+} */

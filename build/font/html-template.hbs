@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>{{fontName}}</title>
+	<script type="text" id="style">
+		{{{styles}}}
+	</script>
+	<style>
+		body {
+			font-family: sans-serif;
+			margin: 0;
+			padding: 10px 20px;
+		}
+
+		.preview {
+			line-height: 2em;
+		}
+
+		.preview__icon {
+			display: inline-block;
+			width: 32px;
+			text-align: center;
+		}
+
+		.icon {
+			display: inline-block;
+			font-size: 1.06em;
+		}
+	</style>
+	<script type="text/javascript">
+		var ele = document.getElementsByTagName('style')[0];
+		ele.textContent +=
+			document.querySelector('#style').textContent.replace(/[{]FONT_URL_PREFIX[}]/g, './fonts');
+	</script>
+</head>
+<body>
+	<h1>{{fontName}}</h1>
+	{{#each names}}
+	<div class="preview">
+		<span class="preview__icon">
+			<span class="icon {{../classPrefix}}{{this}}"></span>
+		</span>
+		<span>{{this}}</span>
+	</div>
+	{{/each}}
+</body>
+</html>

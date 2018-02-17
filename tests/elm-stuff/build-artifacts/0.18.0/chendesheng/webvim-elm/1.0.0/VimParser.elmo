@@ -1,0 +1,1358 @@
+var _chendesheng$webvim_elm$VimParser$cases = {
+	ctor: '::',
+	_0: {
+		ctor: '_Tuple2',
+		_0: 'w',
+		_1: {
+			ctor: '_Tuple2',
+			_0: _elm_lang$core$Native_Utils.update(
+				_chendesheng$webvim_elm$Vim_State$initialMode,
+				{
+					edit: _elm_lang$core$Maybe$Just(
+						_chendesheng$webvim_elm$Vim_State$Move(
+							_chendesheng$webvim_elm$Vim_State$ByClass(
+								{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart})))
+				}),
+			_1: ''
+		}
+	},
+	_1: {
+		ctor: '::',
+		_0: {
+			ctor: '_Tuple2',
+			_0: 'b',
+			_1: {
+				ctor: '_Tuple2',
+				_0: _elm_lang$core$Native_Utils.update(
+					_chendesheng$webvim_elm$Vim_State$initialMode,
+					{
+						edit: _elm_lang$core$Maybe$Just(
+							_chendesheng$webvim_elm$Vim_State$Move(
+								_chendesheng$webvim_elm$Vim_State$ByClass(
+									{direction: _chendesheng$webvim_elm$Vim_State$Backward, $class: _chendesheng$webvim_elm$Vim_State$WordStart})))
+					}),
+				_1: ''
+			}
+		},
+		_1: {
+			ctor: '::',
+			_0: {
+				ctor: '_Tuple2',
+				_0: 'g',
+				_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'g'}
+			},
+			_1: {
+				ctor: '::',
+				_0: {
+					ctor: '_Tuple2',
+					_0: 'gg',
+					_1: {
+						ctor: '_Tuple2',
+						_0: _elm_lang$core$Native_Utils.update(
+							_chendesheng$webvim_elm$Vim_State$initialMode,
+							{
+								edit: _elm_lang$core$Maybe$Just(
+									_chendesheng$webvim_elm$Vim_State$Move(
+										_chendesheng$webvim_elm$Vim_State$LineNumber(0)))
+							}),
+						_1: ''
+					}
+				},
+				_1: {
+					ctor: '::',
+					_0: {
+						ctor: '_Tuple2',
+						_0: 'g<esc>',
+						_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+					},
+					_1: {
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'gj',
+							_1: {
+								ctor: '_Tuple2',
+								_0: _elm_lang$core$Native_Utils.update(
+									_chendesheng$webvim_elm$Vim_State$initialMode,
+									{
+										edit: _elm_lang$core$Maybe$Just(
+											_chendesheng$webvim_elm$Vim_State$Move(
+												_chendesheng$webvim_elm$Vim_State$VLineDelta(1)))
+									}),
+								_1: ''
+							}
+						},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'gJ',
+								_1: {
+									ctor: '_Tuple2',
+									_0: _elm_lang$core$Native_Utils.update(
+										_chendesheng$webvim_elm$Vim_State$initialMode,
+										{
+											edit: _elm_lang$core$Maybe$Just(
+												_chendesheng$webvim_elm$Vim_State$Join(true))
+										}),
+									_1: ''
+								}
+							},
+							_1: {
+								ctor: '::',
+								_0: {
+									ctor: '_Tuple2',
+									_0: 'i',
+									_1: {
+										ctor: '_Tuple2',
+										_0: _elm_lang$core$Native_Utils.update(
+											_chendesheng$webvim_elm$Vim_State$initialMode,
+											{mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert}),
+										_1: 'i'
+									}
+								},
+								_1: {
+									ctor: '::',
+									_0: {
+										ctor: '_Tuple2',
+										_0: 'i<esc>',
+										_1: {
+											ctor: '_Tuple2',
+											_0: _elm_lang$core$Native_Utils.update(
+												_chendesheng$webvim_elm$Vim_State$initialMode,
+												{mode: _chendesheng$webvim_elm$Vim_State$ModeNameNormal}),
+											_1: ''
+										}
+									},
+									_1: {
+										ctor: '::',
+										_0: {
+											ctor: '_Tuple2',
+											_0: 'ia',
+											_1: {
+												ctor: '_Tuple2',
+												_0: _elm_lang$core$Native_Utils.update(
+													_chendesheng$webvim_elm$Vim_State$initialMode,
+													{
+														mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+														edit: _elm_lang$core$Maybe$Just(
+															_chendesheng$webvim_elm$Vim_State$InsertMode(
+																_chendesheng$webvim_elm$Vim_State$InsertString('a')))
+													}),
+												_1: 'i'
+											}
+										},
+										_1: {
+											ctor: '::',
+											_0: {
+												ctor: '_Tuple2',
+												_0: 'c',
+												_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'c'}
+											},
+											_1: {
+												ctor: '::',
+												_0: {
+													ctor: '_Tuple2',
+													_0: 'c<esc>',
+													_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+												},
+												_1: {
+													ctor: '::',
+													_0: {
+														ctor: '_Tuple2',
+														_0: 'cw',
+														_1: {
+															ctor: '_Tuple2',
+															_0: _elm_lang$core$Native_Utils.update(
+																_chendesheng$webvim_elm$Vim_State$initialMode,
+																{
+																	mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+																	edit: _elm_lang$core$Maybe$Just(
+																		_chendesheng$webvim_elm$Vim_State$Delete(
+																			A2(
+																				_chendesheng$webvim_elm$Vim_State$MotionRange,
+																				_chendesheng$webvim_elm$Vim_State$Exclusive,
+																				_chendesheng$webvim_elm$Vim_State$ByClass(
+																					{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+																}),
+															_1: 'cw'
+														}
+													},
+													_1: {
+														ctor: '::',
+														_0: {
+															ctor: '_Tuple2',
+															_0: 'cv',
+															_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'cv'}
+														},
+														_1: {
+															ctor: '::',
+															_0: {
+																ctor: '_Tuple2',
+																_0: 'cv<esc>',
+																_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+															},
+															_1: {
+																ctor: '::',
+																_0: {
+																	ctor: '_Tuple2',
+																	_0: 'cvw',
+																	_1: {
+																		ctor: '_Tuple2',
+																		_0: _elm_lang$core$Native_Utils.update(
+																			_chendesheng$webvim_elm$Vim_State$initialMode,
+																			{
+																				mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+																				edit: _elm_lang$core$Maybe$Just(
+																					_chendesheng$webvim_elm$Vim_State$Delete(
+																						A2(
+																							_chendesheng$webvim_elm$Vim_State$MotionRange,
+																							_chendesheng$webvim_elm$Vim_State$Inclusive,
+																							_chendesheng$webvim_elm$Vim_State$ByClass(
+																								{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+																			}),
+																		_1: 'cvw'
+																	}
+																},
+																_1: {
+																	ctor: '::',
+																	_0: {
+																		ctor: '_Tuple2',
+																		_0: 'cw<esc>',
+																		_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																	},
+																	_1: {
+																		ctor: '::',
+																		_0: {
+																			ctor: '_Tuple2',
+																			_0: 'cvw<esc>',
+																			_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																		},
+																		_1: {
+																			ctor: '::',
+																			_0: {
+																				ctor: '_Tuple2',
+																				_0: 'cwa',
+																				_1: {
+																					ctor: '_Tuple2',
+																					_0: _elm_lang$core$Native_Utils.update(
+																						_chendesheng$webvim_elm$Vim_State$initialMode,
+																						{
+																							mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+																							edit: _elm_lang$core$Maybe$Just(
+																								_chendesheng$webvim_elm$Vim_State$InsertMode(
+																									_chendesheng$webvim_elm$Vim_State$InsertString('a')))
+																						}),
+																					_1: 'cw'
+																				}
+																			},
+																			_1: {
+																				ctor: '::',
+																				_0: {
+																					ctor: '_Tuple2',
+																					_0: 'cawa',
+																					_1: {
+																						ctor: '_Tuple2',
+																						_0: _elm_lang$core$Native_Utils.update(
+																							_chendesheng$webvim_elm$Vim_State$initialMode,
+																							{
+																								mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+																								edit: _elm_lang$core$Maybe$Just(
+																									_chendesheng$webvim_elm$Vim_State$InsertMode(
+																										_chendesheng$webvim_elm$Vim_State$InsertString('a')))
+																							}),
+																						_1: 'caw'
+																					}
+																				},
+																				_1: {
+																					ctor: '::',
+																					_0: {
+																						ctor: '_Tuple2',
+																						_0: 'd',
+																						_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'd'}
+																					},
+																					_1: {
+																						ctor: '::',
+																						_0: {
+																							ctor: '_Tuple2',
+																							_0: 'd<esc>',
+																							_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																						},
+																						_1: {
+																							ctor: '::',
+																							_0: {
+																								ctor: '_Tuple2',
+																								_0: 'dw',
+																								_1: {
+																									ctor: '_Tuple2',
+																									_0: _elm_lang$core$Native_Utils.update(
+																										_chendesheng$webvim_elm$Vim_State$initialMode,
+																										{
+																											edit: _elm_lang$core$Maybe$Just(
+																												_chendesheng$webvim_elm$Vim_State$Delete(
+																													A2(
+																														_chendesheng$webvim_elm$Vim_State$MotionRange,
+																														_chendesheng$webvim_elm$Vim_State$Exclusive,
+																														_chendesheng$webvim_elm$Vim_State$ByClass(
+																															{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+																										}),
+																									_1: ''
+																								}
+																							},
+																							_1: {
+																								ctor: '::',
+																								_0: {
+																									ctor: '_Tuple2',
+																									_0: 'dv',
+																									_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'dv'}
+																								},
+																								_1: {
+																									ctor: '::',
+																									_0: {
+																										ctor: '_Tuple2',
+																										_0: 'dvw',
+																										_1: {
+																											ctor: '_Tuple2',
+																											_0: _elm_lang$core$Native_Utils.update(
+																												_chendesheng$webvim_elm$Vim_State$initialMode,
+																												{
+																													edit: _elm_lang$core$Maybe$Just(
+																														_chendesheng$webvim_elm$Vim_State$Delete(
+																															A2(
+																																_chendesheng$webvim_elm$Vim_State$MotionRange,
+																																_chendesheng$webvim_elm$Vim_State$Inclusive,
+																																_chendesheng$webvim_elm$Vim_State$ByClass(
+																																	{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+																												}),
+																											_1: ''
+																										}
+																									},
+																									_1: {
+																										ctor: '::',
+																										_0: {
+																											ctor: '_Tuple2',
+																											_0: '\\<',
+																											_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: '\\<'}
+																										},
+																										_1: {
+																											ctor: '::',
+																											_0: {
+																												ctor: '_Tuple2',
+																												_0: '\\<<esc>',
+																												_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																											},
+																											_1: {
+																												ctor: '::',
+																												_0: {
+																													ctor: '_Tuple2',
+																													_0: '\\<w',
+																													_1: {
+																														ctor: '_Tuple2',
+																														_0: _elm_lang$core$Native_Utils.update(
+																															_chendesheng$webvim_elm$Vim_State$initialMode,
+																															{
+																																edit: _elm_lang$core$Maybe$Just(
+																																	A2(
+																																		_chendesheng$webvim_elm$Vim_State$Indent,
+																																		_chendesheng$webvim_elm$Vim_State$Backward,
+																																		A2(
+																																			_chendesheng$webvim_elm$Vim_State$MotionRange,
+																																			_chendesheng$webvim_elm$Vim_State$Exclusive,
+																																			_chendesheng$webvim_elm$Vim_State$ByClass(
+																																				{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+																															}),
+																														_1: ''
+																													}
+																												},
+																												_1: {
+																													ctor: '::',
+																													_0: {
+																														ctor: '_Tuple2',
+																														_0: '\\<v',
+																														_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: '\\<v'}
+																													},
+																													_1: {
+																														ctor: '::',
+																														_0: {
+																															ctor: '_Tuple2',
+																															_0: '\\<vw',
+																															_1: {
+																																ctor: '_Tuple2',
+																																_0: _elm_lang$core$Native_Utils.update(
+																																	_chendesheng$webvim_elm$Vim_State$initialMode,
+																																	{
+																																		edit: _elm_lang$core$Maybe$Just(
+																																			A2(
+																																				_chendesheng$webvim_elm$Vim_State$Indent,
+																																				_chendesheng$webvim_elm$Vim_State$Backward,
+																																				A2(
+																																					_chendesheng$webvim_elm$Vim_State$MotionRange,
+																																					_chendesheng$webvim_elm$Vim_State$Inclusive,
+																																					_chendesheng$webvim_elm$Vim_State$ByClass(
+																																						{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+																																	}),
+																																_1: ''
+																															}
+																														},
+																														_1: {
+																															ctor: '::',
+																															_0: {
+																																ctor: '_Tuple2',
+																																_0: 'J',
+																																_1: {
+																																	ctor: '_Tuple2',
+																																	_0: _elm_lang$core$Native_Utils.update(
+																																		_chendesheng$webvim_elm$Vim_State$initialMode,
+																																		{
+																																			edit: _elm_lang$core$Maybe$Just(
+																																				_chendesheng$webvim_elm$Vim_State$Join(false))
+																																		}),
+																																	_1: ''
+																																}
+																															},
+																															_1: {
+																																ctor: '::',
+																																_0: {
+																																	ctor: '_Tuple2',
+																																	_0: ':',
+																																	_1: {
+																																		ctor: '_Tuple2',
+																																		_0: _elm_lang$core$Native_Utils.update(
+																																			_chendesheng$webvim_elm$Vim_State$initialMode,
+																																			{
+																																				mode: _chendesheng$webvim_elm$Vim_State$ModeNameEx(':')
+																																			}),
+																																		_1: ':'
+																																	}
+																																},
+																																_1: {
+																																	ctor: '::',
+																																	_0: {
+																																		ctor: '_Tuple2',
+																																		_0: ':<esc>',
+																																		_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																	},
+																																	_1: {
+																																		ctor: '::',
+																																		_0: {
+																																			ctor: '_Tuple2',
+																																			_0: ':<cr>',
+																																			_1: {
+																																				ctor: '_Tuple2',
+																																				_0: _elm_lang$core$Native_Utils.update(
+																																					_chendesheng$webvim_elm$Vim_State$initialMode,
+																																					{
+																																						edit: _elm_lang$core$Maybe$Just(
+																																							_chendesheng$webvim_elm$Vim_State$ExMode(_chendesheng$webvim_elm$Vim_State$Execute))
+																																					}),
+																																				_1: ''
+																																			}
+																																		},
+																																		_1: {
+																																			ctor: '::',
+																																			_0: {
+																																				ctor: '_Tuple2',
+																																				_0: ':a',
+																																				_1: {
+																																					ctor: '_Tuple2',
+																																					_0: _elm_lang$core$Native_Utils.update(
+																																						_chendesheng$webvim_elm$Vim_State$initialMode,
+																																						{
+																																							edit: _elm_lang$core$Maybe$Just(
+																																								_chendesheng$webvim_elm$Vim_State$ExMode(
+																																									_chendesheng$webvim_elm$Vim_State$ExInsert(
+																																										_chendesheng$webvim_elm$Vim_State$InsertString('a')))),
+																																							mode: _chendesheng$webvim_elm$Vim_State$ModeNameEx(':')
+																																						}),
+																																					_1: ':'
+																																				}
+																																			},
+																																			_1: {
+																																				ctor: '::',
+																																				_0: {
+																																					ctor: '_Tuple2',
+																																					_0: '/',
+																																					_1: {
+																																						ctor: '_Tuple2',
+																																						_0: _elm_lang$core$Native_Utils.update(
+																																							_chendesheng$webvim_elm$Vim_State$initialMode,
+																																							{
+																																								mode: _chendesheng$webvim_elm$Vim_State$ModeNameEx('/')
+																																							}),
+																																						_1: '/'
+																																					}
+																																				},
+																																				_1: {
+																																					ctor: '::',
+																																					_0: {
+																																						ctor: '_Tuple2',
+																																						_0: '/<esc>',
+																																						_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																					},
+																																					_1: {
+																																						ctor: '::',
+																																						_0: {
+																																							ctor: '_Tuple2',
+																																							_0: '/<cr>',
+																																							_1: {
+																																								ctor: '_Tuple2',
+																																								_0: _elm_lang$core$Native_Utils.update(
+																																									_chendesheng$webvim_elm$Vim_State$initialMode,
+																																									{
+																																										edit: _elm_lang$core$Maybe$Just(
+																																											_chendesheng$webvim_elm$Vim_State$Move(
+																																												_chendesheng$webvim_elm$Vim_State$MatchString(_chendesheng$webvim_elm$Vim_State$Forward)))
+																																									}),
+																																								_1: ''
+																																							}
+																																						},
+																																						_1: {
+																																							ctor: '::',
+																																							_0: {
+																																								ctor: '_Tuple2',
+																																								_0: '/a',
+																																								_1: {
+																																									ctor: '_Tuple2',
+																																									_0: _elm_lang$core$Native_Utils.update(
+																																										_chendesheng$webvim_elm$Vim_State$initialMode,
+																																										{
+																																											edit: _elm_lang$core$Maybe$Just(
+																																												_chendesheng$webvim_elm$Vim_State$ExMode(
+																																													_chendesheng$webvim_elm$Vim_State$ExInsert(
+																																														_chendesheng$webvim_elm$Vim_State$InsertString('a')))),
+																																											mode: _chendesheng$webvim_elm$Vim_State$ModeNameEx('/')
+																																										}),
+																																									_1: '/'
+																																								}
+																																							},
+																																							_1: {
+																																								ctor: '::',
+																																								_0: {
+																																									ctor: '_Tuple2',
+																																									_0: '?',
+																																									_1: {
+																																										ctor: '_Tuple2',
+																																										_0: _elm_lang$core$Native_Utils.update(
+																																											_chendesheng$webvim_elm$Vim_State$initialMode,
+																																											{
+																																												mode: _chendesheng$webvim_elm$Vim_State$ModeNameEx('?')
+																																											}),
+																																										_1: '?'
+																																									}
+																																								},
+																																								_1: {
+																																									ctor: '::',
+																																									_0: {
+																																										ctor: '_Tuple2',
+																																										_0: '?<esc>',
+																																										_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																									},
+																																									_1: {
+																																										ctor: '::',
+																																										_0: {
+																																											ctor: '_Tuple2',
+																																											_0: '?<cr>',
+																																											_1: {
+																																												ctor: '_Tuple2',
+																																												_0: _elm_lang$core$Native_Utils.update(
+																																													_chendesheng$webvim_elm$Vim_State$initialMode,
+																																													{
+																																														edit: _elm_lang$core$Maybe$Just(
+																																															_chendesheng$webvim_elm$Vim_State$Move(
+																																																_chendesheng$webvim_elm$Vim_State$MatchString(_chendesheng$webvim_elm$Vim_State$Backward)))
+																																													}),
+																																												_1: ''
+																																											}
+																																										},
+																																										_1: {
+																																											ctor: '::',
+																																											_0: {
+																																												ctor: '_Tuple2',
+																																												_0: '?a',
+																																												_1: {
+																																													ctor: '_Tuple2',
+																																													_0: _elm_lang$core$Native_Utils.update(
+																																														_chendesheng$webvim_elm$Vim_State$initialMode,
+																																														{
+																																															edit: _elm_lang$core$Maybe$Just(
+																																																_chendesheng$webvim_elm$Vim_State$ExMode(
+																																																	_chendesheng$webvim_elm$Vim_State$ExInsert(
+																																																		_chendesheng$webvim_elm$Vim_State$InsertString('a')))),
+																																															mode: _chendesheng$webvim_elm$Vim_State$ModeNameEx('?')
+																																														}),
+																																													_1: '?'
+																																												}
+																																											},
+																																											_1: {
+																																												ctor: '::',
+																																												_0: {
+																																													ctor: '_Tuple2',
+																																													_0: 'i<c-o>',
+																																													_1: {
+																																														ctor: '_Tuple2',
+																																														_0: _elm_lang$core$Native_Utils.update(
+																																															_chendesheng$webvim_elm$Vim_State$initialMode,
+																																															{mode: _chendesheng$webvim_elm$Vim_State$ModeNameTempNormal}),
+																																														_1: 'i<c-o>'
+																																													}
+																																												},
+																																												_1: {
+																																													ctor: '::',
+																																													_0: {
+																																														ctor: '_Tuple2',
+																																														_0: 'i<c-o><esc>',
+																																														_1: {
+																																															ctor: '_Tuple2',
+																																															_0: _elm_lang$core$Native_Utils.update(
+																																																_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																{mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert}),
+																																															_1: 'i'
+																																														}
+																																													},
+																																													_1: {
+																																														ctor: '::',
+																																														_0: {
+																																															ctor: '_Tuple2',
+																																															_0: 'i<c-o>w',
+																																															_1: {
+																																																ctor: '_Tuple2',
+																																																_0: _elm_lang$core$Native_Utils.update(
+																																																	_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																	{
+																																																		edit: _elm_lang$core$Maybe$Just(
+																																																			_chendesheng$webvim_elm$Vim_State$Move(
+																																																				_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																					{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))),
+																																																		mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert
+																																																	}),
+																																																_1: 'i'
+																																															}
+																																														},
+																																														_1: {
+																																															ctor: '::',
+																																															_0: {
+																																																ctor: '_Tuple2',
+																																																_0: 'i<c-o>i',
+																																																_1: {
+																																																	ctor: '_Tuple2',
+																																																	_0: _elm_lang$core$Native_Utils.update(
+																																																		_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																		{mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert}),
+																																																	_1: 'i'
+																																																}
+																																															},
+																																															_1: {
+																																																ctor: '::',
+																																																_0: {
+																																																	ctor: '_Tuple2',
+																																																	_0: 'i<c-o>c',
+																																																	_1: {
+																																																		ctor: '_Tuple2',
+																																																		_0: _elm_lang$core$Native_Utils.update(
+																																																			_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																			{mode: _chendesheng$webvim_elm$Vim_State$ModeNameTempNormal}),
+																																																		_1: 'i<c-o>c'
+																																																	}
+																																																},
+																																																_1: {
+																																																	ctor: '::',
+																																																	_0: {
+																																																		ctor: '_Tuple2',
+																																																		_0: 'i<c-o>ce',
+																																																		_1: {
+																																																			ctor: '_Tuple2',
+																																																			_0: _elm_lang$core$Native_Utils.update(
+																																																				_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																				{
+																																																					edit: _elm_lang$core$Maybe$Just(
+																																																						_chendesheng$webvim_elm$Vim_State$Delete(
+																																																							A2(
+																																																								_chendesheng$webvim_elm$Vim_State$MotionRange,
+																																																								_chendesheng$webvim_elm$Vim_State$Exclusive,
+																																																								_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																									{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordEnd})))),
+																																																					mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert
+																																																				}),
+																																																			_1: 'i'
+																																																		}
+																																																	},
+																																																	_1: {
+																																																		ctor: '::',
+																																																		_0: {
+																																																			ctor: '_Tuple2',
+																																																			_0: 'cw<c-o>',
+																																																			_1: {
+																																																				ctor: '_Tuple2',
+																																																				_0: _elm_lang$core$Native_Utils.update(
+																																																					_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																					{mode: _chendesheng$webvim_elm$Vim_State$ModeNameTempNormal}),
+																																																				_1: 'cw<c-o>'
+																																																			}
+																																																		},
+																																																		_1: {
+																																																			ctor: '::',
+																																																			_0: {
+																																																				ctor: '_Tuple2',
+																																																				_0: 'cw<c-o><esc>',
+																																																				_1: {
+																																																					ctor: '_Tuple2',
+																																																					_0: _elm_lang$core$Native_Utils.update(
+																																																						_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																						{mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert}),
+																																																					_1: 'cw'
+																																																				}
+																																																			},
+																																																			_1: {
+																																																				ctor: '::',
+																																																				_0: {
+																																																					ctor: '_Tuple2',
+																																																					_0: 'cw<c-o>w',
+																																																					_1: {
+																																																						ctor: '_Tuple2',
+																																																						_0: _elm_lang$core$Native_Utils.update(
+																																																							_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																							{
+																																																								edit: _elm_lang$core$Maybe$Just(
+																																																									_chendesheng$webvim_elm$Vim_State$Move(
+																																																										_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																											{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))),
+																																																								mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert
+																																																							}),
+																																																						_1: 'cw'
+																																																					}
+																																																				},
+																																																				_1: {
+																																																					ctor: '::',
+																																																					_0: {
+																																																						ctor: '_Tuple2',
+																																																						_0: 'cw<c-o>i',
+																																																						_1: {
+																																																							ctor: '_Tuple2',
+																																																							_0: _elm_lang$core$Native_Utils.update(
+																																																								_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																								{mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert}),
+																																																							_1: 'cw'
+																																																						}
+																																																					},
+																																																					_1: {
+																																																						ctor: '::',
+																																																						_0: {
+																																																							ctor: '_Tuple2',
+																																																							_0: 'cw<c-o>c',
+																																																							_1: {
+																																																								ctor: '_Tuple2',
+																																																								_0: _elm_lang$core$Native_Utils.update(
+																																																									_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																									{mode: _chendesheng$webvim_elm$Vim_State$ModeNameTempNormal}),
+																																																								_1: 'cw<c-o>c'
+																																																							}
+																																																						},
+																																																						_1: {
+																																																							ctor: '::',
+																																																							_0: {
+																																																								ctor: '_Tuple2',
+																																																								_0: 'cw<c-o>ce',
+																																																								_1: {
+																																																									ctor: '_Tuple2',
+																																																									_0: _elm_lang$core$Native_Utils.update(
+																																																										_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																										{
+																																																											edit: _elm_lang$core$Maybe$Just(
+																																																												_chendesheng$webvim_elm$Vim_State$Delete(
+																																																													A2(
+																																																														_chendesheng$webvim_elm$Vim_State$MotionRange,
+																																																														_chendesheng$webvim_elm$Vim_State$Exclusive,
+																																																														_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																															{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordEnd})))),
+																																																											mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert
+																																																										}),
+																																																									_1: 'cw'
+																																																								}
+																																																							},
+																																																							_1: {
+																																																								ctor: '::',
+																																																								_0: {
+																																																									ctor: '_Tuple2',
+																																																									_0: 'q',
+																																																									_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: 'q'}
+																																																								},
+																																																								_1: {
+																																																									ctor: '::',
+																																																									_0: {
+																																																										ctor: '_Tuple2',
+																																																										_0: 'q<esc>',
+																																																										_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																									},
+																																																									_1: {
+																																																										ctor: '::',
+																																																										_0: {
+																																																											ctor: '_Tuple2',
+																																																											_0: 'qa',
+																																																											_1: {
+																																																												ctor: '_Tuple2',
+																																																												_0: _elm_lang$core$Native_Utils.update(
+																																																													_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																													{
+																																																														recordMacro: _elm_lang$core$Maybe$Just('a')
+																																																													}),
+																																																												_1: 'qa'
+																																																											}
+																																																										},
+																																																										_1: {
+																																																											ctor: '::',
+																																																											_0: {
+																																																												ctor: '_Tuple2',
+																																																												_0: 'qa<esc>',
+																																																												_1: {
+																																																													ctor: '_Tuple2',
+																																																													_0: _elm_lang$core$Native_Utils.update(
+																																																														_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																														{
+																																																															recordMacro: _elm_lang$core$Maybe$Just('a')
+																																																														}),
+																																																													_1: 'qa'
+																																																												}
+																																																											},
+																																																											_1: {
+																																																												ctor: '::',
+																																																												_0: {
+																																																													ctor: '_Tuple2',
+																																																													_0: 'qaw',
+																																																													_1: {
+																																																														ctor: '_Tuple2',
+																																																														_0: _elm_lang$core$Native_Utils.update(
+																																																															_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																															{
+																																																																recordMacro: _elm_lang$core$Maybe$Just('a'),
+																																																																edit: _elm_lang$core$Maybe$Just(
+																																																																	_chendesheng$webvim_elm$Vim_State$Move(
+																																																																		_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																																			{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart})))
+																																																															}),
+																																																														_1: 'qa'
+																																																													}
+																																																												},
+																																																												_1: {
+																																																													ctor: '::',
+																																																													_0: {
+																																																														ctor: '_Tuple2',
+																																																														_0: 'qac',
+																																																														_1: {
+																																																															ctor: '_Tuple2',
+																																																															_0: _elm_lang$core$Native_Utils.update(
+																																																																_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																{
+																																																																	recordMacro: _elm_lang$core$Maybe$Just('a')
+																																																																}),
+																																																															_1: 'qac'
+																																																														}
+																																																													},
+																																																													_1: {
+																																																														ctor: '::',
+																																																														_0: {
+																																																															ctor: '_Tuple2',
+																																																															_0: 'qacw',
+																																																															_1: {
+																																																																ctor: '_Tuple2',
+																																																																_0: _elm_lang$core$Native_Utils.update(
+																																																																	_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																	{
+																																																																		recordMacro: _elm_lang$core$Maybe$Just('a'),
+																																																																		mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+																																																																		edit: _elm_lang$core$Maybe$Just(
+																																																																			_chendesheng$webvim_elm$Vim_State$Delete(
+																																																																				A2(
+																																																																					_chendesheng$webvim_elm$Vim_State$MotionRange,
+																																																																					_chendesheng$webvim_elm$Vim_State$Exclusive,
+																																																																					_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																																						{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart}))))
+																																																																	}),
+																																																																_1: 'qacw'
+																																																															}
+																																																														},
+																																																														_1: {
+																																																															ctor: '::',
+																																																															_0: {
+																																																																ctor: '_Tuple2',
+																																																																_0: 'qacwq',
+																																																																_1: {
+																																																																	ctor: '_Tuple2',
+																																																																	_0: _elm_lang$core$Native_Utils.update(
+																																																																		_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																		{
+																																																																			recordMacro: _elm_lang$core$Maybe$Just('a'),
+																																																																			mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+																																																																			edit: _elm_lang$core$Maybe$Just(
+																																																																				_chendesheng$webvim_elm$Vim_State$InsertMode(
+																																																																					_chendesheng$webvim_elm$Vim_State$InsertString('q')))
+																																																																		}),
+																																																																	_1: 'qacw'
+																																																																}
+																																																															},
+																																																															_1: {
+																																																																ctor: '::',
+																																																																_0: {
+																																																																	ctor: '_Tuple2',
+																																																																	_0: 'qaq',
+																																																																	_1: {
+																																																																		ctor: '_Tuple2',
+																																																																		_0: _elm_lang$core$Native_Utils.update(
+																																																																			_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																			{recordMacro: _elm_lang$core$Maybe$Nothing}),
+																																																																		_1: ''
+																																																																	}
+																																																																},
+																																																																_1: {
+																																																																	ctor: '::',
+																																																																	_0: {
+																																																																		ctor: '_Tuple2',
+																																																																		_0: '\"',
+																																																																		_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: '\"'}
+																																																																	},
+																																																																	_1: {
+																																																																		ctor: '::',
+																																																																		_0: {
+																																																																			ctor: '_Tuple2',
+																																																																			_0: '\"a',
+																																																																			_1: {
+																																																																				ctor: '_Tuple2',
+																																																																				_0: _elm_lang$core$Native_Utils.update(
+																																																																					_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																					{register: 'a'}),
+																																																																				_1: '\"a'
+																																																																			}
+																																																																		},
+																																																																		_1: {
+																																																																			ctor: '::',
+																																																																			_0: {
+																																																																				ctor: '_Tuple2',
+																																																																				_0: '\"a\"',
+																																																																				_1: {
+																																																																					ctor: '_Tuple2',
+																																																																					_0: _elm_lang$core$Native_Utils.update(
+																																																																						_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																						{register: 'a'}),
+																																																																					_1: '\"a\"'
+																																																																				}
+																																																																			},
+																																																																			_1: {
+																																																																				ctor: '::',
+																																																																				_0: {
+																																																																					ctor: '_Tuple2',
+																																																																					_0: '\"a\"b',
+																																																																					_1: {
+																																																																						ctor: '_Tuple2',
+																																																																						_0: _elm_lang$core$Native_Utils.update(
+																																																																							_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																							{register: 'b'}),
+																																																																						_1: '\"a\"b'
+																																																																					}
+																																																																				},
+																																																																				_1: {
+																																																																					ctor: '::',
+																																																																					_0: {
+																																																																						ctor: '_Tuple2',
+																																																																						_0: '\"<esc>',
+																																																																						_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																																					},
+																																																																					_1: {
+																																																																						ctor: '::',
+																																																																						_0: {
+																																																																							ctor: '_Tuple2',
+																																																																							_0: '\"aw',
+																																																																							_1: {
+																																																																								ctor: '_Tuple2',
+																																																																								_0: _elm_lang$core$Native_Utils.update(
+																																																																									_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																									{
+																																																																										register: 'a',
+																																																																										edit: _elm_lang$core$Maybe$Just(
+																																																																											_chendesheng$webvim_elm$Vim_State$Move(
+																																																																												_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																																													{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart})))
+																																																																									}),
+																																																																								_1: ''
+																																																																							}
+																																																																						},
+																																																																						_1: {
+																																																																							ctor: '::',
+																																																																							_0: {
+																																																																								ctor: '_Tuple2',
+																																																																								_0: 'i<c-r>a',
+																																																																								_1: {
+																																																																									ctor: '_Tuple2',
+																																																																									_0: _elm_lang$core$Native_Utils.update(
+																																																																										_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																										{
+																																																																											register: 'a',
+																																																																											mode: _chendesheng$webvim_elm$Vim_State$ModeNameInsert,
+																																																																											edit: _elm_lang$core$Maybe$Just(
+																																																																												_chendesheng$webvim_elm$Vim_State$InsertMode(_chendesheng$webvim_elm$Vim_State$PutRegister))
+																																																																										}),
+																																																																									_1: 'i'
+																																																																								}
+																																																																							},
+																																																																							_1: {
+																																																																								ctor: '::',
+																																																																								_0: {
+																																																																									ctor: '_Tuple2',
+																																																																									_0: '2',
+																																																																									_1: {
+																																																																										ctor: '_Tuple2',
+																																																																										_0: _elm_lang$core$Native_Utils.update(
+																																																																											_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																											{count: 2}),
+																																																																										_1: '2'
+																																																																									}
+																																																																								},
+																																																																								_1: {
+																																																																									ctor: '::',
+																																																																									_0: {
+																																																																										ctor: '_Tuple2',
+																																																																										_0: '23',
+																																																																										_1: {
+																																																																											ctor: '_Tuple2',
+																																																																											_0: _elm_lang$core$Native_Utils.update(
+																																																																												_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																												{count: 23}),
+																																																																											_1: '23'
+																																																																										}
+																																																																									},
+																																																																									_1: {
+																																																																										ctor: '::',
+																																																																										_0: {
+																																																																											ctor: '_Tuple2',
+																																																																											_0: '23<esc>',
+																																																																											_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																																										},
+																																																																										_1: {
+																																																																											ctor: '::',
+																																																																											_0: {
+																																																																												ctor: '_Tuple2',
+																																																																												_0: '23\"a24',
+																																																																												_1: {
+																																																																													ctor: '_Tuple2',
+																																																																													_0: _elm_lang$core$Native_Utils.update(
+																																																																														_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																														{register: 'a', count: 23 * 24}),
+																																																																													_1: '23\"a24'
+																																																																												}
+																																																																											},
+																																																																											_1: {
+																																																																												ctor: '::',
+																																																																												_0: {
+																																																																													ctor: '_Tuple2',
+																																																																													_0: '@',
+																																																																													_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: '@'}
+																																																																												},
+																																																																												_1: {
+																																																																													ctor: '::',
+																																																																													_0: {
+																																																																														ctor: '_Tuple2',
+																																																																														_0: '@<esc>',
+																																																																														_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																																													},
+																																																																													_1: {
+																																																																														ctor: '::',
+																																																																														_0: {
+																																																																															ctor: '_Tuple2',
+																																																																															_0: '@q',
+																																																																															_1: {
+																																																																																ctor: '_Tuple2',
+																																																																																_0: _elm_lang$core$Native_Utils.update(
+																																																																																	_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																	{
+																																																																																		edit: _elm_lang$core$Maybe$Just(
+																																																																																			_chendesheng$webvim_elm$Vim_State$ReplayMacro('q'))
+																																																																																	}),
+																																																																																_1: ''
+																																																																															}
+																																																																														},
+																																																																														_1: {
+																																																																															ctor: '::',
+																																																																															_0: {
+																																																																																ctor: '_Tuple2',
+																																																																																_0: 'v',
+																																																																																_1: {
+																																																																																	ctor: '_Tuple2',
+																																																																																	_0: _elm_lang$core$Native_Utils.update(
+																																																																																		_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																		{mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisual}),
+																																																																																	_1: 'v'
+																																																																																}
+																																																																															},
+																																																																															_1: {
+																																																																																ctor: '::',
+																																																																																_0: {
+																																																																																	ctor: '_Tuple2',
+																																																																																	_0: 'V',
+																																																																																	_1: {
+																																																																																		ctor: '_Tuple2',
+																																																																																		_0: _elm_lang$core$Native_Utils.update(
+																																																																																			_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																			{mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisualLine}),
+																																																																																		_1: 'V'
+																																																																																	}
+																																																																																},
+																																																																																_1: {
+																																																																																	ctor: '::',
+																																																																																	_0: {
+																																																																																		ctor: '_Tuple2',
+																																																																																		_0: '<c-v>',
+																																																																																		_1: {
+																																																																																			ctor: '_Tuple2',
+																																																																																			_0: _elm_lang$core$Native_Utils.update(
+																																																																																				_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																				{mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisualBlock}),
+																																																																																			_1: '<c-v>'
+																																																																																		}
+																																																																																	},
+																																																																																	_1: {
+																																																																																		ctor: '::',
+																																																																																		_0: {
+																																																																																			ctor: '_Tuple2',
+																																																																																			_0: 'vV',
+																																																																																			_1: {
+																																																																																				ctor: '_Tuple2',
+																																																																																				_0: _elm_lang$core$Native_Utils.update(
+																																																																																					_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																					{mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisualLine}),
+																																																																																				_1: 'V'
+																																																																																			}
+																																																																																		},
+																																																																																		_1: {
+																																																																																			ctor: '::',
+																																																																																			_0: {
+																																																																																				ctor: '_Tuple2',
+																																																																																				_0: 'v<c-v>',
+																																																																																				_1: {
+																																																																																					ctor: '_Tuple2',
+																																																																																					_0: _elm_lang$core$Native_Utils.update(
+																																																																																						_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																						{mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisualBlock}),
+																																																																																					_1: '<c-v>'
+																																																																																				}
+																																																																																			},
+																																																																																			_1: {
+																																																																																				ctor: '::',
+																																																																																				_0: {
+																																																																																					ctor: '_Tuple2',
+																																																																																					_0: 'Vv',
+																																																																																					_1: {
+																																																																																						ctor: '_Tuple2',
+																																																																																						_0: _elm_lang$core$Native_Utils.update(
+																																																																																							_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																							{mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisual}),
+																																																																																						_1: 'v'
+																																																																																					}
+																																																																																				},
+																																																																																				_1: {
+																																																																																					ctor: '::',
+																																																																																					_0: {
+																																																																																						ctor: '_Tuple2',
+																																																																																						_0: 'V<c-v>',
+																																																																																						_1: {
+																																																																																							ctor: '_Tuple2',
+																																																																																							_0: _elm_lang$core$Native_Utils.update(
+																																																																																								_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																								{mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisualBlock}),
+																																																																																							_1: '<c-v>'
+																																																																																						}
+																																																																																					},
+																																																																																					_1: {
+																																																																																						ctor: '::',
+																																																																																						_0: {
+																																																																																							ctor: '_Tuple2',
+																																																																																							_0: 'vv',
+																																																																																							_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																																																						},
+																																																																																						_1: {
+																																																																																							ctor: '::',
+																																																																																							_0: {
+																																																																																								ctor: '_Tuple2',
+																																																																																								_0: 'VV',
+																																																																																								_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																																																							},
+																																																																																							_1: {
+																																																																																								ctor: '::',
+																																																																																								_0: {
+																																																																																									ctor: '_Tuple2',
+																																																																																									_0: '<c-v><c-v>',
+																																																																																									_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																																																								},
+																																																																																								_1: {
+																																																																																									ctor: '::',
+																																																																																									_0: {
+																																																																																										ctor: '_Tuple2',
+																																																																																										_0: 'vw',
+																																																																																										_1: {
+																																																																																											ctor: '_Tuple2',
+																																																																																											_0: _elm_lang$core$Native_Utils.update(
+																																																																																												_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																												{
+																																																																																													mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisual,
+																																																																																													edit: _elm_lang$core$Maybe$Just(
+																																																																																														_chendesheng$webvim_elm$Vim_State$Move(
+																																																																																															_chendesheng$webvim_elm$Vim_State$ByClass(
+																																																																																																{direction: _chendesheng$webvim_elm$Vim_State$Forward, $class: _chendesheng$webvim_elm$Vim_State$WordStart})))
+																																																																																												}),
+																																																																																											_1: 'v'
+																																																																																										}
+																																																																																									},
+																																																																																									_1: {
+																																																																																										ctor: '::',
+																																																																																										_0: {
+																																																																																											ctor: '_Tuple2',
+																																																																																											_0: 'vaw',
+																																																																																											_1: {
+																																																																																												ctor: '_Tuple2',
+																																																																																												_0: _elm_lang$core$Native_Utils.update(
+																																																																																													_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																													{
+																																																																																														mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisual,
+																																																																																														edit: _elm_lang$core$Maybe$Just(
+																																																																																															A2(_chendesheng$webvim_elm$Vim_State$Select, _chendesheng$webvim_elm$Vim_State$Word, true))
+																																																																																													}),
+																																																																																												_1: 'v'
+																																																																																											}
+																																																																																										},
+																																																																																										_1: {
+																																																																																											ctor: '::',
+																																																																																											_0: {
+																																																																																												ctor: '_Tuple2',
+																																																																																												_0: 'v12aw',
+																																																																																												_1: {
+																																																																																													ctor: '_Tuple2',
+																																																																																													_0: _elm_lang$core$Native_Utils.update(
+																																																																																														_chendesheng$webvim_elm$Vim_State$initialMode,
+																																																																																														{
+																																																																																															mode: _chendesheng$webvim_elm$Vim_State$ModeNameVisual,
+																																																																																															count: 12,
+																																																																																															edit: _elm_lang$core$Maybe$Just(
+																																																																																																A2(_chendesheng$webvim_elm$Vim_State$Select, _chendesheng$webvim_elm$Vim_State$Word, true))
+																																																																																														}),
+																																																																																													_1: 'v12'
+																																																																																												}
+																																																																																											},
+																																																																																											_1: {
+																																																																																												ctor: '::',
+																																																																																												_0: {
+																																																																																													ctor: '_Tuple2',
+																																																																																													_0: '',
+																																																																																													_1: {ctor: '_Tuple2', _0: _chendesheng$webvim_elm$Vim_State$initialMode, _1: ''}
+																																																																																												},
+																																																																																												_1: {ctor: '[]'}
+																																																																																											}
+																																																																																										}
+																																																																																									}
+																																																																																								}
+																																																																																							}
+																																																																																						}
+																																																																																					}
+																																																																																				}
+																																																																																			}
+																																																																																		}
+																																																																																	}
+																																																																																}
+																																																																															}
+																																																																														}
+																																																																													}
+																																																																												}
+																																																																											}
+																																																																										}
+																																																																									}
+																																																																								}
+																																																																							}
+																																																																						}
+																																																																					}
+																																																																				}
+																																																																			}
+																																																																		}
+																																																																	}
+																																																																}
+																																																															}
+																																																														}
+																																																													}
+																																																												}
+																																																											}
+																																																										}
+																																																									}
+																																																								}
+																																																							}
+																																																						}
+																																																					}
+																																																				}
+																																																			}
+																																																		}
+																																																	}
+																																																}
+																																															}
+																																														}
+																																													}
+																																												}
+																																											}
+																																										}
+																																									}
+																																								}
+																																							}
+																																						}
+																																					}
+																																				}
+																																			}
+																																		}
+																																	}
+																																}
+																															}
+																														}
+																													}
+																												}
+																											}
+																										}
+																									}
+																								}
+																							}
+																						}
+																					}
+																				}
+																			}
+																		}
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+};
+var _chendesheng$webvim_elm$VimParser$suite = A2(
+	_elm_community$elm_test$Test$describe,
+	'Vim key parser module',
+	A2(
+		_elm_lang$core$List$map,
+		function (_p0) {
+			var _p1 = _p0;
+			var _p3 = _p1._0;
+			return A2(
+				_elm_community$elm_test$Test$test,
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					'Parse `',
+					A2(_elm_lang$core$Basics_ops['++'], _p3, '`')),
+				function (_p2) {
+					return A2(
+						_elm_community$elm_test$Expect$equal,
+						_p1._1,
+						A2(_chendesheng$webvim_elm$Vim_Parser$parse, _p3, ''));
+				});
+		},
+		_chendesheng$webvim_elm$VimParser$cases));

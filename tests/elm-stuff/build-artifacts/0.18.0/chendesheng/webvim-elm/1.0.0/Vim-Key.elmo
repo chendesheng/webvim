@@ -1,0 +1,84 @@
+var _chendesheng$webvim_elm$Vim_Key$escapedChar = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: A2(
+			_elm_tools$parser$Parser_ops['|='],
+			A2(
+				_elm_tools$parser$Parser_ops['|.'],
+				_elm_tools$parser$Parser$succeed(_elm_lang$core$Basics$identity),
+				_chendesheng$webvim_elm$Vim_Helper$ignoreChar(
+					F2(
+						function (x, y) {
+							return _elm_lang$core$Native_Utils.eq(x, y);
+						})(
+						_elm_lang$core$Native_Utils.chr('\\')))),
+			_chendesheng$webvim_elm$Vim_Helper$keepChar(
+				function (ch) {
+					return _elm_lang$core$Native_Utils.eq(
+						ch,
+						_elm_lang$core$Native_Utils.chr('<')) || _elm_lang$core$Native_Utils.eq(
+						ch,
+						_elm_lang$core$Native_Utils.chr('\\'));
+				})),
+		_1: {
+			ctor: '::',
+			_0: _chendesheng$webvim_elm$Vim_Helper$keepChar(
+				function (ch) {
+					return !_elm_lang$core$Native_Utils.eq(
+						ch,
+						_elm_lang$core$Native_Utils.chr('<'));
+				}),
+			_1: {ctor: '[]'}
+		}
+	});
+var _chendesheng$webvim_elm$Vim_Key$keyParser = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: _chendesheng$webvim_elm$Vim_Key$escapedChar,
+		_1: {
+			ctor: '::',
+			_0: _elm_tools$parser$Parser$source(
+				A2(
+					_elm_tools$parser$Parser_ops['|.'],
+					_elm_tools$parser$Parser$symbol('<'),
+					_elm_tools$parser$Parser$ignoreUntil('>'))),
+			_1: {ctor: '[]'}
+		}
+	});
+var _chendesheng$webvim_elm$Vim_Key$popKey = function (keys) {
+	var lastKey = _chendesheng$webvim_elm$Vim_Helper$escapeKey(
+		A2(
+			_elm_lang$core$Result$withDefault,
+			'',
+			A2(
+				_elm_lang$core$Result$map,
+				function (_p0) {
+					return A2(
+						_elm_lang$core$Maybe$withDefault,
+						'',
+						_chendesheng$webvim_elm$Vim_Helper$getLast(_p0));
+				},
+				A2(
+					_elm_tools$parser$Parser$run,
+					A2(_elm_tools$parser$Parser$repeat, _elm_tools$parser$Parser$zeroOrMore, _chendesheng$webvim_elm$Vim_Key$keyParser),
+					keys))));
+	return A2(
+		_elm_lang$core$String$dropRight,
+		_elm_lang$core$String$length(lastKey),
+		keys);
+};
+var _chendesheng$webvim_elm$Vim_Key$popKeys = F2(
+	function (n, keys) {
+		popKeys:
+		while (true) {
+			if (_elm_lang$core$Native_Utils.eq(n, 0)) {
+				return keys;
+			} else {
+				var _v0 = n - 1,
+					_v1 = _chendesheng$webvim_elm$Vim_Key$popKey(keys);
+				n = _v0;
+				keys = _v1;
+				continue popKeys;
+			}
+		}
+	});

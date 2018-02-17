@@ -1,0 +1,27 @@
+{
+  "name": "elm-livechat",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/elm.js",
+  "scripts": {
+    "css": "node ./build/less.config.js",
+    "start": "node ./start.js && npm run start",
+    "js": "elm make src/Main.elm --output dist/elm.js --debug --warn",
+    "html": "node ./build/html.config.js",
+    "font": "node ./build/font/font-generator.js"
+  },
+  "author": "chendesheng",
+  "license": "",
+  "devDependencies": {
+    "browser-sync": "^2.23.5",
+    "chokidar": "^2.0.0",
+    "clean-css": "^4.1.9",
+    "debounce": "^1.1.0",
+    "execa": "^0.8.0",
+    "less": "^2.7.3",
+    "less-plugin-autoprefix": "^1.5.1",
+    "less-plugin-clean-css": "^1.5.1",
+    "webfonts-generator": "^0.4.0"
+  },
+  "dependencies": {}
+}

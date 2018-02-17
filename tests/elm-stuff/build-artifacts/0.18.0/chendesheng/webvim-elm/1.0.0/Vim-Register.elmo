@@ -1,0 +1,57 @@
+var _chendesheng$webvim_elm$Vim_Register$partialRegister = '';
+var _chendesheng$webvim_elm$Vim_Register$isRegister = function (key) {
+	var reg = _elm_lang$core$List$head(
+		_elm_lang$core$String$toList(
+			A3(_elm_lang$core$String$slice, 0, 1, key)));
+	var _p0 = reg;
+	if (_p0.ctor === 'Just') {
+		return A2(
+			_elm_lang$core$String$any,
+			F2(
+				function (x, y) {
+					return _elm_lang$core$Native_Utils.eq(x, y);
+				})(_p0._0),
+			A2(
+				_elm_lang$core$Basics_ops['++'],
+				'\"/=+_.@',
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					'0123456789',
+					A2(_elm_lang$core$Basics_ops['++'], 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'))));
+	} else {
+		return false;
+	}
+};
+var _chendesheng$webvim_elm$Vim_Register$registerParser = A4(
+	_chendesheng$webvim_elm$Vim_Helper$readKeyAndThen,
+	'\"',
+	{
+		ctor: '::',
+		_0: _chendesheng$webvim_elm$Vim_State$PushKey('\"'),
+		_1: {ctor: '[]'}
+	},
+	{ctor: '[]'},
+	A2(
+		_elm_tools$parser$Parser_ops['|='],
+		_elm_tools$parser$Parser$succeed(
+			function (key) {
+				return _chendesheng$webvim_elm$Vim_Register$isRegister(key) ? {
+					ctor: '::',
+					_0: _chendesheng$webvim_elm$Vim_State$PushKeys(
+						{
+							ctor: '::',
+							_0: '\"',
+							_1: {
+								ctor: '::',
+								_0: key,
+								_1: {ctor: '[]'}
+							}
+						}),
+					_1: {
+						ctor: '::',
+						_0: _chendesheng$webvim_elm$Vim_State$PushRegister(key),
+						_1: {ctor: '[]'}
+					}
+				} : {ctor: '[]'};
+			}),
+		_chendesheng$webvim_elm$Vim_Key$keyParser));

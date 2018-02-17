@@ -1,0 +1,116 @@
+var _chendesheng$webvim_elm$Vim_Insert$insertMode = function (map) {
+	return A2(
+		_elm_tools$parser$Parser_ops['|='],
+		_elm_tools$parser$Parser$succeed(
+			F2(
+				function (x, y) {
+					return A2(_elm_lang$core$Basics_ops['++'], x, y);
+				})(
+				{
+					ctor: '::',
+					_0: _chendesheng$webvim_elm$Vim_State$PushMode(_chendesheng$webvim_elm$Vim_State$ModeNameInsert),
+					_1: {ctor: '[]'}
+				})),
+		_elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A4(
+					_chendesheng$webvim_elm$Vim_Helper$readKeyAndThen,
+					'<c-r>',
+					{
+						ctor: '::',
+						_0: _chendesheng$webvim_elm$Vim_State$PushKey('<c-r>'),
+						_1: {ctor: '[]'}
+					},
+					{ctor: '[]'},
+					_elm_tools$parser$Parser$oneOf(
+						{
+							ctor: '::',
+							_0: A2(
+								_elm_tools$parser$Parser_ops['|='],
+								_elm_tools$parser$Parser$succeed(
+									function (key) {
+										return _chendesheng$webvim_elm$Vim_Register$isRegister(key) ? {
+											ctor: '::',
+											_0: _chendesheng$webvim_elm$Vim_State$PushOperator(
+												map(
+													_chendesheng$webvim_elm$Vim_State$PutRegister(key))),
+											_1: {ctor: '[]'}
+										} : {ctor: '[]'};
+									}),
+								_chendesheng$webvim_elm$Vim_Key$keyParser),
+							_1: {ctor: '[]'}
+						})),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser_ops['|.'],
+						_elm_tools$parser$Parser$succeed(
+							{
+								ctor: '::',
+								_0: _chendesheng$webvim_elm$Vim_State$PushMode(_chendesheng$webvim_elm$Vim_State$ModeNameTempNormal),
+								_1: {ctor: '[]'}
+							}),
+						_elm_tools$parser$Parser$symbol('<c-o>')),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser$map,
+							function (key) {
+								return {
+									ctor: '::',
+									_0: _chendesheng$webvim_elm$Vim_State$PushOperator(
+										map(
+											_chendesheng$webvim_elm$Vim_State$DeleteChar(_chendesheng$webvim_elm$Vim_State$Backward))),
+									_1: {ctor: '[]'}
+								};
+							},
+							_elm_tools$parser$Parser$oneOf(
+								{
+									ctor: '::',
+									_0: _elm_tools$parser$Parser$symbol('<c-h>'),
+									_1: {
+										ctor: '::',
+										_0: _elm_tools$parser$Parser$symbol('<backspace>'),
+										_1: {
+											ctor: '::',
+											_0: _elm_tools$parser$Parser$symbol('<delete>'),
+											_1: {ctor: '[]'}
+										}
+									}
+								})),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_tools$parser$Parser_ops['|.'],
+								_elm_tools$parser$Parser$succeed(
+									{
+										ctor: '::',
+										_0: _chendesheng$webvim_elm$Vim_State$PushOperator(
+											map(
+												_chendesheng$webvim_elm$Vim_State$DeleteWord(_chendesheng$webvim_elm$Vim_State$Backward))),
+										_1: {ctor: '[]'}
+									}),
+								_elm_tools$parser$Parser$symbol('<c-w>')),
+							_1: {
+								ctor: '::',
+								_0: A2(
+									_elm_tools$parser$Parser_ops['|='],
+									_elm_tools$parser$Parser$succeed(
+										function (ch) {
+											return {
+												ctor: '::',
+												_0: _chendesheng$webvim_elm$Vim_State$PushOperator(
+													map(
+														_chendesheng$webvim_elm$Vim_State$InsertString(ch))),
+												_1: {ctor: '[]'}
+											};
+										}),
+									_chendesheng$webvim_elm$Vim_Key$keyParser),
+								_1: {ctor: '[]'}
+							}
+						}
+					}
+				}
+			}));
+};

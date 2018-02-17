@@ -1,0 +1,219 @@
+.invitation {
+  position: fixed;
+  z-index: 2147483637;
+  cursor: pointer;
+  right: 30px;
+  bottom: 125px;
+  width: 250px;
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.invitation--bubble {
+  border-radius: 8px;
+}
+
+.invitation--classic {
+  border-radius: 4px;
+}
+
+.invitation--circle {
+  border-radius: 20px;
+}
+
+.invitation__name {
+  font-size: 1em;
+  color: #000;
+  font-weight: bold;
+  font-family: "SourceSans Pro Bold";
+  padding: 0.947368rem 1.315789rem 0;
+}
+
+.invitation__message {
+  // font-size: 1em;
+  // line-height: 18px;
+  // padding: 0 1.315789rem 0.947368rem 1.315789rem;
+  // color: #666;
+
+  font-size: 1em;
+  line-height: 18px;
+  padding: 0 1.315789rem;
+  margin-bottom: 1.315789rem;
+  color: #666;
+  max-height: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+}
+
+.invitation__close {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 1.06em;
+  color: #333;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.invitation__type {
+  height: 35px;
+  line-height: 35px;
+  padding: 0 25px;
+  background: #f0f0f0;
+  color: #bbb;
+  font-size: 0.93em;
+}
+
+.invitation::before,
+.invitation::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.invitation::before {
+  right: 20px;
+  bottom: -22px;
+  border: 11px solid transparent;
+  border-top-color: #ddd;
+}
+
+.invitation::after {
+  right: 22px;
+  bottom: -18px;
+  border: 9px solid transparent;
+  border-top-color: #f0f0f0;
+}
+
+@keyframes invitation-show {
+  0% {
+    transform: scale(0);
+    transform-origin: calc(~"100% - 29px") calc(~"100% + 18px");
+  }
+
+  100% {
+    transform: scale(1);
+    transform-origin: calc(~"100% - 29px") calc(~"100% + 18px");
+  }
+}
+
+.invitation-show {
+  animation-name: invitation-show;
+  animation-duration: 0.375s;
+}
+
+@keyframes invitation-showType {
+  0% {
+    transform: translateY(35px);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.invitation-showType {
+  animation-name: invitation-showType;
+  animation-duration: 0.25s;
+  animation-delay: 0.125s;
+}
+
+@keyframes invitation-showmessage {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.invitation-showmessage {
+  animation-name: invitation-showmessage;
+  animation-duration: 0.167s;
+  animation-delay: 0.292s;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.modal--classic {
+  border-radius: 4px;
+}
+
+.modal--circle {
+  border-radius: 20px;
+}
+
+.modal--bubble {
+  border-radius: 8px;
+}
+
+.modal--mobile__mask {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.modal--mobile {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: #fff;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  width: 300px;
+  animation: showinvitation 0.4s forwards cubic-bezier(0.785, 0.135, 0.15, 0.86);
+}
+
+@keyframes showinvitation {
+  0% {
+    transform: scale(0) translate(-50%, -50%);
+    transform-origin: 0 0;
+  }
+
+  100% {
+    transform: scale(1) translate(-50%, -50%);
+    transform-origin: 0 0;
+  }
+}
+
+.modal__invitation-title {
+  color: #fff;
+  background: #4f4f4f;
+  height: 30px;
+  line-height: 30px;
+  padding-left: 15px;
+  padding-right: 15px;
+  font-size: 0.93em;
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+}
+
+.modal__invitation-message {
+  font-size: 21px;
+  color: #000;
+  text-align: center;
+  padding: 24px 30px;
+  font-family: SourceSans Pro Bold, Arial;
+}
+
+.modal__invitation-operation {
+  text-align: center;
+  padding: 0 30px 30px;
+}
+
+.modal__invitation-operation .btn {
+  margin-left: 10px;
+}
+
+.modal__invitation-operation .btn:first-child {
+  margin-left: 0;
+}

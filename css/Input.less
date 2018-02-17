@@ -1,0 +1,169 @@
+/* Stylesheet for Input */
+
+.input {
+  border: 1px solid #ddd;
+  padding: 5px 10px;
+  outline: none;
+  border-radius: 2px;
+  transition: border-color ease-in-out 0.2s;
+  // background-color: #fafafa;
+  font-size: 1em;
+
+  /* font-family: "SourceSans Pro"; */
+  -webkit-appearance: none;
+}
+
+.input:disabled {
+  background-color: #f5f5f5;
+}
+
+.input[readOnly] {
+  border: 0;
+}
+
+input.attachTicket {
+  width: 100px;
+  margin-left: 5px;
+}
+
+.input:not(.input--effect01):focus {
+  border-color: @main-color;
+  outline: none;
+}
+
+.prependContainer {
+  display: inline-block;
+}
+
+.prepend {
+  display: inline-block;
+  line-height: 18px;
+  padding: 5px 5px 4px;
+  background-color: #fafafa;
+}
+
+.prependContainer .input {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.prependIcon {
+  float: left;
+  padding: 0 6px 0 0;
+}
+
+.defaultIcon {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.inputContainer {
+  position: relative;
+  display: inline-block;
+
+  /* text-align: center; */
+}
+
+.input.input--effect01 {
+  border: 1px solid #ddd;
+  border-right-color: @main-color;
+  padding: 5px 10px;
+  border-radius: 0;
+}
+
+.input__focusBorder {
+  display: block;
+
+  /* margin-bottom: 15px; */
+}
+
+.input.input--effect01 ~ .input__focusBorder::before,
+.input.input--effect01 ~ .input__focusBorder::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: @main-color;
+}
+
+.input.input--effect01 ~ .input__focusBorder::after {
+  top: auto;
+  bottom: 0;
+  left: 0;
+}
+
+.input.input--effect01 ~ .input__focusBorder i::before,
+.input.input--effect01 ~ .input__focusBorder i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 0;
+  background-color: @main-color;
+}
+
+.input.input--effect01 ~ .input__focusBorder i::after {
+  left: auto;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: #ccc;
+  height: 100%;
+}
+
+.input.input--effect01:focus ~ .input__focusBorder::before,
+.input.input--effect01:focus ~ .input__focusBorder::after {
+  width: 100%;
+  transition: 0.156s;
+  transition-delay: 0.026s;
+}
+
+.input.input--effect01:focus ~ .input__focusBorder i::before,
+.input.input--effect01:focus ~ .input__focusBorder i::after {
+  height: 100%;
+  transition: 0.026s;
+  top: 0;
+}
+
+.input.input--effect01:focus ~ .input__focusBorder i::after {
+  height: 0;
+  transition-delay: 0.182s;
+  top: 50%;
+}
+
+.window--circle .input,
+.input--circle {
+  border-radius: 20px;
+  padding: 5px 15px;
+}
+
+.window--bubble .input,
+.input--bubble {
+  border-radius: 8px;
+}
+
+.input.error,
+.input.error:hover,
+.input.error:focus {
+  border-color: #d34747;
+}
+
+.input.error ~ .input__focusBorder::before,
+.input.error ~ .input__focusBorder::after,
+.input.error ~ .input__focusBorder i::before,
+.input.error ~ .input__focusBorder i::after {
+  background: #d34747;
+}
+
+/*
+ * Fix issue 25580
+ * See [https://github.com/angular/material/issues/1636]
+ */
+input,
+textarea {
+  -webkit-transform: translate3d(0, 0, 0);
+}
