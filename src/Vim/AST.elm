@@ -182,7 +182,7 @@ type Motion
     | PartialMotion
 
 
-type alias State =
+type alias AST =
     ( Mode, String )
 
 

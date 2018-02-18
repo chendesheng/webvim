@@ -10,7 +10,7 @@ import Vim.AST exposing (..)
 import Test exposing (..)
 
 
-cases : List ( String, State )
+cases : List ( String, AST )
 cases =
     [ ( "w"
       , ( { initialMode

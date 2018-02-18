@@ -663,7 +663,7 @@ macro isVisual =
         )
 
 
-parse : String -> Key -> State
+parse : String -> Key -> AST
 parse lastKeys key =
     if key == "<c-c>" then
         ( initialMode, "" )
