@@ -34,29 +34,6 @@ type alias ModeDelta =
     List StateChange
 
 
-
---type alias ModeDelta =
---    ( ModeNameDelta, KeysDelta )
--- type KeysDelta
---     = PushKey
---     | PopKey
---     | PopKeys Int
---     | KeepKeys
---     | ClearKeys
-
-
-type InsertCommand
-    = GotoLineStart
-    | GotoLineEnd
-    | DeleteChar Direction
-    | DeleteWord Direction
-    | IndentLine Direction
-    | InsertString String
-    | PutRegister
-    | EscapeInsert
-    | PartialInsertCommand
-
-
 type PositionClass
     = WordStart
     | WordEnd
@@ -77,7 +54,6 @@ type TextObject
     | Line
     | WORD
     | Pair Char -- '', "", <>, (), {}, [], <tag></tag>
-    | PartialTextObject
 
 
 type Direction
@@ -110,18 +86,14 @@ type Operator
     | Scroll Int
     | JumpHistory Direction
     | JumpByView Float -- factor of view height
-    | InsertMode InsertCommand
-    | ExMode ExCommand
     | CompleteWord Direction
     | Undo
     | Redo
     | ReplayMacro Register
-
-
-type ExCommand
-    = ExInsert InsertCommand
+    | InsertString String
+      -- for line buffer
     | InsertWordUnderCursor
-    | Execute
+    | ExecuteLine
 
 
 type ModeName
@@ -132,12 +104,6 @@ type ModeName
     | ModeNameVisual
     | ModeNameVisualLine
     | ModeNameVisualBlock
-
-
-
---type ModeNameDelta
---    = ChangeMode ModeName
---    | KeepMode
 
 
 type alias Mode =
@@ -179,114 +145,7 @@ type Motion
     | LineNumber Int
     | LastLine
     | MatchPair -- %
-    | PartialMotion
 
 
 type alias AST =
     ( Mode, String )
-
-
-
-{-
-   ==> "w"
-   <== ( Normal
-           { operator = Move (ByClass { class = WordStart }) }
-       , "w"
-       )
-
-
-   ==> "dw"
-   <== ( Normal
-            { operator = Delete MotionRange (ByClass { class = WordStart }) }
-       , "dw"
-       )
-
-
-   ==> "cw"
-   <== ( Insert
-            { operator = Change, ... }
-            (InsertString "")
-       , "cw"
-       )
-
-   ==> "ia"
-   <== ( Insert
-            { ... }
-            (InsertString "a")
-       , "i"
-       )
-
-   ==> "i<esc>"
-   <== ( Normal { ... }
-       , ""
-       )
-
-   ==> "/a"
-   <== ( Normal
-            { operator = MatchString
-                { command = InsertString "a"
-                , direction = Forward
-                , inclusive = Inclusive
-                }
-            }
-       , "/"
-       )
-
-   ==> "d/a"
-   <== ( Normal
-            { operator = Delete (MotionRange Exclusive MatchString
-                { command = InsertString "a"
-                , direction = Forward
-                , inclusive = Inclusive
-                })
-            }
-       , "d/"
-       )
-
-   ==> "d/<cr>"
-   <== ( Normal
-            { operator = Delete (MotionRange Exclusive MatchString
-                { command = Execute
-                , direction = Forward
-                , inclusive = Inclusive
-                })
-            }
-       , ""
-       )
-
-   ==> "vw"
-   <== ( Normal
-            { operator = Move (ByClass { class = WordStart })
-            , visual = Visual
-            }
-       , "v"
-       )
-
-   ==> "v/<cr>"
-   <== ( Normal
-            { operator = Move (MatchString
-                { command = Execute
-                , direction = Forward
-                , inclusive = True
-                })
-            , visual = Visual
-            }
-       , ""
-       )
-
-   ==> ":1"
-   <== ( ExMode ":" (ExInsert InsertString "1")
-       , ":"
-       )
-
-   ==> ":<esc>"
-   <== ( Normal { ... }
-       , ""
-       )
-
-   ==> ":<cr>"
-   <== ( ExMode ":" Execute
-       , ""
-       )
-
--}

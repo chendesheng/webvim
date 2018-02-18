@@ -6,28 +6,65 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Register exposing (..)
 
 
-insertMode : (InsertCommand -> Operator) -> Parser ModeDelta
-insertMode map =
-    P.succeed ((++) [ PushMode ModeNameInsert ])
-        |= P.oneOf
-            [ readKeyAndThen "<c-r>"
-                [ PushKey "<c-r>" ]
-                (P.oneOf
-                    [ P.succeed
-                        (\key ->
-                            if isRegister key then
-                                [ PushRegister key
-                                , PutRegister
-                                    |> map
-                                    |> PushOperator
-                                ]
-                            else
-                                []
-                        )
-                        |= keyParser
+insertCommands : Parser ModeDelta
+insertCommands =
+    --command insert commands
+    let
+        define key op =
+            (P.succeed
+                [ PushOperator <| op ]
+            )
+                |. P.symbol key
+
+        deleteCharBackward =
+            { class = CharStart, direction = Backward }
+                |> ByClass
+                |> MotionRange Inclusive
+                |> Delete
+
+        deleteWordBackward =
+            { class = WordStart, direction = Backward }
+                |> ByClass
+                |> MotionRange Inclusive
+                |> Delete
+
+        gotoLineEnd =
+            { class = LineEnd, direction = Forward }
+                |> ByClass
+                |> Move
+
+        gotoLineStart =
+            { class = LineStart, direction = Backward }
+                |> ByClass
+                |> Move
+    in
+        P.oneOf
+            [ define "<c-h>" deleteCharBackward
+            , define "<backspace>" deleteCharBackward
+            , define "<delete>" deleteCharBackward
+            , define "<c-w>" deleteWordBackward
+            , define "<c-e>" gotoLineEnd
+            , define "<c-b>" gotoLineStart
+            , P.succeed
+                [ PopMode
+                , PushComplete
+                ]
+                |. P.symbol "<esc>"
+            , P.succeed
+                (\ch ->
+                    [ InsertString ch
+                        |> PushOperator
                     ]
                 )
-            , readKeyAndThen "<c-o>"
+                |= keyParser
+            ]
+
+
+insertMode : Parser ModeDelta
+insertMode =
+    let
+        tempNormalMode =
+            readKeyAndThen "<c-o>"
                 [ PushKey "<c-o>", PushMode ModeNameTempNormal ]
                 (P.andThen
                     (\modeDelta ->
@@ -59,69 +96,58 @@ insertMode map =
                     )
                     (P.lazy (\_ -> operator False))
                 )
-            , P.oneOf
-                [ P.symbol "<c-h>"
-                , P.symbol "<backspace>"
-                , P.symbol "<delete>"
-                ]
-                |> P.map
+
+        register =
+            readKeyAndThen "<c-r>"
+                [ PushKey "<c-r>" ]
+                (P.succeed
                     (\key ->
-                        [ DeleteChar Backward |> map |> PushOperator ]
+                        if isRegister key then
+                            [ PushRegister key
+                            , Put Forward |> PushOperator
+                            ]
+                        else
+                            []
                     )
-            , P.succeed
-                [ DeleteWord Backward |> map |> PushOperator
-                ]
-                |. P.symbol "<c-w>"
-            , P.succeed
-                (\ch ->
-                    [ InsertString ch |> map |> PushOperator ]
+                    |= keyParser
                 )
-                |= keyParser
-            ]
+    in
+        P.succeed ((::) (PushMode ModeNameInsert))
+            |= P.oneOf
+                [ register
+                , tempNormalMode
+                , insertCommands
+                ]
 
 
-linebuffer :
-    String
-    -> (ExCommand -> Operator)
-    -> Parser ModeDelta
+linebuffer : String -> (Operator -> Operator) -> Parser ModeDelta
 linebuffer prefix map =
     let
         define key op =
             (P.succeed
-                [ PushOperator <| map op, PushComplete ]
+                [ PushOperator <| op, PushComplete ]
             )
                 |. P.symbol key
     in
         P.succeed ((++) [ PushKey prefix, PushMode <| ModeNameEx prefix ])
             |= P.oneOf
                 [ P.succeed
-                    [ PushOperator <| map Execute
+                    [ ExecuteLine |> map |> PushOperator
                     , PopMode
                     , PushComplete
                     ]
                     |. P.symbol "<cr>"
-                , P.succeed
-                    [ PopMode, PushComplete ]
-                    |. P.symbol "<esc>"
-                , define "<c-h>" (DeleteChar Backward |> ExInsert)
-                , define "<backspace>" (DeleteChar Backward |> ExInsert)
-                , define "<delete>" (DeleteChar Backward |> ExInsert)
-                , define "<c-w>" (DeleteWord Backward |> ExInsert)
-                , define "<c-e>" (ExInsert GotoLineEnd)
-                , define "<c-b>" (ExInsert GotoLineStart)
                 , readKeyAndThen "<c-r>"
                     [ PushKey "<c-r>" ]
                     (P.oneOf
                         [ P.succeed
-                            [ InsertWordUnderCursor |> map |> PushOperator ]
+                            [ PushOperator InsertWordUnderCursor ]
                             |. P.symbol "<c-w>"
                         , P.succeed
                             (\key ->
                                 if isRegister key then
                                     [ PushRegister key
-                                    , PutRegister
-                                        |> ExInsert
-                                        |> map
+                                    , Put Forward
                                         |> PushOperator
                                     ]
                                 else
@@ -130,15 +156,7 @@ linebuffer prefix map =
                             |= keyParser
                         ]
                     )
-                , P.succeed
-                    (\ch ->
-                        [ InsertString ch
-                            |> ExInsert
-                            |> map
-                            |> PushOperator
-                        ]
-                    )
-                    |= keyParser
+                , insertCommands
                 ]
 
 
@@ -291,11 +309,11 @@ motion map gMotion =
                 [ PushKey prefix, PushMode <| ModeNameEx prefix ]
                 (linebuffer prefix
                     (\cmd ->
-                        if cmd == Execute then
+                        if cmd == ExecuteLine then
                             MatchString direction
                                 |> map
                         else
-                            ExMode cmd
+                            cmd
                     )
                 )
     in
@@ -345,15 +363,7 @@ operator isVisual =
                 [ P.succeed
                     [ PushMode ModeNameInsert ]
                     |. P.end
-                , P.succeed
-                    [ PopMode
-                    , PopOperator
-                    , PushComplete
-                    ]
-                    |. P.symbol "<esc>"
-                , (P.map ((++) [ PopOperator ])
-                    (insertMode InsertMode)
-                  )
+                , (P.map ((::) PopOperator) insertMode)
                 ]
 
         defineInsert key op =
@@ -384,7 +394,7 @@ operator isVisual =
                 (\key1 -> [ PushKeys [ key, key1 ] ])
                 (\key1 ->
                     (P.map
-                        ((++) [ PushKeys [ key, key1 ] ])
+                        ((::) (PushKeys [ key, key1 ]))
                         (operatorRange <| flipInclusive >> map)
                     )
                 )
@@ -409,7 +419,7 @@ operator isVisual =
                             ]
                             |. P.symbol key
                         , operatorVisualRange key op
-                        , P.map ((++) [ PushKey key ]) (operatorRange op)
+                        , P.map ((::) (PushKey key)) (operatorRange op)
                         ]
             )
                 |> completeAndThen
@@ -529,7 +539,7 @@ operator isVisual =
                 (Indent Backward <| TextObject Line False)
             , readKeyAndThen ":"
                 [ PushKey ":", PushMode <| ModeNameEx ":" ]
-                (linebuffer ":" ExMode)
+                (linebuffer ":" identity)
             , readKeyAndThen "@"
                 [ PushKey "@" ]
                 (P.map

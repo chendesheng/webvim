@@ -74,7 +74,7 @@ cases =
     , ( "ia"
       , ( { initialMode
             | mode = ModeNameInsert
-            , edit = InsertString "a" |> InsertMode |> Just
+            , edit = InsertString "a" |> Just
           }
         , "i"
         )
@@ -114,7 +114,7 @@ cases =
     , ( "cwa"
       , ( { initialMode
             | mode = ModeNameInsert
-            , edit = InsertString "a" |> InsertMode |> Just
+            , edit = InsertString "a" |> Just
           }
         , "cw"
         )
@@ -122,7 +122,7 @@ cases =
     , ( "cawa"
       , ( { initialMode
             | mode = ModeNameInsert
-            , edit = InsertString "a" |> InsertMode |> Just
+            , edit = InsertString "a" |> Just
           }
         , "caw"
         )
@@ -143,7 +143,7 @@ cases =
     , ( "Cw"
       , ( { initialMode
             | mode = ModeNameInsert
-            , edit = InsertString "w" |> InsertMode |> Just
+            , edit = InsertString "w" |> Just
           }
         , "C"
         )
@@ -216,15 +216,11 @@ cases =
       , ( initialMode, "" )
       )
     , ( ":<cr>"
-      , ( { initialMode | edit = ExMode Execute |> Just }, "" )
+      , ( { initialMode | edit = ExecuteLine |> Just }, "" )
       )
     , ( ":a"
       , ( { initialMode
-            | edit =
-                InsertString "a"
-                    |> ExInsert
-                    |> ExMode
-                    |> Just
+            | edit = InsertString "a" |> Just
             , mode = ModeNameEx ":"
           }
         , ":"
@@ -241,11 +237,7 @@ cases =
       )
     , ( "/a"
       , ( { initialMode
-            | edit =
-                InsertString "a"
-                    |> ExInsert
-                    |> ExMode
-                    |> Just
+            | edit = InsertString "a" |> Just
             , mode = ModeNameEx "/"
           }
         , "/"
@@ -262,10 +254,19 @@ cases =
       )
     , ( "?a"
       , ( { initialMode
+            | edit = InsertString "a" |> Just
+            , mode = ModeNameEx "?"
+          }
+        , "?"
+        )
+      )
+    , ( "?<c-h>"
+      , ( { initialMode
             | edit =
-                InsertString "a"
-                    |> ExInsert
-                    |> ExMode
+                { direction = Backward, class = CharStart }
+                    |> ByClass
+                    |> MotionRange Inclusive
+                    |> Delete
                     |> Just
             , mode = ModeNameEx "?"
           }
@@ -397,10 +398,7 @@ cases =
       , ( { initialMode
             | recordMacro = Just "a"
             , mode = ModeNameInsert
-            , edit =
-                InsertString "q"
-                    |> InsertMode
-                    |> Just
+            , edit = InsertString "q" |> Just
           }
         , "qacw"
         )
@@ -441,10 +439,7 @@ cases =
       , ( { initialMode
             | register = "a"
             , mode = ModeNameInsert
-            , edit =
-                PutRegister
-                    |> InsertMode
-                    |> Just
+            , edit = Put Forward |> Just
           }
         , "i"
         )
@@ -545,7 +540,7 @@ cases =
     , ( "vcx"
       , ( { initialMode
             | mode = ModeNameInsert
-            , edit = InsertString "x" |> InsertMode |> Just
+            , edit = InsertString "x" |> Just
           }
         , "vc"
         )
