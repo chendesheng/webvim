@@ -8,7 +8,7 @@ import Vim.Register exposing (..)
 
 insertCommands : Parser ModeDelta
 insertCommands =
-    --command insert commands
+    --common insert commands
     let
         define key op =
             (P.succeed
