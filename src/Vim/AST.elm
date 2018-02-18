@@ -96,14 +96,18 @@ type Operator
     | ExecuteLine
 
 
+type VisualName
+    = VisualName
+    | VisualNameLine
+    | VisualNameBlock
+
+
 type ModeName
     = ModeNameNormal
     | ModeNameInsert
     | ModeNameTempNormal
     | ModeNameEx String
-    | ModeNameVisual
-    | ModeNameVisualLine
-    | ModeNameVisualBlock
+    | ModeNameVisual VisualName
 
 
 type alias Mode =

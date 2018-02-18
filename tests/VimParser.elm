@@ -469,32 +469,32 @@ cases =
 
     -- visual
     , ( "v"
-      , ( { initialMode | mode = ModeNameVisual }, "v" )
+      , ( { initialMode | mode = ModeNameVisual VisualName }, "v" )
       )
     , ( "V"
-      , ( { initialMode | mode = ModeNameVisualLine }, "V" )
+      , ( { initialMode | mode = ModeNameVisual VisualNameLine }, "V" )
       )
     , ( "<c-v>"
-      , ( { initialMode | mode = ModeNameVisualBlock }, "<c-v>" )
+      , ( { initialMode | mode = ModeNameVisual VisualNameBlock }, "<c-v>" )
       )
     , ( "vV"
-      , ( { initialMode | mode = ModeNameVisualLine }, "V" )
+      , ( { initialMode | mode = ModeNameVisual VisualNameLine }, "V" )
       )
     , ( "v<c-v>"
-      , ( { initialMode | mode = ModeNameVisualBlock }, "<c-v>" )
+      , ( { initialMode | mode = ModeNameVisual VisualNameBlock }, "<c-v>" )
       )
     , ( "Vv"
-      , ( { initialMode | mode = ModeNameVisual }, "v" )
+      , ( { initialMode | mode = ModeNameVisual VisualName }, "v" )
       )
     , ( "V<c-v>"
-      , ( { initialMode | mode = ModeNameVisualBlock }, "<c-v>" )
+      , ( { initialMode | mode = ModeNameVisual VisualNameBlock }, "<c-v>" )
       )
     , ( "vv", ( initialMode, "" ) )
     , ( "VV", ( initialMode, "" ) )
     , ( "<c-v><c-v>", ( initialMode, "" ) )
     , ( "vw"
       , ( { initialMode
-            | mode = ModeNameVisual
+            | mode = ModeNameVisual VisualName
             , edit =
                 { direction = Forward, class = WordStart }
                     |> ByClass
@@ -504,10 +504,10 @@ cases =
         , "v"
         )
       )
-    , ( "vi", ( { initialMode | mode = ModeNameVisual }, "vi" ) )
+    , ( "vi", ( { initialMode | mode = ModeNameVisual VisualName }, "vi" ) )
     , ( "viw"
       , ( { initialMode
-            | mode = ModeNameVisual
+            | mode = ModeNameVisual VisualName
             , edit = Select Word False |> Just
           }
         , "v"
@@ -515,7 +515,7 @@ cases =
       )
     , ( "v12iw"
       , ( { initialMode
-            | mode = ModeNameVisual
+            | mode = ModeNameVisual VisualName
             , count = 12
             , edit = Select Word False |> Just
           }
