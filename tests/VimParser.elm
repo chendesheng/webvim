@@ -2,7 +2,7 @@ module VimParser exposing (..)
 
 import Expect exposing (Expectation)
 import Vim.Parser as V
-import Vim.State exposing (..)
+import Vim.AST exposing (..)
 
 
 -- import Fuzz exposing (Fuzzer, int, list, string)
@@ -125,6 +125,27 @@ cases =
             , edit = InsertString "a" |> InsertMode |> Just
           }
         , "caw"
+        )
+      )
+    , ( "C"
+      , ( { initialMode
+            | mode = ModeNameInsert
+            , edit =
+                { direction = Forward, class = LineEnd }
+                    |> ByClass
+                    |> MotionRange Exclusive
+                    |> Delete
+                    |> Just
+          }
+        , "C"
+        )
+      )
+    , ( "Cw"
+      , ( { initialMode
+            | mode = ModeNameInsert
+            , edit = InsertString "w" |> InsertMode |> Just
+          }
+        , "C"
         )
       )
 
@@ -488,21 +509,58 @@ cases =
         , "v"
         )
       )
-    , ( "vaw"
+    , ( "vi", ( { initialMode | mode = ModeNameVisual }, "vi" ) )
+    , ( "viw"
       , ( { initialMode
             | mode = ModeNameVisual
-            , edit = Select Word True |> Just
+            , edit = Select Word False |> Just
           }
         , "v"
         )
       )
-    , ( "v12aw"
+    , ( "v12iw"
       , ( { initialMode
             | mode = ModeNameVisual
             , count = 12
-            , edit = Select Word True |> Just
+            , edit = Select Word False |> Just
           }
-        , "v12"
+        , "v"
+        )
+      )
+    , ( "vd"
+      , ( { initialMode
+            | edit = Delete VisualRange |> Just
+          }
+        , ""
+        )
+      )
+    , ( "vc"
+      , ( { initialMode
+            | mode = ModeNameInsert
+            , edit = Delete VisualRange |> Just
+          }
+        , "vc"
+        )
+      )
+    , ( "vcx"
+      , ( { initialMode
+            | mode = ModeNameInsert
+            , edit = InsertString "x" |> InsertMode |> Just
+          }
+        , "vc"
+        )
+      )
+    , ( "vC"
+      , ( { initialMode
+            | mode = ModeNameInsert
+            , edit =
+                { direction = Forward, class = LineEnd }
+                    |> ByClass
+                    |> MotionRange Exclusive
+                    |> Delete
+                    |> Just
+          }
+        , "vC"
         )
       )
 

@@ -2,7 +2,7 @@ module Vim.Register exposing (..)
 
 import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Helper exposing (..)
-import Vim.State
+import Vim.AST
     exposing
         ( Register
         , defaultRegister
@@ -10,7 +10,6 @@ import Vim.State
         , StateChange(..)
         , ModeDelta
         )
-import Vim.Key exposing (keyParser)
 import String
 
 
@@ -41,7 +40,6 @@ registerParser : Parser ModeDelta
 registerParser =
     readKeyAndThen "\""
         [ PushKey "\"" ]
-        []
         (P.succeed
             (\key ->
                 if isRegister key then
@@ -51,8 +49,3 @@ registerParser =
             )
             |= keyParser
         )
-
-
-partialRegister : Register
-partialRegister =
-    ""

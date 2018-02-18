@@ -5,7 +5,7 @@ import Char
 import String
 import List
 import Result
-import Vim.State
+import Vim.AST
     exposing
         ( ModeDelta
         , StateChange(..)
@@ -14,6 +14,8 @@ import Vim.State
         , Key
         , Register
         , defaultRegister
+        , OperatorRange(..)
+        , Inclusive(..)
         )
 
 
@@ -112,8 +114,12 @@ mapTuple m1 m2 ( a, b ) =
     ( m1 a, m2 b )
 
 
-readKeyAndThen : String -> a -> a -> Parser a -> Parser a
-readKeyAndThen key partialResult escapeResult nextOps =
+readKeyAndThen :
+    String
+    -> ModeDelta
+    -> Parser ModeDelta
+    -> Parser ModeDelta
+readKeyAndThen key partialResult nextOps =
     P.succeed
         identity
         |. P.symbol key
@@ -122,15 +128,22 @@ readKeyAndThen key partialResult escapeResult nextOps =
                 partialResult
                 |. P.end
             , P.succeed
-                escapeResult
+                []
                 |. P.symbol "<esc>"
             , nextOps
             ]
 
 
-keyParserAndThen : Parser String -> (String -> a) -> a -> Parser a -> Parser a
-keyParserAndThen keyParser partialResult escapeResult nextOps =
-    keyParser
+readKeysAndThen :
+    List Key
+    -> (Key -> ModeDelta)
+    -> (Key -> Parser ModeDelta)
+    -> Parser ModeDelta
+readKeysAndThen keys partialResult nextOps =
+    (P.oneOf
+        (List.map P.symbol keys)
+        |> P.source
+    )
         |> P.andThen
             (\key ->
                 P.oneOf
@@ -138,9 +151,9 @@ keyParserAndThen keyParser partialResult escapeResult nextOps =
                         (partialResult key)
                         |. P.end
                     , P.succeed
-                        escapeResult
+                        []
                         |. P.symbol "<esc>"
-                    , nextOps
+                    , (nextOps key)
                     ]
             )
 
@@ -241,15 +254,9 @@ completeAndThen f p =
         p
 
 
-parserPopKey : ModeDelta -> Parser ModeDelta
-parserPopKey modeDelta =
+popKey : ModeDelta -> Parser ModeDelta
+popKey modeDelta =
     (modeDelta ++ [ PopKey ])
-        |> P.succeed
-
-
-parserPopKeys2 : ModeDelta -> Parser ModeDelta
-parserPopKeys2 modeDelta =
-    (modeDelta ++ [ PopKey, PopKey ])
         |> P.succeed
 
 
@@ -344,3 +351,36 @@ aggregateKeys changes =
             []
         |> List.map escapeKey
         |> String.join ""
+
+
+flipInclusive : OperatorRange -> OperatorRange
+flipInclusive range =
+    case range of
+        MotionRange Inclusive m ->
+            MotionRange Exclusive m
+
+        MotionRange Exclusive m ->
+            MotionRange Inclusive m
+
+        _ ->
+            range
+
+
+escapedChar : Parser String
+escapedChar =
+    P.oneOf
+        -- escape '<' and '\'
+        [ P.succeed identity
+            |. ignoreChar ((==) '\\')
+            |= keepChar (\ch -> ch == '<' || ch == '\\')
+        , keepChar (\ch -> ch /= '<')
+        ]
+
+
+keyParser : Parser Key
+keyParser =
+    P.oneOf
+        [ escapedChar
+        , (P.symbol "<" |. P.ignoreUntil ">")
+            |> P.source
+        ]
