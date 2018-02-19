@@ -6,4 +6,4 @@ type alias Key =
 
 
 type Msg
-    = Keys List Key
+    = PressKey Key

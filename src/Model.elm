@@ -1,34 +1,60 @@
 module Model exposing (..)
 
-import Array as A
+import Array as A exposing (Array)
 import Dict as D
 import Message exposing (Msg(..))
+import Types exposing (..)
+import Internal.TextBuffer exposing (TextBuffer)
 
 
-type Position
-    = Position Int Int
+type VisualType
+    = VisualLine
+    | VisualBlock
+    | VisualRange
 
 
-type alias TextBuffer =
-    { lines : A.Array String
-    , cursor : Position
-    , path : String
-    , name : String
-    }
+type Mode
+    = Normal
+    | Visual VisualType (List ( Position, Position ))
+    | Insert
+    | Ex
+        { prefix : String
+        , buffer : String
+        , cursor : Position
+        }
 
 
 type alias Model =
-    { buffers : D.Dict String TextBuffer
-    , activeBuffer : TextBuffer
+    { buffers : D.Dict String Buffer
+    , activeBuffer : Buffer
     }
 
 
-emptyBuffer : TextBuffer
+type alias Buffer =
+    { lines : TextBuffer
+    , cursor : Position
+    , path : String
+    , name : String
+    , mode : Mode
+    , continuation : String
+    , history : ( List Undo, List Redo )
+    }
+
+
+updateActiveBuffer : (Buffer -> Buffer) -> Model -> Model
+updateActiveBuffer op model =
+    { model | activeBuffer = op model.activeBuffer }
+
+
+emptyBuffer : Buffer
 emptyBuffer =
     { lines = A.empty
-    , cursor = Position 0 0
+    , cursor = ( 0, 0 )
     , path = ""
     , name = "no name"
+    , mode = Normal
+    , continuation = ""
+    , history = ( [], [] )
     }
 
 
