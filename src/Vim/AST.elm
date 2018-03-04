@@ -45,8 +45,6 @@ type PositionClass
     | ParagraphStart
     | ParagraphEnd
     | CharStart
-    | PunctuationStart
-    | PunctuationEnd
 
 
 type TextObject

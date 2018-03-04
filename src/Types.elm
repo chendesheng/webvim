@@ -23,7 +23,7 @@ emptyPatch =
 
 type alias Undo =
     { cursor : Position
-    , patch : Patch
+    , patches : List Patch
     }
 
 

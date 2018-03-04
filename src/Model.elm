@@ -1,10 +1,9 @@
 module Model exposing (..)
 
-import Array as A exposing (Array)
 import Dict as D exposing (Dict)
 import Message exposing (Msg(..))
 import Types exposing (..)
-import Internal.TextBuffer exposing (TextBuffer)
+import Internal.TextBuffer as B exposing (TextBuffer)
 
 
 type VisualType
@@ -27,26 +26,29 @@ type Mode
 type alias View =
     { buffer : String -- buffer id
     , scrollTop : Int
-    , lineTop : Int
-    , lines : List String
+    , startPosition : Position
+    , lines : TextBuffer
     , cursor : Maybe Position
     , statusBar :
         { text : String
         , cmds : String
         , cursor : Maybe Int
         }
-    }
-
-
-type alias Client =
-    { views : List View
+    , continuation : String
     }
 
 
 type alias Model =
     { buffers : Dict String Buffer
     , activeBuffer : Buffer
-    , clients : Dict String Client
+    , view : Maybe View
+    }
+
+
+type alias BufferHistory =
+    { undoes : List Undo
+    , pending : Maybe Undo
+    , redoes : List Redo
     }
 
 
@@ -57,8 +59,7 @@ type alias Buffer =
     , path : String
     , name : String
     , mode : Mode
-    , continuation : String
-    , history : ( List Undo, List Redo )
+    , history : BufferHistory
     , config :
         { wordChars : String
         , tabSize : Int
@@ -74,14 +75,17 @@ updateActiveBuffer op model =
 
 emptyBuffer : Buffer
 emptyBuffer =
-    { lines = A.empty
+    { lines = B.empty
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""
     , name = "no name"
     , mode = Normal
-    , continuation = ""
-    , history = ( [], [] )
+    , history =
+        { undoes = []
+        , pending = Nothing
+        , redoes = []
+        }
     , config =
         { wordChars = "_" -- a-z and A-Z are word chars by default
         , tabSize = 4
@@ -92,9 +96,9 @@ emptyBuffer =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { buffers = D.fromList [ ( emptyBuffer.path, emptyBuffer ) ]
+    ( { buffers = D.fromList []
       , activeBuffer = emptyBuffer
-      , clients = D.empty
+      , view = Nothing
       }
     , Cmd.none
     )

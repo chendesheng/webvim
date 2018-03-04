@@ -8,10 +8,6 @@ module Internal.TextBuffer
         , fromList
         , fromString
         , getLine
-        , slice
-        , append
-        , (+++)
-        , boundPosition
         , countLines
         , foldlLines
         , mapLines
@@ -22,8 +18,8 @@ import Array exposing (Array)
 import String
 
 
-type alias TextBuffer =
-    Array String
+type TextBuffer
+    = TextBuffer (Array String)
 
 
 lineBreak : String
@@ -32,65 +28,66 @@ lineBreak =
 
 
 isEmpty : TextBuffer -> Bool
-isEmpty =
-    Array.isEmpty
+isEmpty (TextBuffer buf) =
+    Array.isEmpty buf
 
 
 empty : TextBuffer
 empty =
-    Array.empty
+    TextBuffer Array.empty
 
 
 fromList : List String -> TextBuffer
-fromList =
-    Array.fromList
+fromList items =
+    TextBuffer <| Array.fromList items
 
 
 countLines : TextBuffer -> Int
-countLines =
-    Array.length
+countLines (TextBuffer buf) =
+    Array.length buf
 
 
 mapLines : (String -> b) -> TextBuffer -> Array b
-mapLines =
-    Array.map
+mapLines f (TextBuffer buf) =
+    Array.map f buf
 
 
 foldlLines : (String -> a -> a) -> a -> TextBuffer -> a
-foldlLines =
-    Array.foldl
+foldlLines f a (TextBuffer buf) =
+    Array.foldl f a buf
 
 
 getLine : Int -> TextBuffer -> Maybe String
-getLine =
-    Array.get
+getLine n (TextBuffer buf) =
+    Array.get n buf
 
 
-getLastLine : TextBuffer -> String
+getLastLine : Array String -> String
 getLastLine buf =
     buf
-        |> getLine (countLines buf - 1)
+        |> Array.get (Array.length buf - 1)
         |> Maybe.withDefault ""
 
 
-getFirstLine : TextBuffer -> String
+getFirstLine : Array String -> String
 getFirstLine buf =
     buf
-        |> getLine 0
+        |> Array.get 0
         |> Maybe.withDefault ""
 
 
-boundPosition : TextBuffer -> Position
+boundPosition : Array String -> Position
 boundPosition buf =
-    if isEmpty buf then
+    if Array.isEmpty buf then
         ( 0, 0 )
     else
         let
-            s =
-                getLastLine buf
-
             cnt =
-                countLines buf
+                Array.length buf
+
+            s =
+                Array.get (cnt - 1) buf
+                    |> Maybe.withDefault ""
         in
             ( cnt - 1, String.length s )
 
@@ -98,17 +95,22 @@ boundPosition buf =
 {-| Convert a string to a textBuffer
 -}
 fromString : String -> TextBuffer
-fromString s =
+fromString =
+    fromStringHelper >> TextBuffer
+
+
+fromStringHelper : String -> Array String
+fromStringHelper s =
     if s == "" then
-        empty
+        Array.empty
     else
         let
             buf =
                 String.split lineBreak s
-                    |> fromList
+                    |> Array.fromList
 
             lastRow =
-                countLines buf - 1
+                Array.length buf - 1
         in
             buf
                 |> Array.indexedMap
@@ -121,17 +123,19 @@ fromString s =
 
 
 toString : TextBuffer -> String
-toString =
-    Array.toList >> String.join ""
+toString (TextBuffer buf) =
+    buf
+        |> Array.toList
+        |> String.join ""
 
 
 {-| Concat tow textBuffers
 -}
-append : TextBuffer -> TextBuffer -> TextBuffer
+append : Array String -> Array String -> Array String
 append buf1 buf2 =
-    if isEmpty buf1 then
+    if Array.isEmpty buf1 then
         buf2
-    else if isEmpty buf2 then
+    else if Array.isEmpty buf2 then
         buf1
     else
         let
@@ -143,65 +147,74 @@ append buf1 buf2 =
         in
             buf2
                 |> Array.set 0 (lastLine1 ++ firstLine2)
-                |> Array.append (Array.slice 0 (countLines buf1 - 1) buf1)
+                |> Array.append (Array.slice 0 (Array.length buf1 - 1) buf1)
 
 
 {-| slice from a TextBuffer, right side exclusive
 -}
-slice : Position -> Position -> TextBuffer -> TextBuffer
+slice : Position -> Position -> Array String -> Array String
 slice pos1 pos2 buf =
-    if pos2 <= pos1 then
-        empty
-    else
-        let
-            ( y1, x1 ) =
-                if pos1 < ( 0, 0 ) then
-                    ( 0, 0 )
-                else
-                    pos1
+    let
+        bound =
+            boundPosition buf
 
-            bound =
-                boundPosition buf
+        valid pos =
+            if pos < ( 0, 0 ) then
+                ( 0, 0 )
+            else if pos > bound then
+                bound
+            else
+                pos
 
-            ( y2, x2 ) =
-                if pos2 > bound then
-                    bound
-                else
-                    pos2
-        in
+        (( y1, x1 ) as pos11) =
+            valid pos1
+
+        (( y2, x2 ) as pos22) =
+            valid pos2
+    in
+        if pos22 <= pos11 then
+            Array.empty
+        else
             Maybe.map2
                 (\line1 line2 ->
                     if y1 == y2 then
                         String.slice x1 x2 line1
-                            |> fromString
+                            |> fromStringHelper
                     else if y1 + 1 == y2 then
                         (String.dropLeft x1 line1 ++ String.left x2 line2)
-                            |> fromString
+                            |> fromStringHelper
                     else
                         let
                             line11 =
                                 String.dropLeft x1 line1
+
+                            line22 =
+                                String.left x2 line2
                         in
                             (if String.isEmpty line11 then
                                 []
                              else
                                 [ line11 ]
                             )
-                                |> fromList
+                                |> Array.fromList
                                 |> flip Array.append
                                     (Array.slice (y1 + 1) y2 buf)
-                                |> Array.push (String.left x2 line2)
+                                |> (if String.endsWith lineBreak line22 then
+                                        (Array.push line22 >> Array.push "")
+                                    else
+                                        Array.push line22
+                                   )
                 )
                 (Array.get y1 buf)
                 (Array.get y2 buf)
-                |> Maybe.withDefault empty
+                |> Maybe.withDefault Array.empty
 
 
-applyInsertion : Position -> String -> TextBuffer -> ( Patch, TextBuffer )
+applyInsertion : Position -> String -> Array String -> ( Patch, TextBuffer )
 applyInsertion pos s buf =
     let
         ss =
-            fromString s
+            fromStringHelper s
 
         bound =
             boundPosition buf
@@ -216,7 +229,7 @@ applyInsertion pos s buf =
                     ( y, x ) =
                         pos
                 in
-                    getLine y buf
+                    Array.get y buf
                         |> Maybe.map
                             (\line ->
                                 if String.length line <= x then
@@ -250,50 +263,42 @@ applyInsertion pos s buf =
                     0
                   )
             )
-        , top +++ ss +++ bottom
+        , top
+            +++ ss
+            +++ bottom
+            |> TextBuffer
         )
 
 
 applyDeletion :
     Position
     -> Position
-    -> TextBuffer
+    -> Array String
     -> ( Patch, TextBuffer )
 applyDeletion pos1 pos2 buf =
     if pos2 <= pos1 then
-        ( Insertion pos1 "", buf )
+        ( Insertion pos1 "", TextBuffer buf )
     else
         let
-            pos11 =
-                if pos1 < ( 0, 0 ) then
-                    ( 0, 0 )
-                else
-                    pos1
-
-            pos22 =
-                if pos2 < ( 0, 0 ) then
-                    ( 0, 0 )
-                else
-                    pos2
-
             top =
-                slice ( 0, 0 ) pos11 buf
+                slice ( 0, 0 ) pos1 buf
 
             bottom =
                 slice pos2 (boundPosition buf) buf
 
             deleted =
                 buf
-                    |> slice pos11 pos22
-                    |> toString
+                    |> slice pos1 pos2
+                    |> Array.toList
+                    |> String.join ""
         in
-            ( Insertion pos11 deleted, top +++ bottom )
+            ( Insertion pos1 deleted, top +++ bottom |> TextBuffer )
 
 
 {-| apply a patch, returns "reversed" patch and result buf
 -}
-applyPatch : Patch -> Array String -> ( Patch, Array String )
-applyPatch patch buf =
+applyPatch : Patch -> TextBuffer -> ( Patch, TextBuffer )
+applyPatch patch (TextBuffer buf) =
     case patch of
         Insertion pos s ->
             applyInsertion pos s buf
@@ -302,6 +307,6 @@ applyPatch patch buf =
             applyDeletion pos1 pos2 buf
 
 
-(+++) : TextBuffer -> TextBuffer -> TextBuffer
+(+++) : Array String -> Array String -> Array String
 (+++) =
     append

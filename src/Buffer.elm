@@ -1,94 +1,166 @@
-module Buffer exposing (insert, delete, undo, redo)
+module Buffer exposing (transaction, insert, delete, undo, redo, commit)
 
 import Types exposing (..)
-import Model exposing (Buffer)
+import Model exposing (Buffer, BufferHistory)
 import Internal.TextBuffer exposing (applyPatch, TextBuffer, getLine)
 import List
 import Vim.AST exposing (PositionClass(..), Direction(..))
+import String
 
 
-{-| insert text, keep cursor, save history
--}
+applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch )
+applyPatches patches lines =
+    List.foldl
+        (\patch ( lines, patches2 ) ->
+            let
+                ( patch2, lines2 ) =
+                    applyPatch patch lines
+            in
+                ( lines2, patch2 :: patches2 )
+        )
+        ( lines, [] )
+        patches
+
+
 insert : Position -> String -> Buffer -> Buffer
-insert pos s buf =
+insert pos s =
+    transaction [ Insertion pos s ]
+
+
+delete : Position -> Position -> Buffer -> Buffer
+delete from to =
+    transaction [ Deletion from to ]
+
+
+{-| batch edit text, keep cursor, save history
+-}
+transaction : List Patch -> Buffer -> Buffer
+transaction patches buf =
     let
-        ( patch, lines ) =
-            applyPatch (Insertion pos s) buf.lines
+        ( buf1, undo ) =
+            List.foldl
+                (\patch ( buf, undo ) ->
+                    let
+                        ( patch1, lines ) =
+                            applyPatch patch buf.lines
 
-        undo =
-            { cursor = buf.cursor, patch = patch }
+                        cursor =
+                            updateCursor patch patch1 buf.cursor
+                    in
+                        ( { buf
+                            | lines = lines
+                            , cursor = cursor
+                          }
+                        , patch1 :: undo
+                        )
+                )
+                ( buf, [] )
+                patches
+    in
+        if List.isEmpty undo then
+            buf
+        else
+            { buf1
+                | history =
+                    addPending buf.cursor undo buf1.history
+            }
 
-        cursor =
-            if buf.cursor <= pos then
-                buf.cursor
+
+updateCursor : Patch -> Patch -> Position -> Position
+updateCursor patch patch1 cursor =
+    case patch of
+        Insertion pos s ->
+            if cursor < pos then
+                cursor
             else
-                case patch of
+                case patch1 of
                     Deletion from to ->
                         positionSub to from
-                            |> positionAdd buf.cursor
+                            |> positionAdd cursor
 
                     _ ->
-                        buf.cursor
-    in
-        { buf
-            | lines = lines
-            , cursor = cursor
-            , history = buf.history |> Tuple.mapFirst ((::) undo)
-        }
+                        cursor
 
-
-{-| delete range of text, right end exclusive
--}
-delete : Position -> Position -> Buffer -> Buffer
-delete from to buf =
-    let
-        ( patch, lines ) =
-            applyPatch (Deletion from to) buf.lines
-
-        undo =
-            { cursor = buf.cursor, patch = patch }
-
-        cursor =
-            if buf.cursor < from then
-                buf.cursor
-            else if from <= buf.cursor && buf.cursor < to then
-                from
-            else
-                case patch of
-                    Insertion _ _ ->
+        Deletion from to ->
+            case patch1 of
+                Insertion _ s ->
+                    if String.length s == 0 then
+                        cursor
+                    else if cursor < from then
+                        cursor
+                    else if from <= cursor && cursor < to then
+                        from
+                    else
                         positionSub to from
-                            |> positionSub buf.cursor
+                            |> positionSub cursor
 
-                    _ ->
-                        buf.cursor
-    in
-        { buf
-            | lines = lines
-            , cursor = cursor
-            , history = buf.history |> Tuple.mapFirst ((::) undo)
-        }
+                Deletion _ _ ->
+                    cursor
+
+
+addPending : Position -> List Patch -> BufferHistory -> BufferHistory
+addPending cursor patches history =
+    history.pending
+        |> Maybe.map
+            (\pending ->
+                let
+                    pending1 =
+                        { pending | patches = patches ++ pending.patches }
+                in
+                    { history | pending = Just pending1 }
+            )
+        |> Maybe.withDefault
+            { history
+                | pending = Just { cursor = cursor, patches = patches }
+            }
+
+
+{-| add pending changes to undo list
+-}
+commit : Buffer -> Buffer
+commit buf =
+    { buf
+        | history =
+            let
+                history =
+                    buf.history
+            in
+                history.pending
+                    |> Maybe.map
+                        (\pending ->
+                            { history
+                                | undoes = pending :: history.undoes
+                                , pending = Nothing
+                                , redoes = []
+                            }
+                        )
+                    |> Maybe.withDefault history
+    }
 
 
 {-| undo last change
 -}
 undo : Buffer -> Buffer
 undo buf =
-    buf.history
-        |> Tuple.first
+    buf.history.undoes
         |> List.head
         |> Maybe.map
-            (\{ cursor, patch } ->
+            (\{ cursor, patches } ->
                 let
-                    ( patch1, lines1 ) =
-                        applyPatch patch buf.lines
+                    ( lines1, patches1 ) =
+                        applyPatches patches buf.lines
 
-                    undoHistory ( undoes, redoes ) =
-                        ( List.tail undoes |> Maybe.withDefault []
-                        , { cursor = buf.cursor
-                          , patch = patch1
-                          }
-                            :: redoes
-                        )
+                    undoHistory { undoes, redoes } =
+                        { undoes =
+                            List.tail undoes
+                                |> Maybe.withDefault []
+                        , pending = Nothing
+                        , redoes =
+                            { cursor = buf.cursor
+                            , patches = patches1
+                            }
+                                :: redoes
+                        }
                 in
                     { buf
                         | lines = lines1
@@ -103,22 +175,25 @@ undo buf =
 -}
 redo : Buffer -> Buffer
 redo buf =
-    buf.history
-        |> Tuple.second
+    buf.history.redoes
         |> List.head
         |> Maybe.map
-            (\{ cursor, patch } ->
+            (\{ cursor, patches } ->
                 let
-                    ( patch1, lines1 ) =
-                        applyPatch patch buf.lines
+                    ( lines1, patches1 ) =
+                        applyPatches patches buf.lines
 
-                    redoHistory ( undoes, redoes ) =
-                        ( { cursor = buf.cursor
-                          , patch = patch1
-                          }
-                            :: undoes
-                        , List.tail redoes |> Maybe.withDefault []
-                        )
+                    redoHistory { undoes, redoes } =
+                        { undoes =
+                            { cursor = buf.cursor
+                            , patches = patches1
+                            }
+                                :: undoes
+                        , pending = Nothing
+                        , redoes =
+                            List.tail redoes
+                                |> Maybe.withDefault []
+                        }
                 in
                     { buf
                         | lines = lines1
@@ -127,17 +202,6 @@ redo buf =
                     }
             )
         |> Maybe.withDefault buf
-
-
-findPositionClass : String -> PositionClass -> String -> Maybe Int
-findPositionClass wordChars class line =
-    case class of
-        WordStart ->
-            -- wordChar*notWordChars+wordChars+
-            Just 0
-
-        _ ->
-            Nothing
 
 
 moveByClass : PositionClass -> Direction -> Buffer -> Buffer

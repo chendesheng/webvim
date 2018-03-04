@@ -6,6 +6,7 @@ import Test exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer)
 import Types exposing (..)
 import Array
+import String
 
 
 normalPatches :
@@ -108,24 +109,50 @@ normalPatches =
     ]
 
 
-randomBuffer : Fuzz.Fuzzer TextBuffer
-randomBuffer =
+invalidPatches :
+    List
+        { input : ( Patch, TextBuffer )
+        , label : String
+        , output : ( Patch, TextBuffer )
+        }
+invalidPatches =
+    [ { label = "delete exceed line end"
+      , input =
+            ( Deletion ( 2, 1 ) ( 2, 2 )
+            , B.fromString "\n\n\n\n"
+            )
+      , output =
+            ( Insertion ( 2, 1 ) ""
+            , B.fromString "\n\n\n\n"
+            )
+      }
+    ]
+
+
+fuzzBuffer : Fuzz.Fuzzer TextBuffer
+fuzzBuffer =
     Fuzz.map B.fromString Fuzz.string
 
 
-randomPosition : Fuzz.Fuzzer Position
-randomPosition =
-    Fuzz.tuple ( Fuzz.int, Fuzz.int )
+fuzzPosition : Fuzz.Fuzzer Position
+fuzzPosition =
+    Fuzz.tuple ( Fuzz.intRange 0 1000, Fuzz.intRange 0 1000 )
 
 
-randomPatch : Fuzz.Fuzzer Patch
-randomPatch =
+fuzzPositionFrom : Position -> Fuzz.Fuzzer Position
+fuzzPositionFrom ( y, x ) =
+    Fuzz.tuple ( Fuzz.intRange y (y + 1000), Fuzz.intRange x (x + 1000) )
+
+
+fuzzPatch : Fuzz.Fuzzer Patch
+fuzzPatch =
     Fuzz.oneOf
-        [ Fuzz.map2 Insertion randomPosition Fuzz.string
-        , Fuzz.map2
-            Deletion
-            randomPosition
-            randomPosition
+        [ Fuzz.map2 Insertion fuzzPosition Fuzz.string
+        , fuzzPosition
+            |> Fuzz.andThen
+                (\pos ->
+                    Fuzz.map (Deletion pos) (fuzzPositionFrom pos)
+                )
         ]
 
 
@@ -148,32 +175,6 @@ suite =
                     Expect.equal
                         (B.fromList [ "123\n", "123" ])
                         (B.fromString "123\n123")
-            ]
-        , describe "slice"
-            [ test "slice (0,0) (0,3) `123`" <|
-                \_ ->
-                    Expect.equal
-                        (B.fromString "123")
-                        ("123"
-                            |> B.fromString
-                            |> B.slice ( 0, 0 ) ( 0, 3 )
-                        )
-            , test "slice (0,0) (1,0) `123\\n`" <|
-                \_ ->
-                    Expect.equal
-                        (B.fromString "123\n")
-                        ("123\n"
-                            |> B.fromString
-                            |> B.slice ( 0, 0 ) ( 1, 0 )
-                        )
-            , test "slice (0,0) (2,0) `123\\n123\\n`" <|
-                \_ ->
-                    Expect.equal
-                        (B.fromString "123\n123\n")
-                        ("123\n123\n"
-                            |> B.fromString
-                            |> B.slice ( 0, 0 ) ( 2, 0 )
-                        )
             ]
         , describe "applyPatch"
             (List.concatMap
@@ -199,9 +200,28 @@ suite =
                 )
                 normalPatches
             )
+        , describe "apply invalid patch"
+            (List.concatMap
+                (\{ label, input, output } ->
+                    let
+                        ( patch, buf ) =
+                            input
+
+                        ( patch1, buf1 ) =
+                            output
+                    in
+                        [ test label <|
+                            \_ ->
+                                Expect.equal
+                                    ( patch1, buf1 )
+                                    (B.applyPatch patch buf)
+                        ]
+                )
+                invalidPatches
+            )
         , describe "by property"
             [ fuzz
-                (Fuzz.tuple ( randomPatch, randomBuffer ))
+                (Fuzz.tuple ( fuzzPatch, fuzzBuffer ))
                 "apply a patch returned from applyPatch get orignal buffer"
               <|
                 \( patch, buf ) ->
@@ -214,7 +234,7 @@ suite =
                     in
                         Expect.equal buf buf2
             , fuzz
-                (Fuzz.tuple ( randomPatch, randomBuffer ))
+                (Fuzz.tuple ( fuzzPatch, fuzzBuffer ))
                 "applyPatch always return valid buffer"
               <|
                 \( patch, buf ) ->
@@ -222,13 +242,29 @@ suite =
                         [ (\buf ->
                             let
                                 line =
-                                    B.countLines buf
-                                        |> flip B.getLine buf
+                                    buf
+                                        |> B.getLine (B.countLines buf - 1)
                                         |> Maybe.withDefault ""
                             in
                                 String.endsWith B.lineBreak line
                                     |> Expect.false
                                         "last line should not endsWith \\n"
+                          )
+                        , (\buf ->
+                            B.mapLines
+                                (\line ->
+                                    line
+                                        |> String.indexes B.lineBreak
+                                        |> List.length
+                                        |> ((==) 1)
+                                )
+                                buf
+                                |> Array.slice 0
+                                    (B.countLines buf - 1)
+                                |> Array.toList
+                                |> List.all ((==) True)
+                                |> Expect.true
+                                    "should always contains single \\n except last line"
                           )
                         , (\buf ->
                             B.mapLines String.isEmpty buf

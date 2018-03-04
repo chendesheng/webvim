@@ -2,7 +2,10 @@ module Update exposing (update)
 
 import Model exposing (..)
 import Message exposing (..)
-import Vim.Parser as P
+
+
+-- import Vim.Parser as P
+
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B
 
@@ -129,19 +132,23 @@ applyChange change model =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
-    case message of
-        PressKey key ->
-            let
-                ( mode, continuation ) =
-                    P.parse model.activeBuffer.continuation key
+    ( model, Cmd.none )
 
-                newModel =
-                    applyChange mode model
-            in
-                ( updateActiveBuffer
-                    (\buf ->
-                        { buf | continuation = continuation }
-                    )
-                    newModel
-                , Cmd.none
-                )
+
+
+--    case message of
+--        PressKey key ->
+--            let
+--                ( mode, continuation ) =
+--                    P.parse model.activeBuffer.continuation key
+--
+--                newModel =
+--                    applyChange mode model
+--            in
+--                ( updateActiveBuffer
+--                    (\buf ->
+--                        { buf | continuation = continuation }
+--                    )
+--                    newModel
+--                , Cmd.none
+--                )

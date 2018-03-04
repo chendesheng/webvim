@@ -22,14 +22,17 @@ const jsTask = () => shell('npm run js --silent');
 const cssTask = () => shell('npm run css');
 const reloadTask = () => browserSync.reload();
 const reloadCSSTask = () => browserSync.reload('dist/style.min.css');
-const ctagsTask = () => shell('ctags -R src');
+const ctagsTask = folder => () => shell(`ctags -R ${folder}`);
 const exitTask = () => process.exit(0);
 const htmlTask = () => shell('npm run html');
 const fontTask = () => shell('npm run font');
 const testTask = () => shell('elm test');
 
+const withColor = (number, str) => `\x1b[${number}m${str}\x1b[0m`;
+const green = 32;
+
 const runTaskList = debounce((tasks) => {
-  console.log(`start run task ${tasks.map(f=>f.name)}`);
+  console.log(withColor(green, `${new Date}`));
   const todo = [];
   // remove duplicate tasks 
   // use reverse to leave most recent one
@@ -57,13 +60,13 @@ const watch = (path, tasks) => {
   });
 };
 
-runTaskList([jsTask, cssTask, ctagsTask, htmlTask, reloadTask]);
+runTaskList([jsTask, cssTask, ctagsTask("src tests"), htmlTask, reloadTask]);
 
-watch('src/**/*.elm', [jsTask, ctagsTask, reloadTask, testTask]);
+watch('src/**/*.elm', [jsTask, ctagsTask("src"), reloadTask, testTask]);
 watch('src/Native/*.js', [jsTask, reloadTask]);
 watch(['build/index.html', 'index.js'], [htmlTask, reloadTask]);
 watch(['css/**/*.less'], [cssTask, reloadCSSTask]);
 watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
-watch(['tests/**/*.elm'], [testTask]);
+watch(['tests/**/*.elm'], [ctagsTask("tests"), testTask]);
 
