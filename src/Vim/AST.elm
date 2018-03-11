@@ -108,21 +108,21 @@ type ModeName
     | ModeNameVisual VisualName
 
 
-type alias Mode =
+type alias AST =
     { count : Int -- default 1
     , edit : Maybe Operator
     , register : Register
-    , mode : ModeName
+    , modeName : ModeName
     , recordMacro : Maybe Register
     }
 
 
-initialMode : Mode
+initialMode : AST
 initialMode =
     { count = 1
     , edit = Nothing
     , register = defaultRegister
-    , mode = ModeNameNormal
+    , modeName = ModeNameNormal
     , recordMacro = Nothing
     }
 
@@ -147,7 +147,3 @@ type Motion
     | LineNumber Int
     | LastLine
     | MatchPair -- %
-
-
-type alias AST =
-    ( Mode, String )

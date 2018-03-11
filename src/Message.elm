@@ -6,4 +6,4 @@ type alias Key =
 
 
 type Msg
-    = PressKey Key
+    = PressKey Int Key -- buffer id, key

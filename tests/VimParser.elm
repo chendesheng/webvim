@@ -10,7 +10,7 @@ import Vim.AST exposing (..)
 import Test exposing (..)
 
 
-cases : List ( String, AST )
+cases : List ( String, ( AST, String ) )
 cases =
     [ ( "w"
       , ( { initialMode
@@ -66,14 +66,14 @@ cases =
 
     -- insert
     , ( "i"
-      , ( { initialMode | mode = ModeNameInsert }, "i" )
+      , ( { initialMode | modeName = ModeNameInsert }, "i" )
       )
     , ( "i<esc>"
-      , ( { initialMode | mode = ModeNameNormal }, "" )
+      , ( { initialMode | modeName = ModeNameNormal }, "" )
       )
     , ( "ia"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit = InsertString "a" |> Just
           }
         , "i"
@@ -83,7 +83,7 @@ cases =
     , ( "c<esc>", ( initialMode, "" ) )
     , ( "cw"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit =
                 { direction = Forward, class = WordStart }
                     |> ByClass
@@ -98,7 +98,7 @@ cases =
     , ( "cv<esc>", ( initialMode, "" ) )
     , ( "cvw"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit =
                 { direction = Forward, class = WordStart }
                     |> ByClass
@@ -113,7 +113,7 @@ cases =
     , ( "cvw<esc>", ( initialMode, "" ) )
     , ( "cwa"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit = InsertString "a" |> Just
           }
         , "cw"
@@ -121,7 +121,7 @@ cases =
       )
     , ( "cawa"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit = InsertString "a" |> Just
           }
         , "caw"
@@ -129,7 +129,7 @@ cases =
       )
     , ( "C"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit =
                 { direction = Forward, class = LineEnd }
                     |> ByClass
@@ -142,7 +142,7 @@ cases =
       )
     , ( "Cw"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit = InsertString "w" |> Just
           }
         , "C"
@@ -210,7 +210,7 @@ cases =
 
     -- ex
     , ( ":"
-      , ( { initialMode | mode = ModeNameEx ":" }, ":" )
+      , ( { initialMode | modeName = ModeNameEx ":" }, ":" )
       )
     , ( ":<esc>"
       , ( initialMode, "" )
@@ -221,13 +221,13 @@ cases =
     , ( ":a"
       , ( { initialMode
             | edit = InsertString "a" |> Just
-            , mode = ModeNameEx ":"
+            , modeName = ModeNameEx ":"
           }
         , ":"
         )
       )
     , ( "/"
-      , ( { initialMode | mode = ModeNameEx "/" }, "/" )
+      , ( { initialMode | modeName = ModeNameEx "/" }, "/" )
       )
     , ( "/<esc>"
       , ( initialMode, "" )
@@ -238,13 +238,13 @@ cases =
     , ( "/a"
       , ( { initialMode
             | edit = InsertString "a" |> Just
-            , mode = ModeNameEx "/"
+            , modeName = ModeNameEx "/"
           }
         , "/"
         )
       )
     , ( "?"
-      , ( { initialMode | mode = ModeNameEx "?" }, "?" )
+      , ( { initialMode | modeName = ModeNameEx "?" }, "?" )
       )
     , ( "?<esc>"
       , ( initialMode, "" )
@@ -255,7 +255,7 @@ cases =
     , ( "?a"
       , ( { initialMode
             | edit = InsertString "a" |> Just
-            , mode = ModeNameEx "?"
+            , modeName = ModeNameEx "?"
           }
         , "?"
         )
@@ -268,7 +268,7 @@ cases =
                     |> MotionRange Inclusive
                     |> Delete
                     |> Just
-            , mode = ModeNameEx "?"
+            , modeName = ModeNameEx "?"
           }
         , "?"
         )
@@ -276,10 +276,10 @@ cases =
 
     -- temp normal
     , ( "i<c-o>"
-      , ( { initialMode | mode = ModeNameTempNormal }, "i<c-o>" )
+      , ( { initialMode | modeName = ModeNameTempNormal }, "i<c-o>" )
       )
     , ( "i<c-o><esc>"
-      , ( { initialMode | mode = ModeNameInsert }, "i" )
+      , ( { initialMode | modeName = ModeNameInsert }, "i" )
       )
     , ( "i<c-o>w"
       , ( { initialMode
@@ -288,16 +288,16 @@ cases =
                     |> ByClass
                     |> Move
                     |> Just
-            , mode = ModeNameInsert
+            , modeName = ModeNameInsert
           }
         , "i"
         )
       )
     , ( "i<c-o>i"
-      , ( { initialMode | mode = ModeNameInsert }, "i" )
+      , ( { initialMode | modeName = ModeNameInsert }, "i" )
       )
     , ( "i<c-o>c"
-      , ( { initialMode | mode = ModeNameTempNormal }
+      , ( { initialMode | modeName = ModeNameTempNormal }
         , "i<c-o>c"
         )
       )
@@ -309,16 +309,16 @@ cases =
                     |> MotionRange Exclusive
                     |> Delete
                     |> Just
-            , mode = ModeNameInsert
+            , modeName = ModeNameInsert
           }
         , "i"
         )
       )
     , ( "cw<c-o>"
-      , ( { initialMode | mode = ModeNameTempNormal }, "cw<c-o>" )
+      , ( { initialMode | modeName = ModeNameTempNormal }, "cw<c-o>" )
       )
     , ( "cw<c-o><esc>"
-      , ( { initialMode | mode = ModeNameInsert }, "cw" )
+      , ( { initialMode | modeName = ModeNameInsert }, "cw" )
       )
     , ( "cw<c-o>w"
       , ( { initialMode
@@ -327,16 +327,16 @@ cases =
                     |> ByClass
                     |> Move
                     |> Just
-            , mode = ModeNameInsert
+            , modeName = ModeNameInsert
           }
         , "cw"
         )
       )
     , ( "cw<c-o>i"
-      , ( { initialMode | mode = ModeNameInsert }, "cw" )
+      , ( { initialMode | modeName = ModeNameInsert }, "cw" )
       )
     , ( "cw<c-o>c"
-      , ( { initialMode | mode = ModeNameTempNormal }
+      , ( { initialMode | modeName = ModeNameTempNormal }
         , "cw<c-o>c"
         )
       )
@@ -348,7 +348,7 @@ cases =
                     |> MotionRange Exclusive
                     |> Delete
                     |> Just
-            , mode = ModeNameInsert
+            , modeName = ModeNameInsert
           }
         , "cw"
         )
@@ -383,7 +383,7 @@ cases =
     , ( "qacw"
       , ( { initialMode
             | recordMacro = Just "a"
-            , mode = ModeNameInsert
+            , modeName = ModeNameInsert
             , edit =
                 { direction = Forward, class = WordStart }
                     |> ByClass
@@ -397,7 +397,7 @@ cases =
     , ( "qacwq"
       , ( { initialMode
             | recordMacro = Just "a"
-            , mode = ModeNameInsert
+            , modeName = ModeNameInsert
             , edit = InsertString "q" |> Just
           }
         , "qacw"
@@ -438,7 +438,7 @@ cases =
     , ( "i<c-r>a"
       , ( { initialMode
             | register = "a"
-            , mode = ModeNameInsert
+            , modeName = ModeNameInsert
             , edit = Put Forward |> Just
           }
         , "i"
@@ -469,32 +469,32 @@ cases =
 
     -- visual
     , ( "v"
-      , ( { initialMode | mode = ModeNameVisual VisualName }, "v" )
+      , ( { initialMode | modeName = ModeNameVisual VisualName }, "v" )
       )
     , ( "V"
-      , ( { initialMode | mode = ModeNameVisual VisualNameLine }, "V" )
+      , ( { initialMode | modeName = ModeNameVisual VisualNameLine }, "V" )
       )
     , ( "<c-v>"
-      , ( { initialMode | mode = ModeNameVisual VisualNameBlock }, "<c-v>" )
+      , ( { initialMode | modeName = ModeNameVisual VisualNameBlock }, "<c-v>" )
       )
     , ( "vV"
-      , ( { initialMode | mode = ModeNameVisual VisualNameLine }, "V" )
+      , ( { initialMode | modeName = ModeNameVisual VisualNameLine }, "V" )
       )
     , ( "v<c-v>"
-      , ( { initialMode | mode = ModeNameVisual VisualNameBlock }, "<c-v>" )
+      , ( { initialMode | modeName = ModeNameVisual VisualNameBlock }, "<c-v>" )
       )
     , ( "Vv"
-      , ( { initialMode | mode = ModeNameVisual VisualName }, "v" )
+      , ( { initialMode | modeName = ModeNameVisual VisualName }, "v" )
       )
     , ( "V<c-v>"
-      , ( { initialMode | mode = ModeNameVisual VisualNameBlock }, "<c-v>" )
+      , ( { initialMode | modeName = ModeNameVisual VisualNameBlock }, "<c-v>" )
       )
     , ( "vv", ( initialMode, "" ) )
     , ( "VV", ( initialMode, "" ) )
     , ( "<c-v><c-v>", ( initialMode, "" ) )
     , ( "vw"
       , ( { initialMode
-            | mode = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualName
             , edit =
                 { direction = Forward, class = WordStart }
                     |> ByClass
@@ -504,10 +504,10 @@ cases =
         , "v"
         )
       )
-    , ( "vi", ( { initialMode | mode = ModeNameVisual VisualName }, "vi" ) )
+    , ( "vi", ( { initialMode | modeName = ModeNameVisual VisualName }, "vi" ) )
     , ( "viw"
       , ( { initialMode
-            | mode = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualName
             , edit = Select Word False |> Just
           }
         , "v"
@@ -515,7 +515,7 @@ cases =
       )
     , ( "v12iw"
       , ( { initialMode
-            | mode = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualName
             , count = 12
             , edit = Select Word False |> Just
           }
@@ -531,7 +531,7 @@ cases =
       )
     , ( "vc"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit = Delete VisualRange |> Just
           }
         , "vc"
@@ -539,7 +539,7 @@ cases =
       )
     , ( "vcx"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit = InsertString "x" |> Just
           }
         , "vc"
@@ -547,7 +547,7 @@ cases =
       )
     , ( "vC"
       , ( { initialMode
-            | mode = ModeNameInsert
+            | modeName = ModeNameInsert
             , edit =
                 { direction = Forward, class = LineEnd }
                     |> ByClass

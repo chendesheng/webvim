@@ -62,7 +62,7 @@ const watch = (path, tasks) => {
 
 runTaskList([jsTask, cssTask, ctagsTask("src tests"), htmlTask, reloadTask]);
 
-watch('src/**/*.elm', [jsTask, ctagsTask("src"), reloadTask, testTask]);
+watch('src/**/*.elm', [jsTask, ctagsTask("src"), reloadTask]);
 watch('src/Native/*.js', [jsTask, reloadTask]);
 watch(['build/index.html', 'index.js'], [htmlTask, reloadTask]);
 watch(['css/**/*.less'], [cssTask, reloadCSSTask]);

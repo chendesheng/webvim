@@ -673,7 +673,7 @@ macro isVisual =
         )
 
 
-parse : String -> Key -> AST
+parse : String -> Key -> ( AST, String )
 parse lastKeys key =
     if key == "<c-c>" then
         ( initialMode, "" )
@@ -689,7 +689,7 @@ parse lastKeys key =
             ( { count = aggregateCount modeDelta
               , edit = aggregateOperator modeDelta
               , register = aggregateRegister modeDelta
-              , mode = aggregateModeName modeDelta
+              , modeName = aggregateModeName modeDelta
               , recordMacro = aggregateRecordingMacro modeDelta
               }
             , aggregateKeys modeDelta
