@@ -53,6 +53,14 @@ type alias BufferHistory =
     }
 
 
+emptyBufferHistory : BufferHistory
+emptyBufferHistory =
+    { undoes = []
+    , pending = Nothing
+    , redoes = []
+    }
+
+
 type alias Buffer =
     { id : Int
     , lines : TextBuffer
@@ -97,11 +105,7 @@ emptyBuffer =
     , path = ""
     , name = "no name"
     , mode = Normal
-    , history =
-        { undoes = []
-        , pending = Nothing
-        , redoes = []
-        }
+    , history = emptyBufferHistory
     , config =
         { wordChars = "_" -- a-z and A-Z are word chars by default
         , tabSize = 4

@@ -26,7 +26,7 @@ const ctagsTask = folder => () => shell(`ctags -R ${folder}`);
 const exitTask = () => process.exit(0);
 const htmlTask = () => shell('npm run html');
 const fontTask = () => shell('npm run font');
-const testTask = () => shell('elm test');
+// const testTask = () => shell('elm test');
 
 const withColor = (number, str) => `\x1b[${number}m${str}\x1b[0m`;
 const green = 32;
@@ -68,5 +68,5 @@ watch(['build/index.html', 'index.js'], [htmlTask, reloadTask]);
 watch(['css/**/*.less'], [cssTask, reloadCSSTask]);
 watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
-watch(['tests/**/*.elm'], [ctagsTask("tests"), testTask]);
+watch(['tests/**/*.elm'], [ctagsTask("tests") ]);
 

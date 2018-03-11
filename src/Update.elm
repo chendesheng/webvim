@@ -119,33 +119,16 @@ setCursor cursor buf =
 updateMode : V.ModeName -> Buffer -> Buffer
 updateMode modeName buf =
     let
-        newModeName =
+        oldModeName =
             getModeName buf.mode
 
         newMode =
-            if newModeName == modeName then
+            if oldModeName == modeName then
                 buf.mode
             else
-                emptyMode newModeName
-
-        buf1 =
-            if
-                modeName
-                    == V.ModeNameInsert
-                    && newModeName
-                    == V.ModeNameNormal
-            then
-                let
-                    ( y, x ) =
-                        buf.cursor
-                in
-                    buf
-                        |> setCursor ( y, max (x - 1) 0 )
-                        |> Buf.commit
-            else
-                buf
+                emptyMode modeName
     in
-        { buf1 | mode = newMode }
+        { buf | mode = newMode }
 
 
 modeChanged : V.ModeName -> V.ModeName -> Buffer -> Buffer
@@ -210,7 +193,9 @@ handleKeypress key model buf =
                 modeChanged oldModeName modeName buf2
 
         buffers =
-            Dict.insert buf3.id buf3 model.buffers
+            Dict.insert buf3.id
+                { buf3 | continuation = continuation }
+                model.buffers
     in
         ( { model | buffers = buffers }, Cmd.none )
 
