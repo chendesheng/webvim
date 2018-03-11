@@ -5,8 +5,7 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import Buffer exposing (..)
 import Model exposing (Buffer, emptyBuffer, BufferHistory)
-import Types exposing (..)
-import Internal.TextBuffer as B
+import Internal.TextBuffer as B exposing (Patch(..))
 import TextBuffer exposing (..)
 
 
@@ -30,7 +29,11 @@ suite =
         [ describe "insert" <|
             let
                 buf =
-                    transaction [ Insertion ( 0, 0 ) "123" ] emptyBuffer
+                    transaction
+                        [ Insertion ( 0, 0 ) <|
+                            B.fromString "123"
+                        ]
+                        emptyBuffer
             in
                 [ test "result.cursor" <|
                     \_ ->
@@ -56,8 +59,8 @@ suite =
             let
                 buf =
                     transaction
-                        [ Insertion ( 0, 0 ) "123\n"
-                        , Insertion ( 1, 0 ) "123"
+                        [ Insertion ( 0, 0 ) <| B.fromString "123\n"
+                        , Insertion ( 1, 0 ) <| B.fromString "123"
                         ]
                         emptyBuffer
             in
@@ -89,7 +92,7 @@ suite =
             let
                 buf =
                     transaction
-                        [ Insertion ( 0, 0 ) "123"
+                        [ Insertion ( 0, 0 ) <| B.fromString "123"
                         , Deletion ( 0, 0 ) ( 0, 2 )
                         ]
                         emptyBuffer
@@ -110,7 +113,8 @@ suite =
                                 Just
                                     { cursor = ( 0, 0 )
                                     , patches =
-                                        [ Insertion ( 0, 0 ) "12"
+                                        [ Insertion ( 0, 0 ) <|
+                                            B.fromString "12"
                                         , Deletion ( 0, 0 ) ( 0, 3 )
                                         ]
                                     }
@@ -122,7 +126,7 @@ suite =
             let
                 buf =
                     transaction
-                        [ Insertion ( 0, 0 ) "\n\n"
+                        [ Insertion ( 0, 0 ) <| B.fromString "\n\n"
                         , Deletion ( 0, 1 ) ( 0, 2 )
                         ]
                         emptyBuffer
@@ -156,7 +160,10 @@ suite =
                             , pending = Nothing
                             , redoes =
                                 [ { cursor = ( 0, 3 )
-                                  , patches = [ Insertion ( 0, 0 ) "123" ]
+                                  , patches =
+                                        [ Insertion ( 0, 0 ) <|
+                                            B.fromString "123"
+                                        ]
                                   }
                                 ]
                             }
@@ -233,7 +240,7 @@ suite =
                         { undoes =
                             [ { cursor = ( 0, 0 )
                               , patches =
-                                    [ Insertion ( 0, 1 ) "56"
+                                    [ Insertion ( 0, 1 ) <| B.fromString "56"
                                     , Deletion ( 0, 0 ) ( 0, 3 )
                                     , Deletion ( 0, 0 ) ( 0, 3 )
                                     ]
@@ -325,7 +332,10 @@ suite =
                         buf =
                             repeat
                                 n
-                                (transaction [ Insertion ( 0, 0 ) "123" ]
+                                (transaction
+                                    [ Insertion ( 0, 0 ) <|
+                                        B.fromString "123"
+                                    ]
                                     >> commit
                                 )
                                 emptyBuffer
@@ -340,7 +350,11 @@ suite =
                         buf =
                             repeat
                                 n
-                                (transaction [ Insertion ( 0, 0 ) "123" ])
+                                (transaction
+                                    [ Insertion ( 0, 0 ) <|
+                                        B.fromString "123"
+                                    ]
+                                )
                                 emptyBuffer
                     in
                         Expect.equal n
@@ -354,7 +368,10 @@ suite =
                         buf =
                             repeat
                                 5
-                                (transaction [ Insertion ( 0, 0 ) "123" ]
+                                (transaction
+                                    [ Insertion ( 0, 0 ) <|
+                                        B.fromString "123"
+                                    ]
                                     >> commit
                                 )
                                 emptyBuffer
@@ -370,7 +387,10 @@ suite =
                 \_ ->
                     let
                         insert =
-                            transaction [ Insertion ( 0, 0 ) "123" ]
+                            transaction
+                                [ Insertion ( 0, 0 ) <|
+                                    B.fromString "123"
+                                ]
 
                         buf =
                             emptyBuffer

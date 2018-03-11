@@ -1,13 +1,15 @@
-module Update exposing (update)
+module Update exposing (update, expandTab)
 
 import Model exposing (..)
 import Message exposing (..)
 import Vim.Parser as P
 import Vim.AST as V exposing (Operator(..))
-import Internal.TextBuffer as B
+import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
-import Types exposing (Patch(..), Position)
+import Types exposing (Position)
 import Dict
+import List
+import String
 
 
 moveByClass : V.PositionClass -> V.Direction -> Buffer -> Position
@@ -150,6 +152,56 @@ modeChanged oldModeName newModeName buf =
         buf
 
 
+getLast : List a -> Maybe a
+getLast xs =
+    case xs of
+        [] ->
+            Nothing
+
+        [ x ] ->
+            Just x
+
+        x :: xs ->
+            getLast xs
+
+
+expandTab : Int -> Int -> String -> String
+expandTab n firstLineOffset s =
+    let
+        lines =
+            String.split B.lineBreak s
+    in
+        List.map2
+            (\line start ->
+                let
+                    tabIndexes =
+                        String.indexes "\t" line
+
+                    ( s, lastTabIndex ) =
+                        List.foldl
+                            (\i ( s, lasti ) ->
+                                let
+                                    s1 =
+                                        s ++ String.slice lasti i line
+
+                                    cnt =
+                                        n - (String.length s1 + start) % n
+
+                                    tabs =
+                                        String.repeat cnt " "
+                                in
+                                    ( s1 ++ tabs, i + 1 )
+                            )
+                            ( "", 0 )
+                            tabIndexes
+                in
+                    s ++ String.dropLeft lastTabIndex line
+            )
+            lines
+            (firstLineOffset :: List.repeat (List.length lines - 1) 0)
+            |> String.join B.lineBreak
+
+
 handleKeypress : Key -> Model -> Buffer -> ( Model, Cmd Msg )
 handleKeypress key model buf =
     let
@@ -177,9 +229,24 @@ handleKeypress key model buf =
                                         buf1
 
                                     _ ->
-                                        buf1
-                                            |> Buf.transaction
-                                                [ Insertion buf1.cursor s ]
+                                        let
+                                            { expandTab, tabSize } =
+                                                buf1.config
+
+                                            s1 =
+                                                if expandTab then
+                                                    B.fromStringExpandTabs
+                                                        tabSize
+                                                        (buf1.cursor
+                                                            |> Tuple.second
+                                                        )
+                                                        s
+                                                else
+                                                    B.fromString s
+                                        in
+                                            Buf.transaction
+                                                [ Insertion buf1.cursor s1 ]
+                                                buf1
 
                             _ ->
                                 buf1

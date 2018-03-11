@@ -7,10 +7,13 @@ module Internal.TextBuffer
         , empty
         , fromList
         , fromString
+        , fromStringExpandTabs
         , getLine
         , countLines
         , foldlLines
+        , expandTabs
         , mapLines
+        , Patch(..)
         )
 
 import Types exposing (..)
@@ -20,6 +23,16 @@ import String
 
 type TextBuffer
     = TextBuffer (Array String)
+
+
+type Patch
+    = Insertion Position TextBuffer
+    | Deletion Position Position
+
+
+emptyPatch : Patch
+emptyPatch =
+    Insertion ( 0, 0 ) empty
 
 
 lineBreak : String
@@ -99,15 +112,31 @@ fromString =
     fromStringHelper >> TextBuffer
 
 
+fromStringExpandTabs : Int -> Int -> String -> TextBuffer
+fromStringExpandTabs n firstLineOffset s =
+    expandTabs n firstLineOffset s
+        |> fromStringList
+        |> TextBuffer
+
+
 fromStringHelper : String -> Array String
 fromStringHelper s =
-    if s == "" then
+    if String.isEmpty s then
+        Array.fromList []
+    else
+        s
+            |> String.split lineBreak
+            |> fromStringList
+
+
+fromStringList : List String -> Array String
+fromStringList s =
+    if List.isEmpty s then
         Array.empty
     else
         let
             buf =
-                String.split lineBreak s
-                    |> Array.fromList
+                s |> Array.fromList
 
             lastRow =
                 Array.length buf - 1
@@ -210,11 +239,17 @@ slice pos1 pos2 buf =
                 |> Maybe.withDefault Array.empty
 
 
-applyInsertion : Position -> String -> Array String -> ( Patch, TextBuffer )
+applyInsertion :
+    Position
+    -> TextBuffer
+    -> Array String
+    -> ( Patch, TextBuffer )
 applyInsertion pos s buf =
     let
         ss =
-            fromStringHelper s
+            case s of
+                TextBuffer ss ->
+                    ss
 
         bound =
             boundPosition buf
@@ -277,7 +312,7 @@ applyDeletion :
     -> ( Patch, TextBuffer )
 applyDeletion pos1 pos2 buf =
     if pos2 <= pos1 then
-        ( Insertion pos1 "", TextBuffer buf )
+        ( Insertion pos1 empty, TextBuffer buf )
     else
         let
             top =
@@ -287,10 +322,7 @@ applyDeletion pos1 pos2 buf =
                 slice pos2 (boundPosition buf) buf
 
             deleted =
-                buf
-                    |> slice pos1 pos2
-                    |> Array.toList
-                    |> String.join ""
+                slice pos1 pos2 buf |> TextBuffer
         in
             ( Insertion pos1 deleted, top +++ bottom |> TextBuffer )
 
@@ -310,3 +342,39 @@ applyPatch patch (TextBuffer buf) =
 (+++) : Array String -> Array String -> Array String
 (+++) =
     append
+
+
+expandTabs : Int -> Int -> String -> List String
+expandTabs n firstLineOffset s =
+    let
+        lines =
+            String.split lineBreak s
+    in
+        List.map2
+            (\line start ->
+                let
+                    tabIndexes =
+                        String.indexes "\t" line
+
+                    ( s, lastTabIndex ) =
+                        List.foldl
+                            (\i ( s, lasti ) ->
+                                let
+                                    s1 =
+                                        s ++ String.slice lasti i line
+
+                                    cnt =
+                                        n - (String.length s1 + start) % n
+
+                                    tabs =
+                                        String.repeat cnt " "
+                                in
+                                    ( s1 ++ tabs, i + 1 )
+                            )
+                            ( "", 0 )
+                            tabIndexes
+                in
+                    s ++ String.dropLeft lastTabIndex line
+            )
+            lines
+            (firstLineOffset :: List.repeat (List.length lines - 1) 0)

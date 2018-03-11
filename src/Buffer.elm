@@ -2,7 +2,17 @@ module Buffer exposing (transaction, insert, delete, undo, redo, commit)
 
 import Types exposing (..)
 import Model exposing (Buffer, BufferHistory)
-import Internal.TextBuffer exposing (applyPatch, TextBuffer, getLine)
+import Internal.TextBuffer
+    exposing
+        ( applyPatch
+        , TextBuffer
+        , getLine
+        , lineBreak
+        , fromString
+        , countLines
+        , Patch(..)
+        , isEmpty
+        )
 import List
 import Vim.AST exposing (PositionClass(..), Direction(..))
 import String
@@ -24,7 +34,7 @@ applyPatches patches lines =
 
 insert : Position -> String -> Buffer -> Buffer
 insert pos s =
-    transaction [ Insertion pos s ]
+    transaction [ Insertion pos <| fromString s ]
 
 
 delete : Position -> Position -> Buffer -> Buffer
@@ -84,7 +94,7 @@ updateCursor patch patch1 cursor =
         Deletion from to ->
             case patch1 of
                 Insertion _ s ->
-                    if String.length s == 0 then
+                    if isEmpty s then
                         cursor
                     else if cursor < from then
                         cursor

@@ -4,8 +4,7 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import Update exposing (update)
 import Model exposing (..)
-import Internal.TextBuffer as B
-import Types exposing (..)
+import Internal.TextBuffer as B exposing (Patch(..))
 import Dict
 import Message exposing (Msg(..), Key)
 import Parser as P exposing ((|.), (|=), Parser)
@@ -45,8 +44,7 @@ keysParser =
                         P.keep (P.Exactly 1) (\c -> c == '\\' || c == '<')
 
                     "<" ->
-                        P.keep P.oneOrMore ((/=) '>')
-                            |. P.keep (P.Exactly 1) ((==) '>')
+                        P.ignoreUntil ">"
                             |> P.source
                             |> P.map ((++) "<")
 
@@ -56,8 +54,8 @@ keysParser =
         |> P.repeat P.zeroOrMore
 
 
-cases : List ( String, Buffer )
-cases =
+insertCases : List ( String, Buffer )
+insertCases =
     [ ( "i"
       , { emptyBuffer
             | mode = Insert
@@ -100,31 +98,70 @@ cases =
                 }
         }
       )
+    , ( "i12<cr><esc>"
+      , { emptyBuffer
+            | cursor = ( 1, 0 )
+            , lines = B.fromList [ "12\n", "" ]
+            , history =
+                { emptyBufferHistory
+                    | undoes =
+                        [ { cursor = ( 0, 0 )
+                          , patches =
+                                [ Deletion ( 0, 2 ) ( 1, 0 )
+                                , Deletion ( 0, 1 ) ( 0, 2 )
+                                , Deletion ( 0, 0 ) ( 0, 1 )
+                                ]
+                          }
+                        ]
+                }
+        }
+      )
+    , ( "i12<tab><tab><esc>"
+      , { emptyBuffer
+            | cursor = ( 0, 7 )
+            , lines = B.fromList [ "12      " ]
+            , history =
+                { emptyBufferHistory
+                    | undoes =
+                        [ { cursor = ( 0, 0 )
+                          , patches =
+                                [ Deletion ( 0, 4 ) ( 0, 8 )
+                                , Deletion ( 0, 2 ) ( 0, 4 )
+                                , Deletion ( 0, 1 ) ( 0, 2 )
+                                , Deletion ( 0, 0 ) ( 0, 1 )
+                                ]
+                          }
+                        ]
+                }
+        }
+      )
     ]
 
 
 suite : Test
 suite =
     describe "Press keys"
-        (List.map
-            (\( s, buf ) ->
-                s
-                    |> P.run keysParser
-                    |> Result.map
-                        (\keys ->
-                            let
-                                buf1 =
-                                    handleKeys keys testModel
-                                        |> .buffers
-                                        |> Dict.get 0
-                                        |> Maybe.withDefault emptyBuffer
-                            in
-                                test s <|
-                                    \_ ->
-                                        Expect.equal buf buf1
-                        )
-                    |> Result.withDefault
-                        (test s <| \_ -> Expect.fail "invalid input")
+        [ describe "insert cases"
+            (List.map
+                (\( s, buf ) ->
+                    s
+                        |> P.run keysParser
+                        |> Result.map
+                            (\keys ->
+                                let
+                                    buf1 =
+                                        handleKeys keys testModel
+                                            |> .buffers
+                                            |> Dict.get 0
+                                            |> Maybe.withDefault emptyBuffer
+                                in
+                                    test s <|
+                                        \_ ->
+                                            Expect.equal buf buf1
+                            )
+                        |> Result.withDefault
+                            (test s <| \_ -> Expect.fail "invalid input")
+                )
+                insertCases
             )
-            cases
-        )
+        ]

@@ -3,7 +3,7 @@ module TextBuffer exposing (..)
 import Fuzz
 import Expect exposing (Expectation)
 import Test exposing (..)
-import Internal.TextBuffer as B exposing (TextBuffer)
+import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Types exposing (..)
 import Array
 import String
@@ -18,7 +18,7 @@ normalPatches :
 normalPatches =
     [ { label = "insert `123` to empty string"
       , input =
-            ( Insertion ( 0, 0 ) "123"
+            ( Insertion ( 0, 0 ) <| B.fromList [ "123" ]
             , B.empty
             )
       , output =
@@ -28,7 +28,7 @@ normalPatches =
       }
     , { label = "insert `123\\n` to empty string"
       , input =
-            ( Insertion ( 0, 0 ) "123\n"
+            ( Insertion ( 0, 0 ) <| B.fromString "123\n"
             , B.empty
             )
       , output =
@@ -38,7 +38,7 @@ normalPatches =
       }
     , { label = "insert `123\\n123` to empty string"
       , input =
-            ( Insertion ( 0, 0 ) "123\n123"
+            ( Insertion ( 0, 0 ) <| B.fromString "123\n123"
             , B.empty
             )
       , output =
@@ -48,7 +48,7 @@ normalPatches =
       }
     , { label = "insert `123\\n123\\n` to empty string"
       , input =
-            ( Insertion ( 0, 0 ) "123\n123\n"
+            ( Insertion ( 0, 0 ) <| B.fromString "123\n123\n"
             , B.empty
             )
       , output =
@@ -58,7 +58,7 @@ normalPatches =
       }
     , { label = "insert empty string"
       , input =
-            ( Insertion ( 1, 0 ) ""
+            ( Insertion ( 1, 0 ) B.empty
             , B.fromString "123\n123"
             )
       , output =
@@ -68,7 +68,7 @@ normalPatches =
       }
     , { label = "insert `123` into middle of buffer"
       , input =
-            ( Insertion ( 1, 0 ) "123"
+            ( Insertion ( 1, 0 ) <| B.fromString "123"
             , B.fromString "abc\ndef"
             )
       , output =
@@ -78,7 +78,7 @@ normalPatches =
       }
     , { label = "insert `123\\n456` into middle of buffer"
       , input =
-            ( Insertion ( 1, 1 ) "123\n456"
+            ( Insertion ( 1, 1 ) <| B.fromString "123\n456"
             , B.fromString "abc\ndef"
             )
       , output =
@@ -88,7 +88,7 @@ normalPatches =
       }
     , { label = "insert `123\\n456\\n` into middle of buffer"
       , input =
-            ( Insertion ( 2, 0 ) "123\n456\n"
+            ( Insertion ( 2, 0 ) <| B.fromString "123\n456\n"
             , B.fromString "abc\ndef\n\n"
             )
       , output =
@@ -98,7 +98,7 @@ normalPatches =
       }
     , { label = "append `123\\n456` to a buffer"
       , input =
-            ( Insertion ( 2, 0 ) "123\n456"
+            ( Insertion ( 2, 0 ) <| B.fromString "123\n456"
             , B.fromString "abc\ndef\n"
             )
       , output =
@@ -122,7 +122,7 @@ invalidPatches =
             , B.fromString "\n\n\n\n"
             )
       , output =
-            ( Insertion ( 2, 1 ) ""
+            ( Insertion ( 2, 1 ) B.empty
             , B.fromString "\n\n\n\n"
             )
       }
@@ -147,7 +147,8 @@ fuzzPositionFrom ( y, x ) =
 fuzzPatch : Fuzz.Fuzzer Patch
 fuzzPatch =
     Fuzz.oneOf
-        [ Fuzz.map2 Insertion fuzzPosition Fuzz.string
+        [ Fuzz.map B.fromString Fuzz.string
+            |> Fuzz.map2 Insertion fuzzPosition
         , fuzzPosition
             |> Fuzz.andThen
                 (\pos ->

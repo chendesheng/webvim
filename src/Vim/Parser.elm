@@ -52,9 +52,21 @@ insertCommands =
                 |. P.symbol "<esc>"
             , P.succeed
                 (\ch ->
-                    [ InsertString ch
-                        |> PushOperator
-                    ]
+                    let
+                        s =
+                            case ch of
+                                "<cr>" ->
+                                    "\n"
+
+                                "<tab>" ->
+                                    "\t"
+
+                                _ ->
+                                    ch
+                    in
+                        [ InsertString s
+                            |> PushOperator
+                        ]
                 )
                 |= keyParser
             ]

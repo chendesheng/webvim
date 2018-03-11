@@ -3,7 +3,17 @@ module Model exposing (..)
 import Dict as D exposing (Dict)
 import Message exposing (Msg(..))
 import Types exposing (..)
-import Internal.TextBuffer as B exposing (TextBuffer)
+import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
+
+
+type alias Undo =
+    { cursor : Position
+    , patches : List Patch
+    }
+
+
+type alias Redo =
+    Undo
 
 
 type VisualType
@@ -165,7 +175,10 @@ init _ =
 
         lines =
             B.empty
-                |> B.applyPatch (Insertion ( 0, 0 ) "1  23\n456")
+                |> B.applyPatch
+                    (B.fromString "1  23\n456"
+                        |> Insertion ( 0, 0 )
+                    )
                 |> Tuple.second
 
         -- Ex { prefix = "/", buffer = "hello", cursor = ( 0, 0 ) }
