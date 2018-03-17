@@ -284,6 +284,12 @@ handleKeypress key model buf =
                             Delete rg ->
                                 deleteOperator buf1 rg
 
+                            Undo ->
+                                Buf.undo buf1
+
+                            Redo ->
+                                Buf.redo buf1
+
                             _ ->
                                 buf1
                     )

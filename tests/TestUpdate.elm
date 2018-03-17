@@ -169,6 +169,38 @@ insertCases =
                 }
         }
       )
+    , ( "i12<esc>u"
+      , { emptyBuffer
+            | history =
+                { emptyBufferHistory
+                    | redoes =
+                        [ { cursor = ( 0, 1 )
+                          , patches =
+                                [ Insertion ( 0, 0 ) <| B.fromString "1"
+                                , Insertion ( 0, 1 ) <| B.fromString "2"
+                                ]
+                          }
+                        ]
+                }
+        }
+      )
+    , ( "i12<esc>u<c-r>"
+      , { emptyBuffer
+            | lines = B.fromString "12"
+            , cursor = ( 0, 1 )
+            , history =
+                { emptyBufferHistory
+                    | undoes =
+                        [ { cursor = ( 0, 0 )
+                          , patches =
+                                [ Deletion ( 0, 1 ) ( 0, 2 )
+                                , Deletion ( 0, 0 ) ( 0, 1 )
+                                ]
+                          }
+                        ]
+                }
+        }
+      )
     ]
 
 
