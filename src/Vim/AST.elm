@@ -44,7 +44,7 @@ type PositionClass
     | LineEnd
     | ParagraphStart
     | ParagraphEnd
-    | CharStart
+    | CharStart Bool
 
 
 type TextObject

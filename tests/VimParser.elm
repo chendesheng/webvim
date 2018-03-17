@@ -263,9 +263,9 @@ cases =
     , ( "?<c-h>"
       , ( { initialMode
             | edit =
-                { direction = Backward, class = CharStart }
+                { direction = Backward, class = CharStart True }
                     |> ByClass
-                    |> MotionRange Inclusive
+                    |> MotionRange Exclusive
                     |> Delete
                     |> Just
             , modeName = ModeNameEx "?"

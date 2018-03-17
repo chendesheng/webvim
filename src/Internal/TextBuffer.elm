@@ -13,10 +13,11 @@ module Internal.TextBuffer
         , foldlLines
         , expandTabs
         , mapLines
+          --, maxPosition
         , Patch(..)
         )
 
-import Types exposing (..)
+import Position exposing (..)
 import Array exposing (Array)
 import String
 
@@ -89,6 +90,18 @@ getFirstLine buf =
         |> Maybe.withDefault ""
 
 
+
+--maxPosition : TextBuffer -> Position
+--maxPosition buf =
+--    case buf of
+--        TextBuffer lines ->
+--            let
+--                ( y, x ) =
+--                    boundPosition lines
+--            in
+--                ( y, max (x - 1) 0 )
+
+
 boundPosition : Array String -> Position
 boundPosition buf =
     if Array.isEmpty buf then
@@ -136,7 +149,8 @@ fromStringList s =
     else
         let
             buf =
-                s |> Array.fromList
+                s
+                    |> Array.fromList
 
             lastRow =
                 Array.length buf - 1

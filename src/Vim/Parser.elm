@@ -17,15 +17,15 @@ insertCommands =
                 |. P.symbol key
 
         deleteCharBackward =
-            { class = CharStart, direction = Backward }
+            { class = CharStart True, direction = Backward }
                 |> ByClass
-                |> MotionRange Inclusive
+                |> MotionRange Exclusive
                 |> Delete
 
         deleteWordBackward =
             { class = WordStart, direction = Backward }
                 |> ByClass
-                |> MotionRange Inclusive
+                |> MotionRange Exclusive
                 |> Delete
 
         gotoLineEnd =
@@ -336,10 +336,10 @@ motion map gMotion =
             , byClass "E" Forward WORDEnd
             , byClass "w" Forward WordStart
             , byClass "W" Forward WORDEnd
-            , byClass "h" Backward CharStart
+            , byClass "h" Backward <| CharStart False
             , define "j" <| LineDelta 1
             , define "k" <| LineDelta -1
-            , byClass "l" Forward CharStart
+            , byClass "l" Forward <| CharStart False
             , byClass "^" Backward LineFirst
             , byClass "0" Backward LineStart
             , byClass "$" Forward LineEnd
@@ -498,7 +498,7 @@ operator isVisual =
                 ]
             , defineInsert "a"
                 [ ByClass
-                    { class = CharStart
+                    { class = CharStart False
                     , direction = Forward
                     }
                     |> Move
@@ -525,7 +525,11 @@ operator isVisual =
                 ]
             , defineInsert "s"
                 [ (MotionRange Exclusive
-                    (ByClass { class = CharStart, direction = Forward })
+                    (ByClass
+                        { class = CharStart False
+                        , direction = Forward
+                        }
+                    )
                   )
                     |> Delete
                     |> PushOperator
@@ -580,12 +584,18 @@ operator isVisual =
             , define "<c-n>" (CompleteWord Forward)
             , define "J" (Join False)
             , define "x"
-                (ByClass { class = CharStart, direction = Forward }
+                (ByClass
+                    { class = CharStart False
+                    , direction = Forward
+                    }
                     |> MotionRange Exclusive
                     |> Delete
                 )
             , define "X"
-                (ByClass { class = CharStart, direction = Backward }
+                (ByClass
+                    { class = CharStart False
+                    , direction = Backward
+                    }
                     |> MotionRange Exclusive
                     |> Delete
                 )

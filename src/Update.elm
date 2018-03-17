@@ -1,4 +1,4 @@
-module Update exposing (update, expandTab)
+module Update exposing (update)
 
 import Model exposing (..)
 import Message exposing (..)
@@ -6,10 +6,25 @@ import Vim.Parser as P
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
-import Types exposing (Position)
+import Position exposing (Position, positionMin)
 import Dict
-import List
-import String
+
+
+getLineMaxCursor : Int -> B.TextBuffer -> Int
+getLineMaxCursor y lines =
+    B.getLine y lines
+        |> Maybe.map
+            (\s ->
+                let
+                    len =
+                        String.length s
+                in
+                    if String.endsWith B.lineBreak s then
+                        len - 2
+                    else
+                        len - 1
+            )
+        |> Maybe.withDefault 0
 
 
 moveByClass : V.PositionClass -> V.Direction -> Buffer -> Position
@@ -19,33 +34,68 @@ moveByClass class direction buf =
             buf.cursor
     in
         case class of
-            V.CharStart ->
+            V.CharStart crossLine ->
                 let
-                    lineMax =
-                        B.getLine y buf.lines
-                            |> Maybe.map
-                                (\s ->
-                                    let
-                                        len =
-                                            String.length s
-                                    in
-                                        if String.endsWith B.lineBreak s then
-                                            len - 2
-                                        else
-                                            len - 1
-                                )
-                            |> Maybe.withDefault 0
-
                     newx =
                         if direction == V.Forward then
                             x + 1
                         else
                             x - 1
                 in
-                    ( y, min (max newx 0) lineMax )
+                    if crossLine then
+                        if newx < 0 then
+                            if y > 0 then
+                                ( y - 1
+                                , B.getLine (y - 1) buf.lines
+                                    |> Maybe.map (\s -> String.length s - 1)
+                                    |> Maybe.withDefault 0
+                                )
+                            else
+                                ( 0, 0 )
+                        else
+                            ( y, newx )
+                    else
+                        ( y, min (max newx 0) (getLineMaxCursor y buf.lines) )
 
             _ ->
                 buf.cursor
+
+
+deleteOperator : Buffer -> V.OperatorRange -> Buffer
+deleteOperator buf range =
+    case range of
+        V.MotionRange inclusive motion ->
+            let
+                pos =
+                    runMotion motion buf
+
+                begin =
+                    if pos > buf.cursor then
+                        buf.cursor
+                    else
+                        pos
+
+                ( endy, endx ) =
+                    if pos > buf.cursor then
+                        pos
+                    else
+                        buf.cursor
+
+                patch =
+                    Deletion begin
+                        ( endy
+                        , case inclusive of
+                            V.Inclusive ->
+                                endx + 1
+
+                            V.Exclusive ->
+                                endx
+                        )
+            in
+                Buf.transaction [ patch ] buf
+
+        _ ->
+            buf
 
 
 runMotion : V.Motion -> Buffer -> Position
@@ -53,12 +103,30 @@ runMotion motion buf =
     if B.isEmpty buf.lines then
         ( 0, 0 )
     else
-        case motion of
-            V.ByClass { class, direction } ->
-                moveByClass class direction buf
-
-            _ ->
+        let
+            ( y, x ) =
                 buf.cursor
+        in
+            case motion of
+                V.ByClass { class, direction } ->
+                    moveByClass class direction buf
+
+                V.LineDelta n ->
+                    let
+                        y1 =
+                            (y + n)
+                                |> max 0
+                                |> min (B.countLines buf.lines - 1)
+
+                        x1 =
+                            buf.lines
+                                |> getLineMaxCursor y1
+                                |> min x
+                    in
+                        ( y1, x1 )
+
+                _ ->
+                    buf.cursor
 
 
 emptyMode : V.ModeName -> Mode
@@ -148,6 +216,8 @@ modeChanged oldModeName newModeName buf =
             buf
                 |> setCursor ( y, max (x - 1) 0 )
                 |> Buf.commit
+    else if newModeName == V.ModeNameNormal then
+        Buf.commit buf
     else
         buf
 
@@ -163,43 +233,6 @@ getLast xs =
 
         x :: xs ->
             getLast xs
-
-
-expandTab : Int -> Int -> String -> String
-expandTab n firstLineOffset s =
-    let
-        lines =
-            String.split B.lineBreak s
-    in
-        List.map2
-            (\line start ->
-                let
-                    tabIndexes =
-                        String.indexes "\t" line
-
-                    ( s, lastTabIndex ) =
-                        List.foldl
-                            (\i ( s, lasti ) ->
-                                let
-                                    s1 =
-                                        s ++ String.slice lasti i line
-
-                                    cnt =
-                                        n - (String.length s1 + start) % n
-
-                                    tabs =
-                                        String.repeat cnt " "
-                                in
-                                    ( s1 ++ tabs, i + 1 )
-                            )
-                            ( "", 0 )
-                            tabIndexes
-                in
-                    s ++ String.dropLeft lastTabIndex line
-            )
-            lines
-            (firstLineOffset :: List.repeat (List.length lines - 1) 0)
-            |> String.join B.lineBreak
 
 
 handleKeypress : Key -> Model -> Buffer -> ( Model, Cmd Msg )
@@ -247,6 +280,9 @@ handleKeypress key model buf =
                                             Buf.transaction
                                                 [ Insertion buf1.cursor s1 ]
                                                 buf1
+
+                            Delete rg ->
+                                deleteOperator buf1 rg
 
                             _ ->
                                 buf1

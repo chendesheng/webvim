@@ -1,6 +1,6 @@
 module Buffer exposing (transaction, insert, delete, undo, redo, commit)
 
-import Types exposing (..)
+import Position exposing (..)
 import Model exposing (Buffer, BufferHistory)
 import Internal.TextBuffer
     exposing
@@ -125,27 +125,30 @@ addPending cursor patches history =
             }
 
 
-{-| add pending changes to undo list
+{-| add pending changes to undo ist and clear redo list
 -}
 commit : Buffer -> Buffer
 commit buf =
-    { buf
-        | history =
-            let
-                history =
-                    buf.history
-            in
-                history.pending
-                    |> Maybe.map
-                        (\pending ->
-                            { history
-                                | undoes = pending :: history.undoes
-                                , pending = Nothing
-                                , redoes = []
-                            }
-                        )
-                    |> Maybe.withDefault history
-    }
+    if buf.history.pending == Nothing then
+        buf
+    else
+        { buf
+            | history =
+                let
+                    history =
+                        buf.history
+                in
+                    history.pending
+                        |> Maybe.map
+                            (\pending ->
+                                { history
+                                    | undoes = pending :: history.undoes
+                                    , pending = Nothing
+                                    , redoes = []
+                                }
+                            )
+                        |> Maybe.withDefault history
+        }
 
 
 {-| undo last change

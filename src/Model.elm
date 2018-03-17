@@ -2,7 +2,7 @@ module Model exposing (..)
 
 import Dict as D exposing (Dict)
 import Message exposing (Msg(..))
-import Types exposing (..)
+import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 
 

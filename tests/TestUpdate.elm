@@ -18,11 +18,6 @@ buffer2Model buf =
     }
 
 
-testModel : Model
-testModel =
-    buffer2Model emptyBuffer
-
-
 handleKeys : List Key -> Model -> Model
 handleKeys keys model =
     List.foldl
@@ -135,33 +130,126 @@ insertCases =
                 }
         }
       )
+    , ( "i1<backspace>"
+      , { emptyBuffer
+            | cursor = ( 0, 0 )
+            , lines = B.empty
+            , mode = Insert
+            , continuation = "i"
+            , history =
+                { emptyBufferHistory
+                    | pending =
+                        Just
+                            { cursor = ( 0, 0 )
+                            , patches =
+                                [ Insertion ( 0, 0 ) <| B.fromString "1"
+                                , Deletion ( 0, 0 ) ( 0, 1 )
+                                ]
+                            }
+                }
+        }
+      )
+    , ( "i1<cr><backspace>"
+      , { emptyBuffer
+            | cursor = ( 0, 1 )
+            , lines = B.fromList [ "1" ]
+            , mode = Insert
+            , continuation = "i"
+            , history =
+                { emptyBufferHistory
+                    | pending =
+                        Just
+                            { cursor = ( 0, 0 )
+                            , patches =
+                                [ Insertion ( 0, 1 ) <| B.fromString "\n"
+                                , Deletion ( 0, 1 ) ( 1, 0 )
+                                , Deletion ( 0, 0 ) ( 0, 1 )
+                                ]
+                            }
+                }
+        }
+      )
     ]
+
+
+motionCasesBuf : Buffer
+motionCasesBuf =
+    { emptyBuffer
+        | lines = B.fromString "123\n45678"
+    }
+
+
+motionCases : List ( String, Buffer )
+motionCases =
+    [ ( "l"
+      , { motionCasesBuf | cursor = ( 0, 1 ) }
+      )
+    , ( "lh"
+      , { motionCasesBuf | cursor = ( 0, 0 ) }
+      )
+    , ( "lll"
+      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      )
+    , ( "hh"
+      , { motionCasesBuf | cursor = ( 0, 0 ) }
+      )
+    , ( "j"
+      , { motionCasesBuf | cursor = ( 1, 0 ) }
+      )
+    , ( "jk"
+      , { motionCasesBuf | cursor = ( 0, 0 ) }
+      )
+    , ( "jlllllllk"
+      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      )
+    ]
+
+
+allCases :
+    List
+        { cases : List ( String, Buffer )
+        , model : Model
+        , name : String
+        }
+allCases =
+    [ { name = "insert cases"
+      , cases = insertCases
+      , model = buffer2Model emptyBuffer
+      }
+    , { name = "motion cases"
+      , cases = motionCases
+      , model = buffer2Model motionCasesBuf
+      }
+    ]
+
+
+keysTest : String -> Buffer -> Model -> Test
+keysTest s buf model =
+    s
+        |> P.run keysParser
+        |> Result.map
+            (\keys ->
+                let
+                    buf1 =
+                        handleKeys keys model
+                            |> .buffers
+                            |> Dict.get 0
+                            |> Maybe.withDefault emptyBuffer
+                in
+                    test s <|
+                        \_ ->
+                            Expect.equal buf buf1
+            )
+        |> Result.withDefault
+            (test s <| \_ -> Expect.fail "invalid input")
 
 
 suite : Test
 suite =
-    describe "Press keys"
-        [ describe "insert cases"
-            (List.map
-                (\( s, buf ) ->
-                    s
-                        |> P.run keysParser
-                        |> Result.map
-                            (\keys ->
-                                let
-                                    buf1 =
-                                        handleKeys keys testModel
-                                            |> .buffers
-                                            |> Dict.get 0
-                                            |> Maybe.withDefault emptyBuffer
-                                in
-                                    test s <|
-                                        \_ ->
-                                            Expect.equal buf buf1
-                            )
-                        |> Result.withDefault
-                            (test s <| \_ -> Expect.fail "invalid input")
-                )
-                insertCases
+    describe "Press keys" <|
+        List.map
+            (\{ name, cases, model } ->
+                describe name <|
+                    List.map (\( s, buf ) -> keysTest s buf model) cases
             )
-        ]
+            allCases

@@ -4,7 +4,7 @@ import Fuzz
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
-import Types exposing (..)
+import Position exposing (..)
 import Array
 import String
 
