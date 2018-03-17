@@ -7,6 +7,7 @@ import Update exposing (..)
 import Html
 import View exposing (..)
 import Json.Encode as Encode
+import KeySub exposing (downs)
 
 
 main : Program Encode.Value Model Msg
@@ -15,5 +16,6 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions =
+            \_ -> downs (PressKey 0)
         }

@@ -305,8 +305,18 @@ handleKeypress key model buf =
             Dict.insert buf3.id
                 { buf3 | continuation = continuation }
                 model.buffers
+
+        view =
+            model.view
+
+        view1 =
+            { view
+                | lines = buf3.lines
+                , cursor = buf3.cursor
+                , statusBar = getStatusBar buf3.mode
+            }
     in
-        ( { model | buffers = buffers }, Cmd.none )
+        ( { model | buffers = buffers, view = view1 }, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

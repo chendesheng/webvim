@@ -61,12 +61,18 @@ insertCommands =
                                 "<tab>" ->
                                     "\t"
 
+                                "<space>" ->
+                                    " "
+
                                 _ ->
                                     ch
                     in
-                        [ InsertString s
-                            |> PushOperator
-                        ]
+                        if String.length s > 1 then
+                            []
+                        else
+                            [ InsertString s
+                                |> PushOperator
+                            ]
                 )
                 |= keyParser
             ]

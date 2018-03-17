@@ -29,7 +29,7 @@ view { view } =
                 [ class "cursor"
                 , style
                     [ ( "left", (toString x) ++ "ch" )
-                    , ( "top", (toString y) ++ "ch" )
+                    , ( "top", (toString y) ++ "em" )
                     ]
                 ]
                 []
