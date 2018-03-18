@@ -51,7 +51,7 @@ insertCases =
     , ( "i12"
       , { emptyBuffer
             | cursor = ( 0, 2 )
-            , lines = B.fromList [ "12" ]
+            , lines = B.fromString "12\n"
             , mode = Insert
             , continuation = "i"
             , history =
@@ -70,7 +70,7 @@ insertCases =
     , ( "i12<esc>"
       , { emptyBuffer
             | cursor = ( 0, 1 )
-            , lines = B.fromList [ "12" ]
+            , lines = B.fromString "12\n"
             , history =
                 { emptyBufferHistory
                     | undoes =
@@ -87,7 +87,7 @@ insertCases =
     , ( "i12<cr><esc>"
       , { emptyBuffer
             | cursor = ( 1, 0 )
-            , lines = B.fromList [ "12\n", "" ]
+            , lines = B.fromString "12\n\n"
             , history =
                 { emptyBufferHistory
                     | undoes =
@@ -105,7 +105,7 @@ insertCases =
     , ( "i12<tab><tab><esc>"
       , { emptyBuffer
             | cursor = ( 0, 7 )
-            , lines = B.fromList [ "12      " ]
+            , lines = B.fromString "12      \n"
             , history =
                 { emptyBufferHistory
                     | undoes =
@@ -124,7 +124,6 @@ insertCases =
     , ( "i1<backspace>"
       , { emptyBuffer
             | cursor = ( 0, 0 )
-            , lines = B.empty
             , mode = Insert
             , continuation = "i"
             , history =
@@ -143,7 +142,7 @@ insertCases =
     , ( "i1<cr><backspace>"
       , { emptyBuffer
             | cursor = ( 0, 1 )
-            , lines = B.fromList [ "1" ]
+            , lines = B.fromString "1\n"
             , mode = Insert
             , continuation = "i"
             , history =
@@ -177,7 +176,7 @@ insertCases =
       )
     , ( "i12<esc>u<c-r>"
       , { emptyBuffer
-            | lines = B.fromString "12"
+            | lines = B.fromString "12\n"
             , cursor = ( 0, 1 )
             , history =
                 { emptyBufferHistory
@@ -192,13 +191,63 @@ insertCases =
                 }
         }
       )
+    , ( "i1<esc>o1"
+      , { emptyBuffer
+            | lines = B.fromString "1\n1\n"
+            , cursor = ( 1, 1 )
+            , history =
+                { emptyBufferHistory
+                    | undoes =
+                        [ { cursor = ( 0, 0 )
+                          , patches =
+                                [ Deletion ( 0, 0 ) ( 0, 1 ) ]
+                          }
+                        ]
+                    , pending =
+                        Just
+                            { cursor = ( 0, 0 )
+                            , patches =
+                                [ Deletion ( 1, 0 ) ( 1, 1 )
+                                , Deletion ( 1, 0 ) ( 2, 0 )
+                                ]
+                            }
+                }
+            , mode = Insert
+            , continuation = "o"
+        }
+      )
+    , ( "i1<esc>O2"
+      , { emptyBuffer
+            | lines = B.fromString "2\n1\n"
+            , cursor = ( 0, 1 )
+            , history =
+                { emptyBufferHistory
+                    | undoes =
+                        [ { cursor = ( 0, 0 )
+                          , patches =
+                                [ Deletion ( 0, 0 ) ( 0, 1 ) ]
+                          }
+                        ]
+                    , pending =
+                        Just
+                            { cursor = ( 0, 0 )
+                            , patches =
+                                [ Deletion ( 0, 0 ) ( 0, 1 )
+                                , Deletion ( 0, 0 ) ( 1, 0 )
+                                ]
+                            }
+                }
+            , mode = Insert
+            , continuation = "O"
+        }
+      )
     ]
 
 
 motionCasesBuf : Buffer
 motionCasesBuf =
     { emptyBuffer
-        | lines = B.fromString "123\n45678"
+        | lines = B.fromString "123\n45678\n"
     }
 
 

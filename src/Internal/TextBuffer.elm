@@ -5,7 +5,6 @@ module Internal.TextBuffer
         , lineBreak
         , applyPatch
         , empty
-        , fromList
         , fromString
         , fromStringExpandTabs
         , getLine
@@ -51,14 +50,24 @@ empty =
     TextBuffer Array.empty
 
 
-fromList : List String -> TextBuffer
-fromList items =
-    TextBuffer <| Array.fromList items
-
-
+{-| return how many lines of text buffer
+-}
 countLines : TextBuffer -> Int
 countLines (TextBuffer buf) =
-    Array.length buf
+    let
+        n =
+            Array.length buf
+    in
+        case Array.get (n - 1) buf of
+            Nothing ->
+                0
+
+            Just line ->
+                -- ignore last empty line
+                if String.length line == 0 then
+                    n - 1
+                else
+                    n
 
 
 mapLines : (String -> b) -> TextBuffer -> Array b

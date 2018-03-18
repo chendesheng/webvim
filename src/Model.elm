@@ -82,7 +82,7 @@ type alias Buffer =
 emptyBuffer : Buffer
 emptyBuffer =
     { id = 0
-    , lines = B.empty
+    , lines = B.fromString B.lineBreak
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""
@@ -142,7 +142,7 @@ init _ =
         lines =
             B.empty
                 |> B.applyPatch
-                    (B.fromString "1  23\n456"
+                    (B.fromString "1  23\n456\n"
                         |> Insertion ( 0, 0 )
                     )
                 |> Tuple.second

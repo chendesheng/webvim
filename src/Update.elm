@@ -9,8 +9,8 @@ import Buffer as Buf
 import Position exposing (Position, positionMin)
 
 
-getLineMaxCursor : Int -> B.TextBuffer -> Int
-getLineMaxCursor y lines =
+getLineMaxColumn : Int -> B.TextBuffer -> Int
+getLineMaxColumn y lines =
     B.getLine y lines
         |> Maybe.map
             (\s ->
@@ -51,7 +51,7 @@ moveByClass class direction buf =
                         else
                             ( y, newx )
                     else
-                        ( y, min (max newx 0) (getLineMaxCursor y buf.lines) )
+                        ( y, min (max newx 0) (getLineMaxColumn y buf.lines) )
 
             _ ->
                 buf.cursor
@@ -116,7 +116,7 @@ runMotion motion buf =
 
                         x1 =
                             buf.lines
-                                |> getLineMaxCursor y1
+                                |> getLineMaxColumn y1
                                 |> min x
                     in
                         ( y1, x1 )
@@ -231,7 +231,50 @@ getLast xs =
             getLast xs
 
 
-handleKeypress : Key -> Buffer -> ( Model, Cmd Msg )
+runInsertString : Buffer -> String -> Buffer
+runInsertString buf1 s =
+    let
+        { expandTab, tabSize } =
+            buf1.config
+
+        s1 =
+            if expandTab then
+                B.fromStringExpandTabs
+                    tabSize
+                    (buf1.cursor
+                        |> Tuple.second
+                    )
+                    s
+            else
+                B.fromString s
+    in
+        Buf.transaction
+            [ Insertion buf1.cursor s1 ]
+            buf1
+
+
+openNewLine : Int -> Buffer -> Buffer
+openNewLine y buf =
+    let
+        n =
+            B.countLines buf.lines
+
+        cursor =
+            ( y
+                |> max 0
+                |> min n
+            , 0
+            )
+
+        patch =
+            Insertion cursor <| B.fromString B.lineBreak
+    in
+        buf
+            |> Buf.transaction [ patch ]
+            |> setCursor cursor
+
+
+handleKeypress : Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress key buf =
     let
         oldModeName =
@@ -258,24 +301,7 @@ handleKeypress key buf =
                                         buf1
 
                                     _ ->
-                                        let
-                                            { expandTab, tabSize } =
-                                                buf1.config
-
-                                            s1 =
-                                                if expandTab then
-                                                    B.fromStringExpandTabs
-                                                        tabSize
-                                                        (buf1.cursor
-                                                            |> Tuple.second
-                                                        )
-                                                        s
-                                                else
-                                                    B.fromString s
-                                        in
-                                            Buf.transaction
-                                                [ Insertion buf1.cursor s1 ]
-                                                buf1
+                                        runInsertString buf1 s
 
                             Delete rg ->
                                 deleteOperator buf1 rg
@@ -285,6 +311,12 @@ handleKeypress key buf =
 
                             Redo ->
                                 Buf.redo buf1
+
+                            OpenNewLine V.Forward ->
+                                openNewLine (Tuple.first buf1.cursor + 1) buf1
+
+                            OpenNewLine V.Backward ->
+                                openNewLine (Tuple.first buf1.cursor) buf1
 
                             _ ->
                                 buf1
@@ -299,10 +331,7 @@ handleKeypress key buf =
                             buf2.cursor
 
                         x1 =
-                            if
-                                (y == B.countLines buf2.lines - 1)
-                                    || (getLineMaxCursor y buf2.lines > x)
-                            then
+                            if getLineMaxColumn y buf2.lines > x then
                                 x
                             else
                                 max (x - 1) 0
