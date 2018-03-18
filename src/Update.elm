@@ -18,10 +18,7 @@ getLineMaxCursor y lines =
                     len =
                         String.length s
                 in
-                    if String.endsWith B.lineBreak s then
-                        len - 2
-                    else
-                        len - 1
+                    len - 1
             )
         |> Maybe.withDefault 0
 
@@ -296,7 +293,24 @@ handleKeypress key buf =
 
         buf3 =
             if oldModeName == modeName then
-                buf2
+                if modeName == V.ModeNameNormal then
+                    let
+                        ( y, x ) =
+                            buf2.cursor
+
+                        x1 =
+                            if
+                                (y == B.countLines buf2.lines - 1)
+                                    || (getLineMaxCursor y buf2.lines > x)
+                            then
+                                x
+                            else
+                                max (x - 1) 0
+                    in
+                        buf2
+                            |> setCursor ( y, x1 )
+                else
+                    buf2
             else
                 modeChanged oldModeName modeName buf2
     in
