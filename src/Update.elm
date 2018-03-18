@@ -88,7 +88,8 @@ deleteOperator buf range =
                                 endx
                         )
             in
-                Buf.transaction [ patch ] buf
+                buf
+                    |> Buf.transaction [ patch ]
 
         _ ->
             buf
@@ -199,21 +200,25 @@ updateMode modeName buf =
 
 modeChanged : V.ModeName -> V.ModeName -> Buffer -> Buffer
 modeChanged oldModeName newModeName buf =
-    if
-        oldModeName
-            == V.ModeNameInsert
-            && newModeName
-            == V.ModeNameNormal
-    then
+    if newModeName == V.ModeNameNormal then
         let
             ( y, x ) =
                 buf.cursor
+
+            buf1 =
+                if oldModeName == V.ModeNameInsert then
+                    setCursor ( y, max (x - 1) 0 ) buf
+                else
+                    setCursor
+                        ( y
+                        , if getLineMaxColumn y buf.lines > x then
+                            x
+                          else
+                            max (x - 1) 0
+                        )
+                        buf
         in
-            buf
-                |> setCursor ( y, max (x - 1) 0 )
-                |> Buf.commit
-    else if newModeName == V.ModeNameNormal then
-        Buf.commit buf
+            Buf.commit buf1
     else
         buf
 
@@ -324,24 +329,7 @@ handleKeypress key buf =
                 |> Maybe.withDefault buf1
 
         buf3 =
-            if oldModeName == modeName then
-                if modeName == V.ModeNameNormal then
-                    let
-                        ( y, x ) =
-                            buf2.cursor
-
-                        x1 =
-                            if getLineMaxColumn y buf2.lines > x then
-                                x
-                            else
-                                max (x - 1) 0
-                    in
-                        buf2
-                            |> setCursor ( y, x1 )
-                else
-                    buf2
-            else
-                modeChanged oldModeName modeName buf2
+            modeChanged oldModeName modeName buf2
     in
         ( { buf3 | continuation = continuation }, Cmd.none )
 
