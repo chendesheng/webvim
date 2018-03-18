@@ -36,7 +36,6 @@ type Mode
 type alias View =
     { scrollTop : Int
     , startPosition : Position
-    , lines : TextBuffer
     , height : Int
     , dataStartPosition : Position
     }
@@ -98,7 +97,6 @@ emptyBuffer =
     , view =
         { scrollTop = 0
         , startPosition = ( 0, 0 )
-        , lines = B.empty
         , height = 20
         , dataStartPosition = ( 0, 0 )
         }
@@ -158,7 +156,6 @@ init _ =
                 | lines = lines
                 , cursor = ( 0, 1 )
                 , mode = mode
-                , view = { view | lines = lines }
             }
     in
         ( buf

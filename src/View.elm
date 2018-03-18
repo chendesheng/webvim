@@ -8,7 +8,7 @@ import Html.Attributes exposing (..)
 
 
 view : Model -> Html msg
-view { mode, cursor, view } =
+view { mode, cursor, lines } =
     let
         ( y, x ) =
             cursor
@@ -21,7 +21,7 @@ view { mode, cursor, view } =
     in
         div [ class "buffer" ]
             [ div [ class "lines" ]
-                (view.lines
+                (lines
                     |> B.mapLines
                         (\line ->
                             div [ class "line" ] [ text line ]
@@ -32,7 +32,14 @@ view { mode, cursor, view } =
                 [ class "cursor"
                 , style
                     [ ( "left", (toString x) ++ "ch" )
-                    , ( "top", (toString y) ++ "em" )
+                    , ( "top"
+                      , (y
+                            |> toFloat
+                            |> ((*) 1.2)
+                            |> toString
+                        )
+                            ++ "rem"
+                      )
                     ]
                 ]
                 []
