@@ -1,7 +1,16 @@
-module Buffer exposing (transaction, insert, delete, undo, redo, commit)
+module Buffer
+    exposing
+        ( transaction
+        , insert
+        , delete
+        , undo
+        , redo
+        , commit
+        , clearHistory
+        )
 
 import Position exposing (..)
-import Model exposing (Buffer, BufferHistory)
+import Model exposing (Buffer, BufferHistory, emptyBufferHistory)
 import Internal.TextBuffer
     exposing
         ( applyPatch
@@ -234,3 +243,8 @@ moveByClass class direction buf =
                         buf
                 )
             |> Maybe.withDefault buf
+
+
+clearHistory : Buffer -> Buffer
+clearHistory buf =
+    { buf | history = emptyBufferHistory }

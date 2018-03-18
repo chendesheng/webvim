@@ -5,6 +5,7 @@ import Model exposing (..)
 import Internal.TextBuffer as B
 import Array
 import Html.Attributes exposing (..)
+import Position exposing (Position)
 
 
 view : Model -> Html msg
@@ -15,9 +16,6 @@ view { mode, cursor, lines } =
 
         statusBar =
             getStatusBar mode
-
-        statusText =
-            statusBar.text
     in
         div [ class "buffer" ]
             [ div [ class "lines" ]
@@ -28,23 +26,34 @@ view { mode, cursor, lines } =
                         )
                     |> Array.toList
                 )
+            , if statusBar.cursor == Nothing then
+                renderCursor cursor
+              else
+                text ""
             , div
-                [ class "cursor"
-                , style
-                    [ ( "left", (toString x) ++ "ch" )
-                    , ( "top"
-                      , (y
-                            |> toFloat
-                            |> ((*) 1.2)
-                            |> toString
-                        )
-                            ++ "rem"
-                      )
-                    ]
+                [ class "status" ]
+                [ div [] [ text statusBar.text ]
+                , statusBar.cursor
+                    |> Maybe.map renderCursor
+                    |> Maybe.withDefault (text "")
                 ]
-                []
-            , div
-                [ class "status"
-                ]
-                [ text statusText ]
             ]
+
+
+renderCursor : Position -> Html msg
+renderCursor ( y, x ) =
+    div
+        [ class "cursor"
+        , style
+            [ ( "left", (toString x) ++ "ch" )
+            , ( "top"
+              , (y
+                    |> toFloat
+                    |> ((*) 1.2)
+                    |> toString
+                )
+                    ++ "rem"
+              )
+            ]
+        ]
+        []

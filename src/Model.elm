@@ -26,11 +26,7 @@ type Mode
     | Visual VisualType (List ( Position, Position ))
     | Insert
     | TempNormal
-    | Ex
-        { prefix : String
-        , buffer : String
-        , cursor : Position
-        }
+    | Ex String Buffer
 
 
 type alias View =
@@ -76,6 +72,31 @@ type alias Buffer =
         }
     , view : View
     , continuation : String
+    }
+
+
+emptyExBuffer : Buffer
+emptyExBuffer =
+    { id = 0
+    , lines = B.empty
+    , cursor = ( 0, 0 )
+    , cursorColumn = 0
+    , path = ""
+    , name = "no name"
+    , mode = Insert
+    , history = emptyBufferHistory
+    , config =
+        { wordChars = "_" -- a-z and A-Z are word chars by default
+        , tabSize = 4
+        , expandTab = True
+        }
+    , view =
+        { scrollTop = 0
+        , startPosition = ( 0, 0 )
+        , height = 20
+        , dataStartPosition = ( 0, 0 )
+        }
+    , continuation = ""
     }
 
 
@@ -127,9 +148,9 @@ getStatusBar mode =
             , cursor = Nothing
             }
 
-        Ex { prefix, buffer, cursor } ->
-            { text = prefix ++ buffer
-            , cursor = Just cursor
+        Ex prefix buffer ->
+            { text = prefix ++ B.toString buffer.lines
+            , cursor = Just buffer.cursor
             }
 
 

@@ -14,6 +14,7 @@ module Internal.TextBuffer
         , mapLines
           --, maxPosition
         , Patch(..)
+        , toString
         )
 
 import Position exposing (..)

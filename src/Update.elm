@@ -57,8 +57,8 @@ moveByClass class direction buf =
                 buf.cursor
 
 
-deleteOperator : Buffer -> V.OperatorRange -> Buffer
-deleteOperator buf range =
+deleteOperator : V.OperatorRange -> Buffer -> Buffer
+deleteOperator range buf =
     case range of
         V.MotionRange inclusive motion ->
             let
@@ -139,11 +139,7 @@ emptyMode modeName =
             Insert
 
         V.ModeNameEx prefix ->
-            Ex
-                { prefix = prefix
-                , buffer = ""
-                , cursor = ( 0, 0 )
-                }
+            Ex prefix emptyExBuffer
 
         V.ModeNameVisual _ ->
             Visual VisualRange []
@@ -174,8 +170,8 @@ getModeName mode =
                         V.VisualNameBlock
                 )
 
-        Ex _ ->
-            V.ModeNameEx ""
+        Ex prefix _ ->
+            V.ModeNameEx prefix
 
 
 setCursor : Position -> Buffer -> Buffer
@@ -236,8 +232,8 @@ getLast xs =
             getLast xs
 
 
-runInsertString : Buffer -> String -> Buffer
-runInsertString buf1 s =
+insertString : String -> Buffer -> Buffer
+insertString s buf1 =
     let
         { expandTab, tabSize } =
             buf1.config
@@ -285,7 +281,7 @@ handleKeypress key buf =
         oldModeName =
             getModeName buf.mode
 
-        ( { edit, modeName }, continuation ) =
+        ( { edit, modeName } as ast, continuation ) =
             P.parse buf.continuation key
 
         buf1 =
@@ -302,14 +298,29 @@ handleKeypress key buf =
 
                             InsertString s ->
                                 case buf1.mode of
-                                    Ex linebuf ->
-                                        buf1
+                                    Ex prefix buf ->
+                                        { buf1
+                                            | mode =
+                                                buf
+                                                    |> insertString s
+                                                    |> Ex prefix
+                                        }
 
                                     _ ->
-                                        runInsertString buf1 s
+                                        insertString s buf1
 
                             Delete rg ->
-                                deleteOperator buf1 rg
+                                case buf1.mode of
+                                    Ex prefix buf ->
+                                        { buf1
+                                            | mode =
+                                                buf
+                                                    |> deleteOperator rg
+                                                    |> Ex prefix
+                                        }
+
+                                    _ ->
+                                        deleteOperator rg buf1
 
                             Undo ->
                                 Buf.undo buf1
@@ -331,7 +342,11 @@ handleKeypress key buf =
         buf3 =
             modeChanged oldModeName modeName buf2
     in
-        ( { buf3 | continuation = continuation }, Cmd.none )
+        ( { buf3
+            | continuation = continuation
+          }
+        , Cmd.none
+        )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

@@ -4,6 +4,7 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import Update exposing (update)
 import Model exposing (..)
+import Buffer as Buf
 import Internal.TextBuffer as B exposing (Patch(..))
 import Message exposing (Msg(..), Key)
 import Parser as P exposing ((|.), (|=), Parser)
@@ -277,9 +278,27 @@ motionCases =
     ]
 
 
+exModeCases : List ( String, Buffer )
+exModeCases =
+    [ ( ":11"
+      , { emptyBuffer
+            | mode =
+                Ex ":"
+                    { emptyExBuffer
+                        | lines = B.fromString "11"
+                        , cursor = ( 0, 2 )
+                    }
+            , continuation = ":"
+        }
+      )
+    , ( "/11<cr>", emptyBuffer )
+    ]
+
+
 allCases :
     List
         { cases : List ( String, Buffer )
+        , map : Buffer -> Buffer
         , model : Model
         , name : String
         }
@@ -287,16 +306,34 @@ allCases =
     [ { name = "insert cases"
       , cases = insertCases
       , model = emptyBuffer
+      , map = identity
       }
     , { name = "motion cases"
       , cases = motionCases
       , model = motionCasesBuf
+      , map = identity
+      }
+    , { name = "ex mode cases"
+      , cases = exModeCases
+      , model = emptyBuffer
+      , map =
+            (\buf ->
+                case buf.mode of
+                    Ex prefix exBuf ->
+                        { buf
+                            | mode =
+                                Ex prefix (Buf.clearHistory exBuf)
+                        }
+
+                    _ ->
+                        buf
+            )
       }
     ]
 
 
-keysTest : String -> Buffer -> Model -> Test
-keysTest s buf model =
+keysTest : (Buffer -> a) -> String -> Buffer -> Buffer -> Test
+keysTest map s buf model =
     s
         |> P.run keysParser
         |> Result.map
@@ -307,7 +344,7 @@ keysTest s buf model =
                 in
                     test s <|
                         \_ ->
-                            Expect.equal buf buf1
+                            Expect.equal (map buf) (map buf1)
             )
         |> Result.withDefault
             (test s <| \_ -> Expect.fail "invalid input")
@@ -317,8 +354,16 @@ suite : Test
 suite =
     describe "Press keys" <|
         List.map
-            (\{ name, cases, model } ->
+            (\{ name, cases, model, map } ->
                 describe name <|
-                    List.map (\( s, buf ) -> keysTest s buf model) cases
+                    List.map
+                        (\( s, buf ) ->
+                            keysTest
+                                map
+                                s
+                                buf
+                                model
+                        )
+                        cases
             )
             allCases
