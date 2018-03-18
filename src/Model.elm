@@ -1,6 +1,5 @@
 module Model exposing (..)
 
-import Dict as D exposing (Dict)
 import Message exposing (Msg(..))
 import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
@@ -35,25 +34,16 @@ type Mode
 
 
 type alias View =
-    { bufid : Int
-    , scrollTop : Int
+    { scrollTop : Int
     , startPosition : Position
     , lines : TextBuffer
-    , cursor : Position
-    , statusBar :
-        { text : String
-        , cursor : Maybe Position
-        }
     , height : Int
     , dataStartPosition : Position
     }
 
 
 type alias Model =
-    { buffers : Dict Int Buffer
-    , maxId : Int
-    , view : View
-    }
+    Buffer
 
 
 type alias BufferHistory =
@@ -90,22 +80,6 @@ type alias Buffer =
     }
 
 
-
---updateActiveBuffer : (Buffer -> Buffer) -> Model -> Model
---updateActiveBuffer op model =
---    { model | activeBuffer = op model.activeBuffer }
-
-
-getBuffer : Int -> Model -> Maybe Buffer
-getBuffer bufid model =
-    D.get bufid model.buffers
-
-
-setBuffer : Int -> Buffer -> Model -> Model
-setBuffer bufid buf model =
-    { model | buffers = D.insert bufid buf model.buffers }
-
-
 emptyBuffer : Buffer
 emptyBuffer =
     { id = 0
@@ -122,15 +96,9 @@ emptyBuffer =
         , expandTab = True
         }
     , view =
-        { bufid = 0
-        , scrollTop = 0
+        { scrollTop = 0
         , startPosition = ( 0, 0 )
         , lines = B.empty
-        , cursor = ( 0, 0 )
-        , statusBar =
-            { text = "-- Normal --"
-            , cursor = Nothing
-            }
         , height = 20
         , dataStartPosition = ( 0, 0 )
         }
@@ -188,19 +156,11 @@ init _ =
         buf =
             { emptyBuffer
                 | lines = lines
-                , cursor = ( 0, 0 )
+                , cursor = ( 0, 1 )
                 , mode = mode
-                , view =
-                    { view
-                        | lines = lines
-                        , cursor = ( 0, 1 )
-                        , statusBar = getStatusBar mode
-                    }
+                , view = { view | lines = lines }
             }
     in
-        ( { buffers = D.fromList [ ( 0, buf ) ]
-          , maxId = 0
-          , view = buf.view
-          }
+        ( buf
         , Cmd.none
         )

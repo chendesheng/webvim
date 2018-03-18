@@ -5,17 +5,8 @@ import Test exposing (..)
 import Update exposing (update)
 import Model exposing (..)
 import Internal.TextBuffer as B exposing (Patch(..))
-import Dict
 import Message exposing (Msg(..), Key)
 import Parser as P exposing ((|.), (|=), Parser)
-
-
-buffer2Model : Buffer -> Model
-buffer2Model buf =
-    { buffers = Dict.fromList [ ( buf.id, buf ) ]
-    , maxId = 0
-    , view = buf.view
-    }
 
 
 handleKeys : List Key -> Model -> Model
@@ -246,11 +237,11 @@ allCases :
 allCases =
     [ { name = "insert cases"
       , cases = insertCases
-      , model = buffer2Model emptyBuffer
+      , model = emptyBuffer
       }
     , { name = "motion cases"
       , cases = motionCases
-      , model = buffer2Model motionCasesBuf
+      , model = motionCasesBuf
       }
     ]
 
@@ -264,9 +255,6 @@ keysTest s buf model =
                 let
                     buf1 =
                         handleKeys keys model
-                            |> .buffers
-                            |> Dict.get 0
-                            |> Maybe.withDefault emptyBuffer
                 in
                     test s <|
                         \_ ->

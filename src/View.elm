@@ -8,13 +8,16 @@ import Html.Attributes exposing (..)
 
 
 view : Model -> Html msg
-view { view } =
+view { mode, cursor, view } =
     let
         ( y, x ) =
-            view.cursor
+            cursor
+
+        statusBar =
+            getStatusBar mode
 
         statusText =
-            view.statusBar.text
+            statusBar.text
     in
         div [ class "buffer" ]
             [ div [ class "lines" ]

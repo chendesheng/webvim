@@ -7,7 +7,6 @@ import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
 import Position exposing (Position, positionMin)
-import Dict
 
 
 getLineMaxCursor : Int -> B.TextBuffer -> Int
@@ -235,8 +234,8 @@ getLast xs =
             getLast xs
 
 
-handleKeypress : Key -> Model -> Buffer -> ( Model, Cmd Msg )
-handleKeypress key model buf =
+handleKeypress : Key -> Buffer -> ( Model, Cmd Msg )
+handleKeypress key buf =
     let
         oldModeName =
             getModeName buf.mode
@@ -300,30 +299,12 @@ handleKeypress key model buf =
                 buf2
             else
                 modeChanged oldModeName modeName buf2
-
-        buffers =
-            Dict.insert buf3.id
-                { buf3 | continuation = continuation }
-                model.buffers
-
-        view =
-            model.view
-
-        view1 =
-            { view
-                | lines = buf3.lines
-                , cursor = buf3.cursor
-                , statusBar = getStatusBar buf3.mode
-            }
     in
-        ( { model | buffers = buffers, view = view1 }, Cmd.none )
+        ( { buf3 | continuation = continuation }, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
         PressKey bufid key ->
-            model
-                |> getBuffer bufid
-                |> Maybe.map (handleKeypress key model)
-                |> Maybe.withDefault ( model, Cmd.none )
+            handleKeypress key model
