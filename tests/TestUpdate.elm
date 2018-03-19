@@ -248,7 +248,11 @@ insertCases =
 motionCasesBuf : Buffer
 motionCasesBuf =
     { emptyBuffer
-        | lines = B.fromString "123\n45678\n"
+        | lines =
+            B.fromString
+                """123
+45678
+"""
     }
 
 
@@ -273,6 +277,9 @@ motionCases =
       , { motionCasesBuf | cursor = ( 0, 0 ) }
       )
     , ( "jlllllllk"
+      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      )
+    , ( "e"
       , { motionCasesBuf | cursor = ( 0, 2 ) }
       )
     ]

@@ -1,8 +1,8 @@
-module PositionClass exposing (..)
+module PositionClass exposing (findPosition)
 
 import Char
 import Parser as P exposing (Parser, (|.), (|=))
-import Vim.AST exposing (PositionClass(..))
+import Vim.AST exposing (PositionClass(..), Direction(..))
 
 
 isBetween : Char -> Char -> Char -> Bool
@@ -43,24 +43,26 @@ parserWordStart wordChars =
             ]
         |= P.keep P.zeroOrMore space
         |. P.oneOf
-            [ P.keep (P.Exactly 1) (word wordChars)
-            , P.keep (P.Exactly 1) (punctuation wordChars)
+            [ P.ignore (P.Exactly 1) (word wordChars)
+            , P.ignore (P.Exactly 1) (punctuation wordChars)
             ]
 
 
 parserWordEnd : String -> Parser Int
 parserWordEnd wordChars =
     P.succeed
-        (\a b -> String.length a + String.length b - 1)
+        (\a b c -> String.length a + String.length b + String.length c - 1)
+        |= P.keep (P.Exactly 1) (always True)
         |= P.keep P.zeroOrMore space
         |= P.oneOf
             [ P.keep P.oneOrMore (word wordChars)
             , P.keep P.oneOrMore (punctuation wordChars)
             ]
         |. P.oneOf
-            [ P.keep (P.Exactly 1) (word wordChars)
-            , P.keep (P.Exactly 1) (punctuation wordChars)
-            , P.keep (P.Exactly 1) space
+            [ P.ignore (P.Exactly 1) (word wordChars)
+            , P.ignore (P.Exactly 1) (punctuation wordChars)
+            , P.ignore (P.Exactly 1) space
+            , P.end
             ]
 
 
@@ -73,20 +75,24 @@ parserWORDStart =
             , P.keep P.oneOrMore space
             ]
         |= P.keep P.zeroOrMore space
-        |. P.keep (P.Exactly 1) (space >> not)
+        |. P.ignore (P.Exactly 1) (space >> not)
 
 
 parserWORDEnd : Parser Int
 parserWORDEnd =
     P.succeed
-        (\a b -> String.length a + String.length b - 1)
+        (\a b c -> String.length a + String.length b + String.length c - 1)
+        |= P.keep (P.Exactly 1) (always True)
         |= P.keep P.zeroOrMore space
         |= P.keep P.oneOrMore (space >> not)
-        |. P.keep (P.Exactly 1) space
+        |. P.oneOf
+            [ P.ignore (P.Exactly 1) space
+            , P.end
+            ]
 
 
-findLastPositionClass : String -> PositionClass -> String -> Maybe Int
-findLastPositionClass wordChars class line =
+findPositionBackward : String -> PositionClass -> String -> Maybe Int
+findPositionBackward wordChars class line =
     let
         reversed =
             String.reverse line
@@ -102,12 +108,50 @@ findLastPositionClass wordChars class line =
             |> Maybe.map ((-) (String.length reversed))
 
 
-findPositionClass : String -> PositionClass -> String -> Maybe Int
-findPositionClass wordChars class line =
-    case class of
-        WordStart ->
-            -- word*space*(punctuation+|word+)
-            Nothing
+findPositionForward :
+    String
+    -> PositionClass
+    -> String
+    -> Result P.Error Int
+findPositionForward wordChars class line =
+    let
+        parser =
+            case class of
+                WordEnd ->
+                    parserWordEnd wordChars
 
-        _ ->
-            Nothing
+                WordStart ->
+                    parserWordStart wordChars
+
+                WORDEnd ->
+                    parserWORDEnd
+
+                WORDStart ->
+                    parserWORDStart
+
+                _ ->
+                    P.fail "unknown position class"
+    in
+        P.run parser line
+
+
+findPosition :
+    String
+    -> PositionClass
+    -> Direction
+    -> String
+    -> Int
+    -> Maybe Int
+findPosition wordChars class direction line pos =
+    case direction of
+        Forward ->
+            line
+                |> String.dropLeft pos
+                |> findPositionForward wordChars class
+                |> Debug.log "result"
+                |> Result.toMaybe
+                |> Maybe.map ((+) pos)
+
+        Backward ->
+            findPositionBackward wordChars class <|
+                String.left pos line

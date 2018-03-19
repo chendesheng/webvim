@@ -7,6 +7,8 @@ import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
 import Position exposing (Position, positionMin)
+import String
+import PositionClass exposing (findPosition)
 
 
 getLineMaxColumn : Int -> B.TextBuffer -> Int
@@ -53,8 +55,27 @@ moveByClass class direction buf =
                     else
                         ( y, min (max newx 0) (getLineMaxColumn y buf.lines) )
 
-            _ ->
-                buf.cursor
+            class ->
+                buf.lines
+                    |> B.getLine y
+                    |> Maybe.map
+                        (\line ->
+                            case
+                                (findPosition
+                                    buf.config.wordChars
+                                    class
+                                    direction
+                                    line
+                                    x
+                                )
+                            of
+                                Just x1 ->
+                                    ( y, x1 )
+
+                                Nothing ->
+                                    buf.cursor
+                        )
+                    |> Maybe.withDefault buf.cursor
 
 
 deleteOperator : V.OperatorRange -> Buffer -> Buffer
