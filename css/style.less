@@ -1,21 +1,57 @@
 @import "css/font.less";
 
+@theme-color: #9600ff;
+@statusbar-height: 1.5rem;
+@line-height: 1.5rem;
+
 html, body {
   margin: 0;
   padding: 0;
+  width: 100%;
   height: 100%;
   font-family: "Monaco";
   font-size: 14px;
-  background: #111;
   color: #fff;
+  background: #222;
 }
 
-.line {
+.buffer {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
+  align-items: flex-start;
+}
+
+.lines-container {
+  flex: 1;
+  overflow-x: auto;
+  min-height: 100%;
+  padding-left: 0.3ch;
+}
+
+.lines {
+  padding-bottom: @statusbar-height;
+}
+
+.lines {
+  position: relative;
+}
+
+.line-numbers {
+  background: @theme-color;
+}
+
+.line, .line-number {
   white-space: pre;
-  height: 1.2rem;
+  height: @line-height;
+  line-height: @line-height;
+  display: flex;
+  align-items: center;
 }
 
-.lineNumber {
+.line-number {
+  padding: 0 1ch;
 }
 
 .cursor {
@@ -23,23 +59,30 @@ html, body {
   width: 1ch;
   background: rgba(255,255,255,.5);
   white-space: pre;
-  height: 1.2rem;
+  height: 1.3rem;
   padding: 0 0 2px 0;
+  transform: translateY(0.1rem)
 }
+
 
 .status {
   position: fixed;
   bottom: 0;
   width: 100%;
-  background: blue;
+  background: @theme-color;
   display: flex;
+  flex-direction: row;
   align-items: center;
   font-size: 0.9rem;
-  height: 1.5rem;
+  height: @statusbar-height;
   padding: 0 0.3ch;
   white-space: pre;
 }
 
 .status .cursor {
   transform: translateX(1.3ch);
+}
+
+.status-cmds {
+  padding-left: 2ch;
 }
