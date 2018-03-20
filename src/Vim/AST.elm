@@ -28,6 +28,7 @@ type StateChange
     | PopRecordMacro
     | PushRegister Register
     | PushCount Int
+    | PopCount
 
 
 type alias ModeDelta =

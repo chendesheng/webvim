@@ -291,6 +291,9 @@ modeChanged oldModeName newModeName buf =
                     |> setCursor cursor
                     |> Buf.commit
 
+        V.ModeNameTempNormal ->
+            Buf.commit buf
+
         V.ModeNameEx prefix ->
             case buf.mode of
                 Ex prefix exbuf ->

@@ -188,6 +188,9 @@ aggregateCount =
                 PushCount n ->
                     res * n
 
+                PopCount ->
+                    1
+
                 _ ->
                     res
         )

@@ -314,6 +314,51 @@ cases =
         , "i"
         )
       )
+    , ( "i<c-o>u"
+      , ( { initialMode
+            | edit =
+                InsertString "u"
+                    |> Just
+            , modeName = ModeNameInsert
+          }
+        , "i"
+        )
+      )
+    , ( "i<c-o><c-r>"
+      , ( { initialMode | modeName = ModeNameInsert }
+        , "i<c-r>"
+        )
+      )
+    , ( "i<c-o><c-r>a"
+      , ( { initialMode
+            | register = "a"
+            , modeName = ModeNameInsert
+            , edit = Put Forward |> Just
+          }
+        , "i"
+        )
+      )
+    , ( "10i<c-o>8"
+      , ( { initialMode
+            | modeName = ModeNameTempNormal
+            , count = 8
+            , edit = Nothing
+          }
+        , "10i<c-o>8"
+        )
+      )
+    , ( "10i<c-o>8j"
+      , ( { initialMode
+            | modeName = ModeNameInsert
+            , count = 8
+            , edit =
+                LineDelta 1
+                    |> Move
+                    |> Just
+          }
+        , "10i"
+        )
+      )
     , ( "cw<c-o>"
       , ( { initialMode | modeName = ModeNameTempNormal }, "cw<c-o>" )
       )
@@ -433,6 +478,11 @@ cases =
                     |> Just
           }
         , ""
+        )
+      )
+    , ( "i<c-r>"
+      , ( { initialMode | modeName = ModeNameInsert }
+        , "i<c-r>"
         )
       )
     , ( "i<c-r>a"

@@ -89,30 +89,46 @@ insertMode =
                         let
                             modeName =
                                 aggregateModeName modeDelta
-
-                            op =
-                                aggregateOperator modeDelta
                         in
                             P.succeed
-                                (case op of
-                                    Nothing ->
-                                        if
-                                            isComplete modeDelta
-                                                || modeName
-                                                == ModeNameInsert
-                                        then
-                                            []
-                                        else
-                                            [ PushMode ModeNameTempNormal
-                                            , PushKey "<c-o>"
-                                            ]
-                                                ++ modeDelta
+                                (if
+                                    (isComplete modeDelta)
+                                        || (modeName == ModeNameInsert)
+                                 then
+                                    List.filter
+                                        (\change ->
+                                            case change of
+                                                PushMode _ ->
+                                                    False
 
-                                    Just op1 ->
-                                        [ PushOperator op1 ]
+                                                PopMode ->
+                                                    False
+
+                                                PushKey _ ->
+                                                    False
+
+                                                PopKey ->
+                                                    False
+
+                                                PushComplete ->
+                                                    False
+
+                                                PopComplete ->
+                                                    False
+
+                                                _ ->
+                                                    True
+                                        )
+                                        (PopCount :: modeDelta)
+                                 else
+                                    [ PushMode ModeNameTempNormal
+                                    , PushKey "<c-o>"
+                                    , PopCount
+                                    ]
+                                        ++ modeDelta
                                 )
                     )
-                    (P.lazy (\_ -> operator False))
+                    (P.lazy (\_ -> operator False True))
                 )
 
         register =
@@ -130,12 +146,11 @@ insertMode =
                     |= keyParser
                 )
     in
-        P.succeed ((::) (PushMode ModeNameInsert))
-            |= P.oneOf
-                [ register
-                , tempNormalMode
-                , insertCommands
-                ]
+        P.oneOf
+            [ register
+            , tempNormalMode
+            , insertCommands
+            ]
 
 
 linebuffer : String -> (Operator -> Operator) -> Parser ModeDelta
@@ -376,8 +391,8 @@ motion map gMotion =
             ]
 
 
-operator : Bool -> Parser ModeDelta
-operator isVisual =
+operator : Bool -> Bool -> Parser ModeDelta
+operator isVisual isTemp =
     let
         define key op =
             (P.succeed
@@ -393,7 +408,9 @@ operator isVisual =
                 [ P.succeed
                     [ PushMode ModeNameInsert ]
                     |. P.end
-                , (P.map ((::) PopOperator) insertMode)
+                , (P.succeed ((++) [ PopOperator, PushMode ModeNameInsert ])
+                    |= insertMode
+                  )
                 ]
 
         defineInsert key op =
@@ -473,7 +490,7 @@ operator isVisual =
                                 ]
                         in
                             (P.oneOf
-                                [ operator isVisual
+                                [ operator isVisual False
                                     |> P.map ((++) modeDelta)
                                     |> completeAndThen popKey
                                 , P.map (always modeDelta) P.end
@@ -489,7 +506,7 @@ operator isVisual =
                         (P.oneOf
                             [ P.map ((++) modeDelta)
                                 (completeAndThen popKey <|
-                                    operator isVisual
+                                    operator isVisual False
                                 )
                             , P.succeed modeDelta
                             ]
@@ -497,16 +514,16 @@ operator isVisual =
                     )
     in
         P.oneOf
-            [ (if isVisual then
-                textObject Select
-               else
-                P.oneOf []
-              )
-            , motion Move (P.oneOf [])
-            , registerPrefix
-            , countPrefix
-            , defineInsert "i" []
-            , defineInsert "I"
+            ([ (if isVisual then
+                    textObject Select
+                else
+                    P.oneOf []
+               )
+             , motion Move (P.oneOf [])
+             , registerPrefix
+             , countPrefix
+             , defineInsert "i" []
+             , defineInsert "I"
                 [ ByClass
                     { class = LineStart
                     , direction = Backward
@@ -514,7 +531,7 @@ operator isVisual =
                     |> Move
                     |> PushOperator
                 ]
-            , defineInsert "a"
+             , defineInsert "a"
                 [ ByClass
                     { class = CharStart False
                     , direction = Forward
@@ -522,7 +539,7 @@ operator isVisual =
                     |> Move
                     |> PushOperator
                 ]
-            , defineInsert "A"
+             , defineInsert "A"
                 [ ByClass
                     { class = LineEnd
                     , direction = Forward
@@ -530,7 +547,7 @@ operator isVisual =
                     |> Move
                     |> PushOperator
                 ]
-            , defineInsert "C"
+             , defineInsert "C"
                 [ (MotionRange Exclusive
                     (ByClass
                         { class = LineEnd
@@ -541,7 +558,7 @@ operator isVisual =
                     |> Delete
                     |> PushOperator
                 ]
-            , defineInsert "s"
+             , defineInsert "s"
                 [ (MotionRange Exclusive
                     (ByClass
                         { class = CharStart False
@@ -552,29 +569,29 @@ operator isVisual =
                     |> Delete
                     |> PushOperator
                 ]
-            , defineInsert "S"
+             , defineInsert "S"
                 [ TextObject Line False |> Delete |> PushOperator ]
-            , defineInsert "o" [ OpenNewLine Forward |> PushOperator ]
-            , defineInsert "O" [ OpenNewLine Backward |> PushOperator ]
-            , defineOperator "d"
+             , defineInsert "o" [ OpenNewLine Forward |> PushOperator ]
+             , defineInsert "O" [ OpenNewLine Backward |> PushOperator ]
+             , defineOperator "d"
                 Delete
                 (Delete <| TextObject Line True)
-            , defineOperator "c"
+             , defineOperator "c"
                 Delete
                 (Delete <| TextObject Line False)
-            , defineOperator "y"
+             , defineOperator "y"
                 Yank
                 (Yank <| TextObject Line True)
-            , defineOperator ">"
+             , defineOperator ">"
                 (Indent Forward)
                 (Indent Forward <| TextObject Line False)
-            , defineOperator "\\<"
+             , defineOperator "\\<"
                 (Indent Backward)
                 (Indent Backward <| TextObject Line False)
-            , readKeyAndThen ":"
+             , readKeyAndThen ":"
                 [ PushKey ":", PushMode <| ModeNameEx ":" ]
                 (linebuffer ":" identity)
-            , readKeyAndThen "@"
+             , readKeyAndThen "@"
                 [ PushKey "@" ]
                 (P.map
                     (\key ->
@@ -588,20 +605,18 @@ operator isVisual =
                     )
                     keyParser
                 )
-            , define "u" Undo
-            , define "<c-r>" Redo
-            , define "<c-o>" (JumpHistory Backward)
-            , define "<tab>" (JumpHistory Forward)
-            , define "<c-u>" (JumpByView 0.5)
-            , define "<c-d>" (JumpByView -0.5)
-            , define "<c-f>" (JumpByView 1)
-            , define "<c-b>" (JumpByView -1)
-            , define "<c-y>" (Scroll 1)
-            , define "<c-e>" (Scroll -1)
-            , define "<c-p>" (CompleteWord Backward)
-            , define "<c-n>" (CompleteWord Forward)
-            , define "J" (Join False)
-            , define "x"
+             , define "<c-o>" (JumpHistory Backward)
+             , define "<tab>" (JumpHistory Forward)
+             , define "<c-u>" (JumpByView 0.5)
+             , define "<c-d>" (JumpByView -0.5)
+             , define "<c-f>" (JumpByView 1)
+             , define "<c-b>" (JumpByView -1)
+             , define "<c-y>" (Scroll 1)
+             , define "<c-e>" (Scroll -1)
+             , define "<c-p>" (CompleteWord Backward)
+             , define "<c-n>" (CompleteWord Forward)
+             , define "J" (Join False)
+             , define "x"
                 (ByClass
                     { class = CharStart False
                     , direction = Forward
@@ -609,7 +624,7 @@ operator isVisual =
                     |> MotionRange Exclusive
                     |> Delete
                 )
-            , define "X"
+             , define "X"
                 (ByClass
                     { class = CharStart False
                     , direction = Backward
@@ -617,10 +632,17 @@ operator isVisual =
                     |> MotionRange Exclusive
                     |> Delete
                 )
-            , gOperator
-            , P.lazy (\_ -> macro isVisual)
-            , P.lazy (\_ -> visual)
-            ]
+             , gOperator
+             , P.lazy (\_ -> macro isVisual)
+             , P.lazy (\_ -> visual)
+             ]
+                ++ if isTemp then
+                    [ P.map ((++) [ PopMode, PopKey ]) insertMode ]
+                   else
+                    [ define "u" Undo
+                    , define "<c-r>" Redo
+                    ]
+            )
 
 
 visual : Parser ModeDelta
@@ -654,9 +676,13 @@ visual =
                                 if key1 == key || key1 == "<esc>" then
                                     []
                                 else if key1 == "" then
-                                    [ key2mode key |> PushMode, PushKey key ]
+                                    [ key2mode key |> PushMode
+                                    , PushKey key
+                                    ]
                                 else
-                                    [ key2mode key1 |> PushMode, PushKey key1 ]
+                                    [ key2mode key1 |> PushMode
+                                    , PushKey key1
+                                    ]
                             )
                             |= (P.oneOf
                                     [ P.symbol "v"
@@ -673,7 +699,7 @@ visual =
                                 , PushKey key
                                 ]
                             )
-                            |= (operator True
+                            |= (operator True False
                                     |> completeAndThen
                                         (popComplete >> popKey)
                                )
@@ -702,7 +728,7 @@ macro isVisual =
                         (P.oneOf
                             [ P.succeed [ PopRecordMacro, PushComplete ]
                                 |. P.symbol "q"
-                            , (operator isVisual
+                            , (operator isVisual False
                                 |> completeAndThen
                                     (popComplete >> popKey)
                               )
@@ -723,7 +749,7 @@ parse lastKeys key =
                 lastKeys ++ escapeKey key
 
             modeDelta =
-                P.run (completeAndThen popKey <| operator False) keys
+                P.run (completeAndThen popKey <| operator False False) keys
                     |> Result.withDefault []
         in
             ( { count = aggregateCount modeDelta
