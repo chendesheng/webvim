@@ -116,6 +116,54 @@ deleteOperator range buf =
             buf
 
 
+matchChar :
+    { char : String, direction : V.Direction, inclusive : V.Inclusive }
+    -> Buffer
+    -> Position
+matchChar { char, direction, inclusive } buf =
+    let
+        ( y, x ) =
+            buf.cursor
+    in
+        buf.lines
+            |> B.getLine y
+            |> Maybe.map
+                (\line ->
+                    case direction of
+                        V.Forward ->
+                            line
+                                |> String.dropLeft (x + 1)
+                                |> String.indexes char
+                                |> List.head
+                                |> Maybe.map
+                                    ((+)
+                                        (if inclusive == V.Inclusive then
+                                            x + 1
+                                         else
+                                            x
+                                        )
+                                    )
+                                |> Maybe.withDefault x
+
+                        V.Backward ->
+                            line
+                                |> String.left x
+                                |> String.indexes char
+                                |> getLast
+                                |> Maybe.map
+                                    ((+)
+                                        (if inclusive == V.Inclusive then
+                                            0
+                                         else
+                                            1
+                                        )
+                                    )
+                                |> Maybe.withDefault x
+                )
+            |> Maybe.map (\x1 -> ( y, x1 ))
+            |> Maybe.withDefault buf.cursor
+
+
 runMotion : V.Motion -> Buffer -> Position
 runMotion motion buf =
     if B.isEmpty buf.lines then
@@ -128,6 +176,9 @@ runMotion motion buf =
             case motion of
                 V.ByClass { class, direction } ->
                     moveByClass class direction buf
+
+                V.MatchChar arg ->
+                    matchChar arg buf
 
                 V.LineDelta n ->
                     let

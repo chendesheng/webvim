@@ -285,6 +285,21 @@ motionCases =
     , ( "w"
       , motionCasesBuf
       )
+    , ( "f3"
+      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      )
+    , ( "f4"
+      , { motionCasesBuf | cursor = ( 0, 0 ) }
+      )
+    , ( "t3"
+      , { motionCasesBuf | cursor = ( 0, 1 ) }
+      )
+    , ( "t3F1"
+      , { motionCasesBuf | cursor = ( 0, 0 ) }
+      )
+    , ( "f3T1"
+      , { motionCasesBuf | cursor = ( 0, 1 ) }
+      )
     ]
 
 
