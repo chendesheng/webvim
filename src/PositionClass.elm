@@ -48,6 +48,14 @@ parserWordStart wordChars =
             ]
 
 
+parserLineStart : Parser Int
+parserLineStart =
+    P.succeed
+        (\a -> String.length a)
+        |= P.keep P.zeroOrMore space
+        |. P.ignore (P.Exactly 1) (space >> not)
+
+
 parserWordEnd : String -> Parser Int
 parserWordEnd wordChars =
     P.succeed
@@ -158,16 +166,28 @@ findPosition :
 findPosition wordChars class direction line pos =
     case direction of
         Forward ->
-            line
-                |> String.dropLeft pos
-                |> findPositionForward wordChars class
-                |> Debug.log "result"
-                |> Result.toMaybe
-                |> Maybe.map ((+) pos)
+            if class == LineEnd then
+                Just (String.length line - 1)
+            else
+                line
+                    |> String.dropLeft pos
+                    |> findPositionForward wordChars class
+                    |> Debug.log "result"
+                    |> Result.toMaybe
+                    |> Maybe.map ((+) pos)
 
         Backward ->
-            line
-                |> String.left (pos + 1)
-                |> findPositionBackward wordChars class
-                |> Debug.log "result"
-                |> Result.toMaybe
+            case class of
+                LineStart ->
+                    Just 0
+
+                LineFirst ->
+                    P.run parserLineStart line
+                        |> Result.toMaybe
+
+                _ ->
+                    line
+                        |> String.left (pos + 1)
+                        |> findPositionBackward wordChars class
+                        |> Debug.log "result"
+                        |> Result.toMaybe

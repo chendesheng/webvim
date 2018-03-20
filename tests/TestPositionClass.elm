@@ -322,6 +322,56 @@ a h
  ^
 """
                         ]
+                    ++ List.map (TestCase LineStart Backward)
+                        [ """
+123ab$$##
+?       ^
+"""
+                        , """
+1   #
+?   ^
+"""
+                        , """
+  1   #
+?  ^
+"""
+                        , """
+1   #123
+?       ^
+"""
+                        ]
+                    ++ List.map (TestCase LineFirst Backward)
+                        [ """
+123ab$$##
+?       ^
+"""
+                        , """
+1   #
+?   ^
+"""
+                        , """
+  1   #
+  ?^
+"""
+                        , """
+  1   #123
+^ ?
+"""
+                        ]
+                    ++ List.map (TestCase LineEnd Forward)
+                        [ """
+123ab$$##
+^       ?
+"""
+                        , """
+1   #
+^   ?
+"""
+                        , """
+  1   #
+^     ?
+"""
+                        ]
         in
             List.map
                 (\(TestCase class direction testcase) ->

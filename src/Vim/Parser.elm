@@ -525,7 +525,7 @@ operator isVisual isTemp =
              , defineInsert "i" []
              , defineInsert "I"
                 [ ByClass
-                    { class = LineStart
+                    { class = LineFirst
                     , direction = Backward
                     }
                     |> Move
@@ -604,6 +604,16 @@ operator isVisual isTemp =
                             []
                     )
                     keyParser
+                )
+             , define "D"
+                ((MotionRange Exclusive
+                    (ByClass
+                        { class = LineEnd
+                        , direction = Forward
+                        }
+                    )
+                 )
+                    |> Delete
                 )
              , define "<c-o>" (JumpHistory Backward)
              , define "<tab>" (JumpHistory Forward)
