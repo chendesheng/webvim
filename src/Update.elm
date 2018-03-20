@@ -8,7 +8,7 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
 import Position exposing (Position, positionMin)
 import String
-import PositionClass exposing (findPosition)
+import PositionClass exposing (..)
 
 
 getLineMaxColumn : Int -> B.TextBuffer -> Int
@@ -211,7 +211,9 @@ emptyMode modeName =
             Insert
 
         V.ModeNameEx prefix ->
-            Ex prefix emptyExBuffer
+            emptyExBuffer
+                |> Buf.transaction [ Insertion ( 0, 0 ) <| B.fromString prefix ]
+                |> Ex prefix
 
         V.ModeNameVisual _ ->
             Visual VisualRange []
@@ -268,27 +270,42 @@ updateMode modeName buf =
 
 modeChanged : V.ModeName -> V.ModeName -> Buffer -> Buffer
 modeChanged oldModeName newModeName buf =
-    if newModeName == V.ModeNameNormal then
-        let
-            ( y, x ) =
-                buf.cursor
+    case newModeName of
+        V.ModeNameNormal ->
+            let
+                ( y, x ) =
+                    buf.cursor
 
-            buf1 =
-                if oldModeName == V.ModeNameInsert then
-                    setCursor ( y, max (x - 1) 0 ) buf
-                else
-                    setCursor
+                cursor =
+                    if oldModeName == V.ModeNameInsert then
+                        ( y, max (x - 1) 0 )
+                    else
                         ( y
                         , if getLineMaxColumn y buf.lines > x then
                             x
                           else
                             max (x - 1) 0
                         )
+            in
+                buf
+                    |> setCursor cursor
+                    |> Buf.commit
+
+        V.ModeNameEx prefix ->
+            case buf.mode of
+                Ex prefix exbuf ->
+                    if B.isEmpty exbuf.lines then
                         buf
-        in
-            Buf.commit buf1
-    else
-        buf
+                            |> handleKeypress "<esc>"
+                            |> Tuple.first
+                    else
+                        buf
+
+                _ ->
+                    buf
+
+        _ ->
+            buf
 
 
 getLast : List a -> Maybe a
@@ -347,6 +364,60 @@ openNewLine y buf =
             |> setCursor cursor
 
 
+setContinuation : String -> Buffer -> Buffer
+setContinuation s buf =
+    { buf | continuation = s }
+
+
+runOperator : Operator -> Buffer -> Buffer
+runOperator operator buf =
+    case operator of
+        Move motion ->
+            buf
+                |> setCursor (runMotion motion buf)
+
+        InsertString s ->
+            case buf.mode of
+                Ex prefix exbuf ->
+                    { buf
+                        | mode =
+                            exbuf
+                                |> insertString s
+                                |> Ex prefix
+                    }
+
+                _ ->
+                    insertString s buf
+
+        Delete rg ->
+            case buf.mode of
+                Ex prefix exbuf ->
+                    { buf
+                        | mode =
+                            exbuf
+                                |> deleteOperator rg
+                                |> Ex prefix
+                    }
+
+                _ ->
+                    deleteOperator rg buf
+
+        Undo ->
+            Buf.undo buf
+
+        Redo ->
+            Buf.redo buf
+
+        OpenNewLine V.Forward ->
+            openNewLine (Tuple.first buf.cursor + 1) buf
+
+        OpenNewLine V.Backward ->
+            openNewLine (Tuple.first buf.cursor) buf
+
+        _ ->
+            buf
+
+
 handleKeypress : Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress key buf =
     let
@@ -356,67 +427,16 @@ handleKeypress key buf =
         ( { edit, modeName } as ast, continuation ) =
             P.parse buf.continuation key
 
-        buf1 =
-            updateMode modeName buf
-
-        buf2 =
+        applyEdit b =
             edit
-                |> Maybe.map
-                    (\operator ->
-                        case operator of
-                            Move motion ->
-                                buf1
-                                    |> setCursor (runMotion motion buf1)
-
-                            InsertString s ->
-                                case buf1.mode of
-                                    Ex prefix buf ->
-                                        { buf1
-                                            | mode =
-                                                buf
-                                                    |> insertString s
-                                                    |> Ex prefix
-                                        }
-
-                                    _ ->
-                                        insertString s buf1
-
-                            Delete rg ->
-                                case buf1.mode of
-                                    Ex prefix buf ->
-                                        { buf1
-                                            | mode =
-                                                buf
-                                                    |> deleteOperator rg
-                                                    |> Ex prefix
-                                        }
-
-                                    _ ->
-                                        deleteOperator rg buf1
-
-                            Undo ->
-                                Buf.undo buf1
-
-                            Redo ->
-                                Buf.redo buf1
-
-                            OpenNewLine V.Forward ->
-                                openNewLine (Tuple.first buf1.cursor + 1) buf1
-
-                            OpenNewLine V.Backward ->
-                                openNewLine (Tuple.first buf1.cursor) buf1
-
-                            _ ->
-                                buf1
-                    )
-                |> Maybe.withDefault buf1
-
-        buf3 =
-            modeChanged oldModeName modeName buf2
+                |> Maybe.map (flip runOperator b)
+                |> Maybe.withDefault b
     in
-        ( { buf3
-            | continuation = continuation
-          }
+        ( buf
+            |> updateMode modeName
+            |> setContinuation continuation
+            |> applyEdit
+            |> modeChanged oldModeName modeName
         , Cmd.none
         )
 

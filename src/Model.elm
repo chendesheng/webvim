@@ -77,27 +77,7 @@ type alias Buffer =
 
 emptyExBuffer : Buffer
 emptyExBuffer =
-    { id = 0
-    , lines = B.empty
-    , cursor = ( 0, 0 )
-    , cursorColumn = 0
-    , path = ""
-    , name = "no name"
-    , mode = Insert
-    , history = emptyBufferHistory
-    , config =
-        { wordChars = "_" -- a-z and A-Z are word chars by default
-        , tabSize = 4
-        , expandTab = True
-        }
-    , view =
-        { scrollTop = 0
-        , startPosition = ( 0, 0 )
-        , height = 20
-        , dataStartPosition = ( 0, 0 )
-        }
-    , continuation = ""
-    }
+    { emptyBuffer | mode = Insert, lines = B.empty }
 
 
 emptyBuffer : Buffer
@@ -149,7 +129,7 @@ getStatusBar mode =
             }
 
         Ex prefix buffer ->
-            { text = prefix ++ B.toString buffer.lines
+            { text = B.toString buffer.lines
             , cursor = Just buffer.cursor
             }
 
@@ -163,7 +143,9 @@ init _ =
         lines =
             B.empty
                 |> B.applyPatch
-                    (B.fromString "1  23\n456\n"
+                    ("1  23\n456\n"
+                        ++ String.repeat 100 "aa"
+                        |> B.fromString
                         |> Insertion ( 0, 0 )
                     )
                 |> Tuple.second

@@ -310,12 +310,13 @@ exModeCases =
             | mode =
                 Ex ":"
                     { emptyExBuffer
-                        | lines = B.fromString "11"
-                        , cursor = ( 0, 2 )
+                        | lines = B.fromString ":11"
+                        , cursor = ( 0, 3 )
                     }
             , continuation = ":"
         }
       )
+    , ( "/1<backspace><backspace>", emptyBuffer )
     , ( "/11<cr>", emptyBuffer )
     ]
 

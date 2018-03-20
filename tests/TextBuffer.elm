@@ -18,7 +18,7 @@ normalPatches :
 normalPatches =
     [ { label = "insert `123` to empty string"
       , input =
-            ( Insertion ( 0, 0 ) <| B.fromList [ "123" ]
+            ( Insertion ( 0, 0 ) <| B.fromString "123"
             , B.empty
             )
       , output =
@@ -160,24 +160,7 @@ fuzzPatch =
 suite : Test
 suite =
     describe "interfaces" <|
-        [ describe "fromString"
-            [ test "from `123`" <|
-                \_ ->
-                    Expect.equal
-                        (B.fromList [ "123" ])
-                        (B.fromString "123")
-            , test "from `123\\n`" <|
-                \_ ->
-                    Expect.equal
-                        (B.fromList [ "123\n", "" ])
-                        (B.fromString "123\n")
-            , test "from `123\\n123`" <|
-                \_ ->
-                    Expect.equal
-                        (B.fromList [ "123\n", "123" ])
-                        (B.fromString "123\n123")
-            ]
-        , describe "applyPatch"
+        [ describe "applyPatch"
             (List.concatMap
                 (\{ label, input, output } ->
                     let
@@ -244,7 +227,7 @@ suite =
                             let
                                 line =
                                     buf
-                                        |> B.getLine (B.countLines buf - 1)
+                                        |> B.getLine (B.countLines buf)
                                         |> Maybe.withDefault ""
                             in
                                 String.endsWith B.lineBreak line
