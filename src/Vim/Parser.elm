@@ -259,6 +259,18 @@ gKey map extra =
                     , define "k" (VLineDelta -1)
                     , define "n" (MatchString Forward)
                     , define "N" (MatchString Backward)
+                    , define "e"
+                        (ByClass
+                            { class = WordEnd
+                            , direction = Backward
+                            }
+                        )
+                    , define "E"
+                        (ByClass
+                            { class = WORDEnd
+                            , direction = Backward
+                            }
+                        )
                     ]
                 , extra
                 , P.succeed (makePushKeys "g" >> pushComplete)

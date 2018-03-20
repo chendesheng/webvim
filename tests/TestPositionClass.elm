@@ -4,6 +4,31 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import PositionClass exposing (..)
 import Vim.AST exposing (PositionClass(..), Direction(..))
+
+
+isEven : Int -> Bool
+isEven x =
+    x % 2 == 0
+
+
+isOdd : Int -> Bool
+isOdd x =
+    not <| isEven x
+
+
+filterByIndex : (Int -> Bool) -> List a -> List a
+filterByIndex pred lst =
+    lst
+        |> List.indexedMap
+            (\i a ->
+                if pred i then
+                    Just a
+                else
+                    Nothing
+            )
+        |> List.filterMap identity
+
+
 type TestCase
     = TestCase PositionClass Direction String
 
@@ -59,6 +84,44 @@ abc# 123
 ^
 """
                     ]
+                    ++ List.map (TestCase WordStart Backward)
+                        [ """
+123
+? ^
+"""
+                        , """
+12 3
+?^
+"""
+                        , """
+1ab2#
+?  ^
+"""
+                        , """
+1 ab2
+  ? ^
+"""
+                        , """
+1 #
+? ^
+"""
+                        , """
+  ##
+  ?^
+"""
+                        , """
+ #
+ ^
+"""
+                        , """
+13#
+? ^
+"""
+                        , """
+\t
+^
+"""
+                        ]
                     ++ List.map (TestCase WordEnd Forward)
                         [ """
 123
@@ -97,6 +160,48 @@ abc# 123
 ^
 """
                         ]
+                    ++ List.map (TestCase WordEnd Backward)
+                        [ """
+123
+^
+"""
+                        , """
+12 c
+ ? ^
+"""
+                        , """
+## c
+ ? ^
+"""
+                        , """
+## 1
+ ? ^
+"""
+                        , """
+# %
+? ^
+"""
+                        , """
+abc#
+  ?^
+"""
+                        , """
+  12
+  ^
+"""
+                        , """
+?  1
+? ^
+"""
+                        , """
+ ?
+ ^
+"""
+                        , """
+\t\t
+ ^
+"""
+                        ]
                     ++ List.map (TestCase WORDStart Forward)
                         [ """
 123##bb
@@ -121,6 +226,32 @@ xxyy#? a
                         , """
     12
   ^ ?
+"""
+                        ]
+                    ++ List.map (TestCase WORDStart Backward)
+                        [ """
+123##bb
+?   ^
+"""
+                        , """
+123##bb 1
+?       ^
+"""
+                        , """
+%xyy#? x
+?      ^
+"""
+                        , """
+xxyy#?
+?  ^
+"""
+                        , """
+\t
+^
+"""
+                        , """
+    12
+    ^
 """
                         ]
                     ++ List.map (TestCase WORDEnd Forward)
@@ -155,6 +286,40 @@ ah
                         , """
  h
 ^?
+"""
+                        ]
+                    ++ List.map (TestCase WORDEnd Backward)
+                        [ """
+123ab$$##
+        ^
+"""
+                        , """
+1   #
+?   ^
+"""
+                        , """
+1   #
+?  ^
+"""
+                        , """
+1ef   #123
+  ?      ^
+"""
+                        , """
+\t
+^
+"""
+                        , """
+\t
+   ^
+"""
+                        , """
+a h
+? ^
+"""
+                        , """
+ h
+ ^
 """
                         ]
         in

@@ -282,6 +282,9 @@ motionCases =
     , ( "e"
       , { motionCasesBuf | cursor = ( 0, 2 ) }
       )
+    , ( "w"
+      , motionCasesBuf
+      )
     ]
 
 

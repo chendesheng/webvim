@@ -91,21 +91,34 @@ parserWORDEnd =
             ]
 
 
-findPositionBackward : String -> PositionClass -> String -> Maybe Int
+findPositionBackward :
+    String
+    -> PositionClass
+    -> String
+    -> Result P.Error Int
 findPositionBackward wordChars class line =
     let
-        reversed =
-            String.reverse line
-    in
-        (case class of
-            WordStart ->
-                -- word*space*(punctuation+|word+)
-                Nothing
+        parser =
+            case class of
+                WordEnd ->
+                    parserWordStart wordChars
 
-            _ ->
-                Nothing
-        )
-            |> Maybe.map ((-) (String.length reversed))
+                WordStart ->
+                    parserWordEnd wordChars
+
+                WORDEnd ->
+                    parserWORDStart
+
+                WORDStart ->
+                    parserWORDEnd
+
+                _ ->
+                    P.fail "unknown position class"
+    in
+        line
+            |> String.reverse
+            |> P.run parser
+            |> Result.map (\n -> String.length line - n - 1)
 
 
 findPositionForward :
@@ -153,5 +166,8 @@ findPosition wordChars class direction line pos =
                 |> Maybe.map ((+) pos)
 
         Backward ->
-            findPositionBackward wordChars class <|
-                String.left pos line
+            line
+                |> String.left (pos + 1)
+                |> findPositionBackward wordChars class
+                |> Debug.log "result"
+                |> Result.toMaybe
