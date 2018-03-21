@@ -15,9 +15,8 @@ cases =
     [ ( "w"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> Move
+                motionOption ">)+-"
+                    |> Move WordStart
                     |> Just
           }
         , ""
@@ -26,9 +25,8 @@ cases =
     , ( "b"
       , ( { initialMode
             | edit =
-                { direction = Backward, class = WordStart }
-                    |> ByClass
-                    |> Move
+                motionOption "<)+-"
+                    |> Move WordStart
                     |> Just
           }
         , ""
@@ -41,7 +39,10 @@ cases =
       )
     , ( "gg"
       , ( { initialMode
-            | edit = LineNumber 0 |> Move |> Just
+            | edit =
+                motionOption ">)+="
+                    |> Move (LineNumber 0)
+                    |> Just
           }
         , ""
         )
@@ -51,7 +52,10 @@ cases =
       )
     , ( "gj"
       , ( { initialMode
-            | edit = VLineDelta 1 |> Move |> Just
+            | edit =
+                motionOption ">)+="
+                    |> Move (VLineDelta 1)
+                    |> Just
           }
         , ""
         )
@@ -74,7 +78,7 @@ cases =
     , ( "ia"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , edit = InsertString "a" |> Just
+            , edit = InsertString (TextLiteral "a") |> Just
           }
         , "i"
         )
@@ -85,9 +89,8 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">)+-"
+                    |> MotionRange WordStart
                     |> Delete
                     |> Just
           }
@@ -100,9 +103,8 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> MotionRange Inclusive
+                motionOption ">]+-"
+                    |> MotionRange WordStart
                     |> Delete
                     |> Just
           }
@@ -114,7 +116,7 @@ cases =
     , ( "cwa"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , edit = InsertString "a" |> Just
+            , edit = InsertString (TextLiteral "a") |> Just
           }
         , "cw"
         )
@@ -122,7 +124,7 @@ cases =
     , ( "cawa"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , edit = InsertString "a" |> Just
+            , edit = InsertString (TextLiteral "a") |> Just
           }
         , "caw"
         )
@@ -131,9 +133,8 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                { direction = Forward, class = LineEnd }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">]$-"
+                    |> MotionRange LineEnd
                     |> Delete
                     |> Just
           }
@@ -143,7 +144,7 @@ cases =
     , ( "Cw"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , edit = InsertString "w" |> Just
+            , edit = InsertString (TextLiteral "w") |> Just
           }
         , "C"
         )
@@ -155,9 +156,8 @@ cases =
     , ( "dw"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">)+-"
+                    |> MotionRange WordStart
                     |> Delete
                     |> Just
           }
@@ -168,9 +168,8 @@ cases =
     , ( "dvw"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> MotionRange Inclusive
+                motionOption ">]+-"
+                    |> MotionRange WordStart
                     |> Delete
                     |> Just
           }
@@ -182,9 +181,8 @@ cases =
     , ( "\\<w"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">)+-"
+                    |> MotionRange WordStart
                     |> Indent Backward
                     |> Just
           }
@@ -195,9 +193,8 @@ cases =
     , ( "\\<vw"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> MotionRange Inclusive
+                motionOption ">]+-"
+                    |> MotionRange WordStart
                     |> Indent Backward
                     |> Just
           }
@@ -220,7 +217,7 @@ cases =
       )
     , ( ":a"
       , ( { initialMode
-            | edit = InsertString "a" |> Just
+            | edit = InsertString (TextLiteral "a") |> Just
             , modeName = ModeNameEx ":"
           }
         , ":"
@@ -233,11 +230,18 @@ cases =
       , ( initialMode, "" )
       )
     , ( "/<cr>"
-      , ( { initialMode | edit = MatchString Forward |> Move |> Just }, "" )
+      , ( { initialMode
+            | edit =
+                motionOption ">)+-"
+                    |> Move MatchString
+                    |> Just
+          }
+        , ""
+        )
       )
     , ( "/a"
       , ( { initialMode
-            | edit = InsertString "a" |> Just
+            | edit = InsertString (TextLiteral "a") |> Just
             , modeName = ModeNameEx "/"
           }
         , "/"
@@ -250,11 +254,18 @@ cases =
       , ( initialMode, "" )
       )
     , ( "?<cr>"
-      , ( { initialMode | edit = MatchString Backward |> Move |> Just }, "" )
+      , ( { initialMode
+            | edit =
+                motionOption "<)+-"
+                    |> Move MatchString
+                    |> Just
+          }
+        , ""
+        )
       )
     , ( "?a"
       , ( { initialMode
-            | edit = InsertString "a" |> Just
+            | edit = InsertString (TextLiteral "a") |> Just
             , modeName = ModeNameEx "?"
           }
         , "?"
@@ -263,9 +274,8 @@ cases =
     , ( "?<c-h>"
       , ( { initialMode
             | edit =
-                { direction = Backward, class = CharStart True }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption "<)+-"
+                    |> MotionRange CharStart
                     |> Delete
                     |> Just
             , modeName = ModeNameEx "?"
@@ -284,9 +294,8 @@ cases =
     , ( "i<c-o>w"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> Move
+                motionOption ">)+-"
+                    |> Move WordStart
                     |> Just
             , modeName = ModeNameInsert
           }
@@ -304,9 +313,8 @@ cases =
     , ( "i<c-o>ce"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordEnd }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">]+-"
+                    |> MotionRange WordEnd
                     |> Delete
                     |> Just
             , modeName = ModeNameInsert
@@ -317,7 +325,7 @@ cases =
     , ( "i<c-o>u"
       , ( { initialMode
             | edit =
-                InsertString "u"
+                InsertString (TextLiteral "u")
                     |> Just
             , modeName = ModeNameInsert
           }
@@ -352,8 +360,8 @@ cases =
             | modeName = ModeNameInsert
             , count = 8
             , edit =
-                LineDelta 1
-                    |> Move
+                motionOption ">]+="
+                    |> Move (LineDelta 1)
                     |> Just
           }
         , "10i"
@@ -368,9 +376,8 @@ cases =
     , ( "cw<c-o>w"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> Move
+                motionOption ">)+-"
+                    |> Move WordStart
                     |> Just
             , modeName = ModeNameInsert
           }
@@ -388,9 +395,8 @@ cases =
     , ( "cw<c-o>ce"
       , ( { initialMode
             | edit =
-                { direction = Forward, class = WordEnd }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">]+-"
+                    |> MotionRange WordEnd
                     |> Delete
                     |> Just
             , modeName = ModeNameInsert
@@ -414,9 +420,8 @@ cases =
       , ( { initialMode
             | recordMacro = Just "a"
             , edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> Move
+                motionOption ">)+-"
+                    |> Move WordStart
                     |> Just
           }
         , "qa"
@@ -430,9 +435,8 @@ cases =
             | recordMacro = Just "a"
             , modeName = ModeNameInsert
             , edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">)+-"
+                    |> MotionRange WordStart
                     |> Delete
                     |> Just
           }
@@ -443,7 +447,7 @@ cases =
       , ( { initialMode
             | recordMacro = Just "a"
             , modeName = ModeNameInsert
-            , edit = InsertString "q" |> Just
+            , edit = InsertString (TextLiteral "q") |> Just
           }
         , "qacw"
         )
@@ -472,9 +476,8 @@ cases =
       , ( { initialMode
             | register = "a"
             , edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> Move
+                motionOption ">)+-"
+                    |> Move WordStart
                     |> Just
           }
         , ""
@@ -546,15 +549,20 @@ cases =
       , ( { initialMode
             | modeName = ModeNameVisual VisualName
             , edit =
-                { direction = Forward, class = WordStart }
-                    |> ByClass
-                    |> Move
+                motionOption ">)+-"
+                    |> Move WordStart
                     |> Just
           }
         , "v"
         )
       )
-    , ( "vi", ( { initialMode | modeName = ModeNameVisual VisualName }, "vi" ) )
+    , ( "vi"
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualName
+          }
+        , "vi"
+        )
+      )
     , ( "viw"
       , ( { initialMode
             | modeName = ModeNameVisual VisualName
@@ -590,7 +598,7 @@ cases =
     , ( "vcx"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , edit = InsertString "x" |> Just
+            , edit = InsertString (TextLiteral "x") |> Just
           }
         , "vc"
         )
@@ -599,9 +607,8 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                { direction = Forward, class = LineEnd }
-                    |> ByClass
-                    |> MotionRange Exclusive
+                motionOption ">]$-"
+                    |> MotionRange LineEnd
                     |> Delete
                     |> Just
           }

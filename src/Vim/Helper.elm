@@ -15,7 +15,7 @@ import Vim.AST
         , Register
         , defaultRegister
         , OperatorRange(..)
-        , Inclusive(..)
+        , MotionOption
         )
 
 
@@ -359,11 +359,12 @@ aggregateKeys changes =
 flipInclusive : OperatorRange -> OperatorRange
 flipInclusive range =
     case range of
-        MotionRange Inclusive m ->
-            MotionRange Exclusive m
-
-        MotionRange Exclusive m ->
-            MotionRange Inclusive m
+        MotionRange md mo ->
+            let
+                ({ inclusive } as opt) =
+                    mo
+            in
+                MotionRange md { opt | inclusive = not inclusive }
 
         _ ->
             range

@@ -35,19 +35,6 @@ type alias ModeDelta =
     List StateChange
 
 
-type PositionClass
-    = WordStart
-    | WordEnd
-    | WORDStart
-    | WORDEnd
-    | LineFirst -- first non-space char of line
-    | LineStart
-    | LineEnd
-    | ParagraphStart
-    | ParagraphEnd
-    | CharStart Bool
-
-
 type TextObject
     = Word
     | Line
@@ -60,19 +47,14 @@ type Direction
     | Backward
 
 
-type Inclusive
-    = Inclusive
-    | Exclusive
-
-
 type OperatorRange
     = TextObject TextObject Bool
-    | MotionRange Inclusive Motion
+    | MotionRange MotionData MotionOption
     | VisualRange
 
 
 type Operator
-    = Move Motion
+    = Move MotionData MotionOption
     | Select TextObject Bool -- visual mode
     | Delete OperatorRange
     | Yank OperatorRange
@@ -80,7 +62,6 @@ type Operator
     | Indent Direction OperatorRange
     | Join Bool -- J/gJ
     | RepeatLastAction
-    | StartInsert Direction
     | OpenNewLine Direction
     | Scroll Int
     | JumpHistory Direction
@@ -89,10 +70,17 @@ type Operator
     | Undo
     | Redo
     | ReplayMacro Register
-    | InsertString String
+    | InsertString StringType
       -- for line buffer
     | InsertWordUnderCursor
     | ExecuteLine
+
+
+type StringType
+    = TextLiteral String
+    | WordUnderCursor
+    | CharBelowCursor
+    | CharAbroveCursor
 
 
 type VisualName
@@ -128,23 +116,50 @@ initialMode =
     }
 
 
-type Motion
-    = ByClass
-        { class : PositionClass
-        , direction : Direction
-        }
-    | MatchChar
-        { char : String
-        , direction : Direction
-        , inclusive : Inclusive
-        }
+type alias MotionOption =
+    { forward : Bool
+    , inclusive : Bool
+    , crossLine : Bool
+    , linewise : Bool -- expand range to entire line, e.g. dj delete tow lines
+    }
+
+
+motionOption : String -> MotionOption
+motionOption s =
+    case String.toList s of
+        [ a, b, c, d ] ->
+            { forward = a == '>' -- forward: >, backward: <
+            , inclusive = b == ']' -- inclusive: ], exclusive: )
+            , crossLine = c == '+' -- crossLine: +, not crossLine: $
+            , linewise = d == '=' -- linewise: =, not linewise: -
+            }
+
+        _ ->
+            { forward = False
+            , inclusive = False
+            , crossLine = False
+            , linewise = False
+            }
+
+
+type MotionData
+    = WordStart
+    | WordEnd
+    | WORDStart
+    | WORDEnd
+    | LineFirst -- first non-space char of line
+    | LineStart
+    | LineEnd
+    | ParagraphStart
+    | ParagraphEnd
+    | CharStart
+    | MatchChar String
       -- f|t{char}
-    | MatchString Direction
+    | MatchString
     | ViewTop
     | ViewMiddle
     | ViewBottom
     | VLineDelta Int
     | LineDelta Int
-    | LineNumber Int
-    | LastLine
+    | LineNumber Int -- negtive means backward from last line
     | MatchPair -- %

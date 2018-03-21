@@ -23,7 +23,12 @@ import Internal.TextBuffer
         , isEmpty
         )
 import List
-import Vim.AST exposing (PositionClass(..), Direction(..))
+import Vim.AST
+    exposing
+        ( MotionData(..)
+        , MotionOption
+        , Direction(..)
+        )
 import String
 
 
@@ -226,8 +231,8 @@ redo buf =
         |> Maybe.withDefault buf
 
 
-moveByClass : PositionClass -> Direction -> Buffer -> Buffer
-moveByClass class direction buf =
+moveByClass : MotionData -> MotionOption -> Buffer -> Buffer
+moveByClass class option buf =
     let
         ( y, x ) =
             buf.cursor

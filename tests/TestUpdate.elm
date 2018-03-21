@@ -321,6 +321,20 @@ exModeCases =
     ]
 
 
+deleteCasesBuf : Buffer
+deleteCasesBuf =
+    { emptyBuffer
+        | lines = B.fromString """123
+456
+"""
+    }
+
+
+deleteCases : List ( String, Buffer )
+deleteCases =
+    [ ( "de", { emptyBuffer | lines = B.fromString "\n456\n" } ) ]
+
+
 allCases :
     List
         { cases : List ( String, Buffer )
@@ -354,6 +368,11 @@ allCases =
                     _ ->
                         buf
             )
+      }
+    , { name = "delete cases"
+      , cases = deleteCases
+      , model = deleteCasesBuf
+      , map = (\buf -> { buf | history = emptyBufferHistory })
       }
     ]
 

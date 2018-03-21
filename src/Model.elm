@@ -145,6 +145,7 @@ init _ =
                 |> B.applyPatch
                     ("1  23\n456\n"
                         ++ String.repeat 100 "aa"
+                        ++ "\n"
                         |> B.fromString
                         |> Insertion ( 0, 0 )
                     )

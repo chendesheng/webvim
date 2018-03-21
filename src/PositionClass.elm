@@ -2,7 +2,12 @@ module PositionClass exposing (findPosition)
 
 import Char
 import Parser as P exposing (Parser, (|.), (|=))
-import Vim.AST exposing (PositionClass(..), Direction(..))
+import Vim.AST
+    exposing
+        ( MotionData(..)
+        , MotionOption
+        , Direction(..)
+        )
 
 
 isBetween : Char -> Char -> Char -> Bool
@@ -101,13 +106,13 @@ parserWORDEnd =
 
 findPositionBackward :
     String
-    -> PositionClass
+    -> MotionData
     -> String
     -> Result P.Error Int
-findPositionBackward wordChars class line =
+findPositionBackward wordChars md line =
     let
         parser =
-            case class of
+            case md of
                 WordEnd ->
                     parserWordStart wordChars
 
@@ -121,7 +126,7 @@ findPositionBackward wordChars class line =
                     parserWORDEnd
 
                 _ ->
-                    P.fail "unknown position class"
+                    P.fail "unknown position md"
     in
         line
             |> String.reverse
@@ -131,13 +136,13 @@ findPositionBackward wordChars class line =
 
 findPositionForward :
     String
-    -> PositionClass
+    -> MotionData
     -> String
     -> Result P.Error Int
-findPositionForward wordChars class line =
+findPositionForward wordChars md line =
     let
         parser =
-            case class of
+            case md of
                 WordEnd ->
                     parserWordEnd wordChars
 
@@ -151,43 +156,41 @@ findPositionForward wordChars class line =
                     parserWORDStart
 
                 _ ->
-                    P.fail "unknown position class"
+                    P.fail "unknown motion data "
     in
         P.run parser line
 
 
 findPosition :
     String
-    -> PositionClass
-    -> Direction
+    -> MotionData
+    -> MotionOption
     -> String
     -> Int
     -> Maybe Int
-findPosition wordChars class direction line pos =
-    case direction of
-        Forward ->
-            if class == LineEnd then
-                Just (String.length line - 1)
-            else
-                line
-                    |> String.dropLeft pos
-                    |> findPositionForward wordChars class
-                    |> Debug.log "result"
+findPosition wordChars md option line pos =
+    if option.forward then
+        if md == LineEnd then
+            Just (String.length line - 1)
+        else
+            line
+                |> String.dropLeft pos
+                |> findPositionForward wordChars md
+                --|> Debug.log "result"
+                |> Result.toMaybe
+                |> Maybe.map ((+) pos)
+    else
+        case md of
+            LineStart ->
+                Just 0
+
+            LineFirst ->
+                P.run parserLineStart line
                     |> Result.toMaybe
-                    |> Maybe.map ((+) pos)
 
-        Backward ->
-            case class of
-                LineStart ->
-                    Just 0
-
-                LineFirst ->
-                    P.run parserLineStart line
-                        |> Result.toMaybe
-
-                _ ->
-                    line
-                        |> String.left (pos + 1)
-                        |> findPositionBackward wordChars class
-                        |> Debug.log "result"
-                        |> Result.toMaybe
+            _ ->
+                line
+                    |> String.left (pos + 1)
+                    |> findPositionBackward wordChars md
+                    --|> Debug.log "result"
+                    |> Result.toMaybe

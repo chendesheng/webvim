@@ -16,35 +16,24 @@ insertCommands =
             )
                 |. P.symbol key
 
+        -- motionOption forward inclusive crossLine linewise =
         deleteCharBackward =
-            { class = CharStart True, direction = Backward }
-                |> ByClass
-                |> MotionRange Exclusive
+            motionOption "<)+-"
+                |> MotionRange CharStart
                 |> Delete
 
         deleteWordBackward =
-            { class = WordStart, direction = Backward }
-                |> ByClass
-                |> MotionRange Exclusive
+            motionOption "<)+-"
+                |> MotionRange WordStart
                 |> Delete
-
-        gotoLineEnd =
-            { class = LineEnd, direction = Forward }
-                |> ByClass
-                |> Move
-
-        gotoLineStart =
-            { class = LineStart, direction = Backward }
-                |> ByClass
-                |> Move
     in
         P.oneOf
             [ define "<c-h>" deleteCharBackward
             , define "<backspace>" deleteCharBackward
             , define "<delete>" deleteCharBackward
             , define "<c-w>" deleteWordBackward
-            , define "<c-e>" gotoLineEnd
-            , define "<c-b>" gotoLineStart
+            , define "<c-e>" <| InsertString CharBelowCursor
+            , define "<c-y>" <| InsertString CharAbroveCursor
             , P.succeed
                 [ PopMode
                 , PushComplete
@@ -70,7 +59,8 @@ insertCommands =
                         if String.length s > 1 then
                             []
                         else
-                            [ InsertString s
+                            [ TextLiteral s
+                                |> InsertString
                                 |> PushOperator
                             ]
                 )
@@ -252,40 +242,37 @@ textObject map =
 
 
 gKey :
-    (Motion -> Operator)
+    (MotionData -> MotionOption -> Operator)
     -> Parser ModeDelta
     -> Parser ModeDelta
 gKey map extra =
     let
-        define key op =
+        define key md mo =
             P.succeed
-                [ PushOperator <| map op
+                [ PushOperator <| map md mo
                 , PushKeys [ "g", key ]
                 , PushComplete
                 ]
                 |. P.symbol key
+
+        -- motionOption forward inclusive crossLine linewise =
+        gotoLineOption =
+            motionOption ">)+="
+
+        backwardWordEndOption =
+            motionOption "<]+-"
     in
         readKeyAndThen "g"
             [ PushKey "g" ]
             (P.oneOf
                 [ P.oneOf
-                    [ define "g" (LineNumber 0)
-                    , define "j" (VLineDelta 1)
-                    , define "k" (VLineDelta -1)
-                    , define "n" (MatchString Forward)
-                    , define "N" (MatchString Backward)
-                    , define "e"
-                        (ByClass
-                            { class = WordEnd
-                            , direction = Backward
-                            }
-                        )
-                    , define "E"
-                        (ByClass
-                            { class = WORDEnd
-                            , direction = Backward
-                            }
-                        )
+                    [ define "g" (LineNumber 0) gotoLineOption
+                    , define "j" (VLineDelta 1) gotoLineOption
+                    , define "k" (VLineDelta -1) gotoLineOption
+                    , define "n" MatchString (motionOption ">]+-")
+                    , define "N" MatchString (motionOption ">]+-")
+                    , define "e" WordEnd backwardWordEndOption
+                    , define "E" WORDEnd backwardWordEndOption
                     ]
                 , extra
                 , P.succeed (makePushKeys "g" >> pushComplete)
@@ -311,32 +298,23 @@ gOperator =
 
 
 motion :
-    (Motion -> Operator)
+    (MotionData -> MotionOption -> Operator)
     -> Parser ModeDelta
     -> Parser ModeDelta
 motion map gMotion =
     let
-        byClass ch direction class =
-            P.succeed
-                [ ByClass { direction = direction, class = class }
-                    |> map
-                    |> PushOperator
-                , PushKey ch
-                , PushComplete
-                ]
-                |. P.symbol ch
-
-        matchChar trigger direction inclusive =
+        matchChar trigger forward inclusive =
             readKeyAndThen trigger
                 [ PushKey trigger ]
                 (P.succeed
                     (\ch ->
-                        [ MatchChar
-                            { char = ch
-                            , direction = direction
+                        [ map
+                            (MatchChar ch)
+                            { forward = forward
                             , inclusive = inclusive
+                            , crossLine = False
+                            , linewise = False
                             }
-                            |> map
                             |> PushOperator
                         , PushKeys [ trigger, ch ]
                         , PushComplete
@@ -345,48 +323,54 @@ motion map gMotion =
                     |= keyParser
                 )
 
-        define ch m =
-            P.succeed [ map m |> PushOperator, PushKey ch, PushComplete ]
+        define ch md mo =
+            P.succeed [ map md mo |> PushOperator, PushKey ch, PushComplete ]
                 |. P.symbol ch
 
-        matchString prefix direction =
+        matchString prefix =
             readKeyAndThen prefix
                 [ PushKey prefix, PushMode <| ModeNameEx prefix ]
                 (linebuffer prefix
                     (\cmd ->
                         if cmd == ExecuteLine then
-                            MatchString direction
-                                |> map
+                            let
+                                option =
+                                    motionOption ">)+-"
+                            in
+                                map MatchString
+                                    { option | forward = prefix == "/" }
                         else
                             cmd
                     )
                 )
     in
         P.oneOf
-            [ byClass "b" Backward WordStart
-            , byClass "B" Backward WORDStart
-            , byClass "e" Forward WordEnd
-            , byClass "E" Forward WORDEnd
-            , byClass "w" Forward WordStart
-            , byClass "W" Forward WORDEnd
-            , byClass "h" Backward <| CharStart False
-            , define "j" <| LineDelta 1
-            , define "k" <| LineDelta -1
-            , byClass "l" Forward <| CharStart False
-            , byClass "^" Backward LineFirst
-            , byClass "0" Backward LineStart
-            , byClass "$" Forward LineEnd
-            , define "G" LastLine
-            , matchChar "f" Forward Inclusive
-            , matchChar "F" Backward Inclusive
-            , matchChar "t" Forward Exclusive
-            , matchChar "T" Backward Exclusive
-            , define "H" ViewTop
-            , define "M" ViewMiddle
-            , define "L" ViewBottom
-            , define "%" MatchPair
-            , matchString "/" Forward
-            , matchString "?" Backward
+            [ define "b" WordStart <| motionOption "<)+-"
+            , define "B" WORDStart <| motionOption "<)+-"
+            , define "e" WordEnd <| motionOption ">]+-"
+            , define "E" WORDEnd <| motionOption ">]+-"
+            , define "w" WordStart <| motionOption ">)+-"
+            , define "W" WORDStart <| motionOption ">)+-"
+            , define "h" CharStart <| motionOption "<)$-"
+            , define "j" (LineDelta 1) <| motionOption ">]+="
+            , define "k" (LineDelta -1) <| motionOption "<]+="
+            , define "l" CharStart <| motionOption ">)$-"
+            , define "^" LineFirst <| motionOption "<)$-"
+            , define "0" LineStart <| motionOption "<)$-"
+            , define "$" LineEnd <| motionOption ">]$-"
+            , define "G" (LineNumber -1) <| motionOption ">]+="
+            , matchChar "f" True True
+            , matchChar "F" False True
+            , matchChar "t" True False
+            , matchChar "T" False False
+            , define "H" ViewTop <| motionOption "<]+="
+            , define "M" ViewMiddle <| motionOption "<]+="
+            , define "L" ViewBottom <| motionOption "<]+="
+            , define "%" MatchPair <| motionOption "<]+-"
+            , matchString "/"
+            , matchString "?"
+            , define "{" ParagraphEnd <| motionOption "<)+-"
+            , define "}" ParagraphStart <| motionOption ">)+-"
             , gMotion
             ]
 
@@ -425,8 +409,8 @@ operator isVisual isTemp =
         operatorRange map =
             P.oneOf
                 [ (motion
-                    (MotionRange Exclusive >> map)
-                    (gKey (MotionRange Exclusive >> map) <| P.oneOf [])
+                    (\md mo -> MotionRange md mo |> map)
+                    (gKey (\md mo -> MotionRange md mo |> map) <| P.oneOf [])
                   )
                 , (textObject
                     (\obj around ->
@@ -524,48 +508,29 @@ operator isVisual isTemp =
              , countPrefix
              , defineInsert "i" []
              , defineInsert "I"
-                [ ByClass
-                    { class = LineFirst
-                    , direction = Backward
-                    }
-                    |> Move
+                [ motionOption "<)$-"
+                    |> Move LineFirst
                     |> PushOperator
                 ]
              , defineInsert "a"
-                [ ByClass
-                    { class = CharStart False
-                    , direction = Forward
-                    }
-                    |> Move
+                [ motionOption ">)$-"
+                    |> Move CharStart
                     |> PushOperator
                 ]
              , defineInsert "A"
-                [ ByClass
-                    { class = LineEnd
-                    , direction = Forward
-                    }
-                    |> Move
+                [ motionOption ">]$-"
+                    |> Move LineEnd
                     |> PushOperator
                 ]
              , defineInsert "C"
-                [ (MotionRange Exclusive
-                    (ByClass
-                        { class = LineEnd
-                        , direction = Forward
-                        }
-                    )
-                  )
+                [ motionOption ">]$-"
+                    |> MotionRange LineEnd
                     |> Delete
                     |> PushOperator
                 ]
              , defineInsert "s"
-                [ (MotionRange Exclusive
-                    (ByClass
-                        { class = CharStart False
-                        , direction = Forward
-                        }
-                    )
-                  )
+                [ motionOption ">)$-"
+                    |> MotionRange CharStart
                     |> Delete
                     |> PushOperator
                 ]
@@ -606,13 +571,8 @@ operator isVisual isTemp =
                     keyParser
                 )
              , define "D"
-                ((MotionRange Exclusive
-                    (ByClass
-                        { class = LineEnd
-                        , direction = Forward
-                        }
-                    )
-                 )
+                (motionOption ">]$-"
+                    |> MotionRange LineEnd
                     |> Delete
                 )
              , define "<c-o>" (JumpHistory Backward)
@@ -627,19 +587,13 @@ operator isVisual isTemp =
              , define "<c-n>" (CompleteWord Forward)
              , define "J" (Join False)
              , define "x"
-                (ByClass
-                    { class = CharStart False
-                    , direction = Forward
-                    }
-                    |> MotionRange Exclusive
+                (motionOption ">)$-"
+                    |> MotionRange CharStart
                     |> Delete
                 )
              , define "X"
-                (ByClass
-                    { class = CharStart False
-                    , direction = Backward
-                    }
-                    |> MotionRange Exclusive
+                (motionOption "<)$-"
+                    |> MotionRange CharStart
                     |> Delete
                 )
              , gOperator
