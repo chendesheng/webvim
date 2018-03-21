@@ -147,6 +147,13 @@ type MotionData
     | WordEnd
     | WORDStart
     | WORDEnd
+      {- Special case: "cw" and "cW" are treated like "ce" and "cE"
+         if the cursor is on a non-blank.
+         This is because "cw" is interpreted as change-word,
+         and a word does not include the following white space.
+      -}
+    | WordEdge -- word start or word end
+    | WORDEdge
     | LineFirst -- first non-space char of line
     | LineStart
     | LineEnd

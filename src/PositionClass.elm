@@ -91,6 +91,55 @@ parserWORDStart =
         |. P.ignore (P.Exactly 1) (space >> not)
 
 
+parserWordEdge : String -> Parser Int
+parserWordEdge wordChars =
+    P.oneOf
+        [ P.succeed
+            String.length
+            |= P.keep P.oneOrMore space
+            |. P.oneOf
+                [ P.ignore (P.Exactly 1) (space >> not)
+                , P.end
+                ]
+        , P.succeed
+            String.length
+            |= P.keep P.oneOrMore (word wordChars)
+            |. P.oneOf
+                [ P.ignore (P.Exactly 1) (word wordChars >> not)
+                , P.end
+                ]
+        , P.succeed
+            String.length
+            |= P.keep P.oneOrMore (punctuation wordChars)
+            |. P.oneOf
+                [ P.ignore (P.Exactly 1) (punctuation wordChars >> not)
+                , P.end
+                ]
+        ]
+        |> P.map (\i -> i - 1)
+
+
+parserWORDEdge : Parser Int
+parserWORDEdge =
+    P.oneOf
+        [ P.succeed
+            String.length
+            |= P.keep P.oneOrMore space
+            |. P.oneOf
+                [ P.ignore (P.Exactly 1) (space >> not)
+                , P.end
+                ]
+        , P.succeed
+            String.length
+            |= P.keep P.oneOrMore (space >> not)
+            |. P.oneOf
+                [ P.ignore (P.Exactly 1) space
+                , P.end
+                ]
+        ]
+        |> P.map (\i -> i - 1)
+
+
 parserWORDEnd : Parser Int
 parserWORDEnd =
     P.succeed
@@ -154,6 +203,12 @@ findPositionForward wordChars md line =
 
                 WORDStart ->
                     parserWORDStart
+
+                WordEdge ->
+                    parserWordEdge wordChars
+
+                WORDEdge ->
+                    parserWORDEdge
 
                 _ ->
                     P.fail "unknown motion data "

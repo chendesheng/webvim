@@ -270,7 +270,7 @@ gKey map extra =
                     , define "j" (VLineDelta 1) gotoLineOption
                     , define "k" (VLineDelta -1) gotoLineOption
                     , define "n" MatchString (motionOption ">]+-")
-                    , define "N" MatchString (motionOption ">]+-")
+                    , define "N" MatchString (motionOption "<]+-")
                     , define "e" WordEnd backwardWordEndOption
                     , define "E" WORDEnd backwardWordEndOption
                     ]
@@ -301,7 +301,16 @@ motion :
     (MotionData -> MotionOption -> Operator)
     -> Parser ModeDelta
     -> Parser ModeDelta
-motion map gMotion =
+motion =
+    motionHelper False
+
+
+motionHelper :
+    Bool
+    -> (MotionData -> MotionOption -> Operator)
+    -> Parser ModeDelta
+    -> Parser ModeDelta
+motionHelper isChangeOperator map gMotion =
     let
         matchChar trigger forward inclusive =
             readKeyAndThen trigger
@@ -345,34 +354,42 @@ motion map gMotion =
                 )
     in
         P.oneOf
-            [ define "b" WordStart <| motionOption "<)+-"
-            , define "B" WORDStart <| motionOption "<)+-"
-            , define "e" WordEnd <| motionOption ">]+-"
-            , define "E" WORDEnd <| motionOption ">]+-"
-            , define "w" WordStart <| motionOption ">)+-"
-            , define "W" WORDStart <| motionOption ">)+-"
-            , define "h" CharStart <| motionOption "<)$-"
-            , define "j" (LineDelta 1) <| motionOption ">]+="
-            , define "k" (LineDelta -1) <| motionOption "<]+="
-            , define "l" CharStart <| motionOption ">)$-"
-            , define "^" LineFirst <| motionOption "<)$-"
-            , define "0" LineStart <| motionOption "<)$-"
-            , define "$" LineEnd <| motionOption ">]$-"
-            , define "G" (LineNumber -1) <| motionOption ">]+="
-            , matchChar "f" True True
-            , matchChar "F" False True
-            , matchChar "t" True False
-            , matchChar "T" False False
-            , define "H" ViewTop <| motionOption "<]+="
-            , define "M" ViewMiddle <| motionOption "<]+="
-            , define "L" ViewBottom <| motionOption "<]+="
-            , define "%" MatchPair <| motionOption "<]+-"
-            , matchString "/"
-            , matchString "?"
-            , define "{" ParagraphEnd <| motionOption "<)+-"
-            , define "}" ParagraphStart <| motionOption ">)+-"
-            , gMotion
-            ]
+            ([ define "b" WordStart <| motionOption "<)+-"
+             , define "B" WORDStart <| motionOption "<)+-"
+             , define "e" WordEnd <| motionOption ">]+-"
+             , define "E" WORDEnd <| motionOption ">]+-"
+             , define "h" CharStart <| motionOption "<)$-"
+             , define "j" (LineDelta 1) <| motionOption ">]+="
+             , define "k" (LineDelta -1) <| motionOption "<]+="
+             , define "l" CharStart <| motionOption ">)$-"
+             , define "^" LineFirst <| motionOption "<)$-"
+             , define "0" LineStart <| motionOption "<)$-"
+             , define "$" LineEnd <| motionOption ">]$-"
+             , define "G" (LineNumber -1) <| motionOption ">]+="
+             , matchChar "f" True True
+             , matchChar "F" False True
+             , matchChar "t" True False
+             , matchChar "T" False False
+             , define "H" ViewTop <| motionOption "<]+="
+             , define "M" ViewMiddle <| motionOption "<]+="
+             , define "L" ViewBottom <| motionOption "<]+="
+             , define "%" MatchPair <| motionOption "<]+-"
+             , matchString "/"
+             , matchString "?"
+             , define "{" ParagraphEnd <| motionOption "<)+-"
+             , define "}" ParagraphStart <| motionOption ">)+-"
+             , gMotion
+             ]
+                ++ -- w/W behavior differently in change operator
+                   if isChangeOperator then
+                    [ define "w" WordEdge <| motionOption ">]$-"
+                    , define "W" WORDEdge <| motionOption ">]$-"
+                    ]
+                   else
+                    [ define "w" WordStart <| motionOption ">)+-"
+                    , define "W" WORDStart <| motionOption ">)+-"
+                    ]
+            )
 
 
 operator : Bool -> Bool -> Parser ModeDelta
@@ -405,10 +422,10 @@ operator isVisual isTemp =
                 |> P.map ((++) (op ++ [ PushKey key ]))
                 |> completeAndThen popKey
 
-        operatorRange : (OperatorRange -> Operator) -> Parser ModeDelta
-        operatorRange map =
+        operatorRange : Bool -> (OperatorRange -> Operator) -> Parser ModeDelta
+        operatorRange isChangeOperator map =
             P.oneOf
-                [ (motion
+                [ ((motionHelper isChangeOperator)
                     (\md mo -> MotionRange md mo |> map)
                     (gKey (\md mo -> MotionRange md mo |> map) <| P.oneOf [])
                   )
@@ -426,7 +443,7 @@ operator isVisual isTemp =
                 (\key1 ->
                     (P.map
                         ((::) (PushKeys [ key, key1 ]))
-                        (operatorRange <| flipInclusive >> map)
+                        (operatorRange False <| flipInclusive >> map)
                     )
                 )
 
@@ -450,7 +467,11 @@ operator isVisual isTemp =
                             ]
                             |. P.symbol key
                         , operatorVisualRange key op
-                        , P.map ((::) (PushKey key)) (operatorRange op)
+                        , P.map ((::) (PushKey key))
+                            (operatorRange
+                                (key == "c")
+                                op
+                            )
                         ]
             )
                 |> completeAndThen

@@ -3,7 +3,13 @@ module TestPositionClass exposing (..)
 import Expect exposing (Expectation)
 import Test exposing (..)
 import PositionClass exposing (..)
-import Vim.AST exposing (PositionClass(..), Direction(..))
+import Vim.AST
+    exposing
+        ( MotionData(..)
+        , MotionOption
+        , motionOption
+        , Direction(..)
+        )
 
 
 isEven : Int -> Bool
@@ -30,7 +36,7 @@ filterByIndex pred lst =
 
 
 type TestCase
-    = TestCase PositionClass Direction String
+    = TestCase MotionData Direction String
 
 
 suite : Test
@@ -372,6 +378,50 @@ a h
 ^     ?
 """
                         ]
+                    ++ List.map (TestCase WordEdge Forward)
+                        [ """
+123a##
+^  ?
+"""
+                        , """
+123 ##
+^ ?
+"""
+                        , """
+#1
+$
+"""
+                        , """
+# 1
+$
+"""
+                        , """
+  #
+^?
+"""
+                        , """
+  1
+^?
+"""
+                        , """
+1
+$
+"""
+                        , """
+#
+$
+"""
+                        ]
+                    ++ List.map (TestCase WORDEdge Forward)
+                        [ """
+123a
+^  ?
+"""
+                        , """
+  123a
+^?
+"""
+                        ]
         in
             List.map
                 (\(TestCase class direction testcase) ->
@@ -384,19 +434,39 @@ a h
                             case String.lines testcase of
                                 [ _, line, cursor, _ ] ->
                                     let
-                                        start =
-                                            String.indexes "^" cursor
+                                        both =
+                                            String.indexes "$" cursor
                                                 |> List.head
-                                                |> Maybe.withDefault 0
+
+                                        start =
+                                            case both of
+                                                Just n ->
+                                                    n
+
+                                                _ ->
+                                                    String.indexes "^" cursor
+                                                        |> List.head
+                                                        |> Maybe.withDefault 0
 
                                         result =
-                                            String.indexes "?" cursor
-                                                |> List.head
+                                            case both of
+                                                Just n ->
+                                                    Just n
+
+                                                _ ->
+                                                    String.indexes "?" cursor
+                                                        |> List.head
+
+                                        option =
+                                            motionOption ">]+="
                                     in
                                         Expect.equal
                                             (findPosition ""
                                                 class
-                                                direction
+                                                { option
+                                                    | forward =
+                                                        direction == Forward
+                                                }
                                                 line
                                                 start
                                             )
