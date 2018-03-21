@@ -99,13 +99,22 @@ deleteOperator range buf =
                         buf.cursor
 
                 patch =
-                    Deletion begin
-                        ( endy
-                        , if mo.inclusive then
-                            endx + 1
-                          else
-                            endx
-                        )
+                    if mo.linewise then
+                        Deletion ( Tuple.first begin, 0 )
+                            ( if mo.inclusive then
+                                endy + 1
+                              else
+                                endy
+                            , 0
+                            )
+                    else
+                        Deletion begin
+                            ( endy
+                            , if mo.inclusive then
+                                endx + 1
+                              else
+                                endx
+                            )
             in
                 buf
                     |> Buf.transaction [ patch ]
