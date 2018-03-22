@@ -25,99 +25,47 @@ getLineMaxColumn y lines =
         |> Maybe.withDefault 0
 
 
-moveByClass : V.MotionData -> V.MotionOption -> Buffer -> Position
-moveByClass class option buf =
-    let
-        ( y, x ) =
-            buf.cursor
-    in
-        case class of
-            V.CharStart ->
-                let
-                    newx =
-                        if option.forward then
-                            x + 1
-                        else
-                            x - 1
-                in
-                    if option.crossLine then
-                        if newx < 0 then
-                            if y > 0 then
-                                ( y - 1
-                                , B.getLine (y - 1) buf.lines
-                                    |> Maybe.map (\s -> String.length s - 1)
-                                    |> Maybe.withDefault 0
-                                )
-                            else
-                                ( 0, 0 )
-                        else
-                            ( y, newx )
-                    else
-                        ( y, min (max newx 0) (getLineMaxColumn y buf.lines) )
-
-            class ->
-                buf.lines
-                    |> B.getLine y
-                    |> Maybe.map
-                        (\line ->
-                            case
-                                (findPosition
-                                    buf.config.wordChars
-                                    class
-                                    option
-                                    line
-                                    x
-                                )
-                            of
-                                Just x1 ->
-                                    ( y, x1 )
-
-                                Nothing ->
-                                    buf.cursor
-                        )
-                    |> Maybe.withDefault buf.cursor
-
-
 deleteOperator : V.OperatorRange -> Buffer -> Buffer
 deleteOperator range buf =
     case range of
         V.MotionRange md mo ->
-            let
-                pos =
-                    runMotion md mo buf
+            case runMotion md mo buf of
+                Just pos ->
+                    let
+                        begin =
+                            if pos > buf.cursor then
+                                buf.cursor
+                            else
+                                pos
 
-                begin =
-                    if pos > buf.cursor then
-                        buf.cursor
-                    else
-                        pos
+                        ( endy, endx ) =
+                            if pos > buf.cursor then
+                                pos
+                            else
+                                buf.cursor
 
-                ( endy, endx ) =
-                    if pos > buf.cursor then
-                        pos
-                    else
-                        buf.cursor
+                        patch =
+                            if mo.linewise then
+                                Deletion ( Tuple.first begin, 0 )
+                                    ( if mo.inclusive then
+                                        endy + 1
+                                      else
+                                        endy
+                                    , 0
+                                    )
+                            else
+                                Deletion begin
+                                    ( endy
+                                    , if mo.inclusive then
+                                        endx + 1
+                                      else
+                                        endx
+                                    )
+                    in
+                        Buf.transaction [ patch ] buf
 
-                patch =
-                    if mo.linewise then
-                        Deletion ( Tuple.first begin, 0 )
-                            ( if mo.inclusive then
-                                endy + 1
-                              else
-                                endy
-                            , 0
-                            )
-                    else
-                        Deletion begin
-                            ( endy
-                            , if mo.inclusive then
-                                endx + 1
-                              else
-                                endx
-                            )
-            in
-                buf
-                    |> Buf.transaction [ patch ]
+                Nothing ->
+                    buf
 
         _ ->
             buf
@@ -125,10 +73,11 @@ deleteOperator range buf =
 
 matchChar :
     String
+    -> Bool
     -> V.MotionOption
     -> Buffer
     -> Position
-matchChar char mo buf =
+matchChar char before mo buf =
     let
         ( y, x ) =
             buf.cursor
@@ -144,7 +93,7 @@ matchChar char mo buf =
                             |> List.head
                             |> Maybe.map
                                 ((+)
-                                    (if mo.inclusive then
+                                    (if before then
                                         x + 1
                                      else
                                         x
@@ -158,7 +107,7 @@ matchChar char mo buf =
                             |> getLast
                             |> Maybe.map
                                 ((+)
-                                    (if mo.inclusive then
+                                    (if before then
                                         0
                                      else
                                         1
@@ -170,19 +119,80 @@ matchChar char mo buf =
             |> Maybe.withDefault buf.cursor
 
 
-runMotion : V.MotionData -> V.MotionOption -> Buffer -> Position
+findPositionInBuffer :
+    V.MotionData
+    -> V.MotionOption
+    -> Int
+    -> Int
+    -> String
+    -> String
+    -> B.TextBuffer
+    -> Maybe Position
+findPositionInBuffer md mo y x_ pline wordChars lines =
+    case B.getLine y lines of
+        Just line_ ->
+            let
+                line =
+                    if mo.forward then
+                        pline ++ line_
+                    else
+                        line_ ++ pline
+
+                x =
+                    if mo.forward then
+                        x_
+                    else if String.isEmpty pline then
+                        x_
+                    else
+                        x_ + String.length line_
+            in
+                case findPosition wordChars md mo line x of
+                    Just x1 ->
+                        Just
+                            ( y
+                            , if mo.forward then
+                                x1 - String.length pline
+                              else
+                                x1
+                            )
+
+                    Nothing ->
+                        if mo.crossLine then
+                            if mo.forward then
+                                findPositionInBuffer
+                                    md
+                                    mo
+                                    (y + 1)
+                                    x
+                                    line
+                                    wordChars
+                                    lines
+                            else
+                                findPositionInBuffer
+                                    md
+                                    mo
+                                    (y - 1)
+                                    x
+                                    line
+                                    wordChars
+                                    lines
+                        else
+                            Nothing
+
+        _ ->
+            Nothing
+
+
+runMotion : V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
 runMotion md mo buf =
     if B.isEmpty buf.lines then
-        ( 0, 0 )
+        Nothing
     else
         let
             ( y, x ) =
                 buf.cursor
         in
             case md of
-                V.MatchChar ch ->
-                    matchChar ch mo buf
-
                 V.LineDelta n ->
                     let
                         y1 =
@@ -195,10 +205,16 @@ runMotion md mo buf =
                                 |> getLineMaxColumn y1
                                 |> min x
                     in
-                        ( y1, x1 )
+                        Just ( y1, x1 )
 
                 _ ->
-                    moveByClass md mo buf
+                    findPositionInBuffer md
+                        mo
+                        y
+                        x
+                        ""
+                        buf.config.wordChars
+                        buf.lines
 
 
 emptyMode : V.ModeName -> Mode
@@ -392,8 +408,12 @@ runOperator : Operator -> Buffer -> Buffer
 runOperator operator buf =
     case operator of
         Move md mo ->
-            buf
-                |> setCursor (runMotion md mo buf)
+            case runMotion md mo buf of
+                Just cursor ->
+                    setCursor cursor buf
+
+                Nothing ->
+                    buf
 
         InsertString s ->
             case buf.mode of

@@ -303,15 +303,15 @@ motion :
     -> Parser ModeDelta
 motion map gMotion =
     let
-        matchChar trigger forward inclusive =
+        matchChar trigger forward before =
             readKeyAndThen trigger
                 [ PushKey trigger ]
                 (P.succeed
                     (\ch ->
                         [ map
-                            (MatchChar ch)
+                            (MatchChar ch before)
                             { forward = forward
-                            , inclusive = inclusive
+                            , inclusive = True
                             , crossLine = False
                             , linewise = False
                             }
@@ -359,10 +359,10 @@ motion map gMotion =
              , define "0" LineStart <| motionOption "<)$-"
              , define "$" LineEnd <| motionOption ">]$-"
              , define "G" (LineNumber -1) <| motionOption ">]+="
-             , matchChar "f" True True
-             , matchChar "F" False True
-             , matchChar "t" True False
-             , matchChar "T" False False
+             , matchChar "f" True False
+             , matchChar "F" False False
+             , matchChar "t" True True
+             , matchChar "T" False True
              , define "H" ViewTop <| motionOption "<]+="
              , define "M" ViewMiddle <| motionOption "<]+="
              , define "L" ViewBottom <| motionOption "<]+="

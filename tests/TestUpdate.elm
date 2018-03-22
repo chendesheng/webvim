@@ -283,7 +283,7 @@ motionCases =
       , { motionCasesBuf | cursor = ( 0, 2 ) }
       )
     , ( "w"
-      , motionCasesBuf
+      , { motionCasesBuf | cursor = ( 1, 0 ) }
       )
     , ( "f3"
       , { motionCasesBuf | cursor = ( 0, 2 ) }
@@ -332,7 +332,9 @@ deleteCasesBuf =
 
 deleteCases : List ( String, Buffer )
 deleteCases =
-    [ ( "de", { emptyBuffer | lines = B.fromString "\n456\n" } ) ]
+    [ ( "de", { deleteCasesBuf | lines = B.fromString "\n456\n" } )
+    , ( "dfa", deleteCasesBuf )
+    ]
 
 
 allCases :

@@ -422,6 +422,94 @@ $
 ^?
 """
                         ]
+                    ++ List.map (TestCase (MatchChar "3" True) Forward)
+                        [ """
+123a
+^?
+"""
+                        , """
+12k3a
+^ ?
+"""
+                        , """
+12a
+^
+"""
+                        ]
+                    ++ List.map (TestCase (MatchChar "1" True) Backward)
+                        [ """
+123a
+ ?^
+"""
+                        , """
+12k3a
+ ? ^
+"""
+                        , """
+32a
+^
+"""
+                        ]
+                    ++ List.map (TestCase (MatchChar "3" False) Forward)
+                        [ """
+123a
+^ ?
+"""
+                        , """
+12k3a
+^  ?
+"""
+                        , """
+12a
+^
+"""
+                        ]
+                    ++ List.map (TestCase (MatchChar "1" False) Backward)
+                        [ """
+123a
+? ^
+"""
+                        , """
+12k3a
+?  ^
+"""
+                        , """
+32a
+^
+"""
+                        , """
+32a
+ ^
+"""
+                        ]
+                    ++ List.map (TestCase CharStart Forward)
+                        [ """
+123a
+^?
+"""
+                        , """
+12k3a
+^?
+"""
+                        , """
+1
+^
+"""
+                        ]
+                    ++ List.map (TestCase CharStart Backward)
+                        [ """
+123a
+?^
+"""
+                        , """
+12k3a
+?^
+"""
+                        , """
+1
+^
+"""
+                        ]
         in
             List.map
                 (\(TestCase class direction testcase) ->

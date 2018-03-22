@@ -160,7 +160,7 @@ type MotionData
     | ParagraphStart
     | ParagraphEnd
     | CharStart
-    | MatchChar String
+    | MatchChar String Bool
       -- f|t{char}
     | MatchString
     | ViewTop
