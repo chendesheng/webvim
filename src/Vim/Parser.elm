@@ -301,16 +301,7 @@ motion :
     (MotionData -> MotionOption -> Operator)
     -> Parser ModeDelta
     -> Parser ModeDelta
-motion =
-    motionHelper False
-
-
-motionHelper :
-    Bool
-    -> (MotionData -> MotionOption -> Operator)
-    -> Parser ModeDelta
-    -> Parser ModeDelta
-motionHelper isChangeOperator map gMotion =
+motion map gMotion =
     let
         matchChar trigger forward inclusive =
             readKeyAndThen trigger
@@ -356,6 +347,8 @@ motionHelper isChangeOperator map gMotion =
         P.oneOf
             ([ define "b" WordStart <| motionOption "<)+-"
              , define "B" WORDStart <| motionOption "<)+-"
+             , define "w" WordStart <| motionOption ">)+-"
+             , define "W" WORDStart <| motionOption ">)+-"
              , define "e" WordEnd <| motionOption ">]+-"
              , define "E" WORDEnd <| motionOption ">]+-"
              , define "h" CharStart <| motionOption "<)$-"
@@ -380,15 +373,6 @@ motionHelper isChangeOperator map gMotion =
              , define "}" ParagraphStart <| motionOption ">)+-"
              , gMotion
              ]
-                ++ -- w/W behavior differently in change operator
-                   if isChangeOperator then
-                    [ define "w" WordEdge <| motionOption ">]$-"
-                    , define "W" WORDEdge <| motionOption ">]$-"
-                    ]
-                   else
-                    [ define "w" WordStart <| motionOption ">)+-"
-                    , define "W" WORDStart <| motionOption ">)+-"
-                    ]
             )
 
 
@@ -424,17 +408,43 @@ operator isVisual isTemp =
 
         operatorRange : Bool -> (OperatorRange -> Operator) -> Parser ModeDelta
         operatorRange isChangeOperator map =
-            P.oneOf
-                [ ((motionHelper isChangeOperator)
-                    (\md mo -> MotionRange md mo |> map)
-                    (gKey (\md mo -> MotionRange md mo |> map) <| P.oneOf [])
-                  )
-                , (textObject
-                    (\obj around ->
-                        TextObject obj around |> map
-                    )
-                  )
-                ]
+            let
+                toOperator md mo =
+                    MotionRange md mo |> map
+
+                define ch md mo =
+                    P.succeed
+                        [ toOperator md mo
+                            |> PushOperator
+                        , PushKey ch
+                        , PushComplete
+                        ]
+                        |. P.symbol ch
+
+                motionParser =
+                    motion
+                        toOperator
+                        (gKey toOperator <| P.oneOf [])
+
+                textObjectParser =
+                    textObject
+                        (\obj around ->
+                            TextObject obj around |> map
+                        )
+            in
+                if isChangeOperator then
+                    P.oneOf
+                        -- w/W behavior differently in change operator
+                        [ define "w" WordEdge <| motionOption ">]$-"
+                        , define "W" WORDEdge <| motionOption ">]$-"
+                        , textObjectParser
+                        , motionParser
+                        ]
+                else
+                    P.oneOf
+                        [ textObjectParser
+                        , motionParser
+                        ]
 
         operatorVisualRange key map =
             readKeysAndThen

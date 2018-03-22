@@ -40,7 +40,7 @@ suite =
                         Expect.equal ( 0, 3 ) buf.cursor
                 , test "result.lines" <|
                     \_ ->
-                        Expect.equal (B.fromList [ "123" ])
+                        Expect.equal (B.fromString "123\n")
                             buf.lines
                 , test "result.history" <|
                     \_ ->
@@ -69,7 +69,7 @@ suite =
                         Expect.equal ( 1, 3 ) buf.cursor
                 , test "result.lines" <|
                     \_ ->
-                        Expect.equal (B.fromList [ "123\n", "123" ])
+                        Expect.equal (B.fromString "123\n123\n")
                             buf.lines
                 , test "result.history" <|
                     \_ ->
@@ -102,7 +102,7 @@ suite =
                         Expect.equal ( 0, 1 ) buf.cursor
                 , test "result.lines" <|
                     \_ ->
-                        Expect.equal (B.fromList [ "3" ])
+                        Expect.equal (B.fromString "3\n")
                             buf.lines
                 , test "result.history" <|
                     \_ ->
@@ -183,7 +183,7 @@ suite =
                         Expect.equal ( 0, 3 ) buf.cursor
                 , test "lines" <|
                     \_ ->
-                        Expect.equal (B.fromList [ "123" ]) buf.lines
+                        Expect.equal (B.fromString "123\n") buf.lines
                 , test "history" <|
                     \_ ->
                         Expect.equal
