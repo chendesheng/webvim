@@ -36,7 +36,7 @@ filterByIndex pred lst =
 
 
 type TestCase
-    = TestCase MotionData Direction String
+    = TestCase MotionData String String
 
 
 suite : Test
@@ -44,7 +44,7 @@ suite =
     describe "single line" <|
         let
             cases =
-                List.map (TestCase WordStart Forward)
+                List.map (TestCase WordStart ">]+-")
                     [ """
 123
 ^
@@ -90,7 +90,7 @@ abc# 123
 ^
 """
                     ]
-                    ++ List.map (TestCase WordStart Backward)
+                    ++ List.map (TestCase WordStart "<]+-")
                         [ """
 123
 ? ^
@@ -128,7 +128,7 @@ abc# 123
 ^
 """
                         ]
-                    ++ List.map (TestCase WordEnd Forward)
+                    ++ List.map (TestCase WordEnd ">]+-")
                         [ """
 123
 ^ ?
@@ -166,7 +166,7 @@ abc# 123
 ^
 """
                         ]
-                    ++ List.map (TestCase WordEnd Backward)
+                    ++ List.map (TestCase WordEnd "<]+-")
                         [ """
 123
 ^
@@ -208,7 +208,7 @@ abc#
  ^
 """
                         ]
-                    ++ List.map (TestCase WORDStart Forward)
+                    ++ List.map (TestCase WORDStart ">]+-")
                         [ """
 123##bb
 ^
@@ -234,7 +234,7 @@ xxyy#? a
   ^ ?
 """
                         ]
-                    ++ List.map (TestCase WORDStart Backward)
+                    ++ List.map (TestCase WORDStart "<]+-")
                         [ """
 123##bb
 ?   ^
@@ -260,7 +260,7 @@ xxyy#?
     ^
 """
                         ]
-                    ++ List.map (TestCase WORDEnd Forward)
+                    ++ List.map (TestCase WORDEnd ">]+-")
                         [ """
 123ab$$##
 ^       ?
@@ -294,7 +294,7 @@ ah
 ^?
 """
                         ]
-                    ++ List.map (TestCase WORDEnd Backward)
+                    ++ List.map (TestCase WORDEnd "<]+-")
                         [ """
 123ab$$##
         ^
@@ -328,7 +328,7 @@ a h
  ^
 """
                         ]
-                    ++ List.map (TestCase LineStart Backward)
+                    ++ List.map (TestCase LineStart "<]$-")
                         [ """
 123ab$$##
 ?       ^
@@ -346,7 +346,7 @@ a h
 ?       ^
 """
                         ]
-                    ++ List.map (TestCase LineFirst Backward)
+                    ++ List.map (TestCase LineFirst "<]$-")
                         [ """
 123ab$$##
 ?       ^
@@ -364,7 +364,7 @@ a h
 ^ ?
 """
                         ]
-                    ++ List.map (TestCase LineEnd Forward)
+                    ++ List.map (TestCase LineEnd ">]$-")
                         [ """
 123ab$$##
 ^       ?
@@ -378,30 +378,42 @@ a h
 ^     ?
 """
                         ]
-                    ++ List.map (TestCase WordEdge Forward)
+                    ++ List.map (TestCase WordEdge ">]$=")
                         [ """
+    a
+^   ?
+"""
+                        , """
+\t
+$
+"""
+                        , """
+\t\t
+^?
+"""
+                        , """
 123a##
-^  ?
+^   ?
 """
                         , """
 123 ##
-^ ?
+^  ?
 """
                         , """
 #1
-$
+^?
 """
                         , """
 # 1
-$
+^?
 """
                         , """
   #
-^?
+^ ?
 """
                         , """
   1
-^?
+^ ?
 """
                         , """
 1
@@ -412,7 +424,7 @@ $
 $
 """
                         ]
-                    ++ List.map (TestCase WORDEdge Forward)
+                    ++ List.map (TestCase WORDEdge ">]$-")
                         [ """
 123a
 ^  ?
@@ -422,7 +434,7 @@ $
 ^?
 """
                         ]
-                    ++ List.map (TestCase (MatchChar "3" True) Forward)
+                    ++ List.map (TestCase (MatchChar "3" True) ">]$-")
                         [ """
 123a
 ^?
@@ -436,7 +448,7 @@ $
 ^
 """
                         ]
-                    ++ List.map (TestCase (MatchChar "1" True) Backward)
+                    ++ List.map (TestCase (MatchChar "1" True) "<]$-")
                         [ """
 123a
  ?^
@@ -450,7 +462,7 @@ $
 ^
 """
                         ]
-                    ++ List.map (TestCase (MatchChar "3" False) Forward)
+                    ++ List.map (TestCase (MatchChar "3" False) ">]$-")
                         [ """
 123a
 ^ ?
@@ -464,7 +476,7 @@ $
 ^
 """
                         ]
-                    ++ List.map (TestCase (MatchChar "1" False) Backward)
+                    ++ List.map (TestCase (MatchChar "1" False) "<]$-")
                         [ """
 123a
 ? ^
@@ -482,7 +494,7 @@ $
  ^
 """
                         ]
-                    ++ List.map (TestCase CharStart Forward)
+                    ++ List.map (TestCase CharStart ">]$-")
                         [ """
 123a
 ^?
@@ -496,7 +508,7 @@ $
 ^
 """
                         ]
-                    ++ List.map (TestCase CharStart Backward)
+                    ++ List.map (TestCase CharStart "<]$-")
                         [ """
 123a
 ?^
@@ -508,14 +520,58 @@ $
                         , """
 1
 ^
+"""
+                        ]
+                    ++ List.map (TestCase WordStart ">)$-")
+                        [ """
+1  23a
+^  ?
+"""
+                        , """
+1#
+^?
+"""
+                        , """
+#1
+^?
+"""
+                        , """
+# 1
+^ ?
+"""
+                        , """
+1
+$
+"""
+                        ]
+                    ++ List.map (TestCase WORDStart ">)$-")
+                        [ """
+1  23a
+^  ?
+"""
+                        , """
+1#
+^?
+"""
+                        , """
+#1
+^?
+"""
+                        , """
+# 1
+^ ?
+"""
+                        , """
+1
+$
 """
                         ]
         in
             List.map
-                (\(TestCase class direction testcase) ->
+                (\(TestCase md option testcase) ->
                     test
                         (String.join " "
-                            [ toString class, toString direction, testcase ]
+                            [ toString md, option, testcase ]
                         )
                     <|
                         \_ ->
@@ -545,16 +601,13 @@ $
                                                     String.indexes "?" cursor
                                                         |> List.head
 
-                                        option =
-                                            motionOption ">]+="
+                                        mo =
+                                            motionOption option
                                     in
                                         Expect.equal
                                             (findPosition ""
-                                                class
-                                                { option
-                                                    | forward =
-                                                        direction == Forward
-                                                }
+                                                md
+                                                mo
                                                 line
                                                 start
                                             )

@@ -406,8 +406,8 @@ operator isVisual isTemp =
                 |> P.map ((++) (op ++ [ PushKey key ]))
                 |> completeAndThen popKey
 
-        operatorRange : Bool -> (OperatorRange -> Operator) -> Parser ModeDelta
-        operatorRange isChangeOperator map =
+        operatorRange : Key -> (OperatorRange -> Operator) -> Parser ModeDelta
+        operatorRange key map =
             let
                 toOperator md mo =
                     MotionRange md mo |> map
@@ -432,17 +432,20 @@ operator isVisual isTemp =
                             TextObject obj around |> map
                         )
             in
-                if isChangeOperator then
+                if key == "c" then
                     P.oneOf
                         -- w/W behavior differently in change operator
-                        [ define "w" WordEdge <| motionOption ">]$-"
-                        , define "W" WORDEdge <| motionOption ">]$-"
+                        [ define "w" WordEdge <| motionOption ">)$-"
+                        , define "W" WORDEdge <| motionOption ">)$-"
                         , textObjectParser
                         , motionParser
                         ]
                 else
                     P.oneOf
-                        [ textObjectParser
+                        -- w/W behavior differently in change operator
+                        [ define "w" WordStart <| motionOption ">)$-"
+                        , define "W" WORDStart <| motionOption ">)$-"
+                        , textObjectParser
                         , motionParser
                         ]
 
@@ -453,7 +456,7 @@ operator isVisual isTemp =
                 (\key1 ->
                     (P.map
                         ((::) (PushKeys [ key, key1 ]))
-                        (operatorRange False <| flipInclusive >> map)
+                        (operatorRange key <| flipInclusive >> map)
                     )
                 )
 
@@ -478,10 +481,7 @@ operator isVisual isTemp =
                             |. P.symbol key
                         , operatorVisualRange key op
                         , P.map ((::) (PushKey key))
-                            (operatorRange
-                                (key == "c")
-                                op
-                            )
+                            (operatorRange key op)
                         ]
             )
                 |> completeAndThen

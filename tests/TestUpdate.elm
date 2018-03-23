@@ -324,7 +324,7 @@ exModeCases =
 deleteCasesBuf : Buffer
 deleteCasesBuf =
     { emptyBuffer
-        | lines = B.fromString """123
+        | lines = B.fromString """ 123
 456
 """
     }
@@ -334,6 +334,33 @@ deleteCases : List ( String, Buffer )
 deleteCases =
     [ ( "de", { deleteCasesBuf | lines = B.fromString "\n456\n" } )
     , ( "dfa", deleteCasesBuf )
+    , ( "dw", { deleteCasesBuf | lines = B.fromString "123\n456\n" } )
+    , ( "dvw", { deleteCasesBuf | lines = B.fromString "23\n456\n" } )
+    , ( "ldw", { deleteCasesBuf | lines = B.fromString " \n456\n" } )
+    ]
+
+
+changeCasesBuf : Buffer
+changeCasesBuf =
+    { emptyBuffer
+        | lines = B.fromString """ 123
+456
+"""
+    }
+
+
+changeCases : List ( String, Buffer )
+changeCases =
+    [ ( "ce"
+      , { changeCasesBuf | lines = B.fromString "\n456\n" }
+      )
+    , ( "cfa", changeCasesBuf )
+    , ( "cw"
+      , { changeCasesBuf | lines = B.fromString "123\n456\n" }
+      )
+    , ( "cvw"
+      , { changeCasesBuf | lines = B.fromString "23\n456\n" }
+      )
     ]
 
 
@@ -375,6 +402,18 @@ allCases =
       , cases = deleteCases
       , model = deleteCasesBuf
       , map = (\buf -> { buf | history = emptyBufferHistory })
+      }
+    , { name = "change cases"
+      , cases = changeCases
+      , model = changeCasesBuf
+      , map =
+            (\buf ->
+                { buf
+                    | history = emptyBufferHistory
+                    , continuation = ""
+                    , mode = Insert
+                }
+            )
       }
     ]
 
