@@ -612,8 +612,8 @@ operator isVisual isTemp =
              , define "<c-d>" (JumpByView 0.5)
              , define "<c-f>" (JumpByView 1)
              , define "<c-b>" (JumpByView -1)
-             , define "<c-y>" (Scroll -1)
-             , define "<c-e>" (Scroll 1)
+             , define "<c-y>" (Scroll <| ScrollBy -1)
+             , define "<c-e>" (Scroll <| ScrollBy 1)
              , define "<c-p>" (CompleteWord Backward)
              , define "<c-n>" (CompleteWord Forward)
              , define "J" (Join False)
@@ -626,6 +626,14 @@ operator isVisual isTemp =
                 (motionOption "<)$-"
                     |> MotionRange CharStart
                     |> Delete
+                )
+             , readKeyAndThen "z"
+                [ PushKey "z" ]
+                (P.oneOf
+                    [ define "z" <| Scroll ScrollToMiddle
+                    , define "b" <| Scroll ScrollToBottom
+                    , define "t" <| Scroll ScrollToTop
+                    ]
                 )
              , gOperator
              , P.lazy (\_ -> macro isVisual)

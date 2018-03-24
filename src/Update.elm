@@ -56,7 +56,7 @@ deleteOperator range buf =
                                         , 0
                                         )
                                     ]
-                                |> boundCursor
+                                |> cursorScope
                         else
                             Buf.transaction
                                 [ Deletion begin
@@ -498,19 +498,34 @@ runOperator operator buf =
                 Nothing ->
                     buf
 
-        Scroll delta ->
+        Scroll value ->
             let
-                cnt =
-                    B.countLines buf.lines
-
                 scrollTop =
-                    (buf.view.scrollTop + delta)
+                    let
+                        y =
+                            Tuple.first buf.cursor
+                    in
+                        case value of
+                            V.ScrollBy n ->
+                                buf.view.scrollTop + n
+
+                            V.ScrollToTop ->
+                                y
+
+                            V.ScrollToBottom ->
+                                y - buf.view.size.height + 1
+
+                            V.ScrollToMiddle ->
+                                y - buf.view.size.height // 2
+
+                scope n =
+                    n
                         |> max 0
-                        |> min (cnt - 1)
+                        |> min (B.countLines buf.lines - 1)
             in
                 buf
-                    |> scrollToLine scrollTop
-                    |> boundCursor
+                    |> scrollToLine (scope scrollTop)
+                    |> cursorScope
 
         InsertString s ->
             case buf.mode of
@@ -558,12 +573,12 @@ runOperator operator buf =
                 height =
                     view.size.height
 
-                boundLine row =
+                lineScope row =
                     row
                         |> max 0
                         |> min (B.countLines buf.lines - 1)
 
-                boundScrollTop scrollTop n =
+                scrollScope scrollTop n =
                     let
                         newn =
                             scrollTop + n
@@ -582,10 +597,10 @@ runOperator operator buf =
                     ceilingFromZero (toFloat height * factor)
 
                 y =
-                    boundLine (Tuple.first buf.cursor + n)
+                    lineScope (Tuple.first buf.cursor + n)
 
                 scrollTop =
-                    boundScrollTop view.scrollTop n
+                    scrollScope view.scrollTop n
             in
                 case gotoLine y buf.lines of
                     Just cursor ->
@@ -627,8 +642,8 @@ scrollToCursor ({ view, cursor, lines } as buf) =
 
 {-| move cursor ensure cursor is insdie viewport
 -}
-boundCursor : Buffer -> Buffer
-boundCursor ({ view, cursor, lines } as buf) =
+cursorScope : Buffer -> Buffer
+cursorScope ({ view, cursor, lines } as buf) =
     let
         ( y, _ ) =
             cursor
@@ -698,6 +713,6 @@ update message model =
                         (\view ->
                             { view | size = { width = w, height = h } }
                         )
-                    |> boundCursor
+                    |> cursorScope
                 , Cmd.none
                 )

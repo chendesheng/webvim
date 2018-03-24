@@ -53,6 +53,13 @@ type OperatorRange
     | VisualRange
 
 
+type ScrollPosition
+    = ScrollBy Int
+    | ScrollToMiddle
+    | ScrollToBottom
+    | ScrollToTop
+
+
 type Operator
     = Move MotionData MotionOption
     | Select TextObject Bool -- visual mode
@@ -63,9 +70,10 @@ type Operator
     | Join Bool -- J/gJ
     | RepeatLastAction
     | OpenNewLine Direction
-    | Scroll Int
     | JumpHistory Direction
     | JumpByView Float -- factor of view height
+    | CenterView
+    | Scroll ScrollPosition
     | CompleteWord Direction
     | Undo
     | Redo
