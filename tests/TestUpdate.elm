@@ -71,6 +71,7 @@ insertCases =
     , ( "i12<esc>"
       , { emptyBuffer
             | cursor = ( 0, 1 )
+            , cursorColumn = 1
             , lines = B.fromString "12\n"
             , history =
                 { emptyBufferHistory
@@ -101,11 +102,18 @@ insertCases =
                           }
                         ]
                 }
+            , view =
+                let
+                    view =
+                        emptyBuffer.view
+                in
+                    { view | scrollTop = 1 }
         }
       )
     , ( "i12<tab><tab><esc>"
       , { emptyBuffer
             | cursor = ( 0, 7 )
+            , cursorColumn = 7
             , lines = B.fromString "12      \n"
             , history =
                 { emptyBufferHistory
@@ -179,6 +187,7 @@ insertCases =
       , { emptyBuffer
             | lines = B.fromString "12\n"
             , cursor = ( 0, 1 )
+            , cursorColumn = 1
             , history =
                 { emptyBufferHistory
                     | undoes =
@@ -213,6 +222,12 @@ insertCases =
                                 ]
                             }
                 }
+            , view =
+                let
+                    view =
+                        emptyBuffer.view
+                in
+                    { view | scrollTop = 1 }
             , mode = Insert
             , continuation = "o"
         }
@@ -271,7 +286,15 @@ motionCases =
       , { motionCasesBuf | cursor = ( 0, 0 ) }
       )
     , ( "j"
-      , { motionCasesBuf | cursor = ( 1, 0 ) }
+      , { motionCasesBuf
+            | cursor = ( 1, 0 )
+            , view =
+                let
+                    view =
+                        emptyBuffer.view
+                in
+                    { view | scrollTop = 1 }
+        }
       )
     , ( "jk"
       , { motionCasesBuf | cursor = ( 0, 0 ) }
@@ -283,7 +306,15 @@ motionCases =
       , { motionCasesBuf | cursor = ( 0, 2 ) }
       )
     , ( "w"
-      , { motionCasesBuf | cursor = ( 1, 0 ) }
+      , { motionCasesBuf
+            | cursor = ( 1, 0 )
+            , view =
+                let
+                    view =
+                        emptyBuffer.view
+                in
+                    { view | scrollTop = 1 }
+        }
       )
     , ( "f3"
       , { motionCasesBuf | cursor = ( 0, 2 ) }
@@ -336,7 +367,12 @@ deleteCases =
     , ( "dfa", deleteCasesBuf )
     , ( "dw", { deleteCasesBuf | lines = B.fromString "123\n456\n" } )
     , ( "dvw", { deleteCasesBuf | lines = B.fromString "23\n456\n" } )
-    , ( "ldw", { deleteCasesBuf | lines = B.fromString " \n456\n" } )
+    , ( "ldw"
+      , { deleteCasesBuf
+            | lines = B.fromString " \n456\n"
+            , cursorColumn = 1
+        }
+      )
     ]
 
 
@@ -380,7 +416,7 @@ allCases =
     , { name = "motion cases"
       , cases = motionCases
       , model = motionCasesBuf
-      , map = identity
+      , map = (\buf -> { buf | cursorColumn = 0 })
       }
     , { name = "ex mode cases"
       , cases = exModeCases

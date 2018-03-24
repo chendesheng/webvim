@@ -160,8 +160,9 @@ type MotionData
     | ParagraphStart
     | ParagraphEnd
     | CharStart
-    | MatchChar String Bool
       -- f|t{char}
+    | MatchChar String Bool
+      -- /search
     | MatchString
     | ViewTop
     | ViewMiddle

@@ -1,8 +1,8 @@
 @import "css/font.less";
 
 @theme-color: #9600ff;
-@statusbar-height: 1.5rem;
-@line-height: 1.5rem;
+@statusbar-height: 1rem;
+@line-height: 1rem;
 
 html, body {
   margin: 0;
@@ -10,23 +10,30 @@ html, body {
   width: 100%;
   height: 100%;
   font-family: "Monaco";
-  font-size: 14px;
+  font-size: 21px;
   color: #fff;
   background: #222;
+}
+
+.editor {
+  height: 100%;
+  font-size: 0.667rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .buffer {
   display: flex;
   flex-direction: row;
+  flex-grow: 1;
   width: 100%;
   height: 100%;
   align-items: flex-start;
+  overflow-y: hidden;
 }
 
 .lines-container {
-  flex: 1;
   overflow-x: auto;
-  min-height: 100%;
   padding-left: 0.3ch;
 }
 
@@ -38,7 +45,7 @@ html, body {
   position: relative;
 }
 
-.line-numbers {
+.gutter {
   background: @theme-color;
 }
 
@@ -59,24 +66,23 @@ html, body {
   width: 1ch;
   background: rgba(255,255,255,.5);
   white-space: pre;
-  height: 1.3rem;
+  height: 0.867rem;
   padding: 0 0 2px 0;
   transform: translateY(0.1rem)
 }
 
 
 .status {
-  position: fixed;
-  bottom: 0;
   width: 100%;
   background: @theme-color;
   display: flex;
   flex-direction: row;
   align-items: center;
-  font-size: 0.9rem;
   height: @statusbar-height;
   padding: 0 0.3ch;
   white-space: pre;
+  flex-grow: 0;
+  flex-shirk: 1;
 }
 
 .status .cursor {
@@ -85,4 +91,8 @@ html, body {
 
 .status-cmds {
   padding-left: 2ch;
+}
+
+.elm-overlay {
+  zoom: 0.5;
 }

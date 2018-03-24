@@ -89,7 +89,7 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                motionOption ">]$-"
+                motionOption ">)$-"
                     |> MotionRange WordEdge
                     |> Delete
                     |> Just
@@ -103,8 +103,8 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                motionOption ">]+-"
-                    |> MotionRange WordStart
+                motionOption ">]$-"
+                    |> MotionRange WordEdge
                     |> Delete
                     |> Just
           }
@@ -156,7 +156,7 @@ cases =
     , ( "dw"
       , ( { initialMode
             | edit =
-                motionOption ">)+-"
+                motionOption ">)$-"
                     |> MotionRange WordStart
                     |> Delete
                     |> Just
@@ -168,7 +168,7 @@ cases =
     , ( "dvw"
       , ( { initialMode
             | edit =
-                motionOption ">]+-"
+                motionOption ">]$-"
                     |> MotionRange WordStart
                     |> Delete
                     |> Just
@@ -181,7 +181,7 @@ cases =
     , ( "\\<w"
       , ( { initialMode
             | edit =
-                motionOption ">)+-"
+                motionOption ">)$-"
                     |> MotionRange WordStart
                     |> Indent Backward
                     |> Just
@@ -193,7 +193,7 @@ cases =
     , ( "\\<vw"
       , ( { initialMode
             | edit =
-                motionOption ">]+-"
+                motionOption ">]$-"
                     |> MotionRange WordStart
                     |> Indent Backward
                     |> Just
@@ -435,7 +435,7 @@ cases =
             | recordMacro = Just "a"
             , modeName = ModeNameInsert
             , edit =
-                motionOption ">]$-"
+                motionOption ">)$-"
                     |> MotionRange WordEdge
                     |> Delete
                     |> Just

@@ -192,6 +192,7 @@ undo buf =
                     { buf
                         | lines = lines1
                         , cursor = cursor
+                        , cursorColumn = Tuple.second cursor
                         , history = undoHistory buf.history
                     }
             )
@@ -225,6 +226,7 @@ redo buf =
                     { buf
                         | lines = lines1
                         , cursor = cursor
+                        , cursorColumn = Tuple.second cursor
                         , history = redoHistory buf.history
                     }
             )

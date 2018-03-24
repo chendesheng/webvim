@@ -43,26 +43,31 @@ deleteOperator range buf =
                                 pos
                             else
                                 buf.cursor
-
-                        patch =
-                            if mo.linewise then
-                                Deletion ( Tuple.first begin, 0 )
-                                    ( if mo.inclusive then
-                                        endy + 1
-                                      else
-                                        endy
-                                    , 0
-                                    )
-                            else
-                                Deletion begin
+                    in
+                        if mo.linewise then
+                            buf
+                                |> setCursor pos False
+                                |> Buf.transaction
+                                    [ Deletion ( Tuple.first begin, 0 )
+                                        ( if mo.inclusive then
+                                            endy + 1
+                                          else
+                                            endy
+                                        , 0
+                                        )
+                                    ]
+                                |> boundCursor
+                        else
+                            Buf.transaction
+                                [ Deletion begin
                                     ( endy
                                     , if mo.inclusive then
                                         endx + 1
                                       else
                                         endx
                                     )
-                    in
-                        Buf.transaction [ patch ] buf
+                                ]
+                                buf
 
                 Nothing ->
                     buf
@@ -183,6 +188,22 @@ findPositionInBuffer md mo y x_ pline wordChars lines =
             Nothing
 
 
+gotoLine : Int -> B.TextBuffer -> Maybe Position
+gotoLine y lines =
+    B.getLine y lines
+        |> Maybe.andThen
+            (\line ->
+                (findPosition
+                    ""
+                    V.LineFirst
+                    (V.motionOption "<]$-")
+                    line
+                    0
+                )
+                    |> Maybe.map ((,) y)
+            )
+
+
 runMotion : V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
 runMotion md mo buf =
     if B.isEmpty buf.lines then
@@ -191,8 +212,21 @@ runMotion md mo buf =
         let
             ( y, x ) =
                 buf.cursor
+
+            bottomLine buf =
+                (min
+                    (B.countLines buf.lines)
+                    (buf.view.scrollTop + buf.view.size.height)
+                )
+                    - 1
+
+            middleLine buf =
+                (bottomLine buf + buf.view.scrollTop) // 2
         in
             case md of
+                V.LineNumber n ->
+                    gotoLine (n % (B.countLines buf.lines)) buf.lines
+
                 V.LineDelta n ->
                     let
                         y1 =
@@ -203,9 +237,22 @@ runMotion md mo buf =
                         x1 =
                             buf.lines
                                 |> getLineMaxColumn y1
-                                |> min x
+                                |> min buf.cursorColumn
                     in
                         Just ( y1, x1 )
+
+                V.ViewTop ->
+                    gotoLine buf.view.scrollTop buf.lines
+
+                V.ViewMiddle ->
+                    gotoLine
+                        (middleLine buf)
+                        buf.lines
+
+                V.ViewBottom ->
+                    gotoLine
+                        (bottomLine buf)
+                        buf.lines
 
                 _ ->
                     findPositionInBuffer md
@@ -231,7 +278,10 @@ emptyMode modeName =
 
         V.ModeNameEx prefix ->
             emptyExBuffer
-                |> Buf.transaction [ Insertion ( 0, 0 ) <| B.fromString prefix ]
+                |> Buf.transaction
+                    [ Insertion ( 0, 0 ) <|
+                        B.fromString prefix
+                    ]
                 |> Ex prefix
 
         V.ModeNameVisual _ ->
@@ -267,9 +317,16 @@ getModeName mode =
             V.ModeNameEx prefix
 
 
-setCursor : Position -> Buffer -> Buffer
-setCursor cursor buf =
-    { buf | cursor = cursor }
+setCursor : Position -> Bool -> Buffer -> Buffer
+setCursor cursor saveColumn buf =
+    { buf
+        | cursor = cursor
+        , cursorColumn =
+            if saveColumn then
+                Tuple.second cursor
+            else
+                buf.cursorColumn
+    }
 
 
 updateMode : V.ModeName -> Buffer -> Buffer
@@ -307,7 +364,7 @@ modeChanged oldModeName newModeName buf =
                         )
             in
                 buf
-                    |> setCursor cursor
+                    |> setCursor cursor (oldModeName == V.ModeNameInsert)
                     |> Buf.commit
 
         V.ModeNameTempNormal ->
@@ -386,7 +443,7 @@ openNewLine y buf =
     in
         buf
             |> Buf.transaction [ patch ]
-            |> setCursor cursor
+            |> setCursor cursor True
 
 
 setContinuation : String -> Buffer -> Buffer
@@ -404,16 +461,56 @@ getString buf ins =
             ""
 
 
+isSaveColumn : V.MotionData -> Bool
+isSaveColumn md =
+    case md of
+        V.VLineDelta _ ->
+            False
+
+        V.LineDelta _ ->
+            False
+
+        _ ->
+            True
+
+
+scrollToLine : Int -> Buffer -> Buffer
+scrollToLine n buf =
+    updateView (\v -> { v | scrollTop = n }) buf
+
+
+ceilingFromZero : Float -> Int
+ceilingFromZero n =
+    if n < 0 then
+        floor n
+    else
+        ceiling n
+
+
 runOperator : Operator -> Buffer -> Buffer
 runOperator operator buf =
     case operator of
         Move md mo ->
             case runMotion md mo buf of
                 Just cursor ->
-                    setCursor cursor buf
+                    setCursor cursor (isSaveColumn md) buf
 
                 Nothing ->
                     buf
+
+        Scroll delta ->
+            let
+                cnt =
+                    B.countLines buf.lines
+
+                scrollTop =
+                    (buf.view.scrollTop + delta)
+                        |> max 0
+                        |> min (cnt - 1)
+            in
+                buf
+                    |> scrollToLine scrollTop
+                    |> boundCursor
 
         InsertString s ->
             case buf.mode of
@@ -453,8 +550,109 @@ runOperator operator buf =
         OpenNewLine V.Backward ->
             openNewLine (Tuple.first buf.cursor) buf
 
+        JumpByView factor ->
+            let
+                view =
+                    buf.view
+
+                height =
+                    view.size.height
+
+                boundLine row =
+                    row
+                        |> max 0
+                        |> min (B.countLines buf.lines - 1)
+
+                boundScrollTop scrollTop n =
+                    let
+                        newn =
+                            scrollTop + n
+
+                        maxy =
+                            B.countLines buf.lines - 1
+                    in
+                        if newn < 0 then
+                            scrollTop
+                        else if (newn + height) > maxy then
+                            max (maxy - height + 1) 0
+                        else
+                            newn
+
+                n =
+                    ceilingFromZero (toFloat height * factor)
+
+                y =
+                    boundLine (Tuple.first buf.cursor + n)
+
+                scrollTop =
+                    boundScrollTop view.scrollTop n
+            in
+                case gotoLine y buf.lines of
+                    Just cursor ->
+                        buf
+                            |> setCursor cursor True
+                            |> scrollToLine scrollTop
+
+                    Nothing ->
+                        buf
+
         _ ->
             buf
+
+
+{-| scroll cursor ensure it is insdie viewport
+-}
+scrollToCursor : Buffer -> Buffer
+scrollToCursor ({ view, cursor, lines } as buf) =
+    let
+        ( y, _ ) =
+            cursor
+
+        miny =
+            view.scrollTop
+
+        maxy =
+            miny + view.size.height - 1
+
+        scrollTop =
+            if miny > y then
+                y
+            else if y > maxy then
+                y - maxy + miny
+            else
+                buf.view.scrollTop
+    in
+        scrollToLine scrollTop buf
+
+
+{-| move cursor ensure cursor is insdie viewport
+-}
+boundCursor : Buffer -> Buffer
+boundCursor ({ view, cursor, lines } as buf) =
+    let
+        ( y, _ ) =
+            cursor
+
+        miny =
+            view.scrollTop
+
+        maxy =
+            min
+                (miny + view.size.height - 1)
+                (B.countLines lines - 1)
+
+        y1 =
+            y |> min maxy |> max miny
+    in
+        if y == y1 then
+            buf
+        else
+            case gotoLine y1 lines of
+                Just cursor ->
+                    setCursor cursor True buf
+
+                _ ->
+                    buf
 
 
 handleKeypress : Key -> Buffer -> ( Buffer, Cmd Msg )
@@ -476,6 +674,7 @@ handleKeypress key buf =
             |> setContinuation continuation
             |> applyEdit
             |> modeChanged oldModeName modeName
+            |> scrollToCursor
         , Cmd.none
         )
 
@@ -485,3 +684,20 @@ update message model =
     case message of
         PressKey bufid key ->
             handleKeypress key model
+
+        Resize size ->
+            let
+                h =
+                    (size.height // 21) - model.view.statusbarHeight
+
+                w =
+                    size.width
+            in
+                ( model
+                    |> updateView
+                        (\view ->
+                            { view | size = { width = w, height = h } }
+                        )
+                    |> boundCursor
+                , Cmd.none
+                )

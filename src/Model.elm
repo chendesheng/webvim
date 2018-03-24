@@ -3,6 +3,8 @@ module Model exposing (..)
 import Message exposing (Msg(..))
 import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
+import Window as Win exposing (Size)
+import Task
 
 
 type alias Undo =
@@ -31,9 +33,11 @@ type Mode
 
 type alias View =
     { scrollTop : Int
+    , scrollLeft : Int
     , startPosition : Position
-    , height : Int
     , dataStartPosition : Position
+    , size : Size
+    , statusbarHeight : Int
     }
 
 
@@ -97,9 +101,11 @@ emptyBuffer =
         }
     , view =
         { scrollTop = 0
+        , scrollLeft = 0
         , startPosition = ( 0, 0 )
-        , height = 20
+        , size = { width = 1, height = 1 }
         , dataStartPosition = ( 0, 0 )
+        , statusbarHeight = 1
         }
     , continuation = ""
     }
@@ -144,7 +150,13 @@ init _ =
             B.empty
                 |> B.applyPatch
                     ("1  23\n456\n"
-                        ++ String.repeat 100 "aa"
+                        ++ String.repeat 50 "aa"
+                        ++ "\n1dsafjdo  23\n456\n"
+                        ++ "\n1dsafjdo  23\n456\n"
+                        ++ "\n1dsafjdo  23\n456\n"
+                        ++ "\n1dsafjdo  23\n456\n"
+                        ++ "\n1dsafjdo  23\n456\n"
+                        ++ "\n1dsafjdo  23\n456\n"
                         ++ "\n"
                         |> B.fromString
                         |> Insertion ( 0, 0 )
@@ -159,9 +171,19 @@ init _ =
             { emptyBuffer
                 | lines = lines
                 , cursor = ( 0, 1 )
+                , cursorColumn = 1
                 , mode = mode
             }
     in
         ( buf
-        , Cmd.none
+        , Task.perform Resize Win.size
         )
+
+
+updateView : (View -> View) -> Buffer -> Buffer
+updateView f buf =
+    let
+        view =
+            buf.view
+    in
+        { buf | view = f buf.view }

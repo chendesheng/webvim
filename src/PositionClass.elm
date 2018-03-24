@@ -69,7 +69,10 @@ parserLineStart =
     P.succeed
         (length1 0)
         |= P.keep P.zeroOrMore space
-        |. P.ignore (P.Exactly 1) (space >> not)
+        |. P.oneOf
+            [ P.ignore (P.Exactly 1) (space >> not)
+            , P.end
+            ]
 
 
 parserWordEnd : String -> Parser Int

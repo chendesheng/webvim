@@ -8,6 +8,7 @@ import Html
 import View exposing (..)
 import Json.Encode as Encode
 import KeySub exposing (downs)
+import Window exposing (resizes)
 
 
 main : Program Encode.Value Model Msg
@@ -17,5 +18,9 @@ main =
         , view = view
         , update = update
         , subscriptions =
-            \_ -> downs (PressKey 0)
+            \_ ->
+                Sub.batch
+                    [ downs (PressKey 0)
+                    , resizes Resize
+                    ]
         }
