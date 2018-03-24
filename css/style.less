@@ -43,6 +43,7 @@ html, body {
 .gutter-container {
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='21px' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='gray'>~</text></svg>"); 
     background-repeat: repeat-y;
+    user-select: none;
 }
 
 .lines, .gutter {
@@ -90,6 +91,7 @@ html, body {
   white-space: pre;
   flex-grow: 0;
   flex-shirk: 1;
+  position: relative;
 }
 
 .status .cursor {
