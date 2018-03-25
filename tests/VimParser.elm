@@ -341,7 +341,7 @@ cases =
       , ( { initialMode
             | register = "a"
             , modeName = ModeNameInsert
-            , edit = Put Forward |> Just
+            , edit = Put True |> Just
           }
         , "i"
         )
@@ -492,7 +492,7 @@ cases =
       , ( { initialMode
             | register = "a"
             , modeName = ModeNameInsert
-            , edit = Put Forward |> Just
+            , edit = Put True |> Just
           }
         , "i"
         )

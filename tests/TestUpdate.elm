@@ -8,6 +8,7 @@ import Buffer as Buf
 import Internal.TextBuffer as B exposing (Patch(..))
 import Message exposing (Msg(..), Key)
 import Parser as P exposing ((|.), (|=), Parser)
+import Dict
 
 
 handleKeys : List Key -> Model -> Model
@@ -363,13 +364,29 @@ deleteCasesBuf =
 
 deleteCases : List ( String, Buffer )
 deleteCases =
-    [ ( "de", { deleteCasesBuf | lines = B.fromString "\n456\n" } )
+    [ ( "de"
+      , { deleteCasesBuf
+            | lines = B.fromString "\n456\n"
+            , registers = Dict.fromList [ ( "\"", " 123" ) ]
+        }
+      )
     , ( "dfa", deleteCasesBuf )
-    , ( "dw", { deleteCasesBuf | lines = B.fromString "123\n456\n" } )
-    , ( "dvw", { deleteCasesBuf | lines = B.fromString "23\n456\n" } )
+    , ( "dw"
+      , { deleteCasesBuf
+            | lines = B.fromString "123\n456\n"
+            , registers = Dict.fromList [ ( "\"", " " ) ]
+        }
+      )
+    , ( "dvw"
+      , { deleteCasesBuf
+            | lines = B.fromString "23\n456\n"
+            , registers = Dict.fromList [ ( "\"", " 1" ) ]
+        }
+      )
     , ( "ldw"
       , { deleteCasesBuf
             | lines = B.fromString " \n456\n"
+            , registers = Dict.fromList [ ( "\"", "123" ) ]
             , cursorColumn = 1
         }
       )
@@ -388,14 +405,81 @@ changeCasesBuf =
 changeCases : List ( String, Buffer )
 changeCases =
     [ ( "ce"
-      , { changeCasesBuf | lines = B.fromString "\n456\n" }
+      , { changeCasesBuf
+            | lines = B.fromString "\n456\n"
+            , registers = Dict.fromList [ ( "\"", " 123" ) ]
+        }
       )
     , ( "cfa", changeCasesBuf )
     , ( "cw"
-      , { changeCasesBuf | lines = B.fromString "123\n456\n" }
+      , { changeCasesBuf
+            | lines = B.fromString "123\n456\n"
+            , registers = Dict.fromList [ ( "\"", " " ) ]
+        }
       )
     , ( "cvw"
-      , { changeCasesBuf | lines = B.fromString "23\n456\n" }
+      , { changeCasesBuf
+            | lines = B.fromString "23\n456\n"
+            , registers = Dict.fromList [ ( "\"", " 1" ) ]
+        }
+      )
+    ]
+
+
+putCasesBuf : Buffer
+putCasesBuf =
+    { emptyBuffer
+        | lines = B.fromString "123\n"
+        , registers = Dict.fromList [ ( "\"", "abc" ) ]
+    }
+
+
+putCases : List ( String, Buffer )
+putCases =
+    [ ( "p"
+      , { putCasesBuf
+            | lines = B.fromString "1abc23\n"
+            , cursor = ( 0, 3 )
+            , cursorColumn = 3
+        }
+      )
+    , ( "P"
+      , { putCasesBuf
+            | lines = B.fromString "abc123\n"
+            , cursor = ( 0, 2 )
+            , cursorColumn = 2
+        }
+      )
+    , ( "dwp"
+      , { putCasesBuf
+            | cursor = ( 0, 2 )
+            , cursorColumn = 2
+            , registers = Dict.fromList [ ( "\"", "123" ) ]
+        }
+      )
+    , ( "dwP"
+      , { putCasesBuf
+            | cursor = ( 0, 2 )
+            , cursorColumn = 2
+            , registers = Dict.fromList [ ( "\"", "123" ) ]
+        }
+      )
+    , ( "i<c-r>\""
+      , { putCasesBuf
+            | cursor = ( 0, 3 )
+            , cursorColumn = 3
+            , lines = B.fromString "abc123\n"
+            , mode = Insert
+        }
+      )
+    , ( "cw<c-r>\""
+      , { putCasesBuf
+            | cursor = ( 0, 3 )
+            , cursorColumn = 3
+            , lines = B.fromString "123\n"
+            , registers = Dict.fromList [ ( "\"", "123" ) ]
+            , mode = Insert
+        }
       )
     ]
 
@@ -448,6 +532,17 @@ allCases =
                     | history = emptyBufferHistory
                     , continuation = ""
                     , mode = Insert
+                }
+            )
+      }
+    , { name = "put cases"
+      , cases = putCases
+      , model = putCasesBuf
+      , map =
+            (\buf ->
+                { buf
+                    | history = emptyBufferHistory
+                    , continuation = ""
                 }
             )
       }

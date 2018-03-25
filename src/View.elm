@@ -92,3 +92,32 @@ renderCursor ( y, x ) =
             ]
         ]
         []
+
+
+getStatusBar : Mode -> { text : String, cursor : Maybe Position }
+getStatusBar mode =
+    case mode of
+        Normal ->
+            { text = "-- Normal --"
+            , cursor = Nothing
+            }
+
+        Visual _ _ ->
+            { text = "-- Visual --"
+            , cursor = Nothing
+            }
+
+        Insert ->
+            { text = "-- Insert --"
+            , cursor = Nothing
+            }
+
+        TempNormal ->
+            { text = "-- (Insert) --"
+            , cursor = Nothing
+            }
+
+        Ex prefix buffer ->
+            { text = B.toString buffer.lines
+            , cursor = Just buffer.cursor
+            }

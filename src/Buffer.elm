@@ -7,10 +7,15 @@ module Buffer
         , redo
         , commit
         , clearHistory
+        , getLastDeleted
+        , setMode
+        , setRegister
+        , setCursor
+        , putString
         )
 
 import Position exposing (..)
-import Model exposing (Buffer, BufferHistory, emptyBufferHistory)
+import Model exposing (Buffer, BufferHistory, emptyBufferHistory, Mode)
 import Internal.TextBuffer
     exposing
         ( applyPatch
@@ -30,6 +35,8 @@ import Vim.AST
         , Direction(..)
         )
 import String
+import Maybe
+import Dict
 
 
 applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch )
@@ -255,3 +262,93 @@ moveByClass class option buf =
 clearHistory : Buffer -> Buffer
 clearHistory buf =
     { buf | history = emptyBufferHistory }
+
+
+getLastPatch : Buffer -> Maybe Patch
+getLastPatch { history } =
+    history.pending
+        |> Maybe.andThen
+            (\undo ->
+                -- TODO: merge patchs
+                undo.patches
+                    |> List.head
+            )
+
+
+getLastDeleted : Buffer -> Maybe TextBuffer
+getLastDeleted buf =
+    getLastPatch buf
+        |> Maybe.andThen
+            (\patch ->
+                case patch of
+                    Insertion _ s ->
+                        Just s
+
+                    Deletion _ _ ->
+                        Nothing
+            )
+
+
+setRegister : String -> String -> Buffer -> Buffer
+setRegister reg val buf =
+    { buf | registers = Dict.insert reg val buf.registers }
+
+
+setMode : Mode -> Buffer -> Buffer
+setMode mode buf =
+    { buf | mode = mode }
+
+
+setCursor : Position -> Bool -> Buffer -> Buffer
+setCursor cursor saveColumn buf =
+    { buf
+        | cursor = cursor
+        , cursorColumn =
+            if saveColumn then
+                Tuple.second cursor
+            else
+                buf.cursorColumn
+    }
+
+
+putString : Bool -> String -> Buffer -> Buffer
+putString forward s buf =
+    let
+        ( y, x ) =
+            buf.cursor
+
+        forward1 =
+            case getLine y buf.lines of
+                Just line ->
+                    -- always put backward when line is empty
+                    if line == lineBreak then
+                        False
+                    else
+                        forward
+
+                _ ->
+                    forward
+
+        buf1 =
+            transaction
+                [ if forward1 then
+                    Insertion ( y, x + 1 ) <| fromString s
+                  else
+                    Insertion ( y, x ) <| fromString s
+                ]
+                buf
+
+        cursor =
+            case getLastPatch buf1 of
+                Just patch ->
+                    case patch of
+                        Deletion _ to ->
+                            to
+
+                        _ ->
+                            buf.cursor
+
+                _ ->
+                    buf.cursor
+    in
+        setCursor cursor True buf1

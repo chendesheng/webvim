@@ -5,6 +5,7 @@ import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
 import Task
+import Dict exposing (Dict)
 
 
 type alias Undo =
@@ -76,6 +77,7 @@ type alias Buffer =
         }
     , view : View
     , continuation : String
+    , registers : Dict String String
     }
 
 
@@ -108,36 +110,8 @@ emptyBuffer =
         , statusbarHeight = 1
         }
     , continuation = ""
+    , registers = Dict.empty
     }
-
-
-getStatusBar : Mode -> { text : String, cursor : Maybe Position }
-getStatusBar mode =
-    case mode of
-        Normal ->
-            { text = "-- Normal --"
-            , cursor = Nothing
-            }
-
-        Visual _ _ ->
-            { text = "-- Visual --"
-            , cursor = Nothing
-            }
-
-        Insert ->
-            { text = "-- Insert --"
-            , cursor = Nothing
-            }
-
-        TempNormal ->
-            { text = "-- (Insert) --"
-            , cursor = Nothing
-            }
-
-        Ex prefix buffer ->
-            { text = B.toString buffer.lines
-            , cursor = Just buffer.cursor
-            }
 
 
 init : flags -> ( Model, Cmd Msg )

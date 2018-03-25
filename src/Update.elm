@@ -9,6 +9,7 @@ import Buffer as Buf
 import Position exposing (Position, positionMin)
 import String
 import PositionClass exposing (..)
+import Dict
 
 
 getLineMaxColumn : Int -> B.TextBuffer -> Int
@@ -25,7 +26,37 @@ getLineMaxColumn y lines =
         |> Maybe.withDefault 0
 
 
-deleteOperator : V.OperatorRange -> Buffer -> Buffer
+saveLastDeleted : String -> Buffer -> Buffer
+saveLastDeleted reg buf =
+    let
+        s =
+            buf
+                |> Buf.getLastDeleted
+                |> Maybe.map B.toString
+                |> Maybe.withDefault ""
+    in
+        Buf.setRegister reg s buf
+
+
+type alias Transaction =
+    { pos : Maybe ( Position, Bool )
+    , patches : List Patch
+    }
+
+
+applyTransaction : Transaction -> Buffer -> Buffer
+applyTransaction { pos, patches } buf =
+    case pos of
+        Just ( cursor, saveColumn ) ->
+            buf
+                |> Buf.setCursor cursor saveColumn
+                |> Buf.transaction patches
+
+        _ ->
+            Buf.transaction patches buf
+
+
+deleteOperator : V.OperatorRange -> Buffer -> Maybe Transaction
 deleteOperator range buf =
     case range of
         V.MotionRange md mo ->
@@ -45,9 +76,9 @@ deleteOperator range buf =
                                 buf.cursor
                     in
                         if mo.linewise then
-                            buf
-                                |> setCursor pos False
-                                |> Buf.transaction
+                            Just
+                                { pos = Just ( pos, False )
+                                , patches =
                                     [ Deletion ( Tuple.first begin, 0 )
                                         ( if mo.inclusive then
                                             endy + 1
@@ -56,24 +87,26 @@ deleteOperator range buf =
                                         , 0
                                         )
                                     ]
-                                |> cursorScope
+                                }
                         else
-                            Buf.transaction
-                                [ Deletion begin
-                                    ( endy
-                                    , if mo.inclusive then
-                                        endx + 1
-                                      else
-                                        endx
-                                    )
-                                ]
-                                buf
+                            Just
+                                { pos = Nothing
+                                , patches =
+                                    [ Deletion begin
+                                        ( endy
+                                        , if mo.inclusive then
+                                            endx + 1
+                                          else
+                                            endx
+                                        )
+                                    ]
+                                }
 
                 Nothing ->
-                    buf
+                    Nothing
 
         _ ->
-            buf
+            Nothing
 
 
 matchChar :
@@ -317,18 +350,6 @@ getModeName mode =
             V.ModeNameEx prefix
 
 
-setCursor : Position -> Bool -> Buffer -> Buffer
-setCursor cursor saveColumn buf =
-    { buf
-        | cursor = cursor
-        , cursorColumn =
-            if saveColumn then
-                Tuple.second cursor
-            else
-                buf.cursorColumn
-    }
-
-
 updateMode : V.ModeName -> Buffer -> Buffer
 updateMode modeName buf =
     let
@@ -364,7 +385,7 @@ modeChanged oldModeName newModeName buf =
                         )
             in
                 buf
-                    |> setCursor cursor (oldModeName == V.ModeNameInsert)
+                    |> Buf.setCursor cursor (oldModeName == V.ModeNameInsert)
                     |> Buf.commit
 
         V.ModeNameTempNormal ->
@@ -443,7 +464,7 @@ openNewLine y buf =
     in
         buf
             |> Buf.transaction [ patch ]
-            |> setCursor cursor True
+            |> Buf.setCursor cursor True
 
 
 setContinuation : String -> Buffer -> Buffer
@@ -487,13 +508,13 @@ ceilingFromZero n =
         ceiling n
 
 
-runOperator : Operator -> Buffer -> Buffer
-runOperator operator buf =
+runOperator : String -> Operator -> Buffer -> Buffer
+runOperator register operator buf =
     case operator of
         Move md mo ->
             case runMotion md mo buf of
                 Just cursor ->
-                    setCursor cursor (isSaveColumn md) buf
+                    Buf.setCursor cursor (isSaveColumn md) buf
 
                 Nothing ->
                     buf
@@ -530,12 +551,12 @@ runOperator operator buf =
         InsertString s ->
             case buf.mode of
                 Ex prefix exbuf ->
-                    { buf
-                        | mode =
-                            exbuf
-                                |> insertString s
-                                |> Ex prefix
-                    }
+                    Buf.setMode
+                        (exbuf
+                            |> insertString s
+                            |> Ex prefix
+                        )
+                        buf
 
                 _ ->
                     insertString s buf
@@ -543,15 +564,35 @@ runOperator operator buf =
         Delete rg ->
             case buf.mode of
                 Ex prefix exbuf ->
-                    { buf
-                        | mode =
-                            exbuf
-                                |> deleteOperator rg
-                                |> Ex prefix
-                    }
+                    Buf.setMode
+                        ((case deleteOperator rg exbuf of
+                            Just trans ->
+                                applyTransaction trans exbuf
+
+                            _ ->
+                                exbuf
+                         )
+                            |> Ex prefix
+                        )
+                        buf
+
+                Insert ->
+                    case deleteOperator rg buf of
+                        Just trans ->
+                            applyTransaction trans buf
+
+                        _ ->
+                            buf
 
                 _ ->
-                    deleteOperator rg buf
+                    case deleteOperator rg buf of
+                        Just trans ->
+                            buf
+                                |> applyTransaction trans
+                                |> saveLastDeleted register
+
+                        _ ->
+                            buf
 
         Undo ->
             Buf.undo buf
@@ -605,11 +646,26 @@ runOperator operator buf =
                 case gotoLine y buf.lines of
                     Just cursor ->
                         buf
-                            |> setCursor cursor True
+                            |> Buf.setCursor cursor True
                             |> scrollToLine scrollTop
 
                     Nothing ->
                         buf
+
+        Put forward ->
+            Dict.get register buf.registers
+                |> Maybe.map
+                    (\s ->
+                        case buf.mode of
+                            Ex prefix exbuf ->
+                                Buf.putString forward s exbuf
+                                    |> Ex prefix
+                                    |> flip Buf.setMode buf
+
+                            _ ->
+                                Buf.putString forward s buf
+                    )
+                |> Maybe.withDefault buf
 
         _ ->
             buf
@@ -664,30 +720,55 @@ cursorScope ({ view, cursor, lines } as buf) =
         else
             case gotoLine y1 lines of
                 Just cursor ->
-                    setCursor cursor True buf
+                    Buf.setCursor cursor True buf
 
                 _ ->
                     buf
 
 
+applyEdit : Maybe Operator -> String -> Buffer -> Buffer
+applyEdit edit register buf =
+    case edit of
+        Just operator ->
+            runOperator register operator buf
+
+        Nothing ->
+            buf
+
+
+isPutOperator : Maybe Operator -> Bool
+isPutOperator edit =
+    case edit of
+        Just operator ->
+            case operator of
+                Put _ ->
+                    True
+
+                _ ->
+                    False
+
+        _ ->
+            False
+
+
 handleKeypress : Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress key buf =
     let
-        oldModeName =
-            getModeName buf.mode
-
-        ( { edit, modeName } as ast, continuation ) =
+        ( { edit, modeName, register } as ast, continuation ) =
             P.parse buf.continuation key
 
-        applyEdit b =
-            edit
-                |> Maybe.map (flip runOperator b)
-                |> Maybe.withDefault b
+        oldModeName =
+            -- for now the put operator is implemented as
+            -- Start insert mode -> Put string -> Back to normal mode
+            if modeName == V.ModeNameNormal && isPutOperator edit then
+                V.ModeNameInsert
+            else
+                getModeName buf.mode
     in
         ( buf
-            |> updateMode modeName
             |> setContinuation continuation
-            |> applyEdit
+            |> applyEdit edit register
+            |> updateMode modeName
             |> modeChanged oldModeName modeName
             |> scrollToCursor
         , Cmd.none

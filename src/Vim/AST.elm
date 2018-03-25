@@ -65,7 +65,7 @@ type Operator
     | Select TextObject Bool -- visual mode
     | Delete OperatorRange
     | Yank OperatorRange
-    | Put Direction
+    | Put Bool
     | Indent Direction OperatorRange
     | Join Bool -- J/gJ
     | RepeatLastAction

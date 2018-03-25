@@ -128,7 +128,7 @@ insertMode =
                     (\key ->
                         if isRegister key then
                             [ PushRegister key
-                            , Put Forward |> PushOperator
+                            , Put False |> PushOperator
                             ]
                         else
                             []
@@ -170,7 +170,7 @@ linebuffer prefix map =
                             (\key ->
                                 if isRegister key then
                                     [ PushRegister key
-                                    , Put Forward
+                                    , Put False
                                         |> PushOperator
                                     ]
                                 else
@@ -627,6 +627,8 @@ operator isVisual isTemp =
                     |> MotionRange CharStart
                     |> Delete
                 )
+             , define "p" (Put True)
+             , define "P" (Put False)
              , readKeyAndThen "z"
                 [ PushKey "z" ]
                 (P.oneOf
