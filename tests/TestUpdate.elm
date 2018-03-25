@@ -318,19 +318,154 @@ motionCases =
         }
       )
     , ( "f3"
-      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 2 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "3"
+                        , before = False
+                        , forward = True
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
       )
     , ( "f4"
-      , { motionCasesBuf | cursor = ( 0, 0 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 0 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "4"
+                        , before = False
+                        , forward = True
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
       )
     , ( "t3"
-      , { motionCasesBuf | cursor = ( 0, 1 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 1 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "3"
+                        , before = True
+                        , forward = True
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
       )
     , ( "t3F1"
-      , { motionCasesBuf | cursor = ( 0, 0 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 0 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "1"
+                        , before = False
+                        , forward = False
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
       )
     , ( "f3T1"
-      , { motionCasesBuf | cursor = ( 0, 1 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 1 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "1"
+                        , before = True
+                        , forward = False
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
+      )
+    , ( "f3hh;"
+      , { motionCasesBuf
+            | cursor = ( 0, 2 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "3"
+                        , before = False
+                        , forward = True
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
+      )
+    , ( "t30;"
+      , { motionCasesBuf
+            | cursor = ( 0, 1 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "3"
+                        , before = True
+                        , forward = True
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
+      )
+    , ( "f1$,"
+      , { motionCasesBuf
+            | cursor = ( 0, 0 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "1"
+                        , before = False
+                        , forward = True
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
+      )
+    , ( "t1$,"
+      , { motionCasesBuf
+            | cursor = ( 0, 1 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "1"
+                        , before = True
+                        , forward = True
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
+      )
+    , ( "llF1$;"
+      , { motionCasesBuf
+            | cursor = ( 0, 0 )
+            , last =
+                { matchChar =
+                    Just
+                        { char = "1"
+                        , before = False
+                        , forward = False
+                        }
+                , matchString = Nothing
+                , operator = Nothing
+                }
+        }
       )
     ]
 

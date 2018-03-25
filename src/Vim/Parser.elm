@@ -371,6 +371,10 @@ motion map gMotion =
              , matchString "?"
              , define "{" ParagraphEnd <| motionOption "<)+-"
              , define "}" ParagraphStart <| motionOption ">)+-"
+             , define ";" RepeatMatchChar <| motionOption ">]$-"
+             , define "," RepeatMatchChar <| motionOption "<]$-"
+             , define "n" RepeatMatchString <| motionOption ">)+-"
+             , define "N" RepeatMatchString <| motionOption "<)+-"
              , gMotion
              ]
             )

@@ -78,6 +78,16 @@ type alias Buffer =
     , view : View
     , continuation : String
     , registers : Dict String String
+    , last :
+        { matchChar :
+            Maybe
+                { char : String
+                , before : Bool
+                , forward : Bool
+                }
+        , matchString : Maybe ( String, Bool )
+        , operator : Maybe String
+        }
     }
 
 
@@ -111,6 +121,11 @@ emptyBuffer =
         }
     , continuation = ""
     , registers = Dict.empty
+    , last =
+        { matchChar = Nothing
+        , matchString = Nothing
+        , operator = Nothing
+        }
     }
 
 

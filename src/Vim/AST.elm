@@ -79,6 +79,7 @@ type Operator
     | Redo
     | ReplayMacro Register
     | InsertString StringType
+    | RepeatLastOperator
       -- for line buffer
     | InsertWordUnderCursor
     | ExecuteLine
@@ -179,3 +180,5 @@ type MotionData
     | LineDelta Int
     | LineNumber Int -- negtive means backward from last line
     | MatchPair -- %
+    | RepeatMatchChar
+    | RepeatMatchString

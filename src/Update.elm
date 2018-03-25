@@ -287,6 +287,34 @@ runMotion md mo buf =
                         (bottomLine buf)
                         buf.lines
 
+                V.RepeatMatchChar ->
+                    case buf.last.matchChar of
+                        Just { char, before, forward } ->
+                            let
+                                option =
+                                    V.motionOption "<]$-"
+
+                                option1 =
+                                    { option
+                                        | forward =
+                                            if forward then
+                                                mo.forward
+                                            else
+                                                not mo.forward
+                                    }
+                            in
+                                findPositionInBuffer
+                                    (V.MatchChar char before)
+                                    option1
+                                    y
+                                    x
+                                    ""
+                                    buf.config.wordChars
+                                    buf.lines
+
+                        _ ->
+                            Nothing
+
                 _ ->
                     findPositionInBuffer md
                         mo
@@ -508,16 +536,48 @@ ceilingFromZero n =
         ceiling n
 
 
+saveMotion : Operator -> Buffer -> Buffer
+saveMotion operator buf =
+    let
+        last =
+            buf.last
+
+        last1 =
+            case operator of
+                Move md mo ->
+                    case md of
+                        V.MatchChar ch before ->
+                            { last
+                                | matchChar =
+                                    Just
+                                        { char = ch
+                                        , before = before
+                                        , forward = mo.forward
+                                        }
+                            }
+
+                        _ ->
+                            buf.last
+
+                _ ->
+                    buf.last
+    in
+        { buf | last = last1 }
+
+
 runOperator : String -> Operator -> Buffer -> Buffer
 runOperator register operator buf =
     case operator of
         Move md mo ->
             case runMotion md mo buf of
                 Just cursor ->
-                    Buf.setCursor cursor (isSaveColumn md) buf
+                    buf
+                        |> Buf.setCursor cursor (isSaveColumn md)
+                        |> saveMotion operator
 
                 Nothing ->
                     buf
+                        |> saveMotion operator
 
         Scroll value ->
             let
