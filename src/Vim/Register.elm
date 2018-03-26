@@ -43,7 +43,7 @@ registerParser =
         (P.succeed
             (\key ->
                 if isRegister key then
-                    [ PushKeys [ "\"", key ], PushRegister key ]
+                    [ PushKey ("\"" ++ key), PushRegister key ]
                 else
                     []
             )

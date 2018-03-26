@@ -2,7 +2,8 @@ module Update exposing (update)
 
 import Model exposing (..)
 import Message exposing (..)
-import Vim.Parser as P
+import Vim.Helper exposing (keyParser, escapeKey)
+import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
@@ -10,6 +11,7 @@ import Position exposing (Position, positionMin)
 import String
 import PositionClass exposing (..)
 import Dict
+import Parser as P exposing ((|.), (|=), Parser)
 
 
 getLineMaxColumn : Int -> B.TextBuffer -> Int
@@ -417,14 +419,15 @@ modeChanged oldModeName newModeName buf =
                     |> Buf.commit
 
         V.ModeNameTempNormal ->
-            Buf.commit buf
+            buf
+                |> Buf.commit
 
         V.ModeNameEx prefix ->
             case buf.mode of
                 Ex prefix exbuf ->
                     if B.isEmpty exbuf.lines then
                         buf
-                            |> handleKeypress "<esc>"
+                            |> handleKeypress False "<esc>"
                             |> Tuple.first
                     else
                         buf
@@ -727,6 +730,18 @@ runOperator register operator buf =
                     )
                 |> Maybe.withDefault buf
 
+        RepeatLastOperator ->
+            case Dict.get "." buf.registers of
+                Just keys ->
+                    buf
+                        |> replayKeys keys
+
+                _ ->
+                    buf
+
+        RepeatLastInsert ->
+            replayKeys buf.last.inserts buf
+
         _ ->
             buf
 
@@ -811,12 +826,42 @@ isPutOperator edit =
             False
 
 
-handleKeypress : Key -> Buffer -> ( Buffer, Cmd Msg )
-handleKeypress key buf =
+replayKeys : String -> Model -> Model
+replayKeys s buf =
     let
-        ( { edit, modeName, register } as ast, continuation ) =
-            P.parse buf.continuation key
+        savedLast =
+            buf.last
 
+        savedRegisters =
+            buf.registers
+
+        keys =
+            s
+                |> P.run (P.repeat P.zeroOrMore keyParser)
+                |> Result.withDefault []
+
+        buf1 =
+            List.foldl
+                (\key buf ->
+                    handleKeypress True key buf
+                        |> Tuple.first
+                )
+                buf
+                keys
+    in
+        { buf1
+            | last = savedLast
+            , registers = savedRegisters
+        }
+
+
+handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
+handleKeypress replaying key buf =
+    let
+        ( { edit, modeName, register, recordKeys } as ast, continuation ) =
+            parse buf.continuation key
+
+        -- |> Debug.log key
         oldModeName =
             -- for now the put operator is implemented as
             -- Start insert mode -> Put string -> Back to normal mode
@@ -824,6 +869,43 @@ handleKeypress key buf =
                 V.ModeNameInsert
             else
                 getModeName buf.mode
+
+        saveDotRegister buf =
+            if replaying then
+                buf
+            else
+                case recordKeys of
+                    "" ->
+                        buf
+
+                    s ->
+                        Buf.setRegister "." s buf
+
+        saveLastInsert buf =
+            if replaying || key == "<inserts>" then
+                buf
+            else
+                let
+                    last =
+                        buf.last
+
+                    last1 =
+                        if
+                            (oldModeName == V.ModeNameInsert)
+                                && (modeName == V.ModeNameInsert)
+                        then
+                            { last | inserts = last.inserts ++ key }
+                        else if
+                            (oldModeName == V.ModeNameNormal)
+                                && (modeName == V.ModeNameInsert)
+                                || (oldModeName == V.ModeNameTempNormal)
+                                && (modeName == V.ModeNameInsert)
+                        then
+                            { last | inserts = "" }
+                        else
+                            last
+                in
+                    { buf | last = last1 }
     in
         ( buf
             |> setContinuation continuation
@@ -831,6 +913,8 @@ handleKeypress key buf =
             |> updateMode modeName
             |> modeChanged oldModeName modeName
             |> scrollToCursor
+            |> saveLastInsert
+            |> saveDotRegister
         , Cmd.none
         )
 
@@ -839,7 +923,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
         PressKey bufid key ->
-            handleKeypress key model
+            handleKeypress False key model
 
         Resize size ->
             let

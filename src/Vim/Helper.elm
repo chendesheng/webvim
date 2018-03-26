@@ -275,7 +275,7 @@ popComplete =
 
 makePushKeys : String -> String -> ModeDelta
 makePushKeys k1 k2 =
-    [ PushKeys [ k1, k2 ] ]
+    [ PushKey (k1 ++ k2) ]
 
 
 aggregateOperator : ModeDelta -> Maybe Operator
@@ -319,6 +319,39 @@ aggregateModeName changes =
         |> Maybe.withDefault ModeNameNormal
 
 
+dropUntil : a -> List a -> List a
+dropUntil item items =
+    case items of
+        head :: tail ->
+            if head == item then
+                tail
+            else
+                dropUntil item tail
+
+        _ ->
+            []
+
+
+aggregateRecordKeys : ModeDelta -> String
+aggregateRecordKeys changes =
+    case changes of
+        change :: rest ->
+            case change of
+                PushKey key ->
+                    key
+                        ++ (aggregateRecordKeys rest)
+
+                PauseRecording ->
+                    dropUntil ContinueRecording rest
+                        |> aggregateRecordKeys
+
+                _ ->
+                    aggregateRecordKeys rest
+
+        _ ->
+            ""
+
+
 aggregateKeys : ModeDelta -> String
 aggregateKeys changes =
     changes
@@ -326,9 +359,6 @@ aggregateKeys changes =
             (\change result ->
                 case change of
                     PushKey _ ->
-                        change :: result
-
-                    PushKeys _ ->
                         change :: result
 
                     PopKey ->
@@ -345,14 +375,10 @@ aggregateKeys changes =
                     PushKey key ->
                         key :: keys
 
-                    PushKeys keys2 ->
-                        keys2 ++ keys
-
                     _ ->
                         keys
             )
             []
-        |> List.map escapeKey
         |> String.join ""
 
 

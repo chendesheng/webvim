@@ -9,6 +9,8 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Message exposing (Msg(..), Key)
 import Parser as P exposing ((|.), (|=), Parser)
 import Dict
+import Maybe
+import Vim.Helper exposing (keyParser)
 
 
 handleKeys : List Key -> Model -> Model
@@ -24,22 +26,7 @@ handleKeys keys model =
 
 keysParser : Parser (List String)
 keysParser =
-    P.keep (P.Exactly 1) (always True)
-        |> P.andThen
-            (\s ->
-                case s of
-                    "\\" ->
-                        P.keep (P.Exactly 1) (\c -> c == '\\' || c == '<')
-
-                    "<" ->
-                        P.ignoreUntil ">"
-                            |> P.source
-                            |> P.map ((++) "<")
-
-                    _ ->
-                        P.succeed s
-            )
-        |> P.repeat P.zeroOrMore
+    P.repeat P.zeroOrMore keyParser
 
 
 insertCases : List ( String, Buffer )
@@ -67,6 +54,7 @@ insertCases =
                                 ]
                             }
                 }
+            , last = { emptyLast | inserts = "12" }
         }
       )
     , ( "i12<esc>"
@@ -85,6 +73,7 @@ insertCases =
                           }
                         ]
                 }
+            , last = { emptyLast | inserts = "12" }
         }
       )
     , ( "i12<cr><esc>"
@@ -109,6 +98,7 @@ insertCases =
                         emptyBuffer.view
                 in
                     { view | scrollTop = 1 }
+            , last = { emptyLast | inserts = "12<cr>" }
         }
       )
     , ( "i12<tab><tab><esc>"
@@ -129,6 +119,7 @@ insertCases =
                           }
                         ]
                 }
+            , last = { emptyLast | inserts = "12<tab><tab>" }
         }
       )
     , ( "i1<backspace>"
@@ -147,6 +138,7 @@ insertCases =
                                 ]
                             }
                 }
+            , last = { emptyLast | inserts = "1<backspace>" }
         }
       )
     , ( "i1<cr><backspace>"
@@ -167,6 +159,7 @@ insertCases =
                                 ]
                             }
                 }
+            , last = { emptyLast | inserts = "1<cr><backspace>" }
         }
       )
     , ( "i12<esc>u"
@@ -182,6 +175,7 @@ insertCases =
                           }
                         ]
                 }
+            , last = { emptyLast | inserts = "12" }
         }
       )
     , ( "i12<esc>u<c-r>"
@@ -200,6 +194,7 @@ insertCases =
                           }
                         ]
                 }
+            , last = { emptyLast | inserts = "12" }
         }
       )
     , ( "i1<esc>o1"
@@ -231,6 +226,7 @@ insertCases =
                     { view | scrollTop = 1 }
             , mode = Insert
             , continuation = "o"
+            , last = { emptyLast | inserts = "1" }
         }
       )
     , ( "i1<esc>O2"
@@ -256,6 +252,7 @@ insertCases =
                 }
             , mode = Insert
             , continuation = "O"
+            , last = { emptyLast | inserts = "2" }
         }
       )
     ]
@@ -328,7 +325,7 @@ motionCases =
                         , forward = True
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -343,7 +340,7 @@ motionCases =
                         , forward = True
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -358,7 +355,7 @@ motionCases =
                         , forward = True
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -373,7 +370,7 @@ motionCases =
                         , forward = False
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -388,7 +385,7 @@ motionCases =
                         , forward = False
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -403,7 +400,7 @@ motionCases =
                         , forward = True
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -418,7 +415,7 @@ motionCases =
                         , forward = True
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -433,7 +430,7 @@ motionCases =
                         , forward = True
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -448,7 +445,7 @@ motionCases =
                         , forward = True
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -463,7 +460,7 @@ motionCases =
                         , forward = False
                         }
                 , matchString = Nothing
-                , operator = Nothing
+                , inserts = ""
                 }
         }
       )
@@ -605,6 +602,7 @@ putCases =
             , cursorColumn = 3
             , lines = B.fromString "abc123\n"
             , mode = Insert
+            , last = { emptyLast | inserts = "<c-r>\"" }
         }
       )
     , ( "cw<c-r>\""
@@ -614,6 +612,77 @@ putCases =
             , lines = B.fromString "123\n"
             , registers = Dict.fromList [ ( "\"", "123" ) ]
             , mode = Insert
+            , last = { emptyLast | inserts = "<c-r>\"" }
+        }
+      )
+    ]
+
+
+dotRepeatCasesBuf : Buffer
+dotRepeatCasesBuf =
+    { emptyBuffer | lines = B.fromString "123\n456\n" }
+
+
+emptyLast :
+    { matchChar : Maybe a
+    , matchString : Maybe a1
+    , inserts : String
+    }
+emptyLast =
+    { matchChar = Nothing
+    , matchString = Nothing
+    , inserts = ""
+    }
+
+
+dotRepeatCases : List ( String, Buffer )
+dotRepeatCases =
+    [ ( "iaa"
+      , { dotRepeatCasesBuf
+            | lines = B.fromString "aa123\n456\n"
+            , cursor = ( 0, 2 )
+            , last = { emptyLast | inserts = "aa" }
+        }
+      )
+    , ( "iaa<esc>"
+      , { dotRepeatCasesBuf
+            | registers =
+                Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
+            , lines = B.fromString "aa123\n456\n"
+            , cursor = ( 0, 1 )
+            , last = { emptyLast | inserts = "aa" }
+        }
+      )
+    , ( "dw"
+      , { dotRepeatCasesBuf
+            | lines = B.fromString "\n456\n"
+            , registers =
+                Dict.fromList [ ( ".", "dw" ) ]
+        }
+      )
+    , ( "dl."
+      , { dotRepeatCasesBuf
+            | lines = B.fromString "3\n456\n"
+            , registers =
+                Dict.fromList [ ( ".", "dl" ) ]
+        }
+      )
+    , ( "iaa<esc>."
+      , { dotRepeatCasesBuf
+            | registers =
+                Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
+            , lines = B.fromString "aaaa123\n456\n"
+            , cursor = ( 0, 2 )
+            , last = { emptyLast | inserts = "aa" }
+        }
+      )
+    , ( "iaa<c-o>hbb<esc>."
+      , { dotRepeatCasesBuf
+            | registers =
+                Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
+            , lines = B.fromString "abbbba123\n456\n"
+            , cursor = ( 0, 3 )
+            , last = { emptyLast | inserts = "bb" }
         }
       )
     ]
@@ -627,61 +696,91 @@ allCases :
         , name : String
         }
 allCases =
-    [ { name = "insert cases"
-      , cases = insertCases
-      , model = emptyBuffer
-      , map = identity
-      }
-    , { name = "motion cases"
-      , cases = motionCases
-      , model = motionCasesBuf
-      , map = (\buf -> { buf | cursorColumn = 0 })
-      }
-    , { name = "ex mode cases"
-      , cases = exModeCases
-      , model = emptyBuffer
-      , map =
-            (\buf ->
-                case buf.mode of
-                    Ex prefix exBuf ->
-                        { buf
-                            | mode =
-                                Ex prefix (Buf.clearHistory exBuf)
-                        }
+    let
+        defaultMap =
+            Buf.setRegister "." ""
+    in
+        [ { name = "insert cases"
+          , cases = insertCases
+          , model = emptyBuffer
+          , map = defaultMap
+          }
+        , { name = "motion cases"
+          , cases = motionCases
+          , model = motionCasesBuf
+          , map =
+                (\buf -> { buf | cursorColumn = 0 })
+                    >> defaultMap
+          }
+        , { name = "ex mode cases"
+          , cases = exModeCases
+          , model = emptyBuffer
+          , map =
+                (\buf ->
+                    case buf.mode of
+                        Ex prefix exBuf ->
+                            { buf
+                                | mode =
+                                    Ex prefix (Buf.clearHistory exBuf)
+                            }
 
-                    _ ->
-                        buf
-            )
-      }
-    , { name = "delete cases"
-      , cases = deleteCases
-      , model = deleteCasesBuf
-      , map = (\buf -> { buf | history = emptyBufferHistory })
-      }
-    , { name = "change cases"
-      , cases = changeCases
-      , model = changeCasesBuf
-      , map =
-            (\buf ->
-                { buf
-                    | history = emptyBufferHistory
-                    , continuation = ""
-                    , mode = Insert
-                }
-            )
-      }
-    , { name = "put cases"
-      , cases = putCases
-      , model = putCasesBuf
-      , map =
-            (\buf ->
-                { buf
-                    | history = emptyBufferHistory
-                    , continuation = ""
-                }
-            )
-      }
-    ]
+                        _ ->
+                            buf
+                )
+                    >> defaultMap
+          }
+        , { name = "delete cases"
+          , cases = deleteCases
+          , model = deleteCasesBuf
+          , map = Buf.clearHistory >> defaultMap
+          }
+        , { name = "change cases"
+          , cases = changeCases
+          , model = changeCasesBuf
+          , map =
+                (\buf ->
+                    { buf
+                        | continuation = ""
+                        , mode = Insert
+                    }
+                )
+                    >> Buf.clearHistory
+                    >> defaultMap
+          }
+        , { name = "put cases"
+          , cases = putCases
+          , model = putCasesBuf
+          , map =
+                (\buf -> { buf | continuation = "" })
+                    >> Buf.clearHistory
+                    >> defaultMap
+          }
+        , { name = "dot repeat cases"
+          , cases = dotRepeatCases
+          , model = dotRepeatCasesBuf
+          , map =
+                (\buf ->
+                    { emptyBuffer
+                        | registers =
+                            buf.registers
+                                |> Dict.get "."
+                                |> Maybe.map
+                                    (\s ->
+                                        Dict.fromList
+                                            [ ( "."
+                                              , s
+                                              )
+                                            ]
+                                    )
+                                |> Maybe.withDefault Dict.empty
+                        , last = buf.last
+                        , lines = buf.lines
+                        , cursor = buf.cursor
+                    }
+                )
+                    >> Buf.clearHistory
+          }
+        ]
 
 
 keysTest : (Buffer -> a) -> String -> Buffer -> Buffer -> Test

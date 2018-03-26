@@ -12,7 +12,8 @@ insertCommands =
     let
         define key op =
             (P.succeed
-                [ PushOperator <| op ]
+                [ PushOperator <| op
+                ]
             )
                 |. P.symbol key
 
@@ -34,35 +35,42 @@ insertCommands =
             , define "<c-w>" deleteWordBackward
             , define "<c-e>" <| InsertString CharBelowCursor
             , define "<c-y>" <| InsertString CharAbroveCursor
+            , define "<c-p>" (CompleteWord Backward)
+            , define "<c-n>" (CompleteWord Forward)
             , P.succeed
                 [ PopMode
                 , PushComplete
+                , PushKey "<inserts><esc>"
+                , PopKey
                 ]
                 |. P.symbol "<esc>"
             , P.succeed
                 (\ch ->
-                    let
-                        s =
-                            case ch of
-                                "<cr>" ->
-                                    "\n"
+                    if ch == "<inserts>" then
+                        [ RepeatLastInsert |> PushOperator ]
+                    else
+                        let
+                            s =
+                                case ch of
+                                    "<cr>" ->
+                                        "\n"
 
-                                "<tab>" ->
-                                    "\t"
+                                    "<tab>" ->
+                                        "\t"
 
-                                "<space>" ->
-                                    " "
+                                    "<space>" ->
+                                        " "
 
-                                _ ->
-                                    ch
-                    in
-                        if String.length s > 1 then
-                            []
-                        else
-                            [ TextLiteral s
-                                |> InsertString
-                                |> PushOperator
-                            ]
+                                    _ ->
+                                        ch
+                        in
+                            if String.length s > 1 then
+                                []
+                            else
+                                [ TextLiteral s
+                                    |> InsertString
+                                    |> PushOperator
+                                ]
                 )
                 |= keyParser
             ]
@@ -73,7 +81,9 @@ insertMode =
     let
         tempNormalMode =
             readKeyAndThen "<c-o>"
-                [ PushKey "<c-o>", PushMode ModeNameTempNormal ]
+                [ PushKey "<c-o>"
+                , PushMode ModeNameTempNormal
+                ]
                 (P.andThen
                     (\modeDelta ->
                         let
@@ -183,9 +193,7 @@ linebuffer prefix map =
                 ]
 
 
-textObject :
-    (TextObject -> Bool -> Operator)
-    -> Parser ModeDelta
+textObject : (TextObject -> Bool -> Operator) -> Parser ModeDelta
 textObject map =
     let
         define pair obj =
@@ -195,7 +203,7 @@ textObject map =
                         [ PushKey "i" ]
                         (P.succeed
                             [ map obj False |> PushOperator
-                            , PushKeys [ "i", pair ]
+                            , PushKey ("i" ++ pair)
                             , PushComplete
                             ]
                             |. P.symbol pair
@@ -204,7 +212,7 @@ textObject map =
                         [ PushKey "a" ]
                         (P.succeed
                             [ map obj True |> PushOperator
-                            , PushKeys [ "a", pair ]
+                            , PushKey ("a" ++ pair)
                             , PushComplete
                             ]
                             |. P.symbol pair
@@ -250,7 +258,7 @@ gKey map extra =
         define key md mo =
             P.succeed
                 [ PushOperator <| map md mo
-                , PushKeys [ "g", key ]
+                , PushKey ("g" ++ key)
                 , PushComplete
                 ]
                 |. P.symbol key
@@ -268,11 +276,17 @@ gKey map extra =
                 [ P.oneOf
                     [ define "g" (LineNumber 0) gotoLineOption
                     , define "j" (VLineDelta 1) gotoLineOption
+                        |> dontRecord
                     , define "k" (VLineDelta -1) gotoLineOption
+                        |> dontRecord
                     , define "n" MatchString (motionOption ">]+-")
+                        |> dontRecord
                     , define "N" MatchString (motionOption "<]+-")
+                        |> dontRecord
                     , define "e" WordEnd backwardWordEndOption
+                        |> dontRecord
                     , define "E" WORDEnd backwardWordEndOption
+                        |> dontRecord
                     ]
                 , extra
                 , P.succeed (makePushKeys "g" >> pushComplete)
@@ -291,7 +305,7 @@ gOperator =
             P.oneOf
                 [ define "J"
                     [ PushOperator <| Join True
-                    , PushKeys [ "g", "J" ]
+                    , PushKey "gJ"
                     , PushComplete
                     ]
                 ]
@@ -316,7 +330,7 @@ motion map gMotion =
                             , linewise = False
                             }
                             |> PushOperator
-                        , PushKeys [ trigger, ch ]
+                        , PushKey (trigger ++ ch)
                         , PushComplete
                         ]
                     )
@@ -324,12 +338,18 @@ motion map gMotion =
                 )
 
         define ch md mo =
-            P.succeed [ map md mo |> PushOperator, PushKey ch, PushComplete ]
+            P.succeed
+                [ map md mo |> PushOperator
+                , PushKey ch
+                , PushComplete
+                ]
                 |. P.symbol ch
 
         matchString prefix =
             readKeyAndThen prefix
-                [ PushKey prefix, PushMode <| ModeNameEx prefix ]
+                [ PushKey prefix
+                , PushMode <| ModeNameEx prefix
+                ]
                 (linebuffer prefix
                     (\cmd ->
                         if cmd == ExecuteLine then
@@ -380,6 +400,56 @@ motion map gMotion =
             )
 
 
+
+--recordKey : Parser ModeDelta -> Parser ModeDelta
+--recordKey =
+--    P.sourceMap
+--        (\s changes ->
+--            if isComplete changes then
+--                RecordKey s :: changes
+--            else
+--                changes
+--        )
+--
+--
+--recordKeyFinish : Parser ModeDelta -> Parser ModeDelta
+--recordKeyFinish =
+--    P.sourceMap
+--        (\s changes ->
+--            RecordKeyFinish s :: changes
+--        )
+--
+--
+
+
+dontRecord : Parser ModeDelta -> Parser ModeDelta
+dontRecord =
+    P.map
+        (\changes ->
+            PauseRecording :: changes ++ [ ContinueRecording ]
+        )
+
+
+alwaysRecord : Parser ModeDelta -> Parser ModeDelta
+alwaysRecord =
+    P.map
+        (\changes ->
+            List.filter
+                (\change ->
+                    case change of
+                        PauseRecording ->
+                            False
+
+                        ContinueRecording ->
+                            False
+
+                        _ ->
+                            True
+                )
+                changes
+        )
+
+
 operator : Bool -> Bool -> Parser ModeDelta
 operator isVisual isTemp =
     let
@@ -392,7 +462,7 @@ operator isVisual isTemp =
                 |. P.symbol key
             )
 
-        startInsert =
+        startInsert key =
             P.oneOf
                 [ P.succeed
                     [ PushMode ModeNameInsert ]
@@ -405,12 +475,15 @@ operator isVisual isTemp =
         defineInsert key op =
             (P.succeed identity
                 |. P.symbol key
-                |= startInsert
+                |= startInsert key
             )
                 |> P.map ((++) (op ++ [ PushKey key ]))
                 |> completeAndThen popKey
 
-        operatorRange : Key -> (OperatorRange -> Operator) -> Parser ModeDelta
+        operatorRange :
+            Key
+            -> (OperatorRange -> Operator)
+            -> Parser ModeDelta
         operatorRange key map =
             let
                 toOperator md mo =
@@ -418,11 +491,12 @@ operator isVisual isTemp =
 
                 define ch md mo =
                     P.succeed
-                        [ toOperator md mo
+                        ([ toOperator md mo
                             |> PushOperator
-                        , PushKey ch
-                        , PushComplete
-                        ]
+                         , PushKey ch
+                         , PushComplete
+                         ]
+                        )
                         |. P.symbol ch
 
                 motionParser =
@@ -456,10 +530,10 @@ operator isVisual isTemp =
         operatorVisualRange key map =
             readKeysAndThen
                 [ "v", "V", "<c-v>" ]
-                (\key1 -> [ PushKeys [ key, key1 ] ])
+                (\key1 -> [ PushKey (key ++ key1) ])
                 (\key1 ->
                     (P.map
-                        ((::) (PushKeys [ key, key1 ]))
+                        ((::) (PushKey (key ++ key1)))
                         (operatorRange key <| flipInclusive >> map)
                     )
                 )
@@ -491,7 +565,7 @@ operator isVisual isTemp =
                 |> completeAndThen
                     (\modeDelta ->
                         if key == "c" then
-                            startInsert
+                            startInsert key
                                 |> P.map ((++) (popComplete modeDelta))
                                 |> completeAndThen popKey
                         else
@@ -520,6 +594,7 @@ operator isVisual isTemp =
 
         registerPrefix =
             registerParser
+                |> dontRecord
                 |> P.andThen
                     (\modeDelta ->
                         (P.oneOf
@@ -533,123 +608,142 @@ operator isVisual isTemp =
                     )
     in
         P.oneOf
-            ([ (if isVisual then
-                    textObject Select
-                else
-                    P.oneOf []
-               )
-             , motion Move (P.oneOf [])
-             , registerPrefix
-             , countPrefix
-             , defineInsert "i" []
-             , defineInsert "I"
-                [ motionOption "<)$-"
-                    |> Move LineFirst
-                    |> PushOperator
+            ((if isVisual then
+                [ textObject Select
+                , defineInsert "o" [ PushOperator VisualSwitchEnd ]
+                , defineInsert "O" [ PushOperator VisualSwitchEnd ]
+                , motion Move (P.oneOf [])
                 ]
-             , defineInsert "a"
-                [ motionOption ">)$-"
-                    |> Move CharStart
-                    |> PushOperator
-                ]
-             , defineInsert "A"
-                [ motionOption ">]$-"
-                    |> Move LineEnd
-                    |> PushOperator
-                ]
-             , defineInsert "C"
-                [ motionOption ">]$-"
-                    |> MotionRange LineEnd
-                    |> Delete
-                    |> PushOperator
-                ]
-             , defineInsert "s"
-                [ motionOption ">)$-"
-                    |> MotionRange CharStart
-                    |> Delete
-                    |> PushOperator
-                ]
-             , defineInsert "S"
-                [ TextObject Line False |> Delete |> PushOperator ]
-             , defineInsert "o" [ OpenNewLine Forward |> PushOperator ]
-             , defineInsert "O" [ OpenNewLine Backward |> PushOperator ]
-             , defineOperator "d"
-                Delete
-                (Delete <| TextObject Line True)
-             , defineOperator "c"
-                Delete
-                (Delete <| TextObject Line False)
-             , defineOperator "y"
-                Yank
-                (Yank <| TextObject Line True)
-             , defineOperator ">"
-                (Indent Forward)
-                (Indent Forward <| TextObject Line False)
-             , defineOperator "\\<"
-                (Indent Backward)
-                (Indent Backward <| TextObject Line False)
-             , readKeyAndThen ":"
-                [ PushKey ":", PushMode <| ModeNameEx ":" ]
-                (linebuffer ":" identity)
-             , readKeyAndThen "@"
-                [ PushKey "@" ]
-                (P.map
-                    (\key ->
-                        if isRegister key then
-                            [ PushKeys [ "@", key ]
-                            , ReplayMacro key |> PushOperator
-                            , PushComplete
-                            ]
-                        else
-                            []
-                    )
-                    keyParser
-                )
-             , define "D"
-                (motionOption ">]$-"
-                    |> MotionRange LineEnd
-                    |> Delete
-                )
-             , define "<c-o>" (JumpHistory Backward)
-             , define "<tab>" (JumpHistory Forward)
-             , define "<c-u>" (JumpByView -0.5)
-             , define "<c-d>" (JumpByView 0.5)
-             , define "<c-f>" (JumpByView 1)
-             , define "<c-b>" (JumpByView -1)
-             , define "<c-y>" (Scroll <| ScrollBy -1)
-             , define "<c-e>" (Scroll <| ScrollBy 1)
-             , define "<c-p>" (CompleteWord Backward)
-             , define "<c-n>" (CompleteWord Forward)
-             , define "J" (Join False)
-             , define "x"
-                (motionOption ">)$-"
-                    |> MotionRange CharStart
-                    |> Delete
-                )
-             , define "X"
-                (motionOption "<)$-"
-                    |> MotionRange CharStart
-                    |> Delete
-                )
-             , define "p" (Put True)
-             , define "P" (Put False)
-             , readKeyAndThen "z"
-                [ PushKey "z" ]
-                (P.oneOf
-                    [ define "z" <| Scroll ScrollToMiddle
-                    , define "b" <| Scroll ScrollToBottom
-                    , define "t" <| Scroll ScrollToTop
+              else
+                [ defineInsert "i" []
+                , motion Move (P.oneOf [])
+                    |> dontRecord
+                , defineInsert "a"
+                    [ motionOption ">)$-"
+                        |> Move CharStart
+                        |> PushOperator
                     ]
-                )
-             , gOperator
-             , P.lazy (\_ -> macro isVisual)
-             , P.lazy (\_ -> visual)
-             ]
+                , defineInsert "S"
+                    [ TextObject Line False |> Delete |> PushOperator ]
+                , defineInsert "o" [ OpenNewLine Forward |> PushOperator ]
+                , defineInsert "O" [ OpenNewLine Backward |> PushOperator ]
+                ]
+             )
+                ++ [ registerPrefix
+                   , countPrefix
+                   , defineInsert "I"
+                        [ motionOption "<)$-"
+                            |> Move LineFirst
+                            |> PushOperator
+                        ]
+                   , defineInsert "A"
+                        [ motionOption ">]$-"
+                            |> Move LineEnd
+                            |> PushOperator
+                        ]
+                   , defineInsert "C"
+                        [ motionOption ">]$-"
+                            |> MotionRange LineEnd
+                            |> Delete
+                            |> PushOperator
+                        ]
+                   , defineInsert "s"
+                        [ motionOption ">)$-"
+                            |> MotionRange CharStart
+                            |> Delete
+                            |> PushOperator
+                        ]
+                   , defineOperator "d"
+                        Delete
+                        (Delete <| TextObject Line True)
+                   , defineOperator "c"
+                        Delete
+                        (Delete <| TextObject Line False)
+                   , defineOperator "y"
+                        Yank
+                        (Yank <| TextObject Line True)
+                   , defineOperator ">"
+                        (Indent Forward)
+                        (Indent Forward <| TextObject Line False)
+                   , defineOperator "\\<"
+                        (Indent Backward)
+                        (Indent Backward <| TextObject Line False)
+                   , readKeyAndThen ":"
+                        [ PushKey ":", PushMode <| ModeNameEx ":" ]
+                        (linebuffer ":" identity)
+                        |> dontRecord
+                   , readKeyAndThen "@"
+                        [ PushKey "@" ]
+                        (P.map
+                            (\key ->
+                                if isRegister key then
+                                    [ PushKey ("@" ++ key)
+                                    , ReplayMacro key |> PushOperator
+                                    , PushComplete
+                                    ]
+                                else
+                                    []
+                            )
+                            keyParser
+                        )
+                        |> dontRecord
+                   , define "D"
+                        (motionOption ">]$-"
+                            |> MotionRange LineEnd
+                            |> Delete
+                        )
+                   , define "<c-o>" (JumpHistory Backward)
+                        |> dontRecord
+                   , define "<tab>" (JumpHistory Forward)
+                        |> dontRecord
+                   , define "<c-u>" (JumpByView -0.5)
+                        |> dontRecord
+                   , define "<c-d>" (JumpByView 0.5)
+                        |> dontRecord
+                   , define "<c-f>" (JumpByView 1)
+                        |> dontRecord
+                   , define "<c-b>" (JumpByView -1)
+                        |> dontRecord
+                   , define "<c-y>" (Scroll <| ScrollBy -1)
+                        |> dontRecord
+                   , define "<c-e>" (Scroll <| ScrollBy 1)
+                        |> dontRecord
+                   , define "J" (Join False)
+                   , define "x"
+                        (motionOption ">)$-"
+                            |> MotionRange CharStart
+                            |> Delete
+                        )
+                   , define "X"
+                        (motionOption "<)$-"
+                            |> MotionRange CharStart
+                            |> Delete
+                        )
+                   , define "p" (Put True)
+                        |> dontRecord
+                   , define "P" (Put False)
+                        |> dontRecord
+                   , define "." RepeatLastOperator
+                        |> dontRecord
+                   , readKeyAndThen "z"
+                        [ PushKey "z" ]
+                        (P.oneOf
+                            [ define "z" <| Scroll ScrollToMiddle
+                            , define "b" <| Scroll ScrollToBottom
+                            , define "t" <| Scroll ScrollToTop
+                            ]
+                        )
+                   , gOperator
+                   , P.lazy (\_ -> macro isVisual)
+                   , P.lazy (\_ -> visual)
+                   ]
                 ++ if isTemp then
                     [ P.map ((++) [ PopMode, PopKey ]) insertMode ]
                    else
                     [ define "u" Undo
+                        |> dontRecord
                     , define "<c-r>" Redo
+                        |> dontRecord
                     ]
             )
 
@@ -725,9 +819,10 @@ macro isVisual =
                 (\key ->
                     if isRegister key then
                         P.succeed
-                            [ PushKeys [ "q", key ]
+                            [ PushKey ("q" ++ key)
                             , PushRecordMacro key
                             ]
+                            |> dontRecord
                     else
                         P.fail ("unknown register: " ++ key)
                 )
@@ -760,12 +855,20 @@ parse lastKeys key =
             modeDelta =
                 P.run (completeAndThen popKey <| operator False False) keys
                     |> Result.withDefault []
+
+            continuation =
+                aggregateKeys modeDelta
         in
             ( { count = aggregateCount modeDelta
               , edit = aggregateOperator modeDelta
               , register = aggregateRegister modeDelta
               , modeName = aggregateModeName modeDelta
               , recordMacro = aggregateRecordingMacro modeDelta
+              , recordKeys =
+                    if String.isEmpty continuation then
+                        aggregateRecordKeys modeDelta
+                    else
+                        ""
               }
-            , aggregateKeys modeDelta
+            , continuation
             )

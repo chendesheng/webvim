@@ -43,6 +43,7 @@ cases =
                 motionOption ">)+="
                     |> Move (LineNumber 0)
                     |> Just
+            , recordKeys = "gg"
           }
         , ""
         )
@@ -63,6 +64,7 @@ cases =
     , ( "gJ"
       , ( { initialMode
             | edit = Join True |> Just
+            , recordKeys = "gJ"
           }
         , ""
         )
@@ -73,7 +75,12 @@ cases =
       , ( { initialMode | modeName = ModeNameInsert }, "i" )
       )
     , ( "i<esc>"
-      , ( { initialMode | modeName = ModeNameNormal }, "" )
+      , ( { initialMode
+            | modeName = ModeNameNormal
+            , recordKeys = "i<inserts><esc>"
+          }
+        , ""
+        )
       )
     , ( "ia"
       , ( { initialMode
@@ -111,8 +118,12 @@ cases =
         , "cvw"
         )
       )
-    , ( "cw<esc>", ( initialMode, "" ) )
-    , ( "cvw<esc>", ( initialMode, "" ) )
+    , ( "cw<esc>"
+      , ( { initialMode | recordKeys = "cw<inserts><esc>" }, "" )
+      )
+    , ( "cvw<esc>"
+      , ( { initialMode | recordKeys = "cvw<inserts><esc>" }, "" )
+      )
     , ( "cwa"
       , ( { initialMode
             | modeName = ModeNameInsert
@@ -160,6 +171,7 @@ cases =
                     |> MotionRange WordStart
                     |> Delete
                     |> Just
+            , recordKeys = "dw"
           }
         , ""
         )
@@ -172,6 +184,7 @@ cases =
                     |> MotionRange WordStart
                     |> Delete
                     |> Just
+            , recordKeys = "dvw"
           }
         , ""
         )
@@ -185,6 +198,7 @@ cases =
                     |> MotionRange WordStart
                     |> Indent Backward
                     |> Just
+            , recordKeys = "\\<w"
           }
         , ""
         )
@@ -197,12 +211,18 @@ cases =
                     |> MotionRange WordStart
                     |> Indent Backward
                     |> Just
+            , recordKeys = "\\<vw"
           }
         , ""
         )
       )
     , ( "J"
-      , ( { initialMode | edit = Join False |> Just }, "" )
+      , ( { initialMode
+            | edit = Join False |> Just
+            , recordKeys = "J"
+          }
+        , ""
+        )
       )
 
     -- ex
@@ -341,7 +361,7 @@ cases =
       , ( { initialMode
             | register = "a"
             , modeName = ModeNameInsert
-            , edit = Put True |> Just
+            , edit = Put False |> Just
           }
         , "i"
         )
@@ -492,7 +512,7 @@ cases =
       , ( { initialMode
             | register = "a"
             , modeName = ModeNameInsert
-            , edit = Put True |> Just
+            , edit = Put False |> Just
           }
         , "i"
         )
@@ -583,6 +603,7 @@ cases =
     , ( "vd"
       , ( { initialMode
             | edit = Delete VisualRange |> Just
+            , recordKeys = "vd"
           }
         , ""
         )

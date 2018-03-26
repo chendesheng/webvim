@@ -17,7 +17,6 @@ defaultRegister =
 type StateChange
     = PopKey
     | PushKey String
-    | PushKeys (List String)
     | PushMode ModeName
     | PopMode
     | PushOperator Operator
@@ -29,6 +28,8 @@ type StateChange
     | PushRegister Register
     | PushCount Int
     | PopCount
+    | PauseRecording
+    | ContinueRecording
 
 
 type alias ModeDelta =
@@ -79,7 +80,10 @@ type Operator
     | Redo
     | ReplayMacro Register
     | InsertString StringType
+    | RepeatLastInsert
+    | RepeatLastVisual
     | RepeatLastOperator
+    | VisualSwitchEnd
       -- for line buffer
     | InsertWordUnderCursor
     | ExecuteLine
@@ -112,6 +116,7 @@ type alias AST =
     , register : Register
     , modeName : ModeName
     , recordMacro : Maybe Register
+    , recordKeys : String
     }
 
 
@@ -122,6 +127,7 @@ initialMode =
     , register = defaultRegister
     , modeName = ModeNameNormal
     , recordMacro = Nothing
+    , recordKeys = ""
     }
 
 

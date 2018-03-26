@@ -86,7 +86,7 @@ type alias Buffer =
                 , forward : Bool
                 }
         , matchString : Maybe ( String, Bool )
-        , operator : Maybe String
+        , inserts : String
         }
     }
 
@@ -124,7 +124,7 @@ emptyBuffer =
     , last =
         { matchChar = Nothing
         , matchString = Nothing
-        , operator = Nothing
+        , inserts = ""
         }
     }
 
