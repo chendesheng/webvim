@@ -688,6 +688,57 @@ dotRepeatCases =
     ]
 
 
+visualModeCasesBuf : Buffer
+visualModeCasesBuf =
+    { emptyBuffer | lines = B.fromString "123\n456\n" }
+
+
+visualModeCases : List ( String, Buffer )
+visualModeCases =
+    [ ( "v"
+      , { visualModeCasesBuf
+            | mode = Visual VisualRange ( 0, 0 ) ( 0, 0 )
+        }
+      )
+    , ( "V"
+      , { visualModeCasesBuf
+            | mode = Visual VisualLine ( 0, 0 ) ( 0, 0 )
+        }
+      )
+    , ( "<c-v>"
+      , { visualModeCasesBuf
+            | mode = Visual VisualBlock ( 0, 0 ) ( 0, 0 )
+        }
+      )
+    , ( "vv"
+      , visualModeCasesBuf
+      )
+    , ( "vw"
+      , { visualModeCasesBuf
+            | mode = Visual VisualRange ( 0, 0 ) ( 1, 0 )
+            , cursor = ( 1, 0 )
+        }
+      )
+    , ( "vwl"
+      , { visualModeCasesBuf
+            | mode = Visual VisualRange ( 0, 0 ) ( 1, 1 )
+            , cursor = ( 1, 1 )
+            , cursorColumn = 1
+        }
+      )
+    , ( "lvh"
+      , { visualModeCasesBuf
+            | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
+        }
+      )
+    , ( "vlo"
+      , { visualModeCasesBuf
+            | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
+        }
+      )
+    ]
+
+
 allCases :
     List
         { cases : List ( String, Buffer )
@@ -777,6 +828,22 @@ allCases =
                         , lines = buf.lines
                         , cursor = buf.cursor
                     }
+                )
+                    >> Buf.clearHistory
+          }
+        , { name = "visual mode cases"
+          , cases = visualModeCases
+          , model = visualModeCasesBuf
+          , map =
+                (\buf ->
+                    let
+                        view =
+                            buf.view
+                    in
+                        { buf
+                            | continuation = ""
+                            , view = { view | scrollTop = 0 }
+                        }
                 )
                     >> Buf.clearHistory
           }

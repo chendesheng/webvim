@@ -583,12 +583,33 @@ operator isVisual isTemp =
                                 ]
                         in
                             (P.oneOf
-                                [ operator isVisual False
-                                    |> P.map ((++) modeDelta)
-                                    |> completeAndThen popKey
-                                , P.map (always modeDelta) P.end
-                                , P.succeed []
-                                ]
+                                ((if isVisual then
+                                    [ visualMotion
+                                        |> P.map ((++) modeDelta)
+                                        |> completeAndThen
+                                            (\changes ->
+                                                changes
+                                                    ++ [ PopComplete
+
+                                                       --pop count key
+                                                       , PopKey
+
+                                                       -- pop motion key
+                                                       , PopKey
+                                                       ]
+                                                    |> P.succeed
+                                            )
+                                    ]
+                                  else
+                                    []
+                                 )
+                                    ++ [ operator isVisual False
+                                            |> P.map ((++) modeDelta)
+                                            |> completeAndThen popKey
+                                       , P.map (always modeDelta) P.end
+                                       , P.succeed []
+                                       ]
+                                )
                             )
                     )
 
@@ -606,13 +627,19 @@ operator isVisual isTemp =
                             ]
                         )
                     )
+
+        visualMotion =
+            P.oneOf
+                [ textObject Select
+                , motion Move (P.oneOf [])
+                ]
     in
         P.oneOf
             ((if isVisual then
-                [ textObject Select
-                , defineInsert "o" [ PushOperator VisualSwitchEnd ]
-                , defineInsert "O" [ PushOperator VisualSwitchEnd ]
-                , motion Move (P.oneOf [])
+                [ visualMotion
+                    |> completeAndThen (popComplete >> popKey)
+                , define "o" VisualSwitchEnd
+                , define "O" VisualSwitchEnd
                 ]
               else
                 [ defineInsert "i" []
@@ -629,8 +656,8 @@ operator isVisual isTemp =
                 , defineInsert "O" [ OpenNewLine Backward |> PushOperator ]
                 ]
              )
-                ++ [ registerPrefix
-                   , countPrefix
+                ++ [ countPrefix
+                   , registerPrefix
                    , defineInsert "I"
                         [ motionOption "<)$-"
                             |> Move LineFirst
@@ -804,7 +831,15 @@ visual =
                             )
                             |= (operator True False
                                     |> completeAndThen
-                                        (popComplete >> popKey)
+                                        (\changes ->
+                                            ([ PushKey "<visual>", PopKey ]
+                                                ++ changes
+                                                ++ [ PopComplete
+                                                   , PopKey
+                                                   ]
+                                            )
+                                                |> P.succeed
+                                        )
                                )
                         ]
                 )

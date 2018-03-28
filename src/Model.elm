@@ -26,7 +26,7 @@ type VisualType
 
 type Mode
     = Normal
-    | Visual VisualType (List ( Position, Position ))
+    | Visual VisualType Position Position
     | Insert
     | TempNormal
     | Ex String Buffer

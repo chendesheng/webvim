@@ -548,13 +548,29 @@ cases =
       , ( { initialMode | modeName = ModeNameVisual VisualNameLine }, "V" )
       )
     , ( "<c-v>"
-      , ( { initialMode | modeName = ModeNameVisual VisualNameBlock }, "<c-v>" )
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualNameBlock
+          }
+        , "<c-v>"
+        )
       )
     , ( "vV"
       , ( { initialMode | modeName = ModeNameVisual VisualNameLine }, "V" )
       )
+    , ( "vo"
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualName
+            , edit = Just VisualSwitchEnd
+          }
+        , "v"
+        )
+      )
     , ( "v<c-v>"
-      , ( { initialMode | modeName = ModeNameVisual VisualNameBlock }, "<c-v>" )
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualNameBlock
+          }
+        , "<c-v>"
+        )
       )
     , ( "Vv"
       , ( { initialMode | modeName = ModeNameVisual VisualName }, "v" )
@@ -603,9 +619,34 @@ cases =
     , ( "vd"
       , ( { initialMode
             | edit = Delete VisualRange |> Just
-            , recordKeys = "vd"
+            , recordKeys = "v<visual>d"
           }
         , ""
+        )
+      )
+    , ( "vaw"
+      , ( { initialMode
+            | edit = Select Word True |> Just
+            , modeName = ModeNameVisual VisualName
+          }
+        , "v"
+        )
+      )
+    , ( "v10f"
+      , ( { initialMode
+            | count = 10
+            , modeName = ModeNameVisual VisualName
+          }
+        , "v10f"
+        )
+      )
+    , ( "v10fm"
+      , ( { initialMode
+            | edit = Move (MatchChar "m" False) (motionOption ">]$-") |> Just
+            , count = 10
+            , modeName = ModeNameVisual VisualName
+          }
+        , "v"
         )
       )
     , ( "vc"

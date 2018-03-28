@@ -107,6 +107,26 @@ deleteOperator range buf =
                 Nothing ->
                     Nothing
 
+        V.VisualRange ->
+            case buf.mode of
+                Visual _ begin end ->
+                    let
+                        ( endy, endx ) =
+                            end
+                    in
+                        Just
+                            { pos = Nothing
+                            , patches =
+                                [ Deletion begin
+                                    ( endy
+                                    , endx + 1
+                                    )
+                                ]
+                            }
+
+                _ ->
+                    Nothing
+
         _ ->
             Nothing
 
@@ -327,8 +347,8 @@ runMotion md mo buf =
                         buf.lines
 
 
-emptyMode : V.ModeName -> Mode
-emptyMode modeName =
+initMode : Buffer -> V.ModeName -> Mode
+initMode { cursor, mode } modeName =
     case modeName of
         V.ModeNameNormal ->
             Normal
@@ -347,8 +367,25 @@ emptyMode modeName =
                     ]
                 |> Ex prefix
 
-        V.ModeNameVisual _ ->
-            Visual VisualRange []
+        V.ModeNameVisual tipe ->
+            let
+                ( begin, end ) =
+                    case mode of
+                        Visual _ a b ->
+                            ( a, b )
+
+                        _ ->
+                            ( cursor, cursor )
+            in
+                case tipe of
+                    V.VisualNameLine ->
+                        Visual VisualLine begin end
+
+                    V.VisualNameBlock ->
+                        Visual VisualBlock begin end
+
+                    _ ->
+                        Visual VisualRange begin end
 
 
 getModeName : Mode -> V.ModeName
@@ -363,7 +400,7 @@ getModeName mode =
         TempNormal ->
             V.ModeNameTempNormal
 
-        Visual tipe _ ->
+        Visual tipe _ _ ->
             V.ModeNameVisual
                 (case tipe of
                     VisualRange ->
@@ -390,7 +427,7 @@ updateMode modeName buf =
             if oldModeName == modeName then
                 buf.mode
             else
-                emptyMode modeName
+                initMode buf modeName
     in
         { buf | mode = newMode }
 
@@ -568,6 +605,16 @@ saveMotion operator buf =
         { buf | last = last1 }
 
 
+setVisualEnd : Position -> Buffer -> Buffer
+setVisualEnd pos buf =
+    case buf.mode of
+        Visual tipe begin end ->
+            { buf | mode = Visual tipe begin buf.cursor }
+
+        _ ->
+            buf
+
+
 runOperator : String -> Operator -> Buffer -> Buffer
 runOperator register operator buf =
     case operator of
@@ -576,6 +623,7 @@ runOperator register operator buf =
                 Just cursor ->
                     buf
                         |> Buf.setCursor cursor (isSaveColumn md)
+                        |> setVisualEnd cursor
                         |> saveMotion operator
 
                 Nothing ->
@@ -741,6 +789,18 @@ runOperator register operator buf =
 
         RepeatLastInsert ->
             replayKeys buf.last.inserts buf
+
+        VisualSwitchEnd ->
+            case buf.mode of
+                Visual tipe begin end ->
+                    { buf
+                        | mode = Visual tipe end begin
+                        , cursor = begin
+                        , cursorColumn = Tuple.second begin
+                    }
+
+                _ ->
+                    buf
 
         _ ->
             buf

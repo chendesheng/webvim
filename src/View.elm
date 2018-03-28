@@ -4,8 +4,19 @@ import Html exposing (..)
 import Model exposing (..)
 import Internal.TextBuffer as B
 import Array
+import List
 import Html.Attributes exposing (..)
 import Position exposing (Position)
+
+
+rem : number -> String
+rem n =
+    toString n ++ "rem"
+
+
+ch : number -> String
+ch n =
+    toString n ++ "ch"
 
 
 view : Model -> Html msg
@@ -19,11 +30,7 @@ view { mode, cursor, lines, continuation, view } =
 
         translate x y =
             ( "transform"
-            , "translate("
-                ++ toString x
-                ++ "ch, "
-                ++ toString y
-                ++ "rem)"
+            , "translate(" ++ ch x ++ ", " ++ rem y ++ ")"
             )
 
         scrollTop =
@@ -58,10 +65,20 @@ view { mode, cursor, lines, continuation, view } =
                                 )
                             |> Array.toList
                          )
-                            ++ if statusBar.cursor == Nothing then
-                                [ renderCursor cursor ]
-                               else
-                                []
+                            ++ (if statusBar.cursor == Nothing then
+                                    [ renderCursor cursor ]
+                                else
+                                    []
+                               )
+                            ++ [ div [ class "selections" ]
+                                    (case mode of
+                                        Visual tipe begin end ->
+                                            renderRange tipe begin end
+
+                                        _ ->
+                                            []
+                                    )
+                               ]
                         )
                     ]
                 ]
@@ -81,14 +98,8 @@ renderCursor ( y, x ) =
     div
         [ class "cursor"
         , style
-            [ ( "left", (toString x) ++ "ch" )
-            , ( "top"
-              , (y
-                    |> toFloat
-                    |> toString
-                )
-                    ++ "rem"
-              )
+            [ ( "left", ch x )
+            , ( "top", rem y )
             ]
         ]
         []
@@ -102,8 +113,17 @@ getStatusBar mode =
             , cursor = Nothing
             }
 
-        Visual _ _ ->
-            { text = "-- Visual --"
+        Visual tipe _ _ ->
+            { text =
+                case tipe of
+                    VisualLine ->
+                        "-- Visual Line --"
+
+                    VisualBlock ->
+                        "-- Visual Block --"
+
+                    _ ->
+                        "-- Visual --"
             , cursor = Nothing
             }
 
@@ -121,3 +141,46 @@ getStatusBar mode =
             { text = B.toString buffer.lines
             , cursor = Just buffer.cursor
             }
+
+
+renderRange : VisualType -> Position -> Position -> List (Html msg)
+renderRange tipe begin end =
+    let
+        ( by, bx ) =
+            Basics.min begin end
+
+        ( ey, ex ) =
+            Basics.max begin end
+    in
+        List.range by ey
+            |> List.map
+                (\row ->
+                    let
+                        ( a, b ) =
+                            case tipe of
+                                VisualLine ->
+                                    ( 0, 1000000 )
+
+                                VisualBlock ->
+                                    ( bx, ex )
+
+                                _ ->
+                                    if by == ey then
+                                        ( bx, ex )
+                                    else if row == by then
+                                        ( bx, 10000 )
+                                    else if row == ey then
+                                        ( 0, ex )
+                                    else
+                                        ( 0, 1000000 )
+                    in
+                        (div
+                            [ style
+                                [ ( "left", ch a )
+                                , ( "top", rem row )
+                                , ( "width", ch <| b - a + 1 )
+                                ]
+                            ]
+                            []
+                        )
+                )
