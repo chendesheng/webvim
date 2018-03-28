@@ -677,6 +677,14 @@ cases =
         , "vC"
         )
       )
+    , ( "v<visual>"
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualName
+            , edit = Just RepeatLastVisual
+          }
+        , "v"
+        )
+      )
 
     -- template
     , ( ""

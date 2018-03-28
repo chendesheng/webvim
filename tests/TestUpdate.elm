@@ -326,6 +326,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -341,6 +342,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -356,6 +358,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -371,6 +374,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -386,6 +390,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -401,6 +406,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -416,6 +422,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -431,6 +438,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -446,6 +454,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -461,6 +470,7 @@ motionCases =
                         }
                 , matchString = Nothing
                 , inserts = ""
+                , visual = ""
                 }
         }
       )
@@ -627,11 +637,13 @@ emptyLast :
     { matchChar : Maybe a
     , matchString : Maybe a1
     , inserts : String
+    , visual : String
     }
 emptyLast =
     { matchChar = Nothing
     , matchString = Nothing
     , inserts = ""
+    , visual = ""
     }
 
 
@@ -717,6 +729,7 @@ visualModeCases =
       , { visualModeCasesBuf
             | mode = Visual VisualRange ( 0, 0 ) ( 1, 0 )
             , cursor = ( 1, 0 )
+            , last = { emptyLast | visual = "w" }
         }
       )
     , ( "vwl"
@@ -724,16 +737,19 @@ visualModeCases =
             | mode = Visual VisualRange ( 0, 0 ) ( 1, 1 )
             , cursor = ( 1, 1 )
             , cursorColumn = 1
+            , last = { emptyLast | visual = "wl" }
         }
       )
     , ( "lvh"
       , { visualModeCasesBuf
             | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
+            , last = { emptyLast | visual = "h" }
         }
       )
     , ( "vlo"
       , { visualModeCasesBuf
             | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
+            , last = { emptyLast | visual = "lo" }
         }
       )
     ]

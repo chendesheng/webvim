@@ -109,13 +109,19 @@ deleteOperator range buf =
 
         V.VisualRange ->
             case buf.mode of
-                Visual _ begin end ->
+                Visual _ a b ->
                     let
+                        begin =
+                            min a b
+
+                        end =
+                            max a b
+
                         ( endy, endx ) =
                             end
                     in
                         Just
-                            { pos = Nothing
+                            { pos = Just ( begin, True )
                             , patches =
                                 [ Deletion begin
                                     ( endy
@@ -790,6 +796,9 @@ runOperator register operator buf =
         RepeatLastInsert ->
             replayKeys buf.last.inserts buf
 
+        RepeatLastVisual ->
+            replayKeys buf.last.visual buf
+
         VisualSwitchEnd ->
             case buf.mode of
                 Visual tipe begin end ->
@@ -915,6 +924,16 @@ replayKeys s buf =
         }
 
 
+isModeNameVisual : V.ModeName -> Bool
+isModeNameVisual name =
+    case name of
+        V.ModeNameVisual _ ->
+            True
+
+        _ ->
+            False
+
+
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress replaying key buf =
     let
@@ -940,6 +959,30 @@ handleKeypress replaying key buf =
 
                     s ->
                         Buf.setRegister "." s buf
+
+        saveLastVisual buf =
+            if replaying || key == "<visual>" then
+                buf
+            else
+                let
+                    last =
+                        buf.last
+
+                    last1 =
+                        if
+                            (isModeNameVisual oldModeName)
+                                && (isModeNameVisual modeName)
+                        then
+                            { last | visual = last.visual ++ key }
+                        else if
+                            (isModeNameVisual oldModeName |> not)
+                                && (isModeNameVisual modeName)
+                        then
+                            { last | visual = "" }
+                        else
+                            last
+                in
+                    { buf | last = last1 }
 
         saveLastInsert buf =
             if replaying || key == "<inserts>" then
@@ -974,6 +1017,7 @@ handleKeypress replaying key buf =
             |> modeChanged oldModeName modeName
             |> scrollToCursor
             |> saveLastInsert
+            |> saveLastVisual
             |> saveDotRegister
         , Cmd.none
         )

@@ -802,6 +802,12 @@ visual =
                 (\key ->
                     P.oneOf
                         [ P.succeed
+                            [ key2mode key |> PushMode
+                            , PushOperator RepeatLastVisual
+                            , PushKey key
+                            ]
+                            |. P.symbol "<visual>"
+                        , P.succeed
                             (\key1 ->
                                 if key1 == key || key1 == "<esc>" then
                                     []

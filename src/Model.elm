@@ -87,6 +87,7 @@ type alias Buffer =
                 }
         , matchString : Maybe ( String, Bool )
         , inserts : String
+        , visual : String
         }
     }
 
@@ -125,6 +126,7 @@ emptyBuffer =
         { matchChar = Nothing
         , matchString = Nothing
         , inserts = ""
+        , visual = ""
         }
     }
 
