@@ -165,7 +165,7 @@ linebuffer prefix map =
         P.succeed ((++) [ PushKey prefix, PushMode <| ModeNameEx prefix ])
             |= P.oneOf
                 [ P.succeed
-                    [ ExecuteLine |> map |> PushOperator
+                    [ Execute |> map |> PushOperator
                     , PopMode
                     , PushComplete
                     ]
@@ -352,7 +352,7 @@ motion map gMotion =
                 ]
                 (linebuffer prefix
                     (\cmd ->
-                        if cmd == ExecuteLine then
+                        if cmd == Execute then
                             let
                                 option =
                                     motionOption ">)+-"

@@ -113,10 +113,14 @@ html, body {
 
 .selections {
 }
-.selections div {
+.highlights div, .selections div {
   height: @line-height;
   position: absolute;
   background: #fff;
   opacity: 0.3;
   z-index: 100;
+}
+
+.highlights div {
+  background: #ff0;
 }

@@ -70,15 +70,38 @@ view { mode, cursor, lines, continuation, view } =
                                 else
                                     []
                                )
-                            ++ [ div [ class "selections" ]
-                                    (case mode of
-                                        Visual tipe begin end ->
-                                            renderRange tipe begin end lines
+                            ++ (case mode of
+                                    Visual tipe begin end ->
+                                        [ div [ class "selections" ]
+                                            (renderRange tipe begin end lines)
+                                        ]
 
-                                        _ ->
-                                            []
-                                    )
-                               ]
+                                    Ex prefix _ ->
+                                        case prefix of
+                                            ExSearch _ range ->
+                                                case range of
+                                                    Just ( begin, end ) ->
+                                                        [ div
+                                                            [ class
+                                                                "highlights"
+                                                            ]
+                                                            (renderRange
+                                                                VisualRange
+                                                                begin
+                                                                end
+                                                                lines
+                                                            )
+                                                        ]
+
+                                                    _ ->
+                                                        []
+
+                                            _ ->
+                                                []
+
+                                    _ ->
+                                        []
+                               )
                         )
                     ]
                 ]

@@ -83,7 +83,15 @@ foldlLines f a (TextBuffer buf) =
 
 getLine : Int -> TextBuffer -> Maybe String
 getLine n (TextBuffer buf) =
-    Array.get n buf
+    case Array.get n buf of
+        Just s ->
+            if s == "" then
+                Nothing
+            else
+                Just s
+
+        _ ->
+            Nothing
 
 
 getLastLine : Array String -> String

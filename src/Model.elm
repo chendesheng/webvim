@@ -24,12 +24,18 @@ type VisualType
     | VisualRange
 
 
+type ExPrefix
+    = ExSearch Bool (Maybe ( Position, Position )) -- increment cursor position
+    | ExCommand
+    | ExEval
+
+
 type Mode
     = Normal
     | Visual VisualType Position Position
     | Insert
     | TempNormal
-    | Ex String Buffer
+    | Ex ExPrefix Buffer
 
 
 type alias View =

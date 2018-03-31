@@ -1,4 +1,4 @@
-module PositionClass exposing (findPosition)
+module PositionClass exposing (findPosition, parserWordEdge)
 
 import Char
 import Parser as P exposing (Parser, (|.), (|=))
@@ -334,15 +334,17 @@ findPosition :
     -> Maybe Int
 findPosition wordChars md mo line pos =
     if mo.forward then
-        if md == LineEnd then
-            Just (String.length line - 1)
-        else
-            line
-                |> String.dropLeft pos
-                |> findPositionForward wordChars md mo.crossLine
-                --|> Debug.log "result"
-                |> Result.toMaybe
-                |> Maybe.map ((+) pos)
+        case md of
+            LineEnd ->
+                Just (String.length line - 1)
+
+            _ ->
+                line
+                    |> String.dropLeft pos
+                    |> findPositionForward wordChars md mo.crossLine
+                    --|> Debug.log "result"
+                    |> Result.toMaybe
+                    |> Maybe.map ((+) pos)
     else
         case md of
             LineStart ->

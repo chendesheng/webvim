@@ -86,7 +86,7 @@ type Operator
     | VisualSwitchEnd
       -- for line buffer
     | InsertWordUnderCursor
-    | ExecuteLine
+    | Execute
 
 
 type StringType

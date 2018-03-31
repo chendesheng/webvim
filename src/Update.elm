@@ -12,6 +12,39 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Motion exposing (..)
 import Delete exposing (..)
 import Insert exposing (..)
+import Position exposing (Position)
+
+
+stringToPrefix : String -> ExPrefix
+stringToPrefix prefix =
+    case prefix of
+        "/" ->
+            ExSearch True Nothing
+
+        "?" ->
+            ExSearch False Nothing
+
+        "=" ->
+            ExEval
+
+        _ ->
+            ExCommand
+
+
+prefixToString : ExPrefix -> String
+prefixToString prefix =
+    case prefix of
+        ExSearch True _ ->
+            "/"
+
+        ExSearch False _ ->
+            "?"
+
+        ExEval ->
+            "="
+
+        ExCommand ->
+            ":"
 
 
 initMode : Buffer -> V.ModeName -> Mode
@@ -32,7 +65,7 @@ initMode { cursor, mode } modeName =
                     [ Insertion ( 0, 0 ) <|
                         B.fromString prefix
                     ]
-                |> Ex prefix
+                |> Ex (stringToPrefix prefix)
 
         V.ModeNameVisual tipe ->
             let
@@ -81,7 +114,7 @@ getModeName mode =
                 )
 
         Ex prefix _ ->
-            V.ModeNameEx prefix
+            V.ModeNameEx <| prefixToString prefix
 
 
 updateMode : V.ModeName -> Buffer -> Buffer
@@ -339,17 +372,20 @@ runOperator register operator buf =
                 _ ->
                     buf
 
+        Execute ->
+            buf
+
         _ ->
             buf
 
 
-{-| scroll cursor ensure it is insdie viewport
+{-| scroll to ensure pos it is insdie viewport
 -}
-scrollToCursor : Buffer -> Buffer
-scrollToCursor ({ view, cursor, lines } as buf) =
+scrollTo : Position -> Buffer -> Buffer
+scrollTo pos ({ view, lines } as buf) =
     let
         ( y, _ ) =
-            cursor
+            pos
 
         miny =
             view.scrollTop
@@ -366,6 +402,11 @@ scrollToCursor ({ view, cursor, lines } as buf) =
                 buf.view.scrollTop
     in
         scrollToLine scrollTop buf
+
+
+scrollToCursor : Buffer -> Buffer
+scrollToCursor buf =
+    scrollTo buf.cursor buf
 
 
 {-| move cursor ensure cursor is insdie viewport

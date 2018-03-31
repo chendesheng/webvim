@@ -489,12 +489,17 @@ motionCases =
     ]
 
 
+exModeCasesBuf : Buffer
+exModeCasesBuf =
+    { emptyBuffer | lines = B.fromString "abc\ndef\ndef\n" }
+
+
 exModeCases : List ( String, Buffer )
 exModeCases =
     [ ( ":11"
-      , { emptyBuffer
+      , { exModeCasesBuf
             | mode =
-                Ex ":"
+                Ex ExCommand
                     { emptyExBuffer
                         | lines = B.fromString ":11"
                         , cursor = ( 0, 3 )
@@ -502,8 +507,45 @@ exModeCases =
             , continuation = ":"
         }
       )
-    , ( "/1<backspace><backspace>", emptyBuffer )
-    , ( "/11<cr>", emptyBuffer )
+    , ( "/1<backspace><backspace>", exModeCasesBuf )
+    , ( "/11<cr>"
+      , { exModeCasesBuf
+            | last =
+                { emptyLast
+                    | matchString = Just ( "11", True )
+                }
+        }
+      )
+    , ( "/bc<cr>"
+      , { exModeCasesBuf
+            | cursor = ( 0, 1 )
+            , cursorColumn = 1
+            , last = { emptyLast | matchString = Just ( "bc", True ) }
+        }
+      )
+    , ( "/de<cr>"
+      , { exModeCasesBuf
+            | cursor = ( 1, 0 )
+            , cursorColumn = 0
+            , last = { emptyLast | matchString = Just ( "de", True ) }
+        }
+      )
+    , ( "?123<cr>"
+      , { exModeCasesBuf
+            | last = { emptyLast | matchString = Just ( "123", False ) }
+        }
+      )
+    , ( "/de<cr>?ab<cr>"
+      , { exModeCasesBuf
+            | last = { emptyLast | matchString = Just ( "ab", False ) }
+        }
+      )
+    , ( "G?def<cr>"
+      , { exModeCasesBuf
+            | last = { emptyLast | matchString = Just ( "def", False ) }
+            , cursor = ( 1, 0 )
+        }
+      )
     ]
 
 
@@ -870,18 +912,22 @@ allCases =
           }
         , { name = "ex mode cases"
           , cases = exModeCases
-          , model = emptyBuffer
+          , model = exModeCasesBuf
           , map =
                 (\buf ->
-                    case buf.mode of
-                        Ex prefix exBuf ->
-                            { buf
-                                | mode =
-                                    Ex prefix (Buf.clearHistory exBuf)
-                            }
+                    let
+                        view =
+                            buf.view
+                    in
+                        case buf.mode of
+                            Ex prefix exBuf ->
+                                { buf
+                                    | mode =
+                                        Ex prefix (Buf.clearHistory exBuf)
+                                }
 
-                        _ ->
-                            buf
+                            _ ->
+                                { buf | view = { view | scrollTop = 0 } }
                 )
                     >> defaultMap
           }

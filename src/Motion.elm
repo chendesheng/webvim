@@ -5,6 +5,7 @@ module Motion
         , setVisualEnd
         , runMotion
         , motion
+        , matchString
         )
 
 import Model exposing (..)
@@ -14,6 +15,7 @@ import Buffer as Buf
 import Position exposing (Position, positionMin)
 import String
 import PositionClass exposing (..)
+import Regex as Re
 
 
 setVisualEnd : Position -> Buffer -> Buffer
@@ -130,6 +132,128 @@ gotoLine y lines =
             )
 
 
+gotoMatchedString : V.MotionOption -> Buffer -> Buffer
+gotoMatchedString mo buf =
+    case buf.mode of
+        Ex prefix exbuf ->
+            case prefix of
+                ExSearch forward pos ->
+                    let
+                        last =
+                            buf.last
+
+                        s =
+                            exbuf.lines
+                                |> B.toString
+                                |> String.dropLeft 1
+
+                        buf1 =
+                            case pos of
+                                Just ( cursor, _ ) ->
+                                    Buf.setCursor cursor True buf
+
+                                _ ->
+                                    buf
+                    in
+                        { buf1
+                            | last =
+                                { last
+                                    | matchString =
+                                        Just ( s, forward )
+                                }
+                        }
+
+                _ ->
+                    buf
+
+        _ ->
+            case buf.last.matchString of
+                Just ( s, forward ) ->
+                    let
+                        forward1 =
+                            if mo.forward then
+                                forward
+                            else
+                                not forward
+                    in
+                        case
+                            (matchString forward1
+                                (Re.regex s)
+                                buf.cursor
+                                buf.lines
+                            )
+                        of
+                            Just ( cursor, _ ) ->
+                                Buf.setCursor cursor True buf
+
+                            _ ->
+                                buf
+
+                _ ->
+                    buf
+
+
+lastItemOf : (a -> Bool) -> List a -> Maybe a
+lastItemOf pred list =
+    let
+        lastItemOfHelper : (a -> Bool) -> Maybe a -> List a -> Maybe a
+        lastItemOfHelper pred prevItem list =
+            case list of
+                x :: xs ->
+                    if pred x then
+                        lastItemOfHelper pred (Just x) xs
+                    else
+                        prevItem
+
+                _ ->
+                    prevItem
+    in
+        lastItemOfHelper pred Nothing list
+
+
+matchString :
+    Bool
+    -> Re.Regex
+    -> Position
+    -> B.TextBuffer
+    -> Maybe ( Position, Position )
+matchString forward re ( y, x ) lines =
+    case B.getLine y lines of
+        Just line ->
+            if forward then
+                let
+                    s =
+                        String.dropLeft (x + 1) line
+                in
+                    case Re.find (Re.AtMost 1) re s of
+                        [ m ] ->
+                            Just
+                                ( ( y, m.index + x + 1 )
+                                , ( y, m.index + String.length m.match + x )
+                                )
+
+                        _ ->
+                            matchString forward re ( y + 1, -1 ) lines
+            else
+                Re.find Re.All re line
+                    |> lastItemOf
+                        (\m ->
+                            x < 0 || m.index < x
+                        )
+                    |> Maybe.map
+                        (\m ->
+                            Just
+                                ( ( y, m.index )
+                                , ( y, m.index + String.length m.match - 1 )
+                                )
+                        )
+                    |> Maybe.withDefault
+                        (matchString forward re ( y - 1, -1 ) lines)
+
+        _ ->
+            Nothing
+
+
 runMotion : V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
 runMotion md mo buf =
     if B.isEmpty buf.lines then
@@ -233,13 +357,21 @@ isSaveColumn md =
 
 motion : V.MotionData -> V.MotionOption -> Buffer -> Buffer
 motion md mo buf =
-    case runMotion md mo buf of
-        Just cursor ->
-            buf
-                |> Buf.setCursor cursor (isSaveColumn md)
-                |> setVisualEnd cursor
-                |> saveMotion md mo
+    case md of
+        V.MatchString ->
+            gotoMatchedString mo buf
 
-        Nothing ->
-            buf
-                |> saveMotion md mo
+        V.RepeatMatchString ->
+            gotoMatchedString mo buf
+
+        _ ->
+            case runMotion md mo buf of
+                Just cursor ->
+                    buf
+                        |> Buf.setCursor cursor (isSaveColumn md)
+                        |> setVisualEnd cursor
+                        |> saveMotion md mo
+
+                Nothing ->
+                    buf
+                        |> saveMotion md mo

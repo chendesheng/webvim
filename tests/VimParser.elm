@@ -233,7 +233,7 @@ cases =
       , ( initialMode, "" )
       )
     , ( ":<cr>"
-      , ( { initialMode | edit = ExecuteLine |> Just }, "" )
+      , ( { initialMode | edit = Execute |> Just }, "" )
       )
     , ( ":a"
       , ( { initialMode
@@ -301,6 +301,16 @@ cases =
             , modeName = ModeNameEx "?"
           }
         , "?"
+        )
+      )
+    , ( "n"
+      , ( { initialMode
+            | edit =
+                motionOption ">)+-"
+                    |> Move RepeatMatchString
+                    |> Just
+          }
+        , ""
         )
       )
 
