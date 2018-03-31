@@ -710,16 +710,19 @@ visualModeCases =
     [ ( "v"
       , { visualModeCasesBuf
             | mode = Visual VisualRange ( 0, 0 ) ( 0, 0 )
+            , continuation = "v"
         }
       )
     , ( "V"
       , { visualModeCasesBuf
             | mode = Visual VisualLine ( 0, 0 ) ( 0, 0 )
+            , continuation = "V"
         }
       )
     , ( "<c-v>"
       , { visualModeCasesBuf
             | mode = Visual VisualBlock ( 0, 0 ) ( 0, 0 )
+            , continuation = "<c-v>"
         }
       )
     , ( "vv"
@@ -730,6 +733,7 @@ visualModeCases =
             | mode = Visual VisualRange ( 0, 0 ) ( 1, 0 )
             , cursor = ( 1, 0 )
             , last = { emptyLast | visual = "w" }
+            , continuation = "v"
         }
       )
     , ( "vwl"
@@ -738,18 +742,70 @@ visualModeCases =
             , cursor = ( 1, 1 )
             , cursorColumn = 1
             , last = { emptyLast | visual = "wl" }
+            , continuation = "v"
         }
       )
     , ( "lvh"
       , { visualModeCasesBuf
             | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
             , last = { emptyLast | visual = "h" }
+            , continuation = "v"
+        }
+      )
+    , ( "vo"
+      , { visualModeCasesBuf
+            | mode = Visual VisualRange ( 0, 0 ) ( 0, 0 )
+            , last = { emptyLast | visual = "o" }
+            , continuation = "v"
         }
       )
     , ( "vlo"
       , { visualModeCasesBuf
             | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
             , last = { emptyLast | visual = "lo" }
+            , continuation = "v"
+        }
+      )
+    , ( "vc"
+      , { visualModeCasesBuf
+            | mode = Insert
+            , lines = B.fromString "23\n456\n"
+            , registers = Dict.fromList [ ( "\"", "1" ) ]
+            , continuation = "vc"
+        }
+      )
+    , ( "vlc"
+      , { visualModeCasesBuf
+            | mode = Insert
+            , lines = B.fromString "3\n456\n"
+            , last = { emptyLast | visual = "l" }
+            , registers = Dict.fromList [ ( "\"", "12" ) ]
+            , continuation = "vc"
+        }
+      )
+    , ( "vlcx<esc>"
+      , { visualModeCasesBuf
+            | lines = B.fromString "x3\n456\n"
+            , last = { emptyLast | inserts = "x", visual = "l" }
+            , registers =
+                Dict.fromList
+                    [ ( "\"", "12" )
+                    , ( ".", "v<visual>c<inserts><esc>" )
+                    ]
+        }
+      )
+    , ( "vc11<esc>vc22<esc>"
+      , { visualModeCasesBuf
+            | mode = Normal
+            , cursor = ( 0, 2 )
+            , cursorColumn = 2
+            , lines = B.fromString "12223\n456\n"
+            , last = { emptyLast | inserts = "22" }
+            , registers =
+                Dict.fromList
+                    [ ( "\"", "1" )
+                    , ( ".", "v<visual>c<inserts><esc>" )
+                    ]
         }
       )
     ]
@@ -857,8 +913,7 @@ allCases =
                             buf.view
                     in
                         { buf
-                            | continuation = ""
-                            , view = { view | scrollTop = 0 }
+                            | view = { view | scrollTop = 0 }
                         }
                 )
                     >> Buf.clearHistory

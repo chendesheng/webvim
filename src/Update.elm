@@ -99,8 +99,8 @@ updateMode modeName buf =
         { buf | mode = newMode }
 
 
-modeChanged : V.ModeName -> V.ModeName -> Buffer -> Buffer
-modeChanged oldModeName newModeName buf =
+modeChanged : Bool -> Key -> V.ModeName -> V.ModeName -> Buffer -> Buffer
+modeChanged replaying key oldModeName newModeName buf =
     case newModeName of
         V.ModeNameNormal ->
             let
@@ -119,7 +119,9 @@ modeChanged oldModeName newModeName buf =
                         )
             in
                 buf
-                    |> Buf.setCursor cursor (oldModeName == V.ModeNameInsert)
+                    |> Buf.setCursor
+                        cursor
+                        (oldModeName == V.ModeNameInsert)
                     |> Buf.commit
 
         V.ModeNameTempNormal ->
@@ -139,8 +141,41 @@ modeChanged oldModeName newModeName buf =
                 _ ->
                     buf
 
-        _ ->
-            buf
+        V.ModeNameInsert ->
+            let
+                last =
+                    buf.last
+
+                inserts =
+                    if replaying || key == "<inserts>" then
+                        last.inserts
+                    else
+                        case oldModeName of
+                            V.ModeNameInsert ->
+                                last.inserts ++ key
+
+                            _ ->
+                                ""
+            in
+                { buf | last = { last | inserts = inserts } }
+
+        V.ModeNameVisual _ ->
+            let
+                last =
+                    buf.last
+
+                visual =
+                    if replaying || key == "<visual>" then
+                        last.visual
+                    else
+                        case oldModeName of
+                            V.ModeNameVisual _ ->
+                                last.visual ++ key
+
+                            _ ->
+                                ""
+            in
+                { buf | last = { last | visual = visual } }
 
 
 setContinuation : String -> Buffer -> Buffer
@@ -436,8 +471,10 @@ handleKeypress replaying key buf =
 
         -- |> Debug.log key
         oldModeName =
-            -- for now the put operator is implemented as
-            -- Start insert mode -> Put string -> Back to normal mode
+            -- For now the put operator is implemented as
+            --   1) Start insert mode
+            --   2) Put string
+            --   3) Back to normal mode
             if modeName == V.ModeNameNormal && isPutOperator edit then
                 V.ModeNameInsert
             else
@@ -453,65 +490,13 @@ handleKeypress replaying key buf =
 
                     s ->
                         Buf.setRegister "." s buf
-
-        saveLastVisual buf =
-            if replaying || key == "<visual>" then
-                buf
-            else
-                let
-                    last =
-                        buf.last
-
-                    last1 =
-                        if
-                            (isModeNameVisual oldModeName)
-                                && (isModeNameVisual modeName)
-                        then
-                            { last | visual = last.visual ++ key }
-                        else if
-                            (isModeNameVisual oldModeName |> not)
-                                && (isModeNameVisual modeName)
-                        then
-                            { last | visual = "" }
-                        else
-                            last
-                in
-                    { buf | last = last1 }
-
-        saveLastInsert buf =
-            if replaying || key == "<inserts>" then
-                buf
-            else
-                let
-                    last =
-                        buf.last
-
-                    last1 =
-                        if
-                            (oldModeName == V.ModeNameInsert)
-                                && (modeName == V.ModeNameInsert)
-                        then
-                            { last | inserts = last.inserts ++ key }
-                        else if
-                            (oldModeName == V.ModeNameNormal)
-                                && (modeName == V.ModeNameInsert)
-                                || (oldModeName == V.ModeNameTempNormal)
-                                && (modeName == V.ModeNameInsert)
-                        then
-                            { last | inserts = "" }
-                        else
-                            last
-                in
-                    { buf | last = last1 }
     in
         ( buf
             |> setContinuation continuation
             |> applyEdit edit register
             |> updateMode modeName
-            |> modeChanged oldModeName modeName
+            |> modeChanged replaying key oldModeName modeName
             |> scrollToCursor
-            |> saveLastInsert
-            |> saveLastVisual
             |> saveDotRegister
         , Cmd.none
         )

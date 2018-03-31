@@ -540,14 +540,15 @@ operator isVisual isTemp =
 
         defineOperator key op opop =
             (if isVisual then
-                readKeyAndThen key
-                    [ PushKey key
-                    , op VisualRange |> PushOperator
-                    , PushComplete
-                    , PopMode
-                    ]
-                <|
-                    P.succeed [ PushKey key, PushComplete ]
+                P.succeed
+                    (\changes -> (PushKey key) :: changes ++ [ PushComplete ])
+                    |. P.symbol key
+                    |= P.oneOf
+                        [ P.succeed
+                            [ op VisualRange |> PushOperator ]
+                            |. P.end
+                        , P.succeed []
+                        ]
              else
                 readKeyAndThen key [ PushKey key ] <|
                     P.oneOf
@@ -567,7 +568,11 @@ operator isVisual isTemp =
                         if key == "c" then
                             startInsert key
                                 |> P.map ((++) (popComplete modeDelta))
-                                |> completeAndThen popKey
+                                |> completeAndThen
+                                    (\changes ->
+                                        P.succeed
+                                            (changes ++ [ PopKey ])
+                                    )
                         else
                             popKey modeDelta
                     )
@@ -638,8 +643,10 @@ operator isVisual isTemp =
             ((if isVisual then
                 [ visualMotion
                     |> completeAndThen (popComplete >> popKey)
-                , define "o" VisualSwitchEnd
-                , define "O" VisualSwitchEnd
+                , P.succeed [ PushOperator VisualSwitchEnd ]
+                    |. P.symbol "o"
+                , P.succeed [ PushOperator VisualSwitchEnd ]
+                    |. P.symbol "O"
                 ]
               else
                 [ defineInsert "i" []
@@ -802,12 +809,6 @@ visual =
                 (\key ->
                     P.oneOf
                         [ P.succeed
-                            [ key2mode key |> PushMode
-                            , PushOperator RepeatLastVisual
-                            , PushKey key
-                            ]
-                            |. P.symbol "<visual>"
-                        , P.succeed
                             (\key1 ->
                                 if key1 == key || key1 == "<esc>" then
                                     []
@@ -835,18 +836,23 @@ visual =
                                 , PushKey key
                                 ]
                             )
-                            |= (operator True False
+                            |= P.oneOf
+                                [ P.succeed [ PushOperator RepeatLastVisual ]
+                                    |. P.symbol "<visual>"
+                                , (operator True False
                                     |> completeAndThen
                                         (\changes ->
                                             ([ PushKey "<visual>", PopKey ]
                                                 ++ changes
                                                 ++ [ PopComplete
                                                    , PopKey
+                                                   , PopMode
                                                    ]
                                             )
                                                 |> P.succeed
                                         )
-                               )
+                                  )
+                                ]
                         ]
                 )
 
@@ -897,6 +903,11 @@ parse lastKeys key =
                 P.run (completeAndThen popKey <| operator False False) keys
                     |> Result.withDefault []
 
+            --_ =
+            --    if (lastKeys ++ key) == "vo" then
+            --        Debug.log "modeDelta" modeDelta
+            --    else
+            --        modeDelta
             continuation =
                 aggregateKeys modeDelta
         in
