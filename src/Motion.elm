@@ -162,7 +162,7 @@ runMotion md mo buf =
 
                         x1 =
                             buf.lines
-                                |> Buf.getLineMaxColumn y1
+                                |> B.getLineMaxColumn y1
                                 |> min buf.cursorColumn
                     in
                         Just ( y1, x1 )

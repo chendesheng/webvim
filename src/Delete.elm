@@ -26,8 +26,8 @@ applyTransaction { pos, patches } buf =
             Buf.transaction patches buf
 
 
-deleteOperator : V.OperatorRange -> Buffer -> Maybe Transaction
-deleteOperator range buf =
+operatorRanges : V.OperatorRange -> Buffer -> List ( Position, Position )
+operatorRanges range buf =
     case range of
         V.MotionRange md mo ->
             case runMotion md mo buf of
@@ -46,38 +46,32 @@ deleteOperator range buf =
                                 buf.cursor
                     in
                         if mo.linewise then
-                            Just
-                                { pos = Just ( pos, False )
-                                , patches =
-                                    [ Deletion ( Tuple.first begin, 0 )
-                                        ( if mo.inclusive then
-                                            endy + 1
-                                          else
-                                            endy
-                                        , 0
-                                        )
-                                    ]
-                                }
+                            [ ( ( Tuple.first begin, 0 )
+                              , ( if mo.inclusive then
+                                    endy + 1
+                                  else
+                                    endy
+                                , 0
+                                )
+                              )
+                            ]
                         else
-                            Just
-                                { pos = Nothing
-                                , patches =
-                                    [ Deletion begin
-                                        ( endy
-                                        , if mo.inclusive then
-                                            endx + 1
-                                          else
-                                            endx
-                                        )
-                                    ]
-                                }
+                            [ ( begin
+                              , ( endy
+                                , if mo.inclusive then
+                                    endx + 1
+                                  else
+                                    endx
+                                )
+                              )
+                            ]
 
                 Nothing ->
-                    Nothing
+                    []
 
         V.VisualRange ->
             case buf.mode of
-                Visual _ a b ->
+                Visual tipe a b ->
                     let
                         begin =
                             min a b
@@ -88,21 +82,76 @@ deleteOperator range buf =
                         ( endy, endx ) =
                             end
                     in
-                        Just
-                            { pos = Just ( begin, True )
-                            , patches =
-                                [ Deletion begin
-                                    ( endy
+                        case tipe of
+                            VisualLine ->
+                                [ ( ( Tuple.first begin, 0 )
+                                  , ( endy + 1
+                                    , 0
+                                    )
+                                  )
+                                ]
+
+                            _ ->
+                                [ ( begin
+                                  , ( endy
                                     , endx + 1
                                     )
+                                  )
                                 ]
-                            }
+
+                _ ->
+                    []
+
+        _ ->
+            []
+
+
+deleteOperator : V.OperatorRange -> Buffer -> Maybe Transaction
+deleteOperator range buf =
+    let
+        ranges =
+            operatorRanges range buf
+
+        pos =
+            case range of
+                V.MotionRange md mo ->
+                    case runMotion md mo buf of
+                        Just pos ->
+                            if mo.linewise then
+                                Just ( pos, False )
+                            else
+                                Nothing
+
+                        Nothing ->
+                            Nothing
+
+                V.VisualRange ->
+                    case buf.mode of
+                        Visual _ a b ->
+                            let
+                                begin =
+                                    min a b
+                            in
+                                Just ( begin, True )
+
+                        _ ->
+                            Nothing
 
                 _ ->
                     Nothing
-
-        _ ->
+    in
+        if List.isEmpty ranges then
             Nothing
+        else
+            Just
+                { pos = pos
+                , patches =
+                    List.map
+                        (\( begin, end ) ->
+                            Deletion begin end
+                        )
+                        ranges
+                }
 
 
 delete : String -> V.OperatorRange -> Buffer -> Buffer

@@ -265,7 +265,7 @@ gKey map extra =
 
         -- motionOption forward inclusive crossLine linewise =
         gotoLineOption =
-            motionOption ">)+="
+            motionOption ">]+="
 
         backwardWordEndOption =
             motionOption "<]+-"
@@ -636,7 +636,7 @@ operator isVisual isTemp =
         visualMotion =
             P.oneOf
                 [ textObject Select
-                , motion Move (P.oneOf [])
+                , motion Move (gKey Move <| P.oneOf [])
                 ]
     in
         P.oneOf
@@ -722,7 +722,7 @@ operator isVisual isTemp =
                         )
                         |> dontRecord
                    , define "D"
-                        (motionOption ">]$-"
+                        (motionOption ">)$-"
                             |> MotionRange LineEnd
                             |> Delete
                         )

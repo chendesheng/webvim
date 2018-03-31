@@ -40,7 +40,7 @@ cases =
     , ( "gg"
       , ( { initialMode
             | edit =
-                motionOption ">)+="
+                motionOption ">]+="
                     |> Move (LineNumber 0)
                     |> Just
             , recordKeys = "gg"
@@ -54,7 +54,7 @@ cases =
     , ( "gj"
       , ( { initialMode
             | edit =
-                motionOption ">)+="
+                motionOption ">]+="
                     |> Move (VLineDelta 1)
                     |> Just
           }
@@ -681,6 +681,21 @@ cases =
       , ( { initialMode
             | modeName = ModeNameVisual VisualName
             , edit = Just RepeatLastVisual
+          }
+        , "v"
+        )
+      )
+    , ( "vg"
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualName
+          }
+        , "vg"
+        )
+      )
+    , ( "vgg"
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualName
+            , edit = Just (Move (LineNumber 0) (motionOption ">]+="))
           }
         , "v"
         )

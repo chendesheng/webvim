@@ -474,6 +474,18 @@ motionCases =
                 }
         }
       )
+    , ( "VGdiaa<esc>"
+      , { motionCasesBuf
+            | lines = B.fromString "aa"
+            , cursor = ( 0, 1 )
+            , cursorColumn = 1
+            , last =
+                { emptyLast
+                    | inserts = "aa"
+                    , visual = "G"
+                }
+        }
+      )
     ]
 
 
@@ -529,6 +541,21 @@ deleteCases =
       , { deleteCasesBuf
             | lines = B.fromString " \n456\n"
             , registers = Dict.fromList [ ( "\"", "123" ) ]
+            , cursorColumn = 1
+        }
+      )
+    , ( "Vjd"
+      , { deleteCasesBuf
+            | lines = B.empty
+            , registers = Dict.fromList [ ( "\"", " 123\n456\n" ) ]
+            , last = { emptyLast | visual = "j" }
+        }
+      )
+    , ( "jVd"
+      , { deleteCasesBuf
+            | lines = B.fromString " 123\n"
+            , registers = Dict.fromList [ ( "\"", "456\n" ) ]
+            , cursor = ( 0, 1 )
             , cursorColumn = 1
         }
       )
@@ -832,7 +859,13 @@ allCases =
           , cases = motionCases
           , model = motionCasesBuf
           , map =
-                (\buf -> { buf | cursorColumn = 0 })
+                (\buf ->
+                    { buf
+                        | cursorColumn = 0
+                        , history = emptyBufferHistory
+                        , registers = Dict.empty
+                    }
+                )
                     >> defaultMap
           }
         , { name = "ex mode cases"
@@ -855,7 +888,16 @@ allCases =
         , { name = "delete cases"
           , cases = deleteCases
           , model = deleteCasesBuf
-          , map = Buf.clearHistory >> defaultMap
+          , map =
+                (\buf ->
+                    let
+                        view =
+                            buf.view
+                    in
+                        { buf | view = { view | scrollTop = 0 } }
+                )
+                    >> Buf.clearHistory
+                    >> defaultMap
           }
         , { name = "change cases"
           , cases = changeCases

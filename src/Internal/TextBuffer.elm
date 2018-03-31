@@ -12,9 +12,9 @@ module Internal.TextBuffer
         , foldlLines
         , expandTabs
         , mapLines
-          --, maxPosition
         , Patch(..)
         , toString
+        , getLineMaxColumn
         )
 
 import Position exposing (..)
@@ -402,3 +402,20 @@ expandTabs n firstLineOffset s =
             )
             lines
             (firstLineOffset :: List.repeat (List.length lines - 1) 0)
+
+
+getLineMaxColumn : Int -> TextBuffer -> Int
+getLineMaxColumn y lines =
+    getLine y lines
+        |> Maybe.map
+            (\s ->
+                let
+                    len =
+                        String.length s
+                in
+                    if String.right 1 s == lineBreak then
+                        len - 1
+                    else
+                        len
+            )
+        |> Maybe.withDefault 0

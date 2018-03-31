@@ -12,7 +12,6 @@ module Buffer
         , setRegister
         , setCursor
         , putString
-        , getLineMaxColumn
         )
 
 import Position exposing (..)
@@ -353,17 +352,3 @@ putString forward s buf =
                     buf.cursor
     in
         setCursor cursor True buf1
-
-
-getLineMaxColumn : Int -> TextBuffer -> Int
-getLineMaxColumn y lines =
-    getLine y lines
-        |> Maybe.map
-            (\s ->
-                let
-                    len =
-                        String.length s
-                in
-                    len - 1
-            )
-        |> Maybe.withDefault 0

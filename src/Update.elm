@@ -112,7 +112,7 @@ modeChanged replaying key oldModeName newModeName buf =
                         ( y, max (x - 1) 0 )
                     else
                         ( y
-                        , if Buf.getLineMaxColumn y buf.lines > x then
+                        , if B.getLineMaxColumn y buf.lines > x then
                             x
                           else
                             max (x - 1) 0
@@ -236,6 +236,7 @@ runOperator register operator buf =
 
         Delete rg ->
             delete register rg buf
+                |> cursorScope
 
         Undo ->
             Buf.undo buf
@@ -375,13 +376,13 @@ cursorScope ({ view, cursor, lines } as buf) =
         ( y, _ ) =
             cursor
 
-        miny =
-            view.scrollTop
-
         maxy =
             min
-                (miny + view.size.height - 1)
+                (view.scrollTop + view.size.height - 1)
                 (B.countLines lines - 1)
+
+        miny =
+            min view.scrollTop maxy
 
         y1 =
             y |> min maxy |> max miny

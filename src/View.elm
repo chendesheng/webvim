@@ -73,7 +73,7 @@ view { mode, cursor, lines, continuation, view } =
                             ++ [ div [ class "selections" ]
                                     (case mode of
                                         Visual tipe begin end ->
-                                            renderRange tipe begin end
+                                            renderRange tipe begin end lines
 
                                         _ ->
                                             []
@@ -143,8 +143,13 @@ getStatusBar mode =
             }
 
 
-renderRange : VisualType -> Position -> Position -> List (Html msg)
-renderRange tipe begin end =
+renderRange :
+    VisualType
+    -> Position
+    -> Position
+    -> B.TextBuffer
+    -> List (Html msg)
+renderRange tipe begin end lines =
     let
         ( by, bx ) =
             Basics.min begin end
@@ -156,10 +161,13 @@ renderRange tipe begin end =
             |> List.map
                 (\row ->
                     let
+                        maxcol =
+                            B.getLineMaxColumn row lines
+
                         ( a, b ) =
                             case tipe of
                                 VisualLine ->
-                                    ( 0, 1000000 )
+                                    ( 0, maxcol )
 
                                 VisualBlock ->
                                     ( bx, ex )
@@ -168,11 +176,11 @@ renderRange tipe begin end =
                                     if by == ey then
                                         ( bx, ex )
                                     else if row == by then
-                                        ( bx, 10000 )
+                                        ( bx, maxcol )
                                     else if row == ey then
                                         ( 0, ex )
                                     else
-                                        ( 0, 1000000 )
+                                        ( 0, maxcol )
                     in
                         (div
                             [ style
