@@ -871,8 +871,7 @@ visual =
                                         (\changes ->
                                             ([ PushKey "<visual>", PopKey ]
                                                 ++ changes
-                                                ++ [ PopComplete
-                                                   , PopKey
+                                                ++ [ PopKey
                                                    , PopMode
                                                    ]
                                             )

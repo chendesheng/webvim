@@ -452,6 +452,14 @@ cases =
         , "cw"
         )
       )
+    , ( "i<c-o>vd"
+      , ( { initialMode
+            | modeName = ModeNameInsert
+            , edit = Just <| Delete VisualRange
+          }
+        , "i"
+        )
+      )
 
     -- record macro
     , ( "q"
@@ -744,6 +752,11 @@ suite =
                 test ("Parse `" ++ keys ++ "`") <|
                     \_ ->
                         Expect.equal mode (V.parse keys "")
+             --if keys == "i<c-o>vd" then
+             --else
+             --    test ("Parse `" ++ keys ++ "`") <|
+             --        \_ ->
+             --            Expect.equal 1 1
             )
             cases
         )
