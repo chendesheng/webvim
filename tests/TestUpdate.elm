@@ -319,15 +319,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 2 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "3"
-                        , before = False
-                        , forward = True
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "3"
+                            , before = False
+                            , forward = True
+                            }
                 }
         }
       )
@@ -335,15 +333,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 0 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "4"
-                        , before = False
-                        , forward = True
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "4"
+                            , before = False
+                            , forward = True
+                            }
                 }
         }
       )
@@ -351,15 +347,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 1 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "3"
-                        , before = True
-                        , forward = True
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "3"
+                            , before = True
+                            , forward = True
+                            }
                 }
         }
       )
@@ -367,15 +361,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 0 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "1"
-                        , before = False
-                        , forward = False
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "1"
+                            , before = False
+                            , forward = False
+                            }
                 }
         }
       )
@@ -383,15 +375,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 1 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "1"
-                        , before = True
-                        , forward = False
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "1"
+                            , before = True
+                            , forward = False
+                            }
                 }
         }
       )
@@ -399,15 +389,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 2 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "3"
-                        , before = False
-                        , forward = True
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "3"
+                            , before = False
+                            , forward = True
+                            }
                 }
         }
       )
@@ -415,15 +403,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 1 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "3"
-                        , before = True
-                        , forward = True
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "3"
+                            , before = True
+                            , forward = True
+                            }
                 }
         }
       )
@@ -431,15 +417,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 0 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "1"
-                        , before = False
-                        , forward = True
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "1"
+                            , before = False
+                            , forward = True
+                            }
                 }
         }
       )
@@ -447,15 +431,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 1 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "1"
-                        , before = True
-                        , forward = True
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "1"
+                            , before = True
+                            , forward = True
+                            }
                 }
         }
       )
@@ -463,15 +445,13 @@ motionCases =
       , { motionCasesBuf
             | cursor = ( 0, 0 )
             , last =
-                { matchChar =
-                    Just
-                        { char = "1"
-                        , before = False
-                        , forward = False
-                        }
-                , matchString = Nothing
-                , inserts = ""
-                , visual = ""
+                { emptyLast
+                    | matchChar =
+                        Just
+                            { char = "1"
+                            , before = False
+                            , forward = False
+                            }
                 }
         }
       )
@@ -510,6 +490,7 @@ exModeCases =
                     , visual = Nothing
                     }
             , continuation = ":"
+            , last = { emptyLast | ex = "11" }
         }
       )
     , ( ":11<backspace>"
@@ -525,14 +506,20 @@ exModeCases =
                     , visual = Nothing
                     }
             , continuation = ":"
+            , last = { emptyLast | ex = "11<backspace>" }
         }
       )
-    , ( "/1<backspace><backspace>", exModeCasesBuf )
+    , ( "/1<backspace><backspace>"
+      , { exModeCasesBuf
+            | last = { emptyLast | ex = "1<backspace>" }
+        }
+      )
     , ( "/11<cr>"
       , { exModeCasesBuf
             | last =
                 { emptyLast
                     | matchString = Just ( "11", True )
+                    , ex = "11"
                 }
         }
       )
@@ -540,30 +527,51 @@ exModeCases =
       , { exModeCasesBuf
             | cursor = ( 0, 1 )
             , cursorColumn = 1
-            , last = { emptyLast | matchString = Just ( "bc", True ) }
+            , last =
+                { emptyLast
+                    | matchString = Just ( "bc", True )
+                    , ex = "bc"
+                }
         }
       )
     , ( "/de<cr>"
       , { exModeCasesBuf
             | cursor = ( 1, 0 )
             , cursorColumn = 0
-            , last = { emptyLast | matchString = Just ( "de", True ) }
+            , last =
+                { emptyLast
+                    | matchString = Just ( "de", True )
+                    , ex = "de"
+                }
         }
       )
     , ( "?123<cr>"
       , { exModeCasesBuf
-            | last = { emptyLast | matchString = Just ( "123", False ) }
+            | last =
+                { emptyLast
+                    | matchString = Just ( "123", False )
+                    , ex = "123"
+                }
         }
       )
     , ( "/de<cr>?ab<cr>"
       , { exModeCasesBuf
-            | last = { emptyLast | matchString = Just ( "ab", False ) }
+            | last =
+                { emptyLast
+                    | matchString = Just ( "ab", False )
+                    , ex = "ab"
+                }
         }
       )
     , ( "G?def<cr>"
       , { exModeCasesBuf
             | last = { emptyLast | matchString = Just ( "def", False ) }
             , cursor = ( 1, 0 )
+            , last =
+                { emptyLast
+                    | ex = "def"
+                    , matchString = Just ( "def", False )
+                }
         }
       )
     , ( "/"
@@ -615,7 +623,11 @@ exModeCases =
             , cursor = ( 1, 1 )
             , cursorColumn = 1
             , continuation = "v"
-            , last = { emptyLast | matchString = Just ( "ef", True ) }
+            , last =
+                { emptyLast
+                    | matchString = Just ( "ef", True )
+                    , ex = "ef"
+                }
         }
       )
     ]
@@ -673,6 +685,28 @@ deleteCases =
             , cursorColumn = 1
         }
       )
+    , ( "d/456<cr>"
+      , { deleteCasesBuf
+            | lines = B.fromString "456\n"
+            , registers = Dict.fromList [ ( "\"", " 123\n" ) ]
+            , last =
+                { emptyLast
+                    | ex = "456"
+                    , matchString = Just ( "456", True )
+                }
+        }
+      )
+    , ( "dv/456<cr>"
+      , { deleteCasesBuf
+            | lines = B.fromString "56\n"
+            , registers = Dict.fromList [ ( "\"", " 123\n4" ) ]
+            , last =
+                { emptyLast
+                    | ex = "456"
+                    , matchString = Just ( "456", True )
+                }
+        }
+      )
     ]
 
 
@@ -681,6 +715,8 @@ changeCasesBuf =
     { emptyBuffer
         | lines = B.fromString """ 123
 456
+def
+def
 """
     }
 
@@ -689,23 +725,60 @@ changeCases : List ( String, Buffer )
 changeCases =
     [ ( "ce"
       , { changeCasesBuf
-            | lines = B.fromString "\n456\n"
+            | lines = B.fromString "\n456\ndef\ndef\n"
+            , mode = Insert
             , registers = Dict.fromList [ ( "\"", " 123" ) ]
+            , continuation = "ce"
         }
       )
-    , ( "cfa", changeCasesBuf )
+    , ( "cfa"
+      , { changeCasesBuf
+            | mode = Insert
+            , continuation = "cfa"
+        }
+      )
     , ( "cw"
       , { changeCasesBuf
-            | lines = B.fromString "123\n456\n"
+            | lines = B.fromString "123\n456\ndef\ndef\n"
+            , mode = Insert
             , registers = Dict.fromList [ ( "\"", " " ) ]
+            , continuation = "cw"
         }
       )
     , ( "cvw"
       , { changeCasesBuf
-            | lines = B.fromString "23\n456\n"
+            | lines = B.fromString "23\n456\ndef\ndef\n"
+            , mode = Insert
             , registers = Dict.fromList [ ( "\"", " 1" ) ]
+            , continuation = "cvw"
         }
       )
+    , ( "c/ef<cr>"
+      , { changeCasesBuf
+            | mode = Insert
+            , lines = B.fromString "ef\ndef\n"
+            , continuation = "c/<cr>"
+            , history =
+                { emptyBufferHistory
+                    | pending =
+                        Just
+                            { cursor = ( 0, 0 )
+                            , patches =
+                                [ Insertion
+                                    ( 0, 0 )
+                                    (B.fromString " 123\n456\nd")
+                                ]
+                            }
+                }
+            , registers = Dict.fromList [ ( "\"", " 123\n456\nd" ) ]
+            , last =
+                { emptyLast
+                    | matchString = Just ( "ef", True )
+                    , ex = "ef"
+                }
+        }
+      )
+    , ( "c/<esc>", changeCasesBuf )
     ]
 
 
@@ -771,7 +844,7 @@ putCases =
 
 dotRepeatCasesBuf : Buffer
 dotRepeatCasesBuf =
-    { emptyBuffer | lines = B.fromString "123\n456\n" }
+    { emptyBuffer | lines = B.fromString "123\n456\n456\n" }
 
 
 emptyLast :
@@ -779,12 +852,14 @@ emptyLast :
     , matchString : Maybe a1
     , inserts : String
     , visual : String
+    , ex : String
     }
 emptyLast =
     { matchChar = Nothing
     , matchString = Nothing
     , inserts = ""
     , visual = ""
+    , ex = ""
     }
 
 
@@ -792,7 +867,7 @@ dotRepeatCases : List ( String, Buffer )
 dotRepeatCases =
     [ ( "iaa"
       , { dotRepeatCasesBuf
-            | lines = B.fromString "aa123\n456\n"
+            | lines = B.fromString "aa123\n456\n456\n"
             , cursor = ( 0, 2 )
             , last = { emptyLast | inserts = "aa" }
         }
@@ -801,21 +876,21 @@ dotRepeatCases =
       , { dotRepeatCasesBuf
             | registers =
                 Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
-            , lines = B.fromString "aa123\n456\n"
+            , lines = B.fromString "aa123\n456\n456\n"
             , cursor = ( 0, 1 )
             , last = { emptyLast | inserts = "aa" }
         }
       )
     , ( "dw"
       , { dotRepeatCasesBuf
-            | lines = B.fromString "\n456\n"
+            | lines = B.fromString "\n456\n456\n"
             , registers =
                 Dict.fromList [ ( ".", "dw" ) ]
         }
       )
     , ( "dl."
       , { dotRepeatCasesBuf
-            | lines = B.fromString "3\n456\n"
+            | lines = B.fromString "3\n456\n456\n"
             , registers =
                 Dict.fromList [ ( ".", "dl" ) ]
         }
@@ -824,7 +899,7 @@ dotRepeatCases =
       , { dotRepeatCasesBuf
             | registers =
                 Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
-            , lines = B.fromString "aaaa123\n456\n"
+            , lines = B.fromString "aaaa123\n456\n456\n"
             , cursor = ( 0, 2 )
             , last = { emptyLast | inserts = "aa" }
         }
@@ -833,9 +908,33 @@ dotRepeatCases =
       , { dotRepeatCasesBuf
             | registers =
                 Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
-            , lines = B.fromString "abbbba123\n456\n"
+            , lines = B.fromString "abbbba123\n456\n456\n"
             , cursor = ( 0, 3 )
             , last = { emptyLast | inserts = "bb" }
+        }
+      )
+    , ( "d/4<cr>"
+      , { dotRepeatCasesBuf
+            | registers =
+                Dict.fromList [ ( ".", "d/<exbuf><cr>" ) ]
+            , lines = B.fromString "456\n456\n"
+            , last =
+                { emptyLast
+                    | ex = "4"
+                    , matchString = Just ( "4", True )
+                }
+        }
+      )
+    , ( "d/4<cr>."
+      , { dotRepeatCasesBuf
+            | registers =
+                Dict.fromList [ ( ".", "d/<exbuf><cr>" ) ]
+            , lines = B.fromString "456\n"
+            , last =
+                { emptyLast
+                    | ex = "4"
+                    , matchString = Just ( "4", True )
+                }
         }
       )
     ]
@@ -1066,13 +1165,7 @@ allCases =
           , cases = changeCases
           , model = changeCasesBuf
           , map =
-                (\buf ->
-                    { buf
-                        | continuation = ""
-                        , mode = Insert
-                    }
-                )
-                    >> Buf.clearHistory
+                Buf.clearHistory
                     >> defaultMap
           }
         , { name = "put cases"
@@ -1157,7 +1250,7 @@ suite =
                                 s
                                 buf
                                 model
-                         --if s == ":11<backspace>" then
+                         --if s == "d/4<cr>" then
                          --else
                          --    (test s <| \_ -> Expect.equal 1 1)
                         )

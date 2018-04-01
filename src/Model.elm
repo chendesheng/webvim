@@ -103,6 +103,7 @@ type alias Buffer =
         , matchString : Maybe ( String, Bool )
         , inserts : String
         , visual : String
+        , ex : String
         }
     }
 
@@ -142,6 +143,7 @@ emptyBuffer =
         , matchString = Nothing
         , inserts = ""
         , visual = ""
+        , ex = ""
         }
     }
 

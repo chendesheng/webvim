@@ -6,6 +6,10 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Register exposing (..)
 
 
+-- This parser is crazy, too much edge cases,
+--    start feeling that I should just list all results by hand
+
+
 insertCommands : Parser ModeDelta
 insertCommands =
     --common insert commands
@@ -162,34 +166,51 @@ linebuffer prefix map =
             )
                 |. P.symbol key
     in
-        P.succeed ((++) [ PushKey prefix, PushMode <| ModeNameEx prefix ])
+        P.succeed identity
             |= P.oneOf
                 [ P.succeed
                     [ Execute |> map |> PushOperator
-                    , PopMode
+                    , PushKey (prefix ++ "<exbuf>" ++ "<cr>")
+                    , PopKey
+                    , PauseRecording
+                    , PushKey (prefix ++ "<cr>")
+                    , ContinueRecording
                     , PushComplete
                     ]
                     |. P.symbol "<cr>"
-                , readKeyAndThen "<c-r>"
-                    [ PushKey "<c-r>" ]
-                    (P.oneOf
-                        [ P.succeed
-                            [ PushOperator InsertWordUnderCursor ]
-                            |. P.symbol "<c-w>"
-                        , P.succeed
-                            (\key ->
-                                if isRegister key then
-                                    [ PushRegister key
-                                    , Put False
-                                        |> PushOperator
-                                    ]
-                                else
-                                    []
-                            )
-                            |= keyParser
+                , P.succeed
+                    [ PushComplete, PushEscape ]
+                    |. P.symbol "<esc>"
+                , P.succeed
+                    ((++)
+                        [ PushKey prefix
+                        , PushMode <| ModeNameEx prefix
                         ]
                     )
-                , insertCommands
+                    |= P.oneOf
+                        [ readKeyAndThen "<c-r>"
+                            [ PushKey "<c-r>" ]
+                            (P.oneOf
+                                [ P.succeed
+                                    [ PushOperator InsertWordUnderCursor ]
+                                    |. P.symbol "<c-w>"
+                                , P.succeed
+                                    (\key ->
+                                        if isRegister key then
+                                            [ PushRegister key
+                                            , Put False
+                                                |> PushOperator
+                                            ]
+                                        else
+                                            []
+                                    )
+                                    |= keyParser
+                                ]
+                            )
+                        , P.succeed [ PushOperator RepeatLastEx ]
+                            |. P.symbol "<exbuf>"
+                        , insertCommands
+                        ]
                 ]
 
 
@@ -346,23 +367,25 @@ motion map gMotion =
                 |. P.symbol ch
 
         matchString prefix =
-            readKeyAndThen prefix
-                [ PushKey prefix
-                , PushMode <| ModeNameEx prefix
-                ]
-                (linebuffer prefix
-                    (\cmd ->
-                        if cmd == Execute then
+            P.succeed identity
+                |. P.symbol prefix
+                |= P.oneOf
+                    [ P.succeed
+                        [ PushKey prefix
+                        , PushMode <| ModeNameEx prefix
+                        ]
+                        |. P.end
+                    , (linebuffer prefix
+                        (\cmd ->
                             let
                                 option =
                                     motionOption ">)+-"
                             in
                                 map MatchString
                                     { option | forward = prefix == "/" }
-                        else
-                            cmd
-                    )
-                )
+                        )
+                      )
+                    ]
     in
         P.oneOf
             ([ define "b" WordStart <| motionOption "<)+-"
@@ -565,16 +588,20 @@ operator isVisual isTemp =
             )
                 |> completeAndThen
                     (\modeDelta ->
-                        if key == "c" then
-                            startInsert key
-                                |> P.map ((++) (popComplete modeDelta))
-                                |> completeAndThen
-                                    (\changes ->
-                                        P.succeed
-                                            (changes ++ [ PopKey ])
-                                    )
-                        else
-                            popKey modeDelta
+                        let
+                            escaped =
+                                isEscaped modeDelta
+                        in
+                            if key == "c" && not escaped then
+                                startInsert key
+                                    |> P.map ((++) (popComplete modeDelta))
+                                    |> completeAndThen popKey
+                            else if escaped then
+                                modeDelta
+                                    |> popKey
+                                    |> dontRecord
+                            else
+                                popKey modeDelta
                     )
 
         countPrefix =
@@ -897,17 +924,15 @@ parse lastKeys key =
     else
         let
             keys =
-                lastKeys ++ escapeKey key
+                lastKeys
+                    ++ escapeKey key
 
+            --|> Debug.log "keys"
             modeDelta =
                 P.run (completeAndThen popKey <| operator False False) keys
                     |> Result.withDefault []
 
-            --_ =
-            --    if (lastKeys ++ key) == "vo" then
-            --        Debug.log "modeDelta" modeDelta
-            --    else
-            --        modeDelta
+            --|> Debug.log "modeDelta"
             continuation =
                 aggregateKeys modeDelta
         in
@@ -919,6 +944,7 @@ parse lastKeys key =
               , recordKeys =
                     if String.isEmpty continuation then
                         aggregateRecordKeys modeDelta
+                        --|> Debug.log "recordKeys"
                     else
                         ""
               }

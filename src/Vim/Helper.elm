@@ -180,6 +180,11 @@ isComplete =
     aggregateChanges PushComplete PopComplete
 
 
+isEscaped : ModeDelta -> Bool
+isEscaped =
+    aggregateChanges PushEscape PopEscape
+
+
 aggregateCount : ModeDelta -> Int
 aggregateCount =
     List.foldl

@@ -166,42 +166,70 @@ deleteOperator range buf =
                 }
 
 
-delete : String -> V.OperatorRange -> Buffer -> Buffer
-delete register rg buf =
-    case buf.mode of
-        Ex ({ exbuf } as ex) ->
-            Buf.setMode
-                (Ex
-                    { ex
-                        | exbuf =
-                            (case deleteOperator rg exbuf of
-                                Just trans ->
-                                    applyTransaction trans exbuf
+isMatchString : V.OperatorRange -> Bool
+isMatchString rg =
+    case rg of
+        V.MotionRange md _ ->
+            case md of
+                V.MatchString ->
+                    True
 
-                                _ ->
-                                    exbuf
-                            )
-                    }
-                )
-                buf
-
-        Insert ->
-            case deleteOperator rg buf of
-                Just trans ->
-                    applyTransaction trans buf
+                V.RepeatMatchString ->
+                    True
 
                 _ ->
-                    buf
+                    False
 
         _ ->
+            False
+
+
+delete : String -> V.OperatorRange -> Buffer -> Buffer
+delete register rg buf =
+    let
+        doDelete isSaveLastDeleted buf =
             case deleteOperator rg buf of
                 Just trans ->
-                    buf
-                        |> applyTransaction trans
-                        |> saveLastDeleted register
+                    if isSaveLastDeleted then
+                        buf
+                            |> applyTransaction trans
+                            |> saveLastDeleted register
+                    else
+                        applyTransaction trans buf
 
                 _ ->
                     buf
+    in
+        case buf.mode of
+            Ex ({ exbuf } as ex) ->
+                -- FIXME: too hack!!
+                case rg of
+                    V.MotionRange md mo ->
+                        case md of
+                            V.MatchString ->
+                                buf
+                                    |> doDelete True
+                                    |> saveMotion md mo
+
+                            V.RepeatMatchString ->
+                                buf
+                                    |> doDelete True
+
+                            _ ->
+                                Buf.setMode
+                                    (Ex { ex | exbuf = doDelete False exbuf })
+                                    buf
+
+                    _ ->
+                        Buf.setMode
+                            (Ex { ex | exbuf = doDelete False exbuf })
+                            buf
+
+            Insert ->
+                doDelete False buf
+
+            _ ->
+                doDelete True buf
 
 
 saveLastDeleted : String -> Buffer -> Buffer

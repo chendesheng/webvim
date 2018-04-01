@@ -137,10 +137,10 @@ updateMode modeName buf =
         { buf | mode = newMode }
 
 
-modeChanged : Bool -> Key -> V.ModeName -> V.ModeName -> Buffer -> Buffer
-modeChanged replaying key oldModeName newModeName buf =
-    case newModeName of
-        V.ModeNameNormal ->
+modeChanged : Bool -> Key -> V.ModeName -> Buffer -> Buffer
+modeChanged replaying key oldModeName buf =
+    case buf.mode of
+        Normal ->
             let
                 ( y, x ) =
                     buf.cursor
@@ -162,55 +162,64 @@ modeChanged replaying key oldModeName newModeName buf =
                         (oldModeName == V.ModeNameInsert)
                     |> Buf.commit
 
-        V.ModeNameTempNormal ->
+        TempNormal ->
             buf
                 |> Buf.commit
 
-        V.ModeNameEx prefix ->
-            case buf.mode of
-                Ex ({ prefix, exbuf } as ex) ->
-                    if B.isEmpty exbuf.lines then
-                        buf
-                            |> handleKeypress False "<esc>"
-                            |> Tuple.first
-                    else
-                        let
-                            prefix1 =
-                                case prefix of
-                                    ExSearch ({ forward } as search) ->
-                                        let
-                                            s =
-                                                exbuf.lines
-                                                    |> B.toString
-                                                    |> String.dropLeft 1
+        Ex ({ prefix, exbuf } as ex) ->
+            if B.isEmpty exbuf.lines then
+                buf
+                    |> handleKeypress False "<esc>"
+                    |> Tuple.first
+            else
+                let
+                    last =
+                        buf.last
 
-                                            re =
-                                                Re.regex s
-                                        in
-                                            if String.isEmpty s then
-                                                ExSearch
-                                                    { search | match = Nothing }
-                                            else
-                                                ExSearch
-                                                    { search
-                                                        | match =
-                                                            matchString forward
-                                                                re
-                                                                buf.cursor
-                                                                buf.lines
-                                                    }
+                    prefix1 =
+                        case prefix of
+                            ExSearch ({ forward } as search) ->
+                                let
+                                    s =
+                                        exbuf.lines
+                                            |> B.toString
+                                            |> String.dropLeft 1
 
-                                    _ ->
-                                        prefix
-                        in
-                            Buf.setMode
-                                (Ex { ex | prefix = prefix1 })
-                                buf
+                                    re =
+                                        Re.regex s
+                                in
+                                    if String.isEmpty s then
+                                        ExSearch
+                                            { search | match = Nothing }
+                                    else
+                                        ExSearch
+                                            { search
+                                                | match =
+                                                    matchString forward
+                                                        re
+                                                        buf.cursor
+                                                        buf.lines
+                                            }
 
-                _ ->
-                    buf
+                            _ ->
+                                prefix
 
-        V.ModeNameInsert ->
+                    buf1 =
+                        if replaying || key == "<exbuf>" then
+                            buf
+                        else
+                            case oldModeName of
+                                V.ModeNameEx _ ->
+                                    { buf | last = { last | ex = last.ex ++ key } }
+
+                                _ ->
+                                    { buf | last = { last | ex = "" } }
+                in
+                    Buf.setMode
+                        (Ex { ex | prefix = prefix1 })
+                        buf1
+
+        Insert ->
             let
                 last =
                     buf.last
@@ -228,7 +237,7 @@ modeChanged replaying key oldModeName newModeName buf =
             in
                 { buf | last = { last | inserts = inserts } }
 
-        V.ModeNameVisual _ ->
+        Visual _ ->
             let
                 last =
                     buf.last
@@ -400,6 +409,9 @@ runOperator register operator buf =
 
         RepeatLastVisual ->
             replayKeys buf.last.visual buf
+
+        RepeatLastEx ->
+            replayKeys buf.last.ex buf
 
         VisualSwitchEnd ->
             case buf.mode of
@@ -583,7 +595,7 @@ handleKeypress replaying key buf =
             |> setContinuation continuation
             |> applyEdit edit register
             |> updateMode modeName
-            |> modeChanged replaying key oldModeName modeName
+            |> modeChanged replaying key oldModeName
             |> scrollToCursor
             |> saveDotRegister
         , Cmd.none

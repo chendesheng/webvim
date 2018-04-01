@@ -30,6 +30,8 @@ type StateChange
     | PopCount
     | PauseRecording
     | ContinueRecording
+    | PushEscape
+    | PopEscape
 
 
 type alias ModeDelta =
@@ -81,6 +83,7 @@ type Operator
     | ReplayMacro Register
     | InsertString StringType
     | RepeatLastInsert
+    | RepeatLastEx
     | RepeatLastVisual
     | RepeatLastOperator
     | VisualSwitchEnd

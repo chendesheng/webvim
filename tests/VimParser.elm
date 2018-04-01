@@ -160,6 +160,24 @@ cases =
         , "C"
         )
       )
+    , ( "c/"
+      , ( { initialMode
+            | modeName = ModeNameEx "/"
+          }
+        , "c/"
+        )
+      )
+    , ( "c/<cr>"
+      , ( { initialMode
+            | modeName = ModeNameInsert
+            , edit =
+                Delete (MotionRange MatchString (motionOption ">)+-"))
+                    |> Just
+          }
+        , "c/<cr>"
+        )
+      )
+    , ( "c/<esc>", ( initialMode, "" ) )
 
     -- range operator
     , ( "d", ( initialMode, "d" ) )
