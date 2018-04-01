@@ -7,6 +7,7 @@ import Array
 import List
 import Html.Attributes exposing (..)
 import Position exposing (Position)
+import Vim.AST exposing (VisualType(..))
 
 
 rem : number -> String
@@ -70,38 +71,7 @@ view { mode, cursor, lines, continuation, view } =
                                 else
                                     []
                                )
-                            ++ (case mode of
-                                    Visual tipe begin end ->
-                                        [ div [ class "selections" ]
-                                            (renderRange tipe begin end lines)
-                                        ]
-
-                                    Ex prefix _ ->
-                                        case prefix of
-                                            ExSearch _ range ->
-                                                case range of
-                                                    Just ( begin, end ) ->
-                                                        [ div
-                                                            [ class
-                                                                "highlights"
-                                                            ]
-                                                            (renderRange
-                                                                VisualRange
-                                                                begin
-                                                                end
-                                                                lines
-                                                            )
-                                                        ]
-
-                                                    _ ->
-                                                        []
-
-                                            _ ->
-                                                []
-
-                                    _ ->
-                                        []
-                               )
+                            ++ renderSelections mode lines
                         )
                     ]
                 ]
@@ -114,6 +84,69 @@ view { mode, cursor, lines, continuation, view } =
                 , div [ class "status-cmds" ] [ text continuation ]
                 ]
             ]
+
+
+renderSelections : Mode -> B.TextBuffer -> List (Html msg)
+renderSelections mode lines =
+    (case mode of
+        Visual visual ->
+            [ renderVisual
+                "selections"
+                visual
+                lines
+            ]
+
+        Ex { prefix, visual } ->
+            let
+                visual1 =
+                    case visual of
+                        Just v ->
+                            case prefix of
+                                ExSearch { match } ->
+                                    case match of
+                                        Just ( begin, end ) ->
+                                            Just { v | end = begin }
+
+                                        _ ->
+                                            visual
+
+                                _ ->
+                                    visual
+
+                        _ ->
+                            Nothing
+
+                visual2 =
+                    case prefix of
+                        ExSearch { match } ->
+                            case match of
+                                Just ( begin, end ) ->
+                                    Just
+                                        { tipe = VisualChars
+                                        , begin = begin
+                                        , end = end
+                                        }
+
+                                _ ->
+                                    Nothing
+
+                        _ ->
+                            Nothing
+            in
+                (visual1
+                    |> Maybe.map
+                        (\v -> [ renderVisual "selections" v lines ])
+                    |> Maybe.withDefault []
+                )
+                    ++ (visual2
+                            |> Maybe.map
+                                (\v -> [ renderVisual "highlights" v lines ])
+                            |> Maybe.withDefault []
+                       )
+
+        _ ->
+            []
+    )
 
 
 renderCursor : Position -> Html msg
@@ -136,7 +169,7 @@ getStatusBar mode =
             , cursor = Nothing
             }
 
-        Visual tipe _ _ ->
+        Visual { tipe } ->
             { text =
                 case tipe of
                     VisualLine ->
@@ -160,10 +193,21 @@ getStatusBar mode =
             , cursor = Nothing
             }
 
-        Ex prefix buffer ->
-            { text = B.toString buffer.lines
-            , cursor = Just buffer.cursor
+        Ex { exbuf } ->
+            { text = B.toString exbuf.lines
+            , cursor = Just exbuf.cursor
             }
+
+
+renderVisual :
+    String
+    -> VisualMode
+    -> B.TextBuffer
+    -> Html msg
+renderVisual classname { tipe, begin, end } lines =
+    div
+        [ class classname ]
+        (renderRange tipe begin end lines)
 
 
 renderRange :

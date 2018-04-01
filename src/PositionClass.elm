@@ -2,6 +2,7 @@ module PositionClass exposing (findPosition, parserWordEdge)
 
 import Char
 import Parser as P exposing (Parser, (|.), (|=))
+import Internal.TextBuffer as B
 import Vim.AST
     exposing
         ( MotionData(..)
@@ -333,30 +334,37 @@ findPosition :
     -> Int
     -> Maybe Int
 findPosition wordChars md mo line pos =
-    if mo.forward then
-        case md of
-            LineEnd ->
-                Just (String.length line - 1)
-
-            _ ->
+    let
+        line1 =
+            if String.endsWith B.lineBreak line then
                 line
-                    |> String.dropLeft pos
-                    |> findPositionForward wordChars md mo.crossLine
-                    --|> Debug.log "result"
-                    |> Result.toMaybe
-                    |> Maybe.map ((+) pos)
-    else
-        case md of
-            LineStart ->
-                Just 0
+            else
+                line ++ B.lineBreak
+    in
+        if mo.forward then
+            case md of
+                LineEnd ->
+                    Just (String.length line1 - 1)
 
-            LineFirst ->
-                P.run parserLineStart line
-                    |> Result.toMaybe
+                _ ->
+                    line1
+                        |> String.dropLeft pos
+                        |> findPositionForward wordChars md mo.crossLine
+                        --|> Debug.log "result"
+                        |> Result.toMaybe
+                        |> Maybe.map ((+) pos)
+        else
+            case md of
+                LineStart ->
+                    Just 0
 
-            _ ->
-                line
-                    |> String.left (pos + 1)
-                    |> findPositionBackward wordChars md
-                    --|> Debug.log "result"
-                    |> Result.toMaybe
+                LineFirst ->
+                    P.run parserLineStart line1
+                        |> Result.toMaybe
+
+                _ ->
+                    line1
+                        |> String.left (pos + 1)
+                        |> findPositionBackward wordChars md
+                        --|> Debug.log "result"
+                        |> Result.toMaybe

@@ -552,24 +552,24 @@ cases =
 
     -- visual
     , ( "v"
-      , ( { initialMode | modeName = ModeNameVisual VisualName }, "v" )
+      , ( { initialMode | modeName = ModeNameVisual VisualChars }, "v" )
       )
     , ( "V"
-      , ( { initialMode | modeName = ModeNameVisual VisualNameLine }, "V" )
+      , ( { initialMode | modeName = ModeNameVisual VisualLine }, "V" )
       )
     , ( "<c-v>"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualNameBlock
+            | modeName = ModeNameVisual VisualBlock
           }
         , "<c-v>"
         )
       )
     , ( "vV"
-      , ( { initialMode | modeName = ModeNameVisual VisualNameLine }, "V" )
+      , ( { initialMode | modeName = ModeNameVisual VisualLine }, "V" )
       )
     , ( "vo"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
             , edit = Just VisualSwitchEnd
           }
         , "v"
@@ -577,23 +577,23 @@ cases =
       )
     , ( "v<c-v>"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualNameBlock
+            | modeName = ModeNameVisual VisualBlock
           }
         , "<c-v>"
         )
       )
     , ( "Vv"
-      , ( { initialMode | modeName = ModeNameVisual VisualName }, "v" )
+      , ( { initialMode | modeName = ModeNameVisual VisualChars }, "v" )
       )
     , ( "V<c-v>"
-      , ( { initialMode | modeName = ModeNameVisual VisualNameBlock }, "<c-v>" )
+      , ( { initialMode | modeName = ModeNameVisual VisualBlock }, "<c-v>" )
       )
     , ( "vv", ( initialMode, "" ) )
     , ( "VV", ( initialMode, "" ) )
     , ( "<c-v><c-v>", ( initialMode, "" ) )
     , ( "vw"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
             , edit =
                 motionOption ">)+-"
                     |> Move WordStart
@@ -604,14 +604,14 @@ cases =
       )
     , ( "vi"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
           }
         , "vi"
         )
       )
     , ( "viw"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
             , edit = Select Word False |> Just
           }
         , "v"
@@ -619,7 +619,7 @@ cases =
       )
     , ( "v12iw"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
             , count = 12
             , edit = Select Word False |> Just
           }
@@ -637,7 +637,7 @@ cases =
     , ( "vaw"
       , ( { initialMode
             | edit = Select Word True |> Just
-            , modeName = ModeNameVisual VisualName
+            , modeName = ModeNameVisual VisualChars
           }
         , "v"
         )
@@ -645,7 +645,7 @@ cases =
     , ( "v10f"
       , ( { initialMode
             | count = 10
-            , modeName = ModeNameVisual VisualName
+            , modeName = ModeNameVisual VisualChars
           }
         , "v10f"
         )
@@ -654,7 +654,7 @@ cases =
       , ( { initialMode
             | edit = Move (MatchChar "m" False) (motionOption ">]$-") |> Just
             , count = 10
-            , modeName = ModeNameVisual VisualName
+            , modeName = ModeNameVisual VisualChars
           }
         , "v"
         )
@@ -689,7 +689,7 @@ cases =
       )
     , ( "v<visual>"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
             , edit = Just RepeatLastVisual
           }
         , "v"
@@ -697,14 +697,14 @@ cases =
       )
     , ( "vg"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
           }
         , "vg"
         )
       )
     , ( "vgg"
       , ( { initialMode
-            | modeName = ModeNameVisual VisualName
+            | modeName = ModeNameVisual VisualChars
             , edit = Just (Move (LineNumber 0) (motionOption ">]+="))
           }
         , "v"

@@ -788,16 +788,16 @@ visual =
         key2mode key =
             case key of
                 "v" ->
-                    ModeNameVisual VisualName
+                    ModeNameVisual VisualChars
 
                 "V" ->
-                    ModeNameVisual VisualNameLine
+                    ModeNameVisual VisualLine
 
                 "<c-v>" ->
-                    ModeNameVisual VisualNameBlock
+                    ModeNameVisual VisualBlock
 
                 _ ->
-                    ModeNameVisual VisualName
+                    ModeNameVisual VisualChars
     in
         P.oneOf
             [ P.symbol "v"

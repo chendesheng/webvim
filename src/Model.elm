@@ -6,6 +6,7 @@ import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
 import Task
 import Dict exposing (Dict)
+import Vim.AST exposing (VisualType(..))
 
 
 type alias Undo =
@@ -18,24 +19,32 @@ type alias Redo =
     Undo
 
 
-type VisualType
-    = VisualLine
-    | VisualBlock
-    | VisualRange
-
-
 type ExPrefix
-    = ExSearch Bool (Maybe ( Position, Position )) -- increment cursor position
+    = ExSearch
+        { forward : Bool
+        , match : Maybe ( Position, Position ) -- increment cursor position
+        }
     | ExCommand
     | ExEval
 
 
+type alias VisualMode =
+    { tipe : VisualType
+    , begin : Position
+    , end : Position
+    }
+
+
 type Mode
     = Normal
-    | Visual VisualType Position Position
+    | Visual VisualMode
     | Insert
     | TempNormal
-    | Ex ExPrefix Buffer
+    | Ex
+        { prefix : ExPrefix
+        , exbuf : Buffer
+        , visual : Maybe VisualMode
+        }
 
 
 type alias View =

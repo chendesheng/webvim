@@ -96,10 +96,10 @@ type StringType
     | CharAbroveCursor
 
 
-type VisualName
-    = VisualName
-    | VisualNameLine
-    | VisualNameBlock
+type VisualType
+    = VisualLine
+    | VisualBlock
+    | VisualChars
 
 
 type ModeName
@@ -107,7 +107,7 @@ type ModeName
     | ModeNameInsert
     | ModeNameTempNormal
     | ModeNameEx String
-    | ModeNameVisual VisualName
+    | ModeNameVisual VisualType
 
 
 type alias AST =

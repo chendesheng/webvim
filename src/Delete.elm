@@ -71,20 +71,20 @@ operatorRanges range buf =
 
         V.VisualRange ->
             case buf.mode of
-                Visual tipe a b ->
+                Visual { tipe, begin, end } ->
                     let
-                        begin =
-                            min a b
+                        begin1 =
+                            min begin end
 
-                        end =
-                            max a b
+                        end1 =
+                            max begin end
 
                         ( endy, endx ) =
-                            end
+                            end1
                     in
                         case tipe of
-                            VisualLine ->
-                                [ ( ( Tuple.first begin, 0 )
+                            V.VisualLine ->
+                                [ ( ( Tuple.first begin1, 0 )
                                   , ( endy + 1
                                     , 0
                                     )
@@ -92,7 +92,7 @@ operatorRanges range buf =
                                 ]
 
                             _ ->
-                                [ ( begin
+                                [ ( begin1
                                   , ( endy
                                     , endx + 1
                                     )
@@ -127,13 +127,25 @@ deleteOperator range buf =
 
                 V.VisualRange ->
                     case buf.mode of
-                        Visual _ a b ->
+                        Visual { begin, end } ->
                             let
-                                begin =
-                                    min a b
+                                begin1 =
+                                    min begin end
                             in
-                                Just ( begin, True )
+                                Just ( begin1, True )
 
+                        --Ex { visual } ->
+                        --    case visual of
+                        --        Just v ->
+                        --            let
+                        --                { begin, end } =
+                        --                    v
+                        --                begin1 =
+                        --                    min begin end
+                        --            in
+                        --                Just ( begin1, True )
+                        --        _ ->
+                        --            Nothing
                         _ ->
                             Nothing
 
@@ -157,16 +169,19 @@ deleteOperator range buf =
 delete : String -> V.OperatorRange -> Buffer -> Buffer
 delete register rg buf =
     case buf.mode of
-        Ex prefix exbuf ->
+        Ex ({ exbuf } as ex) ->
             Buf.setMode
-                ((case deleteOperator rg exbuf of
-                    Just trans ->
-                        applyTransaction trans exbuf
+                (Ex
+                    { ex
+                        | exbuf =
+                            (case deleteOperator rg exbuf of
+                                Just trans ->
+                                    applyTransaction trans exbuf
 
-                    _ ->
-                        exbuf
-                 )
-                    |> Ex prefix
+                                _ ->
+                                    exbuf
+                            )
+                    }
                 )
                 buf
 

@@ -21,8 +21,30 @@ import Regex as Re
 setVisualEnd : Position -> Buffer -> Buffer
 setVisualEnd pos buf =
     case buf.mode of
-        Visual tipe begin end ->
-            { buf | mode = Visual tipe begin buf.cursor }
+        Visual { tipe, begin, end } ->
+            { buf
+                | mode =
+                    Visual
+                        { tipe = tipe
+                        , begin = begin
+                        , end = buf.cursor
+                        }
+            }
+
+        Ex ({ visual } as ex) ->
+            case visual of
+                Just v ->
+                    { buf
+                        | mode =
+                            Ex
+                                { ex
+                                    | visual =
+                                        Just { v | end = buf.cursor }
+                                }
+                    }
+
+                _ ->
+                    buf
 
         _ ->
             buf
@@ -45,6 +67,28 @@ saveMotion md mo buf =
                                 , forward = mo.forward
                                 }
                     }
+
+                V.MatchString ->
+                    case buf.mode of
+                        Ex { prefix, exbuf } ->
+                            case prefix of
+                                ExSearch { forward, match } ->
+                                    let
+                                        s =
+                                            exbuf.lines
+                                                |> B.toString
+                                                |> String.dropLeft 1
+                                    in
+                                        { last
+                                            | matchString =
+                                                Just ( s, forward )
+                                        }
+
+                                _ ->
+                                    buf.last
+
+                        _ ->
+                            buf.last
 
                 _ ->
                     buf.last
@@ -132,39 +176,16 @@ gotoLine y lines =
             )
 
 
-gotoMatchedString : V.MotionOption -> Buffer -> Buffer
+gotoMatchedString : V.MotionOption -> Buffer -> Maybe Position
 gotoMatchedString mo buf =
     case buf.mode of
-        Ex prefix exbuf ->
+        Ex { prefix, exbuf } ->
             case prefix of
-                ExSearch forward pos ->
-                    let
-                        last =
-                            buf.last
-
-                        s =
-                            exbuf.lines
-                                |> B.toString
-                                |> String.dropLeft 1
-
-                        buf1 =
-                            case pos of
-                                Just ( cursor, _ ) ->
-                                    Buf.setCursor cursor True buf
-
-                                _ ->
-                                    buf
-                    in
-                        { buf1
-                            | last =
-                                { last
-                                    | matchString =
-                                        Just ( s, forward )
-                                }
-                        }
+                ExSearch { match } ->
+                    Maybe.map Tuple.first match
 
                 _ ->
-                    buf
+                    Nothing
 
         _ ->
             case buf.last.matchString of
@@ -184,13 +205,13 @@ gotoMatchedString mo buf =
                             )
                         of
                             Just ( cursor, _ ) ->
-                                Buf.setCursor cursor True buf
+                                Just cursor
 
                             _ ->
-                                buf
+                                Nothing
 
                 _ ->
-                    buf
+                    Nothing
 
 
 lastItemOf : (a -> Bool) -> List a -> Maybe a
@@ -332,6 +353,12 @@ runMotion md mo buf =
                         _ ->
                             Nothing
 
+                V.MatchString ->
+                    gotoMatchedString mo buf
+
+                V.RepeatMatchString ->
+                    gotoMatchedString mo buf
+
                 _ ->
                     findPositionInBuffer md
                         mo
@@ -357,21 +384,13 @@ isSaveColumn md =
 
 motion : V.MotionData -> V.MotionOption -> Buffer -> Buffer
 motion md mo buf =
-    case md of
-        V.MatchString ->
-            gotoMatchedString mo buf
+    case runMotion md mo buf of
+        Just cursor ->
+            buf
+                |> Buf.setCursor cursor (isSaveColumn md)
+                |> setVisualEnd cursor
+                |> saveMotion md mo
 
-        V.RepeatMatchString ->
-            gotoMatchedString mo buf
-
-        _ ->
-            case runMotion md mo buf of
-                Just cursor ->
-                    buf
-                        |> Buf.setCursor cursor (isSaveColumn md)
-                        |> setVisualEnd cursor
-                        |> saveMotion md mo
-
-                Nothing ->
-                    buf
-                        |> saveMotion md mo
+        Nothing ->
+            buf
+                |> saveMotion md mo

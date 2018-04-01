@@ -4,9 +4,7 @@ import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
-import Regex as Re
 import Tuple
-import Motion exposing (matchString)
 
 
 getString : Buffer -> V.StringType -> String
@@ -47,31 +45,10 @@ insertString ins buf =
 insert : V.StringType -> Buffer -> Buffer
 insert s buf =
     case buf.mode of
-        Ex prefix exb ->
-            let
-                exbuf =
-                    insertString s exb
-
-                prefix1 =
-                    case prefix of
-                        ExSearch forward _ ->
-                            let
-                                re =
-                                    exbuf.lines
-                                        |> B.toString
-                                        |> String.dropLeft 1
-                                        |> Re.regex
-                            in
-                                buf.lines
-                                    |> matchString forward re buf.cursor
-                                    |> ExSearch forward
-
-                        _ ->
-                            prefix
-            in
-                exbuf
-                    |> Ex prefix1
-                    |> flip Buf.setMode buf
+        Ex ({ exbuf } as ex) ->
+            Buf.setMode
+                (Ex { ex | exbuf = insertString s exbuf })
+                buf
 
         _ ->
             insertString s buf

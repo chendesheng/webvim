@@ -13,16 +13,17 @@ import Motion exposing (..)
 import Delete exposing (..)
 import Insert exposing (..)
 import Position exposing (Position)
+import Regex as Re
 
 
 stringToPrefix : String -> ExPrefix
 stringToPrefix prefix =
     case prefix of
         "/" ->
-            ExSearch True Nothing
+            ExSearch { forward = True, match = Nothing }
 
         "?" ->
-            ExSearch False Nothing
+            ExSearch { forward = False, match = Nothing }
 
         "=" ->
             ExEval
@@ -34,11 +35,11 @@ stringToPrefix prefix =
 prefixToString : ExPrefix -> String
 prefixToString prefix =
     case prefix of
-        ExSearch True _ ->
-            "/"
-
-        ExSearch False _ ->
-            "?"
+        ExSearch { forward } ->
+            if forward then
+                "/"
+            else
+                "?"
 
         ExEval ->
             "="
@@ -60,32 +61,46 @@ initMode { cursor, mode } modeName =
             Insert
 
         V.ModeNameEx prefix ->
-            emptyExBuffer
-                |> Buf.transaction
-                    [ Insertion ( 0, 0 ) <|
-                        B.fromString prefix
-                    ]
-                |> Ex (stringToPrefix prefix)
-
-        V.ModeNameVisual tipe ->
-            let
-                ( begin, end ) =
+            Ex
+                { prefix = (stringToPrefix prefix)
+                , exbuf =
+                    emptyExBuffer
+                        |> Buf.transaction
+                            [ Insertion ( 0, 0 ) <|
+                                B.fromString prefix
+                            ]
+                , visual =
                     case mode of
-                        Visual _ a b ->
-                            ( a, b )
+                        Visual visual ->
+                            Just visual
 
                         _ ->
-                            ( cursor, cursor )
-            in
-                case tipe of
-                    V.VisualNameLine ->
-                        Visual VisualLine begin end
+                            Nothing
+                }
 
-                    V.VisualNameBlock ->
-                        Visual VisualBlock begin end
+        V.ModeNameVisual tipe ->
+            Visual
+                (case mode of
+                    Visual visual ->
+                        { visual | tipe = tipe }
+
+                    Ex { visual } ->
+                        case visual of
+                            Just v ->
+                                v
+
+                            _ ->
+                                { tipe = tipe
+                                , begin = cursor
+                                , end = cursor
+                                }
 
                     _ ->
-                        Visual VisualRange begin end
+                        { tipe = tipe
+                        , begin = cursor
+                        , end = cursor
+                        }
+                )
 
 
 getModeName : Mode -> V.ModeName
@@ -100,20 +115,10 @@ getModeName mode =
         TempNormal ->
             V.ModeNameTempNormal
 
-        Visual tipe _ _ ->
-            V.ModeNameVisual
-                (case tipe of
-                    VisualRange ->
-                        V.VisualName
+        Visual { tipe } ->
+            V.ModeNameVisual tipe
 
-                    VisualLine ->
-                        V.VisualNameLine
-
-                    VisualBlock ->
-                        V.VisualNameBlock
-                )
-
-        Ex prefix _ ->
+        Ex { prefix } ->
             V.ModeNameEx <| prefixToString prefix
 
 
@@ -163,13 +168,44 @@ modeChanged replaying key oldModeName newModeName buf =
 
         V.ModeNameEx prefix ->
             case buf.mode of
-                Ex prefix exbuf ->
+                Ex ({ prefix, exbuf } as ex) ->
                     if B.isEmpty exbuf.lines then
                         buf
                             |> handleKeypress False "<esc>"
                             |> Tuple.first
                     else
-                        buf
+                        let
+                            prefix1 =
+                                case prefix of
+                                    ExSearch ({ forward } as search) ->
+                                        let
+                                            s =
+                                                exbuf.lines
+                                                    |> B.toString
+                                                    |> String.dropLeft 1
+
+                                            re =
+                                                Re.regex s
+                                        in
+                                            if String.isEmpty s then
+                                                ExSearch
+                                                    { search | match = Nothing }
+                                            else
+                                                ExSearch
+                                                    { search
+                                                        | match =
+                                                            matchString forward
+                                                                re
+                                                                buf.cursor
+                                                                buf.lines
+                                                    }
+
+                                    _ ->
+                                        prefix
+                        in
+                            Buf.setMode
+                                (Ex { ex | prefix = prefix1 })
+                                buf
 
                 _ ->
                     buf
@@ -335,10 +371,15 @@ runOperator register operator buf =
                 |> Maybe.map
                     (\s ->
                         case buf.mode of
-                            Ex prefix exbuf ->
-                                Buf.putString forward s exbuf
-                                    |> Ex prefix
-                                    |> flip Buf.setMode buf
+                            Ex ({ exbuf } as ex) ->
+                                Buf.setMode
+                                    (Ex
+                                        { ex
+                                            | exbuf =
+                                                Buf.putString forward s exbuf
+                                        }
+                                    )
+                                    buf
 
                             _ ->
                                 Buf.putString forward s buf
@@ -362,9 +403,14 @@ runOperator register operator buf =
 
         VisualSwitchEnd ->
             case buf.mode of
-                Visual tipe begin end ->
+                Visual { tipe, begin, end } ->
                     { buf
-                        | mode = Visual tipe end begin
+                        | mode =
+                            Visual
+                                { tipe = tipe
+                                , begin = end
+                                , end = begin
+                                }
                         , cursor = begin
                         , cursorColumn = Tuple.second begin
                     }

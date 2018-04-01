@@ -11,6 +11,7 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Dict
 import Maybe
 import Vim.Helper exposing (keyParser)
+import Vim.AST exposing (VisualType(..))
 
 
 handleKeys : List Key -> Model -> Model
@@ -499,10 +500,29 @@ exModeCases =
     [ ( ":11"
       , { exModeCasesBuf
             | mode =
-                Ex ExCommand
-                    { emptyExBuffer
-                        | lines = B.fromString ":11"
-                        , cursor = ( 0, 3 )
+                Ex
+                    { prefix = ExCommand
+                    , exbuf =
+                        { emptyExBuffer
+                            | lines = B.fromString ":11"
+                            , cursor = ( 0, 3 )
+                        }
+                    , visual = Nothing
+                    }
+            , continuation = ":"
+        }
+      )
+    , ( ":11<backspace>"
+      , { exModeCasesBuf
+            | mode =
+                Ex
+                    { prefix = ExCommand
+                    , exbuf =
+                        { emptyExBuffer
+                            | lines = B.fromString ":1"
+                            , cursor = ( 0, 2 )
+                        }
+                    , visual = Nothing
                     }
             , continuation = ":"
         }
@@ -544,6 +564,58 @@ exModeCases =
       , { exModeCasesBuf
             | last = { emptyLast | matchString = Just ( "def", False ) }
             , cursor = ( 1, 0 )
+        }
+      )
+    , ( "/"
+      , { exModeCasesBuf
+            | mode =
+                Ex
+                    { exbuf =
+                        { emptyExBuffer
+                            | lines = B.fromString "/"
+                            , cursor = ( 0, 1 )
+                        }
+                    , visual = Nothing
+                    , prefix =
+                        ExSearch
+                            { match = Nothing
+                            , forward = True
+                            }
+                    }
+            , continuation = "/"
+        }
+      )
+    , ( "?"
+      , { exModeCasesBuf
+            | mode =
+                Ex
+                    { exbuf =
+                        { emptyExBuffer
+                            | lines = B.fromString "?"
+                            , cursor = ( 0, 1 )
+                        }
+                    , visual = Nothing
+                    , prefix =
+                        ExSearch
+                            { match = Nothing
+                            , forward = False
+                            }
+                    }
+            , continuation = "?"
+        }
+      )
+    , ( "v/ef<cr>"
+      , { exModeCasesBuf
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 0 )
+                    , end = ( 1, 1 )
+                    }
+            , cursor = ( 1, 1 )
+            , cursorColumn = 1
+            , continuation = "v"
+            , last = { emptyLast | matchString = Just ( "ef", True ) }
         }
       )
     ]
@@ -778,19 +850,34 @@ visualModeCases : List ( String, Buffer )
 visualModeCases =
     [ ( "v"
       , { visualModeCasesBuf
-            | mode = Visual VisualRange ( 0, 0 ) ( 0, 0 )
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 0 )
+                    , end = ( 0, 0 )
+                    }
             , continuation = "v"
         }
       )
     , ( "V"
       , { visualModeCasesBuf
-            | mode = Visual VisualLine ( 0, 0 ) ( 0, 0 )
+            | mode =
+                Visual
+                    { tipe = VisualLine
+                    , begin = ( 0, 0 )
+                    , end = ( 0, 0 )
+                    }
             , continuation = "V"
         }
       )
     , ( "<c-v>"
       , { visualModeCasesBuf
-            | mode = Visual VisualBlock ( 0, 0 ) ( 0, 0 )
+            | mode =
+                Visual
+                    { tipe = VisualBlock
+                    , begin = ( 0, 0 )
+                    , end = ( 0, 0 )
+                    }
             , continuation = "<c-v>"
         }
       )
@@ -799,7 +886,12 @@ visualModeCases =
       )
     , ( "vw"
       , { visualModeCasesBuf
-            | mode = Visual VisualRange ( 0, 0 ) ( 1, 0 )
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 0 )
+                    , end = ( 1, 0 )
+                    }
             , cursor = ( 1, 0 )
             , last = { emptyLast | visual = "w" }
             , continuation = "v"
@@ -807,7 +899,12 @@ visualModeCases =
       )
     , ( "vwl"
       , { visualModeCasesBuf
-            | mode = Visual VisualRange ( 0, 0 ) ( 1, 1 )
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 0 )
+                    , end = ( 1, 1 )
+                    }
             , cursor = ( 1, 1 )
             , cursorColumn = 1
             , last = { emptyLast | visual = "wl" }
@@ -816,21 +913,36 @@ visualModeCases =
       )
     , ( "lvh"
       , { visualModeCasesBuf
-            | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 1 )
+                    , end = ( 0, 0 )
+                    }
             , last = { emptyLast | visual = "h" }
             , continuation = "v"
         }
       )
     , ( "vo"
       , { visualModeCasesBuf
-            | mode = Visual VisualRange ( 0, 0 ) ( 0, 0 )
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 0 )
+                    , end = ( 0, 0 )
+                    }
             , last = { emptyLast | visual = "o" }
             , continuation = "v"
         }
       )
     , ( "vlo"
       , { visualModeCasesBuf
-            | mode = Visual VisualRange ( 0, 1 ) ( 0, 0 )
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 1 )
+                    , end = ( 0, 0 )
+                    }
             , last = { emptyLast | visual = "lo" }
             , continuation = "v"
         }
@@ -920,10 +1032,15 @@ allCases =
                             buf.view
                     in
                         case buf.mode of
-                            Ex prefix exBuf ->
+                            Ex ({ prefix, exbuf } as ex) ->
                                 { buf
                                     | mode =
-                                        Ex prefix (Buf.clearHistory exBuf)
+                                        Ex
+                                            { ex
+                                                | prefix = prefix
+                                                , exbuf =
+                                                    Buf.clearHistory exbuf
+                                            }
                                 }
 
                             _ ->
@@ -1040,6 +1157,9 @@ suite =
                                 s
                                 buf
                                 model
+                         --if s == ":11<backspace>" then
+                         --else
+                         --    (test s <| \_ -> Expect.equal 1 1)
                         )
                         cases
             )
