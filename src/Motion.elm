@@ -3,6 +3,7 @@ module Motion
         ( saveMotion
         , gotoLine
         , setVisualEnd
+        , setVisualBegin
         , runMotion
         , motion
         , matchString
@@ -18,16 +19,16 @@ import PositionClass exposing (..)
 import Regex as Re
 
 
-setVisualEnd : Position -> Buffer -> Buffer
-setVisualEnd pos buf =
+setVisualBegin : Position -> Buffer -> Buffer
+setVisualBegin pos buf =
     case buf.mode of
         Visual { tipe, begin, end } ->
             { buf
                 | mode =
                     Visual
                         { tipe = tipe
-                        , begin = begin
-                        , end = buf.cursor
+                        , begin = pos
+                        , end = end
                         }
             }
 
@@ -39,7 +40,39 @@ setVisualEnd pos buf =
                             Ex
                                 { ex
                                     | visual =
-                                        Just { v | end = buf.cursor }
+                                        Just { v | begin = pos }
+                                }
+                    }
+
+                _ ->
+                    buf
+
+        _ ->
+            buf
+
+
+setVisualEnd : Position -> Buffer -> Buffer
+setVisualEnd pos buf =
+    case buf.mode of
+        Visual { tipe, begin, end } ->
+            { buf
+                | mode =
+                    Visual
+                        { tipe = tipe
+                        , begin = begin
+                        , end = pos
+                        }
+            }
+
+        Ex ({ visual } as ex) ->
+            case visual of
+                Just v ->
+                    { buf
+                        | mode =
+                            Ex
+                                { ex
+                                    | visual =
+                                        Just { v | end = pos }
                                 }
                     }
 

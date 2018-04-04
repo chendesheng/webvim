@@ -536,8 +536,8 @@ operator isVisual isTemp =
                 if key == "c" then
                     P.oneOf
                         -- w/W behavior differently in change operator
-                        [ define "w" WordEdge <| motionOption ">)$-"
-                        , define "W" WORDEdge <| motionOption ">)$-"
+                        [ define "w" WordEdge <| motionOption ">]$-"
+                        , define "W" WORDEdge <| motionOption ">]$-"
                         , textObjectParser
                         , motionParser
                         ]

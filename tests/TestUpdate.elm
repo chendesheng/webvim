@@ -747,9 +747,9 @@ changeCases =
       )
     , ( "cvw"
       , { changeCasesBuf
-            | lines = B.fromString "23\n456\ndef\ndef\n"
+            | lines = B.fromString " 123\n456\ndef\ndef\n"
             , mode = Insert
-            , registers = Dict.fromList [ ( "\"", " 1" ) ]
+            , registers = Dict.fromList [ ( "\"", "" ) ]
             , continuation = "cvw"
         }
       )

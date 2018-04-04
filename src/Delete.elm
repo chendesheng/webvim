@@ -5,6 +5,7 @@ import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
 import Position exposing (Position, positionMin)
+import TextObject exposing (expandTextObject)
 import Motion exposing (..)
 
 
@@ -102,8 +103,32 @@ operatorRanges range buf =
                 _ ->
                     []
 
-        _ ->
-            []
+        V.TextObject textobj around ->
+            let
+                ( y, x ) =
+                    buf.cursor |> Debug.log "test"
+            in
+                (expandTextObject buf.config.wordChars
+                    textobj
+                    around
+                    buf.cursor
+                    buf.lines
+                )
+                    |> Maybe.map
+                        (\rg ->
+                            let
+                                ( a, b ) =
+                                    rg
+
+                                ( ya, xa ) =
+                                    a
+
+                                ( yb, xb ) =
+                                    b
+                            in
+                                [ ( ( ya, xa ), ( yb, xb + 1 ) ) ]
+                        )
+                    |> Maybe.withDefault []
 
 
 deleteOperator : V.OperatorRange -> Buffer -> Maybe Transaction

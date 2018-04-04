@@ -14,6 +14,7 @@ import Delete exposing (..)
 import Insert exposing (..)
 import Position exposing (Position)
 import Regex as Re
+import TextObject exposing (expandTextObject)
 
 
 stringToPrefix : String -> ExPrefix
@@ -274,11 +275,57 @@ ceilingFromZero n =
         ceiling n
 
 
+expandVisual :
+    comparable
+    -> comparable
+    -> comparable
+    -> comparable
+    -> ( comparable, comparable )
+expandVisual begin end a b =
+    if begin < end then
+        ( (min a begin), (max b end) )
+    else
+        ( (max b begin), (min a end) )
+
+
 runOperator : String -> Operator -> Buffer -> Buffer
 runOperator register operator buf =
     case operator of
         Move md mo ->
             motion md mo buf
+
+        Select textobj around ->
+            case buf.mode of
+                Visual { tipe, begin, end } ->
+                    case tipe of
+                        V.VisualChars ->
+                            (expandTextObject buf.config.wordChars
+                                textobj
+                                around
+                                end
+                                buf.lines
+                            )
+                                |> Maybe.map
+                                    (\rg ->
+                                        let
+                                            ( a, b ) =
+                                                rg
+
+                                            ( begin1, end1 ) =
+                                                expandVisual begin end a b
+                                        in
+                                            buf
+                                                |> Buf.setCursor end1 True
+                                                |> setVisualEnd end1
+                                                |> setVisualBegin begin1
+                                    )
+                                |> Maybe.withDefault buf
+
+                        _ ->
+                            buf
+
+                _ ->
+                    buf
 
         Scroll value ->
             let
@@ -416,16 +463,15 @@ runOperator register operator buf =
         VisualSwitchEnd ->
             case buf.mode of
                 Visual { tipe, begin, end } ->
-                    { buf
-                        | mode =
-                            Visual
+                    buf
+                        |> Buf.setMode
+                            (Visual
                                 { tipe = tipe
                                 , begin = end
                                 , end = begin
                                 }
-                        , cursor = begin
-                        , cursorColumn = Tuple.second begin
-                    }
+                            )
+                        |> Buf.setCursor begin True
 
                 _ ->
                     buf

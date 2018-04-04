@@ -381,47 +381,47 @@ a h
                     ++ List.map (TestCase WordEdge ">]$=")
                         [ """
     a
-^   ?
-"""
-                        , """
-\t
-^?
-"""
-                        , """
-\t\t
-^ ?
-"""
-                        , """
-123a##
-^   ?
-"""
-                        , """
-123 ##
 ^  ?
 """
                         , """
-#1
+\t
+$
+"""
+                        , """
+\t\t
 ^?
+"""
+                        , """
+123a##
+^  ?
+"""
+                        , """
+123 ##
+^ ?
+"""
+                        , """
+#1
+$
 """
                         , """
 # 1
-^?
+$
 """
                         , """
   #
-^ ?
+^?
 """
                         , """
   1
-^ ?
+^?
 """
                         , """
 1
-^?
+$
 """
                         , """
 #
-^?
+$
 """
                         ]
                     ++ List.map (TestCase WORDEdge ">]$-")
@@ -605,13 +605,13 @@ a h
                                             motionOption option
                                     in
                                         Expect.equal
+                                            result
                                             (findPosition ""
                                                 md
                                                 mo
                                                 line
                                                 start
                                             )
-                                            result
 
                                 _ ->
                                     Expect.fail "wrong test case"

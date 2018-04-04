@@ -1,4 +1,8 @@
-module PositionClass exposing (findPosition, parserWordEdge)
+module PositionClass
+    exposing
+        ( findPosition
+        , parserWordEdge
+        )
 
 import Char
 import Parser as P exposing (Parser, (|.), (|=))
@@ -8,7 +12,10 @@ import Vim.AST
         ( MotionData(..)
         , MotionOption
         , Direction(..)
+        , TextObject(..)
+        , motionOption
         )
+import Maybe
 
 
 isBetween : Char -> Char -> Char -> Bool
@@ -136,15 +143,15 @@ parserWordEdge wordChars =
     let
         divider pred =
             P.succeed
-                (length2 -1)
+                (length1 -1)
                 |= P.keep P.oneOrMore pred
-                |= P.oneOf
+                |. P.oneOf
                     [ P.keep (P.Exactly 1) (pred >> not)
                     , P.end |> P.map (always "")
                     ]
     in
         P.oneOf
-            [ divider space
+            [ divider spaceInline
             , divider (word wordChars)
             , divider (punctuation wordChars)
             ]
@@ -174,22 +181,20 @@ parserWORDAround =
 
 parserWORDEdge : Parser Int
 parserWORDEdge =
-    P.oneOf
-        [ P.succeed
-            (length1 -1)
-            |= P.keep P.oneOrMore space
-            |. P.oneOf
-                [ P.ignore (P.Exactly 1) (space >> not)
-                , P.end
-                ]
-        , P.succeed
-            (length1 -1)
-            |= P.keep P.oneOrMore (space >> not)
-            |. P.oneOf
-                [ P.ignore (P.Exactly 1) space
-                , P.end
-                ]
-        ]
+    let
+        divider pred =
+            P.succeed
+                (length1 -1)
+                |= P.keep P.oneOrMore pred
+                |. P.oneOf
+                    [ P.keep (P.Exactly 1) (pred >> not)
+                    , P.end |> P.map (always "")
+                    ]
+    in
+        P.oneOf
+            [ divider spaceInline
+            , divider (space >> not)
+            ]
 
 
 parserWORDEnd : Parser Int
@@ -250,6 +255,12 @@ findPositionBackward wordChars md line =
 
                 WORDStart ->
                     parserWORDEnd
+
+                WordEdge ->
+                    parserWordEdge wordChars
+
+                WORDEdge ->
+                    parserWORDEdge
 
                 CharStart ->
                     parserCharStart
@@ -350,7 +361,7 @@ findPosition wordChars md mo line pos =
                     line1
                         |> String.dropLeft pos
                         |> findPositionForward wordChars md mo.crossLine
-                        --|> Debug.log "result"
+                        --|> Debug.log ("result" ++ line)
                         |> Result.toMaybe
                         |> Maybe.map ((+) pos)
         else
