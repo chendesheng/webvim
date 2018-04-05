@@ -76,9 +76,9 @@ mapLines f (TextBuffer buf) =
     Array.map f buf
 
 
-foldlLines : (String -> a -> a) -> a -> TextBuffer -> a
-foldlLines f a (TextBuffer buf) =
-    Array.foldl f a buf
+foldlLines : Int -> (String -> a -> a) -> a -> TextBuffer -> a
+foldlLines n f a (TextBuffer buf) =
+    Array.foldl f a <| Array.slice n (Array.length buf) buf
 
 
 getLine : Int -> TextBuffer -> Maybe String

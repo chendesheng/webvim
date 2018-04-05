@@ -12,6 +12,7 @@ module Buffer
         , setRegister
         , setCursor
         , putString
+        , syntaxHighlight
         )
 
 import Position exposing (..)
@@ -26,6 +27,7 @@ import Internal.TextBuffer
         , countLines
         , Patch(..)
         , isEmpty
+        , foldlLines
         )
 import List
 import Vim.AST
@@ -37,6 +39,8 @@ import Vim.AST
 import String
 import Maybe
 import Dict
+import Syntax exposing (..)
+import Array
 
 
 applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch )
@@ -94,6 +98,7 @@ transaction patches buf =
             { buf1
                 | history =
                     addPending buf.cursor undo buf1.history
+                , syntax = syntaxHighlight buf1.lines buf.syntax
             }
 
 
@@ -172,6 +177,36 @@ commit buf =
         }
 
 
+syntaxHighlight : TextBuffer -> Syntax -> Syntax
+syntaxHighlight lines syntax =
+    if syntax.lang == "" then
+        syntax
+    else
+        let
+            ( slines, _ ) =
+                foldlLines
+                    0
+                    (\line ( slines, continuation ) ->
+                        let
+                            sline =
+                                highlight
+                                    syntax.lang
+                                    line
+                                    continuation
+                        in
+                            ( Array.append slines <|
+                                Array.fromList [ sline ]
+                            , Just (Tuple.second sline)
+                            )
+                    )
+                    ( Array.empty, Nothing )
+                    lines
+        in
+            { lang = syntax.lang
+            , lines = slines
+            }
+
+
 {-| undo last change
 -}
 undo : Buffer -> Buffer
@@ -201,6 +236,7 @@ undo buf =
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
                         , history = undoHistory buf.history
+                        , syntax = syntaxHighlight lines1 buf.syntax
                     }
             )
         |> Maybe.withDefault buf
@@ -235,6 +271,7 @@ redo buf =
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
                         , history = redoHistory buf.history
+                        , syntax = syntaxHighlight lines1 buf.syntax
                     }
             )
         |> Maybe.withDefault buf

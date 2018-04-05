@@ -7,6 +7,8 @@ import Window as Win exposing (Size)
 import Task
 import Dict exposing (Dict)
 import Vim.AST exposing (VisualType(..))
+import Syntax exposing (..)
+import Array
 
 
 type alias Undo =
@@ -79,6 +81,7 @@ emptyBufferHistory =
 type alias Buffer =
     { id : Int
     , lines : TextBuffer
+    , syntax : Syntax
     , cursor : Position
     , cursorColumn : Int
     , path : String
@@ -128,6 +131,7 @@ emptyBuffer : Buffer
 emptyBuffer =
     { id = 0
     , lines = B.fromString B.lineBreak
+    , syntax = { lang = "", lines = Array.empty }
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""

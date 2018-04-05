@@ -10,4 +10,4 @@ tests/elm-stuff/
 .paket/paket.exe
 packages/
 .fake/
-
+highlightjs/

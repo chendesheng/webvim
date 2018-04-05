@@ -17,7 +17,10 @@ import Regex as Re
 import TextObject exposing (expandTextObject)
 import Result
 import Http
+import List
 import Json.Decode as Decode
+import Tuple
+import String
 
 
 stringToPrefix : String -> ExPrefix
@@ -727,6 +730,28 @@ handleKeypress replaying key buf =
         )
 
 
+filename : String -> ( String, String )
+filename s =
+    case
+        Re.find
+            (Re.AtMost 1)
+            (Re.regex "(^|[/\\\\])(.+?)([.].*)?$")
+            s
+    of
+        [ m ] ->
+            case m.submatches of
+                [ _, a, b ] ->
+                    ( Maybe.withDefault "" a
+                    , Maybe.withDefault "" b
+                    )
+
+                _ ->
+                    ( "", "" )
+
+        _ ->
+            ( "", "" )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
@@ -753,13 +778,35 @@ update message model =
         Read result ->
             case result of
                 Ok { path, content } ->
-                    ( { emptyBuffer
-                        | lines = B.fromString content
-                        , view = { emptyView | size = model.view.size }
-                        , path = path
-                      }
-                    , Cmd.none
-                    )
+                    let
+                        lines =
+                            B.fromString content
+
+                        ( name, ext ) =
+                            filename path
+
+                        syntax =
+                            { lang =
+                                if ext == "" then
+                                    ""
+                                else
+                                    String.dropLeft 1 ext
+                            , lines = emptyBuffer.syntax.lines
+                            }
+                    in
+                        ( { emptyBuffer
+                            | lines = lines
+                            , view =
+                                { emptyView | size = model.view.size }
+                            , path = path
+                            , name = name ++ ext
+                            , syntax =
+                                Buf.syntaxHighlight
+                                    lines
+                                    syntax
+                          }
+                        , Cmd.none
+                        )
 
                 Err s ->
                     ( model, Cmd.none )

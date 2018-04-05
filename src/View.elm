@@ -1,6 +1,7 @@
 module View exposing (..)
 
 import Html exposing (..)
+import Html.Lazy exposing (..)
 import Model exposing (..)
 import Internal.TextBuffer as B
 import Array
@@ -8,6 +9,7 @@ import List
 import Html.Attributes exposing (..)
 import Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
+import Syntax exposing (Syntax)
 
 
 rem : number -> String
@@ -20,19 +22,21 @@ ch n =
     toString n ++ "ch"
 
 
+translate : number -> number1 -> ( String, String )
+translate x y =
+    ( "transform"
+    , "translate(" ++ ch x ++ ", " ++ rem y ++ ")"
+    )
+
+
 view : Model -> Html msg
-view { mode, cursor, lines, continuation, view } =
+view { mode, cursor, lines, syntax, continuation, view } =
     let
         ( y, x ) =
             cursor
 
         statusBar =
             getStatusBar mode
-
-        translate x y =
-            ( "transform"
-            , "translate(" ++ ch x ++ ", " ++ rem y ++ ")"
-            )
 
         scrollTop =
             view.scrollTop
@@ -55,25 +59,15 @@ view { mode, cursor, lines, continuation, view } =
                         )
                     ]
                 , div [ class "lines-container" ]
-                    [ div
-                        [ class "lines"
-                        , style [ translate 0 -scrollTop ]
-                        ]
-                        ((lines
-                            |> B.mapLines
-                                (\line ->
-                                    div [ class "line" ] [ text line ]
-                                )
-                            |> Array.toList
-                         )
-                            ++ (if statusBar.cursor == Nothing then
-                                    [ renderCursor cursor ]
-                                else
-                                    []
-                               )
-                            ++ renderSelections mode lines
-                        )
-                    ]
+                    ([ lazy3 renderLines scrollTop lines syntax
+                     ]
+                        ++ (if statusBar.cursor == Nothing then
+                                [ renderCursor ( y - scrollTop, x ) ]
+                            else
+                                []
+                           )
+                        ++ renderSelections scrollTop mode lines
+                    )
                 ]
             , div
                 [ class "status" ]
@@ -86,11 +80,12 @@ view { mode, cursor, lines, continuation, view } =
             ]
 
 
-renderSelections : Mode -> B.TextBuffer -> List (Html msg)
-renderSelections mode lines =
+renderSelections : Int -> Mode -> B.TextBuffer -> List (Html msg)
+renderSelections scrollTop mode lines =
     (case mode of
         Visual visual ->
             [ renderVisual
+                scrollTop
                 "selections"
                 visual
                 lines
@@ -135,12 +130,24 @@ renderSelections mode lines =
             in
                 (visual1
                     |> Maybe.map
-                        (\v -> [ renderVisual "selections" v lines ])
+                        (\v ->
+                            [ renderVisual scrollTop
+                                "selections"
+                                v
+                                lines
+                            ]
+                        )
                     |> Maybe.withDefault []
                 )
                     ++ (visual2
                             |> Maybe.map
-                                (\v -> [ renderVisual "highlights" v lines ])
+                                (\v ->
+                                    [ renderVisual scrollTop
+                                        "highlights"
+                                        v
+                                        lines
+                                    ]
+                                )
                             |> Maybe.withDefault []
                        )
 
@@ -200,23 +207,25 @@ getStatusBar mode =
 
 
 renderVisual :
-    String
+    Int
+    -> String
     -> VisualMode
     -> B.TextBuffer
     -> Html msg
-renderVisual classname { tipe, begin, end } lines =
+renderVisual scrollTop classname { tipe, begin, end } lines =
     div
         [ class classname ]
-        (renderRange tipe begin end lines)
+        (renderRange scrollTop tipe begin end lines)
 
 
 renderRange :
-    VisualType
+    Int
+    -> VisualType
     -> Position
     -> Position
     -> B.TextBuffer
     -> List (Html msg)
-renderRange tipe begin end lines =
+renderRange scrollTop tipe begin end lines =
     let
         ( by, bx ) =
             Basics.min begin end
@@ -252,10 +261,47 @@ renderRange tipe begin end lines =
                         (div
                             [ style
                                 [ ( "left", ch a )
-                                , ( "top", rem row )
+                                , ( "top", rem (row - scrollTop) )
                                 , ( "width", ch <| b - a + 1 )
                                 ]
                             ]
                             []
                         )
                 )
+
+
+renderLines : Int -> B.TextBuffer -> Syntax -> Html msg
+renderLines scrollTop lines syntax =
+    div
+        [ class "lines"
+        , style [ translate 0 -scrollTop ]
+        ]
+        (if syntax.lang == "" then
+            lines
+                |> B.mapLines
+                    (\line ->
+                        div [ class "line" ] [ text line ]
+                    )
+                |> Array.toList
+         else
+            syntax.lines
+                |> Array.map
+                    (\sline ->
+                        let
+                            ( scopes, _ ) =
+                                sline
+                        in
+                            div [ class "line" ]
+                                (List.map
+                                    (\scope ->
+                                        let
+                                            ( cls, s ) =
+                                                scope
+                                        in
+                                            span [ class cls ] [ text s ]
+                                    )
+                                    scopes
+                                )
+                    )
+                |> Array.toList
+        )
