@@ -113,6 +113,17 @@ emptyExBuffer =
     { emptyBuffer | mode = Insert, lines = B.empty }
 
 
+emptyView : View
+emptyView =
+    { scrollTop = 0
+    , scrollLeft = 0
+    , startPosition = ( 0, 0 )
+    , size = { width = 1, height = 1 }
+    , dataStartPosition = ( 0, 0 )
+    , statusbarHeight = 1
+    }
+
+
 emptyBuffer : Buffer
 emptyBuffer =
     { id = 0

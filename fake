@@ -1,0 +1,3 @@
+#!/bin/bash
+
+mono packages/fake/tools/fake.exe fake.fsx $@

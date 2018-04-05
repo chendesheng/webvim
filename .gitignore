@@ -7,3 +7,7 @@ tags
 css/Icon.less
 css/preview.html
 tests/elm-stuff/
+.paket/paket.exe
+packages/
+.fake/
+

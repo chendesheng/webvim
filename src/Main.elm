@@ -11,6 +11,9 @@ import KeySub exposing (downs)
 import Window exposing (resizes)
 
 
+-- This is the first line written in webvim-elm :)
+
+
 main : Program Encode.Value Model Msg
 main =
     Html.programWithFlags

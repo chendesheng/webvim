@@ -15,6 +15,9 @@ import Insert exposing (..)
 import Position exposing (Position)
 import Regex as Re
 import TextObject exposing (expandTextObject)
+import Result
+import Http
+import Json.Decode as Decode
 
 
 stringToPrefix : String -> ExPrefix
@@ -432,7 +435,10 @@ runOperator register operator buf =
                                     (Ex
                                         { ex
                                             | exbuf =
-                                                Buf.putString forward s exbuf
+                                                Buf.putString
+                                                    forward
+                                                    s
+                                                    exbuf
                                         }
                                     )
                                     buf
@@ -609,11 +615,84 @@ isModeNameVisual name =
             False
 
 
+
+--getEffect buf operator =
+
+
+sendSaveBuffer : String -> Buffer -> Cmd Msg
+sendSaveBuffer path buf =
+    let
+        body =
+            buf.lines
+                |> B.toString
+                |> Http.stringBody "plain/text"
+    in
+        (Http.post
+            ("/write?path=" ++ path)
+            body
+            (Decode.succeed ())
+        )
+            |> Http.send Write
+
+
+execute : String -> Buffer -> Cmd Msg
+execute s buf =
+    case String.split " " s of
+        [ "e", path ] ->
+            ("/edit?path=" ++ path)
+                |> Http.getString
+                |> Http.send
+                    (Result.map
+                        (\s ->
+                            { path = path
+                            , content = s
+                            }
+                        )
+                        >> Read
+                    )
+
+        [ "w" ] ->
+            sendSaveBuffer buf.path buf
+
+        [ "w", path ] ->
+            sendSaveBuffer path buf
+
+        _ ->
+            Cmd.none
+
+
+getEffect : Maybe Operator -> Buffer -> Cmd Msg
+getEffect op buf =
+    case op of
+        Just op1 ->
+            case op1 of
+                Execute ->
+                    case buf.mode of
+                        Ex { exbuf } ->
+                            exbuf.lines
+                                |> B.toString
+                                |> String.dropLeft 1
+                                |> Debug.log "s"
+                                |> flip execute buf
+
+                        _ ->
+                            Cmd.none
+
+                _ ->
+                    Cmd.none
+
+        _ ->
+            Cmd.none
+
+
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress replaying key buf =
     let
-        ( { edit, modeName, register, recordKeys } as ast, continuation ) =
+        ( ast, continuation ) =
             parse buf.continuation key
+
+        { edit, modeName, register, recordKeys } =
+            ast
 
         -- |> Debug.log key
         oldModeName =
@@ -644,7 +723,7 @@ handleKeypress replaying key buf =
             |> modeChanged replaying key oldModeName
             |> scrollToCursor
             |> saveDotRegister
-        , Cmd.none
+        , getEffect edit buf
         )
 
 
@@ -670,3 +749,20 @@ update message model =
                     |> cursorScope
                 , Cmd.none
                 )
+
+        Read result ->
+            case result of
+                Ok { path, content } ->
+                    ( { emptyBuffer
+                        | lines = B.fromString content
+                        , view = { emptyView | size = model.view.size }
+                        , path = path
+                      }
+                    , Cmd.none
+                    )
+
+                Err s ->
+                    ( model, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
