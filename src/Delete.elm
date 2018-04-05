@@ -106,7 +106,7 @@ operatorRanges range buf =
         V.TextObject textobj around ->
             let
                 ( y, x ) =
-                    buf.cursor |> Debug.log "test"
+                    buf.cursor
             in
                 (expandTextObject buf.config.wordChars
                     textobj

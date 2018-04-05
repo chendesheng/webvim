@@ -564,7 +564,9 @@ operator isVisual isTemp =
         defineOperator key op opop =
             (if isVisual then
                 P.succeed
-                    (\changes -> (PushKey key) :: changes ++ [ PushComplete ])
+                    (\changes ->
+                        (PushKey key) :: changes ++ [ PushComplete ]
+                    )
                     |. P.symbol key
                     |= P.oneOf
                         [ P.succeed
@@ -576,7 +578,7 @@ operator isVisual isTemp =
                 readKeyAndThen key [ PushKey key ] <|
                     P.oneOf
                         [ P.succeed
-                            [ PushKey key
+                            [ PushKey (key ++ key)
                             , PushOperator opop
                             , PushComplete
                             ]

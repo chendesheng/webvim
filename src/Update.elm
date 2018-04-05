@@ -675,7 +675,6 @@ getEffect op buf =
                             exbuf.lines
                                 |> B.toString
                                 |> String.dropLeft 1
-                                |> Debug.log "s"
                                 |> flip execute buf
 
                         _ ->

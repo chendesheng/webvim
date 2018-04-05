@@ -207,6 +207,17 @@ cases =
         , ""
         )
       )
+    , ( "dd"
+      , ( { initialMode
+            | edit =
+                TextObject Line True
+                    |> Delete
+                    |> Just
+            , recordKeys = "dd"
+          }
+        , ""
+        )
+      )
     , ( "\\<", ( initialMode, "\\<" ) )
     , ( "\\<<esc>", ( initialMode, "" ) )
     , ( "\\<w"

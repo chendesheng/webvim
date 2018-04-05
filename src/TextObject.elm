@@ -22,7 +22,12 @@ expandTextObjectHelper :
     -> Maybe ( Int, Int )
 expandTextObjectHelper wordChars textobj around line cursor =
     if around then
-        Nothing
+        case textobj of
+            Line ->
+                Just ( 0, String.length line )
+
+            _ ->
+                Nothing
     else
         case textobj of
             Word ->
@@ -44,6 +49,27 @@ expandTextObjectHelper wordChars textobj around line cursor =
                         cursor
                      )
                      --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
+                    )
+
+            Line ->
+                Just
+                    ( (findPosition
+                        wordChars
+                        LineFirst
+                        (motionOption "<]$-")
+                        line
+                        cursor
+                      )
+                        |> Maybe.withDefault 0
+                    , (findPosition
+                        wordChars
+                        LineEnd
+                        (motionOption ">)$-")
+                        line
+                        cursor
+                      )
+                        |> Maybe.map (\x -> x - 1)
+                        |> Maybe.withDefault 0
                     )
 
             _ ->
