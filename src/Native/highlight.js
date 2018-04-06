@@ -2,41 +2,77 @@
 
 
 var _chendesheng$webvim_elm$Native_Highlight = function() {
+  function htmlDecode(s) {
+    return s.replace(/&(amp|gt|lt);/g, function(cap){
+      if (cap=='&gt;') return '>';
+      else if (cap == '&lt;') return '<';
+      else return '&';
+    });
+  }
+
+  function addScopes(scopes, classnames, text) {
+    if (text == '') return scopes;
+    scopes.push(_elm_lang$core$Native_Utils.Tuple2(classnames,
+      htmlDecode(text)));
+    return scopes;
+  }
+
+  // returns [[scopes, restString]]
+  function spanParser(s, path) {
+    var prefix = '<span class="';
+    s = s.substring(prefix.length);
+    var scopes = [];
+    var i = s.indexOf('">');
+    if (i == -1) {
+      scopes = addScopes(scopes, path, s);
+      return [[scopes, '']];
+    }
+    var classname = s.substring(0, i);
+    s = s.substring(i+2);
+    path = addClass(path, classname);
+
+    while (true) {
+      i = s.search(/<span|<\/span>/)
+
+      // not found
+      if (i == -1) {
+        scopes = addScopes(scopes, path, s);
+        return [[scopes, '']];
+      }
+
+      var text = s.substring(0, i);
+      s = s.substring(i);
+      scopes = addScopes(scopes, path, text);
+
+      // find close tag
+      if (s.substring(0, 2) == '</') {
+        return [[scopes, s.substring('</span>'.length)]];
+      }
+
+      // find sub span
+      var result = spanParser(s, path)
+      if (result.length == 0) {
+        return [];
+      }
+      scopes = scopes.concat(result[0][0]);
+      s = result[0][1];
+    }
+  }
+
   function addClass(classnames, classname) {
     if (classname === '') return classnames
     else if (classnames === '') return classname;
-    else classnames + ' ' + classname;
-  }
-
-  function parseResultHelper(node, path, result) {
-    var len = node.childNodes.length;
-    for (var i = 0; i < len; i++) {
-      var child = node.childNodes[i];
-      if (child.nodeType === 3) {
-        result = _elm_lang$core$Native_List.Cons(
-          _elm_lang$core$Native_Utils.Tuple2(path, child.textContent),
-          result
-        );
-      } else if (child.nodeType === 1) {
-        result = parseResultHelper(
-          child,
-          addClass(path, child.className),
-          result
-        );
-      } else {
-        throw 'unexpect child: ' + child.textContent;
-      }
-    }
-    return result;
+    else return classnames + ' ' + classname;
   }
 
   function parseResult(html) {
-    var container = document.createElement('div');
-    container.innerHTML = html;
-    return _elm_lang$core$List$reverse(parseResultHelper(container,
-      '',
-      _elm_lang$core$Native_List.Nil
-    ));
+    var result = spanParser('<span class="">'+html+'</span>', '');
+    var scopes = result[0][0];
+    var list = _elm_lang$core$Native_List.Nil;
+    for (var i = scopes.length - 1; i >= 0; i--) {
+      list = _elm_lang$core$Native_List.Cons(scopes[i], list);
+    }
+    return list;
   }
 
   function highlight(lang, line, continuation) {
@@ -49,6 +85,7 @@ var _chendesheng$webvim_elm$Native_Highlight = function() {
     var scopes = parseResult(result.value);
 
     // console.log(_elm_lang$core$Native_Utils.toString(scopes));
+    // console.log(top);
     
     return _elm_lang$core$Native_Utils.Tuple2(
       scopes,

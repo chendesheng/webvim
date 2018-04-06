@@ -40,26 +40,19 @@ view { mode, cursor, lines, syntax, continuation, view } =
 
         scrollTop =
             view.scrollTop
+
+        { width, height } =
+            view.size
     in
         div [ class "editor" ]
             [ div [ class "buffer" ]
-                [ div [ class "gutter-container" ]
-                    [ div
-                        [ class "gutter"
-                        , style [ translate 0 -scrollTop ]
-                        ]
-                        (lines
-                            |> B.countLines
-                            |> List.range 1
-                            |> List.map
-                                (\i ->
-                                    div [ class "line-number" ]
-                                        [ text <| toString i ]
-                                )
-                        )
-                    ]
+                [ lazy2 renderGutter
+                    (scrollTop + 1)
+                    (Basics.min (scrollTop + height)
+                        (B.countLines lines)
+                    )
                 , div [ class "lines-container" ]
-                    ([ lazy3 renderLines scrollTop lines syntax
+                    ([ lazy3 renderLines ( scrollTop, height ) lines syntax
                      ]
                         ++ (if statusBar.cursor == Nothing then
                                 [ renderCursor ( y - scrollTop, x ) ]
@@ -270,21 +263,23 @@ renderRange scrollTop tipe begin end lines =
                 )
 
 
-renderLines : Int -> B.TextBuffer -> Syntax -> Html msg
-renderLines scrollTop lines syntax =
+renderLines : ( Int, Int ) -> B.TextBuffer -> Syntax -> Html msg
+renderLines ( scrollTop, height ) lines syntax =
     div
         [ class "lines"
-        , style [ translate 0 -scrollTop ]
+
+        --, style [ translate 0 -scrollTop ]
         ]
         (if syntax.lang == "" then
             lines
-                |> B.mapLines
+                |> B.mapLinesToList scrollTop
+                    (scrollTop + height)
                     (\line ->
                         div [ class "line" ] [ text line ]
                     )
-                |> Array.toList
          else
             syntax.lines
+                |> Array.slice scrollTop (scrollTop + height)
                 |> Array.map
                     (\sline ->
                         let
@@ -305,3 +300,18 @@ renderLines scrollTop lines syntax =
                     )
                 |> Array.toList
         )
+
+
+renderGutter : Int -> Int -> Html msg
+renderGutter begin end =
+    div [ class "gutter-container" ]
+        [ div
+            [ class "gutter" ]
+            (List.range begin end
+                |> List.map
+                    (\i ->
+                        div [ class "line-number" ]
+                            [ text <| toString i ]
+                    )
+            )
+        ]

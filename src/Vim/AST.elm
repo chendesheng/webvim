@@ -144,20 +144,102 @@ type alias MotionOption =
 
 motionOption : String -> MotionOption
 motionOption s =
-    case String.toList s of
-        [ a, b, c, d ] ->
-            { forward = a == '>' -- forward: >, backward: <
-            , inclusive = b == ']' -- inclusive: ], exclusive: )
-            , crossLine = c == '+' -- crossLine: +, not crossLine: $
-            , linewise = d == '=' -- linewise: =, not linewise: -
-            }
-
-        _ ->
-            { forward = False
-            , inclusive = False
-            , crossLine = False
-            , linewise = False
-            }
+    if s == ">]+=" then
+        { forward = True
+        , inclusive = True
+        , crossLine = True
+        , linewise = True
+        }
+    else if s == "<]+=" then
+        { forward = False
+        , inclusive = True
+        , crossLine = True
+        , linewise = True
+        }
+    else if s == ">)+=" then
+        { forward = True
+        , inclusive = False
+        , crossLine = True
+        , linewise = True
+        }
+    else if s == ">]$=" then
+        { forward = True
+        , inclusive = True
+        , crossLine = False
+        , linewise = True
+        }
+    else if s == ">]+-" then
+        { forward = True
+        , inclusive = True
+        , crossLine = True
+        , linewise = False
+        }
+    else if s == "<)+=" then
+        { forward = False
+        , inclusive = False
+        , crossLine = True
+        , linewise = True
+        }
+    else if s == "<]$=" then
+        { forward = False
+        , inclusive = True
+        , crossLine = False
+        , linewise = True
+        }
+    else if s == "<]+-" then
+        { forward = False
+        , inclusive = True
+        , crossLine = True
+        , linewise = False
+        }
+    else if s == ">)$=" then
+        { forward = True
+        , inclusive = False
+        , crossLine = False
+        , linewise = True
+        }
+    else if s == ">)+-" then
+        { forward = True
+        , inclusive = False
+        , crossLine = True
+        , linewise = False
+        }
+    else if s == ">]$-" then
+        { forward = True
+        , inclusive = True
+        , crossLine = False
+        , linewise = False
+        }
+    else if s == "<)$=" then
+        { forward = False
+        , inclusive = False
+        , crossLine = False
+        , linewise = True
+        }
+    else if s == "<]$-" then
+        { forward = False
+        , inclusive = True
+        , crossLine = False
+        , linewise = False
+        }
+    else if s == "<)+-" then
+        { forward = False
+        , inclusive = False
+        , crossLine = True
+        , linewise = False
+        }
+    else if s == ">)$-" then
+        { forward = True
+        , inclusive = False
+        , crossLine = False
+        , linewise = False
+        }
+    else
+        { forward = False
+        , inclusive = False
+        , crossLine = False
+        , linewise = False
+        }
 
 
 type MotionData

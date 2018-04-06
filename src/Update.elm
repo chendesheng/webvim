@@ -690,8 +690,16 @@ getEffect op buf =
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress replaying key buf =
     let
-        ( ast, continuation ) =
-            parse buf.continuation key
+        cacheKey =
+            ( buf.continuation, key )
+
+        (( ast, continuation ) as cacheVal) =
+            case Dict.get cacheKey buf.vimASTCache of
+                Just resp ->
+                    resp
+
+                _ ->
+                    parse buf.continuation key
 
         { edit, modeName, register, recordKeys } =
             ast
@@ -719,6 +727,7 @@ handleKeypress replaying key buf =
                         Buf.setRegister "." s buf
     in
         ( buf
+            |> cacheVimAST cacheKey cacheVal
             |> setContinuation continuation
             |> applyEdit edit register
             |> updateMode modeName
@@ -734,7 +743,7 @@ filename s =
     case
         Re.find
             (Re.AtMost 1)
-            (Re.regex "(^|[/\\\\])(.+?)([.].*)?$")
+            (Re.regex "(^|[/\\\\])([^.]+)([.][^.]*)?$")
             s
     of
         [ m ] ->
@@ -801,6 +810,7 @@ update message model =
                             , name = name ++ ext
                             , syntax =
                                 Buf.syntaxHighlight
+                                    0
                                     lines
                                     syntax
                           }

@@ -43,17 +43,17 @@ import Syntax exposing (..)
 import Array
 
 
-applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch )
+applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch, Int )
 applyPatches patches lines =
     List.foldl
-        (\patch ( lines, patches2 ) ->
+        (\patch ( lines, patches2, miny ) ->
             let
                 ( patch2, lines2 ) =
                     applyPatch patch lines
             in
-                ( lines2, patch2 :: patches2 )
+                ( lines2, patch2 :: patches2, min miny (minLine patch) )
         )
-        ( lines, [] )
+        ( lines, [], 0xFFFFFFFF )
         patches
 
 
@@ -67,14 +67,24 @@ delete from to =
     transaction [ Deletion from to ]
 
 
+minLine : Patch -> Int
+minLine patch =
+    case patch of
+        Insertion ( y, _ ) _ ->
+            y
+
+        Deletion ( y1, _ ) ( y2, _ ) ->
+            min y1 y2
+
+
 {-| batch edit text, keep cursor, save history
 -}
 transaction : List Patch -> Buffer -> Buffer
 transaction patches buf =
     let
-        ( buf1, undo ) =
+        ( buf1, undo, miny ) =
             List.foldl
-                (\patch ( buf, undo ) ->
+                (\patch ( buf, undo, miny ) ->
                     let
                         ( patch1, lines ) =
                             applyPatch patch buf.lines
@@ -87,9 +97,10 @@ transaction patches buf =
                             , cursor = cursor
                           }
                         , patch1 :: undo
+                        , min miny (minLine patch)
                         )
                 )
-                ( buf, [] )
+                ( buf, [], 0x000000FFFFFFFFFF )
                 patches
     in
         if List.isEmpty undo then
@@ -98,7 +109,7 @@ transaction patches buf =
             { buf1
                 | history =
                     addPending buf.cursor undo buf1.history
-                , syntax = syntaxHighlight buf1.lines buf.syntax
+                , syntax = syntaxHighlight miny buf1.lines buf.syntax
             }
 
 
@@ -177,15 +188,19 @@ commit buf =
         }
 
 
-syntaxHighlight : TextBuffer -> Syntax -> Syntax
-syntaxHighlight lines syntax =
+syntaxHighlight : Int -> TextBuffer -> Syntax -> Syntax
+syntaxHighlight start lines syntax =
     if syntax.lang == "" then
         syntax
     else
         let
+            -- highlight.js doesn't support increment for now
+            start =
+                0
+
             ( slines, _ ) =
                 foldlLines
-                    0
+                    start
                     (\line ( slines, continuation ) ->
                         let
                             sline =
@@ -203,7 +218,9 @@ syntaxHighlight lines syntax =
                     lines
         in
             { lang = syntax.lang
-            , lines = slines
+            , lines =
+                Array.append (Array.slice 0 start syntax.lines)
+                    slines
             }
 
 
@@ -216,7 +233,7 @@ undo buf =
         |> Maybe.map
             (\{ cursor, patches } ->
                 let
-                    ( lines1, patches1 ) =
+                    ( lines1, patches1, miny ) =
                         applyPatches patches buf.lines
 
                     undoHistory { undoes, redoes } =
@@ -236,7 +253,7 @@ undo buf =
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
                         , history = undoHistory buf.history
-                        , syntax = syntaxHighlight lines1 buf.syntax
+                        , syntax = syntaxHighlight miny lines1 buf.syntax
                     }
             )
         |> Maybe.withDefault buf
@@ -251,7 +268,7 @@ redo buf =
         |> Maybe.map
             (\{ cursor, patches } ->
                 let
-                    ( lines1, patches1 ) =
+                    ( lines1, patches1, miny ) =
                         applyPatches patches buf.lines
 
                     redoHistory { undoes, redoes } =
@@ -271,7 +288,7 @@ redo buf =
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
                         , history = redoHistory buf.history
-                        , syntax = syntaxHighlight lines1 buf.syntax
+                        , syntax = syntaxHighlight miny lines1 buf.syntax
                     }
             )
         |> Maybe.withDefault buf

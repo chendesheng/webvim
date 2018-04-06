@@ -6,7 +6,7 @@ import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
 import Task
 import Dict exposing (Dict)
-import Vim.AST exposing (VisualType(..))
+import Vim.AST as V exposing (VisualType(..))
 import Syntax exposing (..)
 import Array
 
@@ -108,7 +108,13 @@ type alias Buffer =
         , visual : String
         , ex : String
         }
+    , vimASTCache : Dict ( String, String ) ( V.AST, String )
     }
+
+
+cacheVimAST : ( String, String ) -> ( V.AST, String ) -> Buffer -> Buffer
+cacheVimAST k v buf =
+    { buf | vimASTCache = Dict.insert k v buf.vimASTCache }
 
 
 emptyExBuffer : Buffer
@@ -160,6 +166,7 @@ emptyBuffer =
         , visual = ""
         , ex = ""
         }
+    , vimASTCache = Dict.empty
     }
 
 

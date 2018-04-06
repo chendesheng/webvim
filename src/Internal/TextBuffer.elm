@@ -15,6 +15,7 @@ module Internal.TextBuffer
         , Patch(..)
         , toString
         , getLineMaxColumn
+        , mapLinesToList
         )
 
 import Position exposing (..)
@@ -74,6 +75,14 @@ countLines (TextBuffer buf) =
 mapLines : (String -> b) -> TextBuffer -> Array b
 mapLines f (TextBuffer buf) =
     Array.map f buf
+
+
+mapLinesToList : Int -> Int -> (String -> b) -> TextBuffer -> List b
+mapLinesToList begin end f (TextBuffer buf) =
+    buf
+        |> Array.slice begin end
+        |> Array.toList
+        |> List.map f
 
 
 foldlLines : Int -> (String -> a -> a) -> a -> TextBuffer -> a
