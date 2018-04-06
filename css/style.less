@@ -2,11 +2,12 @@
 
 @theme-color: #9600ff;
 @statusbar-height: 1rem;
-@line-height: 1rem;
-@gutter-lines-spacing: 0.3ch;
+@gutter-lines-spacing: 0ch;
 @font-family: "Fira Code";
-@font-size: 16px;
 @line-height: 21px;
+@font-size: 15px;
+@body-background: #222;
+@ruler: 80ch;
 
 html, body {
   margin: 0;
@@ -16,13 +17,13 @@ html, body {
   font-family: "@{font-family}";
   font-size: @line-height;
   color: #fff;
-  background: #222;
+  background: @body-background;
   font-variant-ligatures: common-ligatures;
 }
 
 .editor {
   height: 100%;
-  font-size: 0.667rem;
+  font-size: @font-size;
   display: flex;
   flex-direction: column;
 }
@@ -41,8 +42,17 @@ html, body {
   position: relative;
 }
 
+.lines-container:before {
+  content: '';
+  position: absolute;
+  height: 100%;
+  left: @ruler;
+  background: lighten(@body-background, 20%);
+  width: calc(100% - 80ch);
+}
+
 .gutter-container {
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='21px' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='gray'>~</text></svg>"); 
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='gray'>~</text></svg>"); 
   background-repeat: repeat-y;
   user-select: none;
   margin-right: @gutter-lines-spacing;
@@ -58,7 +68,8 @@ html, body {
 }
 
 .gutter {
-  background: @theme-color;
+  background: @body-background;
+  color: gray;
 }
 
 .line, .line-number {
@@ -78,7 +89,7 @@ html, body {
   width: 1ch;
   background: rgba(255,255,255,.5);
   white-space: pre;
-  height: 0.867rem;
+  height: 0.86rem;
   padding: 0 0 1px 0;
   transform: translateY(0.1rem)
 }

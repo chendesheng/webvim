@@ -48,11 +48,11 @@ view { mode, cursor, lines, syntax, continuation, view } =
             [ div [ class "buffer" ]
                 [ lazy2 renderGutter
                     (scrollTop + 1)
-                    (Basics.min (scrollTop + height)
+                    (Basics.min (scrollTop + height + 1)
                         (B.countLines lines)
                     )
                 , div [ class "lines-container" ]
-                    ([ lazy3 renderLines ( scrollTop, height ) lines syntax
+                    ([ lazy3 renderLines ( scrollTop, height + 1 ) lines syntax
                      ]
                         ++ (if statusBar.cursor == Nothing then
                                 [ renderCursor ( y - scrollTop, x ) ]
@@ -279,7 +279,11 @@ renderLines ( scrollTop, height ) lines syntax =
                     )
          else
             syntax.lines
-                |> Array.slice scrollTop (scrollTop + height)
+                |> Array.slice scrollTop
+                    (Basics.min
+                        (scrollTop + height)
+                        (B.countLines lines)
+                    )
                 |> Array.map
                     (\sline ->
                         let

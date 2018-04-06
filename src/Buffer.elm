@@ -209,8 +209,7 @@ syntaxHighlight start lines syntax =
                                     line
                                     continuation
                         in
-                            ( Array.append slines <|
-                                Array.fromList [ sline ]
+                            ( Array.push sline slines
                             , Just (Tuple.second sline)
                             )
                     )

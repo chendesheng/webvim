@@ -152,9 +152,26 @@ modeChanged replaying key oldModeName buf =
                 ( y, x ) =
                     buf.cursor
 
+                lastIndent =
+                    if oldModeName == V.ModeNameInsert then
+                        case buf.last.indent of
+                            Just x ->
+                                if B.getLineMaxColumn y buf.lines == x then
+                                    x
+                                else
+                                    0
+                                
+                            _ ->
+                                0
+                    else
+                        0
+                   
                 cursor =
                     if oldModeName == V.ModeNameInsert then
-                        ( y, max (x - 1) 0 )
+                        if lastIndent > 0 then
+                            (y, 0)
+                        else
+                            ( y, max (x - 1) 0 )
                     else
                         ( y
                         , if B.getLineMaxColumn y buf.lines > x then
@@ -162,8 +179,14 @@ modeChanged replaying key oldModeName buf =
                           else
                             max (x - 1) 0
                         )
+                        
+                buf1 = if lastIndent > 0 then
+                           Buf.transaction
+                                [ Deletion (y, 0) (y, lastIndent) ] buf
+                       else
+                           buf
             in
-                buf
+                buf1
                     |> Buf.setCursor
                         cursor
                         (oldModeName == V.ModeNameInsert)
@@ -217,7 +240,9 @@ modeChanged replaying key oldModeName buf =
                         else
                             case oldModeName of
                                 V.ModeNameEx _ ->
-                                    { buf | last = { last | ex = last.ex ++ key } }
+                                    { buf
+                                        | last = { last | ex = last.ex ++ key }
+                                    }
 
                                 _ ->
                                     { buf | last = { last | ex = "" } }
@@ -375,11 +400,14 @@ runOperator register operator buf =
         Redo ->
             Buf.redo buf
 
-        OpenNewLine V.Forward ->
-            openNewLine (Tuple.first buf.cursor + 1) buf
-
-        OpenNewLine V.Backward ->
-            openNewLine (Tuple.first buf.cursor) buf
+        OpenNewLine forward ->
+            openNewLine
+                (if forward then
+                    Tuple.first buf.cursor + 1
+                 else
+                    Tuple.first buf.cursor
+                )
+                buf
 
         JumpByView factor ->
             let

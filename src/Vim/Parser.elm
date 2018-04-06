@@ -688,8 +688,8 @@ operator isVisual isTemp =
                     ]
                 , defineInsert "S"
                     [ TextObject Line False |> Delete |> PushOperator ]
-                , defineInsert "o" [ OpenNewLine Forward |> PushOperator ]
-                , defineInsert "O" [ OpenNewLine Backward |> PushOperator ]
+                , defineInsert "o" [ OpenNewLine True |> PushOperator ]
+                , defineInsert "O" [ OpenNewLine False |> PushOperator ]
                 ]
              )
                 ++ [ countPrefix
@@ -755,9 +755,9 @@ operator isVisual isTemp =
                             |> MotionRange LineEnd
                             |> Delete
                         )
-                   , define "<c-o>" (JumpHistory Backward)
+                   , define "<c-o>" (JumpHistory False)
                         |> dontRecord
-                   , define "<tab>" (JumpHistory Forward)
+                   , define "<tab>" (JumpHistory True)
                         |> dontRecord
                    , define "<c-u>" (JumpByView -0.5)
                         |> dontRecord

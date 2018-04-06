@@ -5,6 +5,8 @@ import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
 import Tuple
+import PositionClass exposing (findPosition)
+import String
 
 
 getString : Buffer -> V.StringType -> String
@@ -17,12 +19,9 @@ getString buf ins =
             ""
 
 
-insertString : V.StringType -> Buffer -> Buffer
-insertString ins buf =
+insertString : String -> Buffer -> Buffer
+insertString s buf =
     let
-        s =
-            getString buf ins
-
         { expandTab, tabSize } =
             buf.config
 
@@ -47,11 +46,55 @@ insert s buf =
     case buf.mode of
         Ex ({ exbuf } as ex) ->
             Buf.setMode
-                (Ex { ex | exbuf = insertString s exbuf })
+                (Ex { ex | exbuf = insertString (getString buf s) exbuf })
                 buf
 
         _ ->
-            insertString s buf
+            case s of
+                V.TextLiteral str ->
+                    if str == B.lineBreak then
+                        let
+                            indent =
+                                autoIndent (Tuple.first buf.cursor) buf
+                        in
+                            buf
+                                |> setLastIndent (Just <| String.length indent)
+                                |> insertString (str ++ indent)
+                    else
+                        buf
+                            |> setLastIndent Nothing
+                            |> insertString str
+
+                _ ->
+                    buf
+
+
+setLastIndent : Maybe Int -> Buffer -> Buffer
+setLastIndent indent buf =
+    let
+        last =
+            buf.last
+    in
+        { buf | last = { last | indent = indent } }
+
+
+autoIndent : Int -> Buffer -> String
+autoIndent y buf =
+    let
+        x =
+            buf.lines
+                |> B.getLine y
+                |> Maybe.andThen
+                    (\line ->
+                        findPosition ""
+                            V.LineFirst
+                            (V.motionOption "<]$=")
+                            line
+                            0
+                    )
+                |> Maybe.withDefault 0
+    in
+        String.repeat x " "
 
 
 openNewLine : Int -> Buffer -> Buffer
@@ -60,16 +103,26 @@ openNewLine y buf =
         n =
             B.countLines buf.lines
 
-        cursor =
-            ( y
+        y1 =
+            y
                 |> max 0
                 |> min n
-            , 0
-            )
+
+        indent =
+            autoIndent (y1 - 1) buf
+
+        x =
+            String.length indent
 
         patch =
-            Insertion cursor <| B.fromString B.lineBreak
+            Insertion ( y1, 0 ) <| B.fromString (indent ++ B.lineBreak)
+
+        last =
+            buf.last
+
+        buf1 =
+            { buf | last = { last | indent = Just x } }
     in
-        buf
+        buf1
             |> Buf.transaction [ patch ]
-            |> Buf.setCursor cursor True
+            |> Buf.setCursor ( y1, x ) True

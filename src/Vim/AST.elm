@@ -72,8 +72,8 @@ type Operator
     | Indent Direction OperatorRange
     | Join Bool -- J/gJ
     | RepeatLastAction
-    | OpenNewLine Direction
-    | JumpHistory Direction
+    | OpenNewLine Bool
+    | JumpHistory Bool
     | JumpByView Float -- factor of view height
     | CenterView
     | Scroll ScrollPosition
