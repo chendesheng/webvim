@@ -476,14 +476,17 @@ alwaysRecord =
 operator : Bool -> Bool -> Parser ModeDelta
 operator isVisual isTemp =
     let
-        define key op =
+        defineHelper mapKey key op =
             (P.succeed
                 [ PushOperator op
-                , PushKey key
+                , PushKey (mapKey key)
                 , PushComplete
                 ]
                 |. P.symbol key
             )
+
+        define =
+            defineHelper identity
 
         startInsert key =
             P.oneOf
@@ -662,10 +665,25 @@ operator isVisual isTemp =
                         )
                     )
 
+        definez =
+            defineHelper ((++) "z")
+
+        zKey =
+            readKeyAndThen "z"
+                [ PushKey "z" ]
+                (P.oneOf
+                    [ definez "z" <| Scroll ScrollToMiddle
+                    , definez "b" <| Scroll ScrollToBottom
+                    , definez "t" <| Scroll ScrollToTop
+                    ]
+                )
+                |> dontRecord
+
         visualMotion =
             P.oneOf
                 [ textObject Select
                 , motion Move (gKey Move <| P.oneOf [])
+                , zKey
                 ]
     in
         P.oneOf
@@ -690,6 +708,7 @@ operator isVisual isTemp =
                     [ TextObject Line False |> Delete |> PushOperator ]
                 , defineInsert "o" [ OpenNewLine True |> PushOperator ]
                 , defineInsert "O" [ OpenNewLine False |> PushOperator ]
+                , zKey
                 ]
              )
                 ++ [ countPrefix
@@ -788,14 +807,6 @@ operator isVisual isTemp =
                         |> dontRecord
                    , define "." RepeatLastOperator
                         |> dontRecord
-                   , readKeyAndThen "z"
-                        [ PushKey "z" ]
-                        (P.oneOf
-                            [ define "z" <| Scroll ScrollToMiddle
-                            , define "b" <| Scroll ScrollToBottom
-                            , define "t" <| Scroll ScrollToTop
-                            ]
-                        )
                    , gOperator
                    , P.lazy (\_ -> macro isVisual)
                    , P.lazy (\_ -> visual)
