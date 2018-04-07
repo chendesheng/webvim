@@ -325,7 +325,7 @@ gOperator =
         gKey Move <|
             P.oneOf
                 [ define "J"
-                    [ PushOperator <| Join True
+                    [ PushOperator <| Join False
                     , PushKey "gJ"
                     , PushComplete
                     ]
@@ -819,7 +819,7 @@ operator isVisual isTemp =
                             keyParser
                         )
                         |> dontRecord
-                   , define "J" (Join False)
+                   , define "J" (Join True)
                    , define "p" (Put True)
                         |> dontRecord
                    , define "P" (Put False)

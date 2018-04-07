@@ -63,7 +63,7 @@ cases =
       )
     , ( "gJ"
       , ( { initialMode
-            | edit = Join True |> Just
+            | edit = Join False |> Just
             , recordKeys = "gJ"
           }
         , ""
@@ -247,7 +247,7 @@ cases =
       )
     , ( "J"
       , ( { initialMode
-            | edit = Join False |> Just
+            | edit = Join True |> Just
             , recordKeys = "J"
           }
         , ""

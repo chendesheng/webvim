@@ -1,6 +1,7 @@
 module PositionClass
     exposing
         ( findPosition
+        , findLineFirst
         , parserWordEdge
         )
 
@@ -379,3 +380,13 @@ findPosition wordChars md mo line pos =
                         |> findPositionBackward wordChars md
                         --|> Debug.log "result"
                         |> Result.toMaybe
+
+
+findLineFirst : String -> Int
+findLineFirst line =
+    findPosition ""
+        LineFirst
+        (motionOption "<]$=")
+        line
+        0
+        |> Maybe.withDefault 0

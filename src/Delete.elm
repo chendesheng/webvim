@@ -1,4 +1,4 @@
-module Delete exposing (delete)
+module Delete exposing (delete, join)
 
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
@@ -7,6 +7,8 @@ import Buffer as Buf
 import Position exposing (Position, positionMin)
 import TextObject exposing (expandTextObject)
 import Motion exposing (..)
+import PositionClass exposing (findLineFirst)
+import List
 
 
 type alias Transaction =
@@ -226,18 +228,12 @@ delete register rg buf =
         updateCursorColumn buf =
             { buf | cursorColumn = Tuple.second buf.cursor }
 
-        doDelete isSaveLastDeleted buf =
+        deleteAnd f buf =
             case deleteOperator rg buf of
                 Just trans ->
-                    if isSaveLastDeleted then
-                        buf
-                            |> applyTransaction trans
-                            |> saveLastDeleted register
-                            |> updateCursorColumn
-                    else
-                        buf
-                            |> applyTransaction trans
-                            |> updateCursorColumn
+                    buf
+                        |> applyTransaction trans
+                        |> f
 
                 _ ->
                     buf
@@ -250,28 +246,38 @@ delete register rg buf =
                         case md of
                             V.MatchString ->
                                 buf
-                                    |> doDelete True
+                                    |> deleteAnd
+                                        (saveLastDeleted register
+                                            >> updateCursorColumn
+                                        )
                                     |> saveMotion md mo
 
                             V.RepeatMatchString ->
                                 buf
-                                    |> doDelete True
+                                    |> deleteAnd
+                                        (saveLastDeleted register
+                                            >> updateCursorColumn
+                                        )
 
                             _ ->
                                 Buf.setMode
-                                    (Ex { ex | exbuf = doDelete False exbuf })
+                                    (Ex { ex | exbuf = deleteAnd identity exbuf })
                                     buf
 
                     _ ->
                         Buf.setMode
-                            (Ex { ex | exbuf = doDelete False exbuf })
+                            (Ex { ex | exbuf = deleteAnd identity exbuf })
                             buf
 
             Insert ->
-                doDelete False buf
+                deleteAnd identity buf
 
             _ ->
-                doDelete True buf
+                deleteAnd
+                    (saveLastDeleted register
+                        >> updateCursorColumn
+                    )
+                    buf
 
 
 saveLastDeleted : String -> Buffer -> Buffer
@@ -284,3 +290,82 @@ saveLastDeleted reg buf =
                 |> Maybe.withDefault ""
     in
         Buf.setRegister reg s buf
+
+
+join : Bool -> Buffer -> Buffer
+join collapseSpaces buf =
+    let
+        ( y, x ) =
+            buf.cursor
+    in
+        case buf.mode of
+            Visual { begin, end } ->
+                let
+                    yb =
+                        Tuple.first begin
+
+                    ye =
+                        Tuple.first end
+
+                    lineRange =
+                        if yb == ye then
+                            [ yb ]
+                        else
+                            List.repeat (abs (yb - ye)) (min yb ye)
+                in
+                    joinLines collapseSpaces lineRange buf
+
+            _ ->
+                joinLines collapseSpaces [ y ] buf
+
+
+joinLines : Bool -> List Int -> Buffer -> Buffer
+joinLines collapseSpaces lineRange buf =
+    List.foldl (joinHelper collapseSpaces) buf lineRange
+
+
+joinHelper : Bool -> Int -> Buffer -> Buffer
+joinHelper collapseSpaces y buf =
+    Maybe.map2
+        (\line nextLine ->
+            let
+                lineEnd =
+                    String.length line
+
+                newCursor =
+                    ( y, lineEnd - 1 )
+
+                patches =
+                    if collapseSpaces then
+                        [ Deletion
+                            ( y, lineEnd - 1 )
+                            ( y + 1
+                            , findLineFirst nextLine
+                            )
+                        ]
+                            ++ if
+                                (line == B.lineBreak)
+                                    || (String.endsWith
+                                            (" " ++ B.lineBreak)
+                                            line
+                                       )
+                               then
+                                []
+                               else
+                                [ Insertion
+                                    ( y, lineEnd - 1 )
+                                    (B.fromString " ")
+                                ]
+                    else
+                        [ Deletion
+                            ( y, lineEnd - 1 )
+                            ( y, lineEnd )
+                        ]
+            in
+                buf
+                    |> Buf.transaction patches
+                    |> Buf.setCursor newCursor True
+        )
+        (B.getLine y buf.lines)
+        (B.getLine (y + 1) buf.lines)
+        |> Maybe.withDefault buf

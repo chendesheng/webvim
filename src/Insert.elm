@@ -5,7 +5,7 @@ import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
 import Tuple
-import PositionClass exposing (findPosition)
+import PositionClass exposing (findPosition, findLineFirst)
 import String
 
 
@@ -84,14 +84,7 @@ autoIndent y lines =
         x =
             lines
                 |> B.getLine y
-                |> Maybe.andThen
-                    (\line ->
-                        findPosition ""
-                            V.LineFirst
-                            (V.motionOption "<]$=")
-                            line
-                            0
-                    )
+                |> Maybe.map findLineFirst
                 |> Maybe.withDefault 0
     in
         String.repeat x " "

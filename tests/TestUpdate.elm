@@ -683,7 +683,7 @@ deleteCases =
       , { deleteCasesBuf
             | lines = B.fromString " \n456\n"
             , registers = Dict.fromList [ ( "\"", "123" ) ]
-            , cursorColumn = 1
+            , cursorColumn = 0
         }
       )
     , ( "Vjd"
@@ -1109,6 +1109,80 @@ visualModeCases =
     ]
 
 
+joinCasesBuf : Buffer
+joinCasesBuf =
+    { emptyBuffer
+        | lines = B.fromString """123
+456
+  789
+
+
+"""
+    }
+
+
+joinCases : List ( String, Buffer )
+joinCases =
+    [ ( "J"
+      , { joinCasesBuf
+            | lines = B.fromString "123 456\n  789\n\n\n"
+            , cursor = ( 0, 3 )
+            , cursorColumn = 3
+        }
+      )
+    , ( "jgJ"
+      , { joinCasesBuf
+            | lines = B.fromString "123\n456  789\n\n\n"
+            , cursor = ( 1, 3 )
+            , cursorColumn = 3
+        }
+      )
+    , ( "jjJ"
+      , { joinCasesBuf
+            | lines = B.fromString "123\n456\n  789 \n\n"
+            , cursor = ( 2, 5 )
+            , cursorColumn = 5
+        }
+      )
+    , ( "jjgJ"
+      , { joinCasesBuf
+            | lines = B.fromString "123\n456\n  789\n\n"
+            , cursor = ( 2, 4 )
+            , cursorColumn = 4
+        }
+      )
+    , ( "jjjJ"
+      , { joinCasesBuf
+            | lines = B.fromString "123\n456\n  789\n\n"
+            , cursor = ( 3, 0 )
+            , cursorColumn = 0
+        }
+      )
+    , ( "jjjjJ", { joinCasesBuf | cursor = ( 4, 0 ) } )
+    , ( "vjjjjJ"
+      , { joinCasesBuf
+            | cursor = ( 0, 11 )
+            , cursorColumn = 11
+            , lines = B.fromString "123 456 789 \n"
+        }
+      )
+    , ( "A<space><esc>J"
+      , { joinCasesBuf
+            | lines = B.fromString "123 456\n  789\n\n\n"
+            , cursor = ( 0, 4 )
+            , cursorColumn = 4
+        }
+      )
+    , ( "A<space><esc>gJ"
+      , { joinCasesBuf
+            | lines = B.fromString "123 456\n  789\n\n\n"
+            , cursor = ( 0, 4 )
+            , cursorColumn = 4
+        }
+      )
+    ]
+
+
 allCases :
     List
         { cases : List ( String, Buffer )
@@ -1235,6 +1309,23 @@ allCases =
                         }
                 )
                     >> Buf.clearHistory
+          }
+        , { name = "join cases"
+          , cases = joinCases
+          , model = joinCasesBuf
+          , map =
+                (\buf ->
+                    let
+                        view =
+                            buf.view
+                    in
+                        { buf
+                            | view = { view | scrollTop = 0 }
+                            , last = emptyLast
+                        }
+                )
+                    >> Buf.clearHistory
+                    >> defaultMap
           }
         ]
 

@@ -188,7 +188,7 @@ modeChanged replaying key oldModeName buf =
                 buf1
                     |> Buf.setCursor
                         cursor
-                        (oldModeName == V.ModeNameInsert)
+                        (cursor /= buf.cursor)
                     |> Buf.commit
 
         TempNormal ->
@@ -515,6 +515,9 @@ runOperator register operator buf =
 
         Execute ->
             buf
+
+        Join mergeSpaces ->
+            join mergeSpaces buf
 
         _ ->
             buf

@@ -70,7 +70,7 @@ type Operator
     | Yank OperatorRange
     | Put Bool
     | Indent Direction OperatorRange
-    | Join Bool -- J/gJ
+    | Join Bool -- J/gJ collapse spaces if argument is true
     | RepeatLastAction
     | OpenNewLine Bool
     | JumpHistory Bool
