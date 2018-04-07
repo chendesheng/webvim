@@ -27,7 +27,7 @@
   "dependencies": {},
   "husky": {
     "hooks": {
-      "pre-commit": "elm format src/ --yes && elm format tests/ --yes"
+      "pre-commit": "elm format src/ --yes && elm format tests/ --yes && elm test"
     }
   }
 }
