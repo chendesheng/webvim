@@ -219,6 +219,7 @@ modeChanged replaying key oldModeName buf =
 
                                     re =
                                         Re.regex s
+                                            |> Re.caseInsensitive
                                 in
                                     if String.isEmpty s then
                                         ExSearch

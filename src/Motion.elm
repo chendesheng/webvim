@@ -232,7 +232,7 @@ gotoMatchedString mo buf =
                     in
                         case
                             (matchString forward1
-                                (Re.regex s)
+                                (Re.regex s |> Re.caseInsensitive)
                                 buf.cursor
                                 buf.lines
                             )
