@@ -573,7 +573,7 @@ operator isVisual isTemp =
                     |. P.symbol key
                     |= P.oneOf
                         [ P.succeed
-                            [ op VisualRange |> PushOperator ]
+                            [ op (VisualRange False) |> PushOperator ]
                             |. P.end
                         , P.succeed []
                         ]
@@ -668,32 +668,67 @@ operator isVisual isTemp =
         definez =
             defineHelper ((++) "z")
 
-        zKey =
-            readKeyAndThen "z"
-                [ PushKey "z" ]
-                (P.oneOf
-                    [ definez "z" <| Scroll ScrollToMiddle
-                    , definez "b" <| Scroll ScrollToBottom
-                    , definez "t" <| Scroll ScrollToTop
-                    ]
-                )
-                |> dontRecord
+        jumps =
+            P.oneOf
+                [ define "<c-o>" (JumpHistory False)
+                    |> dontRecord
+                , define "<tab>" (JumpHistory True)
+                    |> dontRecord
+                , define "<c-u>" (JumpByView -0.5)
+                    |> dontRecord
+                , define "<c-d>" (JumpByView 0.5)
+                    |> dontRecord
+                , define "<c-f>" (JumpByView 1)
+                    |> dontRecord
+                , define "<c-b>" (JumpByView -1)
+                    |> dontRecord
+                , define "<c-y>" (Scroll <| ScrollBy -1)
+                    |> dontRecord
+                , define "<c-e>" (Scroll <| ScrollBy 1)
+                    |> dontRecord
+                , readKeyAndThen "z"
+                    [ PushKey "z" ]
+                    (P.oneOf
+                        [ definez "z" <| Scroll ScrollToMiddle
+                        , definez "b" <| Scroll ScrollToBottom
+                        , definez "t" <| Scroll ScrollToTop
+                        ]
+                    )
+                    |> dontRecord
+                ]
 
         visualMotion =
             P.oneOf
                 [ textObject Select
                 , motion Move (gKey Move <| P.oneOf [])
-                , zKey
                 ]
     in
         P.oneOf
             ((if isVisual then
                 [ visualMotion
                     |> completeAndThen (popComplete >> popKey)
+                , jumps
+                    |> completeAndThen (popComplete >> popKey)
                 , P.succeed [ PushOperator VisualSwitchEnd ]
                     |. P.symbol "o"
                 , P.succeed [ PushOperator VisualSwitchEnd ]
                     |. P.symbol "O"
+                , define "D"
+                    (VisualRange True |> Delete)
+                , define "x"
+                    (VisualRange False |> Delete)
+                , define "X"
+                    (VisualRange True |> Delete)
+                , defineInsert "C"
+                    [ VisualRange True
+                        |> Delete
+                        |> PushOperator
+                    ]
+                , defineInsert "s"
+                    [ VisualRange False
+                        |> Delete
+                        |> PushOperator
+                    ]
                 ]
               else
                 [ defineInsert "i" []
@@ -708,7 +743,34 @@ operator isVisual isTemp =
                     [ TextObject Line False |> Delete |> PushOperator ]
                 , defineInsert "o" [ OpenNewLine True |> PushOperator ]
                 , defineInsert "O" [ OpenNewLine False |> PushOperator ]
-                , zKey
+                , jumps
+                , define "D"
+                    (motionOption ">)$-"
+                        |> MotionRange LineEnd
+                        |> Delete
+                    )
+                , define "x"
+                    (motionOption ">)$-"
+                        |> MotionRange CharStart
+                        |> Delete
+                    )
+                , define "X"
+                    (motionOption "<)$-"
+                        |> MotionRange CharStart
+                        |> Delete
+                    )
+                , defineInsert "C"
+                    [ motionOption ">]$-"
+                        |> MotionRange LineEnd
+                        |> Delete
+                        |> PushOperator
+                    ]
+                , defineInsert "s"
+                    [ motionOption ">)$-"
+                        |> MotionRange CharStart
+                        |> Delete
+                        |> PushOperator
+                    ]
                 ]
              )
                 ++ [ countPrefix
@@ -721,18 +783,6 @@ operator isVisual isTemp =
                    , defineInsert "A"
                         [ motionOption ">]$-"
                             |> Move LineEnd
-                            |> PushOperator
-                        ]
-                   , defineInsert "C"
-                        [ motionOption ">]$-"
-                            |> MotionRange LineEnd
-                            |> Delete
-                            |> PushOperator
-                        ]
-                   , defineInsert "s"
-                        [ motionOption ">)$-"
-                            |> MotionRange CharStart
-                            |> Delete
                             |> PushOperator
                         ]
                    , defineOperator "d"
@@ -769,38 +819,7 @@ operator isVisual isTemp =
                             keyParser
                         )
                         |> dontRecord
-                   , define "D"
-                        (motionOption ">)$-"
-                            |> MotionRange LineEnd
-                            |> Delete
-                        )
-                   , define "<c-o>" (JumpHistory False)
-                        |> dontRecord
-                   , define "<tab>" (JumpHistory True)
-                        |> dontRecord
-                   , define "<c-u>" (JumpByView -0.5)
-                        |> dontRecord
-                   , define "<c-d>" (JumpByView 0.5)
-                        |> dontRecord
-                   , define "<c-f>" (JumpByView 1)
-                        |> dontRecord
-                   , define "<c-b>" (JumpByView -1)
-                        |> dontRecord
-                   , define "<c-y>" (Scroll <| ScrollBy -1)
-                        |> dontRecord
-                   , define "<c-e>" (Scroll <| ScrollBy 1)
-                        |> dontRecord
                    , define "J" (Join False)
-                   , define "x"
-                        (motionOption ">)$-"
-                            |> MotionRange CharStart
-                            |> Delete
-                        )
-                   , define "X"
-                        (motionOption "<)$-"
-                            |> MotionRange CharStart
-                            |> Delete
-                        )
                    , define "p" (Put True)
                         |> dontRecord
                    , define "P" (Put False)

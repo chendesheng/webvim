@@ -53,7 +53,7 @@ type Direction
 type OperatorRange
     = TextObject TextObject Bool
     | MotionRange MotionData MotionOption
-    | VisualRange
+    | VisualRange Bool
 
 
 type ScrollPosition

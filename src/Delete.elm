@@ -70,7 +70,7 @@ operatorRanges range buf =
                 Nothing ->
                     []
 
-        V.VisualRange ->
+        V.VisualRange linewise ->
             case buf.mode of
                 Visual { tipe, begin, end } ->
                     let
@@ -82,23 +82,34 @@ operatorRanges range buf =
 
                         ( endy, endx ) =
                             end1
-                    in
-                        case tipe of
-                            V.VisualLine ->
+
+                        getRange linewise =
+                            if linewise then
                                 [ ( ( Tuple.first begin1, 0 )
                                   , ( endy + 1
                                     , 0
                                     )
                                   )
                                 ]
-
-                            _ ->
+                            else
                                 [ ( begin1
                                   , ( endy
                                     , endx + 1
                                     )
                                   )
                                 ]
+                    in
+                        getRange
+                            (case tipe of
+                                V.VisualLine ->
+                                    True
+
+                                V.VisualBlock ->
+                                    False
+
+                                _ ->
+                                    linewise
+                            )
 
                 _ ->
                     []
@@ -150,7 +161,7 @@ deleteOperator range buf =
                         Nothing ->
                             Nothing
 
-                V.VisualRange ->
+                V.VisualRange linewise ->
                     case buf.mode of
                         Visual { begin, end } ->
                             let
@@ -212,6 +223,9 @@ isMatchString rg =
 delete : String -> V.OperatorRange -> Buffer -> Buffer
 delete register rg buf =
     let
+        updateCursorColumn buf =
+            { buf | cursorColumn = Tuple.second buf.cursor }
+
         doDelete isSaveLastDeleted buf =
             case deleteOperator rg buf of
                 Just trans ->
@@ -219,8 +233,11 @@ delete register rg buf =
                         buf
                             |> applyTransaction trans
                             |> saveLastDeleted register
+                            |> updateCursorColumn
                     else
-                        applyTransaction trans buf
+                        buf
+                            |> applyTransaction trans
+                            |> updateCursorColumn
 
                 _ ->
                     buf

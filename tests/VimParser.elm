@@ -466,7 +466,7 @@ cases =
     , ( "i<c-o>vd"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , edit = Just <| Delete VisualRange
+            , edit = VisualRange False |> Delete |> Just
           }
         , "i"
         )
@@ -665,7 +665,7 @@ cases =
       )
     , ( "vd"
       , ( { initialMode
-            | edit = Delete VisualRange |> Just
+            | edit = VisualRange False |> Delete |> Just
             , recordKeys = "v<visual>d"
           }
         , ""
@@ -699,7 +699,7 @@ cases =
     , ( "vc"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , edit = Delete VisualRange |> Just
+            , edit = VisualRange False |> Delete |> Just
           }
         , "vc"
         )
@@ -716,8 +716,7 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                motionOption ">]$-"
-                    |> MotionRange LineEnd
+                VisualRange True
                     |> Delete
                     |> Just
           }
