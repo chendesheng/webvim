@@ -1,13 +1,15 @@
 @import "css/font.less";
 
-@theme-color: #9600ff;
-@statusbar-height: 1rem;
+@statusbar-height: 1.2rem;
+@statusbar-background: #166163;
 @statusbar-padding: 0.3ch;
 @gutter-lines-spacing: 0ch;
 @font-family: "iosevka";
 @line-height: 23px;
 @font-size: 17px;
-@body-background: #222;
+@body-background: #272922;
+@body-color: contrast(@body-background);
+@gutter-color: lighten(@body-background, 40%);
 @ruler: 80ch;
 
 html, body {
@@ -17,9 +19,10 @@ html, body {
   height: 100%;
   font-family: "@{font-family}";
   font-size: @line-height;
-  color: #fff;
+  color: @body-color;
   background: @body-background;
   font-variant-ligatures: common-ligatures;
+  font-weight: 300;
 }
 
 .editor {
@@ -43,17 +46,19 @@ html, body {
   position: relative;
 }
 
-.lines-container:before {
+.lines-container:after {
   content: '';
   position: absolute;
   height: 100%;
+  top: 0;
   left: @ruler;
-  background: lighten(@body-background, 20%);
-  width: calc(100% - 80ch);
+  background: @body-background;
+  width: calc(~"100% - @{ruler}");
+  opacity: 0.5;
 }
 
 .gutter-container {
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='gray'>~</text></svg>"); 
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='@{gutter-color}'>~</text></svg>"); 
   background-repeat: repeat-y;
   user-select: none;
   margin-right: @gutter-lines-spacing;
@@ -61,7 +66,10 @@ html, body {
 
 .lines, .gutter {
   transition: transform 40ms ease-in;
-  min-width: 1ch;
+}
+
+.gutter {
+  padding: 0 1ch;
 }
 
 .lines {
@@ -70,7 +78,7 @@ html, body {
 
 .gutter {
   background: @body-background;
-  color: gray;
+  color: @gutter-color;
 }
 
 .line, .line-number {
@@ -79,10 +87,6 @@ html, body {
   line-height: @line-height;
   display: flex;
   align-items: center;
-}
-
-.line-number {
-  padding: 0 1ch;
 }
 
 .cursor {
@@ -95,10 +99,9 @@ html, body {
   transform: translateY(0.1rem)
 }
 
-
 .status {
   width: 100%;
-  background: @theme-color;
+  background: linear-gradient(0deg, @statusbar-background, lighten(@statusbar-background, 2%));
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -108,10 +111,11 @@ html, body {
   flex-shirk: 1;
   position: relative;
   padding-left: @statusbar-padding;
+  color: contrast(@statusbar-background);
 }
 
 .status .cursor {
-  transform: translateX(0.1ch);
+  transform: translate(0.2ch, (@statusbar-height - 1) / 2);
 }
 
 .status > div:first-child {
@@ -131,11 +135,9 @@ html, body {
 .highlights div, .selections div {
   height: @line-height;
   position: absolute;
-  background: #fff;
-  opacity: 0.3;
-  z-index: 100;
+  background: lighten(@body-background, 15%);
 }
 
 .highlights div {
-  background: #ff0;
+  filter: invert(100%);
 }

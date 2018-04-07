@@ -32,9 +32,6 @@ translate x y =
 view : Model -> Html msg
 view { mode, cursor, lines, syntax, continuation, view } =
     let
-        ( y, x ) =
-            cursor
-
         statusBar =
             getStatusBar mode
 
@@ -43,31 +40,40 @@ view { mode, cursor, lines, syntax, continuation, view } =
 
         { width, height } =
             view.size
+
+        totalLines =
+            B.countLines lines
+
+        maybeCursor =
+            case statusBar.cursor of
+                Just _ ->
+                    Nothing
+
+                _ ->
+                    case cursor of
+                        ( y, x ) ->
+                            Just ( y - scrollTop, x )
     in
         div [ class "editor" ]
             [ div [ class "buffer" ]
-                [ lazy2 renderGutter
+                [ lazy3 renderGutter
                     (scrollTop + 1)
-                    (Basics.min (scrollTop + height + 1)
-                        (B.countLines lines)
-                    )
+                    (Basics.min (scrollTop + height + 1) totalLines)
+                    totalLines
                 , div [ class "lines-container" ]
-                    ([ lazy3 renderLines ( scrollTop, height + 1 ) lines syntax
-                     ]
-                        ++ (if statusBar.cursor == Nothing then
-                                [ renderCursor ( y - scrollTop, x ) ]
-                            else
-                                []
-                           )
-                        ++ renderSelections scrollTop mode lines
+                    (renderSelections scrollTop mode lines
+                        ++ [ lazy3 renderLines
+                                ( scrollTop, height + 1 )
+                                lines
+                                syntax
+                           , renderCursor maybeCursor
+                           ]
                     )
                 ]
             , div
                 [ class "status" ]
                 [ div [] [ text statusBar.text ]
-                , statusBar.cursor
-                    |> Maybe.map renderCursor
-                    |> Maybe.withDefault (text "")
+                , renderCursor statusBar.cursor
                 , div [ class "status-cmds" ] [ text continuation ]
                 ]
             ]
@@ -149,16 +155,21 @@ renderSelections scrollTop mode lines =
     )
 
 
-renderCursor : Position -> Html msg
-renderCursor ( y, x ) =
-    div
-        [ class "cursor"
-        , style
-            [ ( "left", ch x )
-            , ( "top", rem y )
-            ]
-        ]
-        []
+renderCursor : Maybe Position -> Html msg
+renderCursor cursor =
+    case cursor of
+        Just ( y, x ) ->
+            div
+                [ class "cursor"
+                , style
+                    [ ( "left", ch x )
+                    , ( "top", rem y )
+                    ]
+                ]
+                []
+
+        _ ->
+            text ""
 
 
 getStatusBar : Mode -> { text : String, cursor : Maybe Position }
@@ -306,11 +317,13 @@ renderLines ( scrollTop, height ) lines syntax =
         )
 
 
-renderGutter : Int -> Int -> Html msg
-renderGutter begin end =
+renderGutter : Int -> Int -> Int -> Html msg
+renderGutter begin end total =
     div [ class "gutter-container" ]
         [ div
-            [ class "gutter" ]
+            [ class "gutter"
+            , style [ ( "width", total |> toString |> String.length |> ch ) ]
+            ]
             (List.range begin end
                 |> List.map
                     (\i ->
