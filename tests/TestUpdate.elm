@@ -256,6 +256,22 @@ insertCases =
             , last = { emptyLast | inserts = "2" }
         }
       )
+    , ( "i<cr><esc>"
+      , { emptyBuffer
+            | lines = B.fromString "\n\n"
+            , last = { emptyLast | inserts = "<cr>" }
+            , cursor = ( 1, 0 )
+            , history =
+                { emptyBufferHistory
+                    | undoes =
+                        [ { cursor = ( 0, 0 )
+                          , patches =
+                                [ Deletion ( 0, 0 ) ( 1, 0 ) ]
+                          }
+                        ]
+                }
+        }
+      )
     ]
 
 
@@ -853,6 +869,7 @@ emptyLast :
     , inserts : String
     , visual : String
     , ex : String
+    , indent : Int
     }
 emptyLast =
     { matchChar = Nothing
@@ -860,6 +877,7 @@ emptyLast =
     , inserts = ""
     , visual = ""
     , ex = ""
+    , indent = 0
     }
 
 
@@ -1106,7 +1124,9 @@ allCases =
         [ { name = "insert cases"
           , cases = insertCases
           , model = emptyBuffer
-          , map = defaultMap
+          , map =
+                (\buf -> { buf | view = emptyView })
+                    >> defaultMap
           }
         , { name = "motion cases"
           , cases = motionCases
@@ -1237,6 +1257,11 @@ keysTest map s buf model =
             (test s <| \_ -> Expect.fail "invalid input")
 
 
+clearASTCache : Buffer -> Buffer
+clearASTCache buf =
+    { buf | vimASTCache = Dict.empty }
+
+
 suite : Test
 suite =
     describe "Press keys" <|
@@ -1246,7 +1271,7 @@ suite =
                     List.map
                         (\( s, buf ) ->
                             keysTest
-                                map
+                                (clearASTCache >> map)
                                 s
                                 buf
                                 model

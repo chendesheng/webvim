@@ -110,7 +110,7 @@ type alias Buffer =
         , inserts : String
         , visual : String
         , ex : String
-        , indent : Maybe Int
+        , indent : Int
         }
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
     }
@@ -163,7 +163,7 @@ emptyBuffer =
         , inserts = ""
         , visual = ""
         , ex = ""
-        , indent = Nothing
+        , indent = 0
         }
     , vimASTCache = Dict.empty
     }

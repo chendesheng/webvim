@@ -155,14 +155,11 @@ modeChanged replaying key oldModeName buf =
                 lastIndent =
                     if oldModeName == V.ModeNameInsert then
                         case buf.last.indent of
-                            Just x ->
+                            x ->
                                 if B.getLineMaxColumn y buf.lines == x then
                                     x
                                 else
                                     0
-
-                            _ ->
-                                0
                     else
                         0
 

@@ -1,4 +1,4 @@
-module Insert exposing (insert, openNewLine)
+module Insert exposing (insert, openNewLine, autoIndent)
 
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
@@ -55,21 +55,21 @@ insert s buf =
                     if str == B.lineBreak then
                         let
                             indent =
-                                autoIndent (Tuple.first buf.cursor) buf
+                                autoIndent (Tuple.first buf.cursor) buf.lines
                         in
                             buf
-                                |> setLastIndent (Just <| String.length indent)
+                                |> setLastIndent (String.length indent)
                                 |> insertString (str ++ indent)
                     else
                         buf
-                            |> setLastIndent Nothing
+                            |> setLastIndent 0
                             |> insertString str
 
                 _ ->
                     buf
 
 
-setLastIndent : Maybe Int -> Buffer -> Buffer
+setLastIndent : Int -> Buffer -> Buffer
 setLastIndent indent buf =
     let
         last =
@@ -78,11 +78,11 @@ setLastIndent indent buf =
         { buf | last = { last | indent = indent } }
 
 
-autoIndent : Int -> Buffer -> String
-autoIndent y buf =
+autoIndent : Int -> B.TextBuffer -> String
+autoIndent y lines =
     let
         x =
-            buf.lines
+            lines
                 |> B.getLine y
                 |> Maybe.andThen
                     (\line ->
@@ -109,7 +109,7 @@ openNewLine y buf =
                 |> min n
 
         indent =
-            autoIndent (y1 - 1) buf
+            autoIndent (y1 - 1) buf.lines
 
         x =
             String.length indent
@@ -119,10 +119,8 @@ openNewLine y buf =
 
         last =
             buf.last
-
-        buf1 =
-            { buf | last = { last | indent = Just x } }
     in
-        buf1
+        buf
+            |> setLastIndent x
             |> Buf.transaction [ patch ]
             |> Buf.setCursor ( y1, x ) True

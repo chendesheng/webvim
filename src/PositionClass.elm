@@ -72,13 +72,13 @@ parserWordStart wordChars crossLine =
             )
 
 
-parserLineStart : Parser Int
-parserLineStart =
+parserLineFirst : Parser Int
+parserLineFirst =
     P.succeed
         (length1 0)
-        |= P.keep P.zeroOrMore space
+        |= P.keep P.zeroOrMore spaceInline
         |. P.oneOf
-            [ P.ignore (P.Exactly 1) (space >> not)
+            [ P.ignore (P.Exactly 1) (spaceInline >> not)
             , P.end
             ]
 
@@ -370,7 +370,7 @@ findPosition wordChars md mo line pos =
                     Just 0
 
                 LineFirst ->
-                    P.run parserLineStart line1
+                    P.run parserLineFirst line1
                         |> Result.toMaybe
 
                 _ ->
