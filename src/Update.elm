@@ -160,16 +160,16 @@ modeChanged replaying key oldModeName buf =
                                     x
                                 else
                                     0
-                                
+
                             _ ->
                                 0
                     else
                         0
-                   
+
                 cursor =
                     if oldModeName == V.ModeNameInsert then
                         if lastIndent > 0 then
-                            (y, 0)
+                            ( y, 0 )
                         else
                             ( y, max (x - 1) 0 )
                     else
@@ -179,12 +179,14 @@ modeChanged replaying key oldModeName buf =
                           else
                             max (x - 1) 0
                         )
-                        
-                buf1 = if lastIndent > 0 then
-                           Buf.transaction
-                                [ Deletion (y, 0) (y, lastIndent) ] buf
-                       else
-                           buf
+
+                buf1 =
+                    if lastIndent > 0 then
+                        Buf.transaction
+                            [ Deletion ( y, 0 ) ( y, lastIndent ) ]
+                            buf
+                    else
+                        buf
             in
                 buf1
                     |> Buf.setCursor
@@ -797,7 +799,8 @@ update message model =
         Resize size ->
             let
                 h =
-                    (size.height // 21) - model.view.statusbarHeight
+                    (size.height // model.view.lineHeight)
+                        - model.view.statusbarHeight
 
                 w =
                     size.width
@@ -833,7 +836,10 @@ update message model =
                         ( { emptyBuffer
                             | lines = lines
                             , view =
-                                { emptyView | size = model.view.size }
+                                { emptyView
+                                    | size = model.view.size
+                                    , lineHeight = model.view.lineHeight
+                                }
                             , path = path
                             , name = name ++ ext
                             , syntax =

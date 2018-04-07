@@ -56,6 +56,9 @@ type alias View =
     , dataStartPosition : Position
     , size : Size
     , statusbarHeight : Int
+
+    -- pixel height of a line
+    , lineHeight : Int
     }
 
 
@@ -131,6 +134,7 @@ emptyView =
     , size = { width = 1, height = 1 }
     , dataStartPosition = ( 0, 0 )
     , statusbarHeight = 1
+    , lineHeight = 21
     }
 
 
@@ -150,14 +154,7 @@ emptyBuffer =
         , tabSize = 4
         , expandTab = True
         }
-    , view =
-        { scrollTop = 0
-        , scrollLeft = 0
-        , startPosition = ( 0, 0 )
-        , size = { width = 1, height = 1 }
-        , dataStartPosition = ( 0, 0 )
-        , statusbarHeight = 1
-        }
+    , view = emptyView
     , continuation = ""
     , registers = Dict.empty
     , last =
@@ -172,8 +169,13 @@ emptyBuffer =
     }
 
 
-init : flags -> ( Model, Cmd Msg )
-init _ =
+type alias Flags =
+    { lineHeight : Int
+    }
+
+
+init : Flags -> ( Model, Cmd Msg )
+init { lineHeight } =
     let
         view =
             emptyBuffer.view
@@ -205,6 +207,7 @@ init _ =
                 , cursor = ( 0, 1 )
                 , cursorColumn = 1
                 , mode = mode
+                , view = { view | lineHeight = lineHeight }
             }
     in
         ( buf

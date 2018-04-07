@@ -64,7 +64,7 @@ runTaskList([jsTask, cssTask, ctagsTask("src tests"), htmlTask, reloadTask]);
 
 watch('src/**/*.elm', [jsTask, ctagsTask("src"), reloadTask]);
 watch('src/Native/*.js', [jsTask, reloadTask]);
-watch(['build/index.html', 'index.js'], [htmlTask, reloadTask]);
+watch(['build/index.html', 'build/index.js'], [htmlTask, reloadTask]);
 watch(['css/**/*.less'], [cssTask, reloadCSSTask]);
 watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);

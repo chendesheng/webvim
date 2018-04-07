@@ -11,3 +11,5 @@ tests/elm-stuff/
 packages/
 .fake/
 highlightjs/
+
+index.html

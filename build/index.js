@@ -1,4 +1,4 @@
 (function() {
-  const flags = { };
+  const flags = { lineHeight };
   const app = Elm.Main.fullscreen(flags);
 })();

@@ -2,10 +2,11 @@
 
 @theme-color: #9600ff;
 @statusbar-height: 1rem;
+@statusbar-padding: 0.3ch;
 @gutter-lines-spacing: 0ch;
-@font-family: "Fira Code";
-@line-height: 21px;
-@font-size: 15px;
+@font-family: "iosevka";
+@line-height: 23px;
+@font-size: 17px;
 @body-background: #222;
 @ruler: 80ch;
 
@@ -106,10 +107,11 @@ html, body {
   flex-grow: 0;
   flex-shirk: 1;
   position: relative;
+  padding-left: @statusbar-padding;
 }
 
 .status .cursor {
-  transform: translateX(0.3ch);
+  transform: translateX(0.1ch);
 }
 
 .status > div:first-child {
