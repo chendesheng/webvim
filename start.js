@@ -2,6 +2,7 @@ const chokidar = require('chokidar');
 const execa = require('execa');
 const browserSync = require('browser-sync').create();
 const debounce = require('debounce');
+const http = require('http');
 
 browserSync.init({
   server: {
@@ -18,6 +19,12 @@ const shell = (sh) => {
   return execa.shellSync(sh, { stdio: 'inherit' });
 };
 
+const asyncCommands = {};
+const shellAsync = (sh) => {
+  console.log(sh);
+  return execa.shell(sh, { stdio: 'inherit' });
+};
+
 const jsTask = () => shell('npm run js --silent');
 const cssTask = () => shell('npm run css');
 const reloadTask = () => browserSync.reload();
@@ -26,6 +33,10 @@ const ctagsTask = folder => () => shell(`ctags -R ${folder}`);
 const exitTask = () => process.exit(0);
 const htmlTask = () => shell('npm run html');
 const fontTask = () => shell('npm run font');
+const serverTask = (port) => () =>
+    http.get(`http://localhost:${port}/kill`)
+      .on('error', () => shellAsync('./start'));
+
 // const testTask = () => shell('elm test');
 
 const withColor = (number, str) => `\x1b[${number}m${str}\x1b[0m`;
@@ -45,7 +56,8 @@ const runTaskList = debounce((tasks) => {
   try {
     todo.reverse().forEach(f => f());
   } catch(err) {
-    console.log(`run task ${todo.map(f=>f.name)} error.`);
+    // console.log(`run task ${todo.map(f=>f.name)} error.`);
+    console.log(err);
   } finally {
     taskList = [];
   }
@@ -60,7 +72,8 @@ const watch = (path, tasks) => {
   });
 };
 
-runTaskList([jsTask, cssTask, ctagsTask("src tests"), htmlTask, reloadTask]);
+runTaskList([jsTask, cssTask, ctagsTask("src tests"), htmlTask,
+  reloadTask, serverTask]);
 
 watch('src/**/*.elm', [jsTask, ctagsTask("src"), reloadTask]);
 watch('src/Native/*.js', [jsTask, reloadTask]);
@@ -69,4 +82,5 @@ watch(['css/**/*.less'], [cssTask, reloadCSSTask]);
 watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
 watch(['tests/**/*.elm'], [ctagsTask("tests") ]);
+watch(['src-fs/**/*.fs'], [serverTask(8080) ]);
 

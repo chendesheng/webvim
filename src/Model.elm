@@ -113,6 +113,7 @@ type alias Buffer =
         , indent : Int
         }
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
+    , service : String
     }
 
 
@@ -166,16 +167,18 @@ emptyBuffer =
         , indent = 0
         }
     , vimASTCache = Dict.empty
+    , service = ""
     }
 
 
 type alias Flags =
     { lineHeight : Int
+    , service : String
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
-init { lineHeight } =
+init { lineHeight, service } =
     let
         view =
             emptyBuffer.view
@@ -208,6 +211,7 @@ init { lineHeight } =
                 , cursorColumn = 1
                 , mode = mode
                 , view = { view | lineHeight = lineHeight }
+                , service = service
             }
     in
         ( buf

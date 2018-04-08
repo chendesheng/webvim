@@ -8,6 +8,7 @@ open Suave.Operators
 open Suave.Successful
 open Suave.RequestErrors
 open System.IO
+open System
 
 let trace x =
   printfn "%s" x
@@ -37,9 +38,13 @@ let app =
         [ path "/" >=> Files.file "index.html"
           Files.browse (Path.GetFullPath ".")
           path "/edit" >=> edit
+          path "/kill" >=> (fun x ->
+              trace "Bye!"
+              Environment.Exit(0)
+              OK "" x)
         ]
       POST >=> choose
         [ path "/write" >=> write ] ]
-
+    >=> CORS.cors { CORS.defaultCORSConfig with allowedUris = CORS.All }
 
 startWebServer defaultConfig app

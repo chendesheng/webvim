@@ -16,11 +16,10 @@ import Position exposing (Position)
 import Regex as Re
 import TextObject exposing (expandTextObject)
 import Result
-import Http
 import List
-import Json.Decode as Decode
 import Tuple
 import String
+import Service exposing (..)
 
 
 stringToPrefix : String -> ExPrefix
@@ -649,47 +648,17 @@ isModeNameVisual name =
             False
 
 
-
---getEffect buf operator =
-
-
-sendSaveBuffer : String -> Buffer -> Cmd Msg
-sendSaveBuffer path buf =
-    let
-        body =
-            buf.lines
-                |> B.toString
-                |> Http.stringBody "plain/text"
-    in
-        (Http.post
-            ("/write?path=" ++ path)
-            body
-            (Decode.succeed ())
-        )
-            |> Http.send Write
-
-
 execute : String -> Buffer -> Cmd Msg
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            ("/edit?path=" ++ path)
-                |> Http.getString
-                |> Http.send
-                    (Result.map
-                        (\s ->
-                            { path = path
-                            , content = s
-                            }
-                        )
-                        >> Read
-                    )
+            sendEditBuffer buf.service path
 
         [ "w" ] ->
-            sendSaveBuffer buf.path buf
+            sendSaveBuffer buf.service buf.path buf
 
         [ "w", path ] ->
-            sendSaveBuffer path buf
+            sendSaveBuffer buf.service path buf
 
         _ ->
             Cmd.none
@@ -848,6 +817,7 @@ update message model =
                                     0
                                     lines
                                     syntax
+                            , service = model.service
                           }
                         , Cmd.none
                         )
