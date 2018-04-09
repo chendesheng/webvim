@@ -81,6 +81,11 @@ emptyBufferHistory =
     }
 
 
+type RegisterText
+    = Text String
+    | Lines String
+
+
 type alias Buffer =
     { id : Int
     , lines : TextBuffer
@@ -98,7 +103,8 @@ type alias Buffer =
         }
     , view : View
     , continuation : String
-    , registers : Dict String String
+    , registers : Dict String RegisterText
+    , dotRegister : String
     , last :
         { matchChar :
             Maybe
@@ -158,6 +164,7 @@ emptyBuffer =
     , view = emptyView
     , continuation = ""
     , registers = Dict.empty
+    , dotRegister = ""
     , last =
         { matchChar = Nothing
         , matchString = Nothing

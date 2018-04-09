@@ -353,7 +353,6 @@ findPosition wordChars md mo line pos =
                     line1
                         |> String.dropLeft pos
                         |> findPositionForward wordChars md mo.crossLine
-                        --|> Debug.log ("result" ++ line)
                         |> Result.toMaybe
                         |> Maybe.map ((+) pos)
         else
@@ -375,7 +374,6 @@ findPosition wordChars md mo line pos =
                     line1
                         |> String.left (pos + 1)
                         |> findPositionBackward wordChars md
-                        --|> Debug.log "result"
                         |> Result.toMaybe
 
 

@@ -1,4 +1,11 @@
-module Delete exposing (delete, join)
+module Delete
+    exposing
+        ( delete
+        , join
+        , operatorRanges
+        , isLinewise
+        , toRegisterText
+        )
 
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
@@ -144,6 +151,33 @@ operatorRanges range buf =
                     |> Maybe.withDefault []
 
 
+isLinewise : V.OperatorRange -> Mode -> Bool
+isLinewise range mode =
+    case range of
+        V.MotionRange md mo ->
+            mo.linewise
+
+        V.VisualRange linewise ->
+            case mode of
+                Visual { tipe, begin, end } ->
+                    (case tipe of
+                        V.VisualLine ->
+                            True
+
+                        V.VisualBlock ->
+                            False
+
+                        _ ->
+                            linewise
+                    )
+
+                _ ->
+                    False
+
+        V.TextObject textobj around ->
+            textobj == V.Line && around
+
+
 deleteOperator : V.OperatorRange -> Buffer -> Maybe Transaction
 deleteOperator range buf =
     let
@@ -228,6 +262,9 @@ delete register rg buf =
         updateCursorColumn buf =
             { buf | cursorColumn = Tuple.second buf.cursor }
 
+        linewise =
+            isLinewise rg buf.mode
+
         deleteAnd f buf =
             case deleteOperator rg buf of
                 Just trans ->
@@ -247,7 +284,7 @@ delete register rg buf =
                             V.MatchString ->
                                 buf
                                     |> deleteAnd
-                                        (saveLastDeleted register
+                                        (saveLastDeleted linewise register
                                             >> updateCursorColumn
                                         )
                                     |> saveMotion md mo
@@ -255,13 +292,17 @@ delete register rg buf =
                             V.RepeatMatchString ->
                                 buf
                                     |> deleteAnd
-                                        (saveLastDeleted register
+                                        (saveLastDeleted linewise register
                                             >> updateCursorColumn
                                         )
 
                             _ ->
                                 Buf.setMode
-                                    (Ex { ex | exbuf = deleteAnd identity exbuf })
+                                    (Ex
+                                        { ex
+                                            | exbuf = deleteAnd identity exbuf
+                                        }
+                                    )
                                     buf
 
                     _ ->
@@ -274,20 +315,34 @@ delete register rg buf =
 
             _ ->
                 deleteAnd
-                    (saveLastDeleted register
+                    (saveLastDeleted linewise register
                         >> updateCursorColumn
                     )
                     buf
 
 
-saveLastDeleted : String -> Buffer -> Buffer
-saveLastDeleted reg buf =
+toRegisterText : Bool -> String -> RegisterText
+toRegisterText linewise s =
+    if linewise then
+        Lines
+            (if String.endsWith B.lineBreak s then
+                s
+             else
+                s ++ B.lineBreak
+            )
+    else
+        Text s
+
+
+saveLastDeleted : Bool -> String -> Buffer -> Buffer
+saveLastDeleted linewise reg buf =
     let
         s =
             buf
                 |> Buf.getLastDeleted
                 |> Maybe.map B.toString
                 |> Maybe.withDefault ""
+                |> toRegisterText linewise
     in
         Buf.setRegister reg s buf
 

@@ -663,40 +663,40 @@ deleteCases =
     [ ( "de"
       , { deleteCasesBuf
             | lines = B.fromString "\n456\n"
-            , registers = Dict.fromList [ ( "\"", " 123" ) ]
+            , registers = Dict.fromList [ ( "\"", Text " 123" ) ]
         }
       )
     , ( "dfa", deleteCasesBuf )
     , ( "dw"
       , { deleteCasesBuf
             | lines = B.fromString "123\n456\n"
-            , registers = Dict.fromList [ ( "\"", " " ) ]
+            , registers = Dict.fromList [ ( "\"", Text " " ) ]
         }
       )
     , ( "dvw"
       , { deleteCasesBuf
             | lines = B.fromString "23\n456\n"
-            , registers = Dict.fromList [ ( "\"", " 1" ) ]
+            , registers = Dict.fromList [ ( "\"", Text " 1" ) ]
         }
       )
     , ( "ldw"
       , { deleteCasesBuf
             | lines = B.fromString " \n456\n"
-            , registers = Dict.fromList [ ( "\"", "123" ) ]
+            , registers = Dict.fromList [ ( "\"", Text "123" ) ]
             , cursorColumn = 0
         }
       )
     , ( "Vjd"
       , { deleteCasesBuf
             | lines = B.empty
-            , registers = Dict.fromList [ ( "\"", " 123\n456\n" ) ]
+            , registers = Dict.fromList [ ( "\"", Lines " 123\n456\n" ) ]
             , last = { emptyLast | visual = "j" }
         }
       )
     , ( "jVd"
       , { deleteCasesBuf
             | lines = B.fromString " 123\n"
-            , registers = Dict.fromList [ ( "\"", "456\n" ) ]
+            , registers = Dict.fromList [ ( "\"", Lines "456\n" ) ]
             , cursor = ( 0, 1 )
             , cursorColumn = 1
         }
@@ -704,7 +704,7 @@ deleteCases =
     , ( "d/456<cr>"
       , { deleteCasesBuf
             | lines = B.fromString "456\n"
-            , registers = Dict.fromList [ ( "\"", " 123\n" ) ]
+            , registers = Dict.fromList [ ( "\"", Text " 123\n" ) ]
             , last =
                 { emptyLast
                     | ex = "456"
@@ -715,7 +715,7 @@ deleteCases =
     , ( "dv/456<cr>"
       , { deleteCasesBuf
             | lines = B.fromString "56\n"
-            , registers = Dict.fromList [ ( "\"", " 123\n4" ) ]
+            , registers = Dict.fromList [ ( "\"", Text " 123\n4" ) ]
             , last =
                 { emptyLast
                     | ex = "456"
@@ -743,7 +743,7 @@ changeCases =
       , { changeCasesBuf
             | lines = B.fromString "\n456\ndef\ndef\n"
             , mode = Insert
-            , registers = Dict.fromList [ ( "\"", " 123" ) ]
+            , registers = Dict.fromList [ ( "\"", Text " 123" ) ]
             , continuation = "ce"
         }
       )
@@ -757,7 +757,7 @@ changeCases =
       , { changeCasesBuf
             | lines = B.fromString "123\n456\ndef\ndef\n"
             , mode = Insert
-            , registers = Dict.fromList [ ( "\"", " " ) ]
+            , registers = Dict.fromList [ ( "\"", Text " " ) ]
             , continuation = "cw"
         }
       )
@@ -765,7 +765,7 @@ changeCases =
       , { changeCasesBuf
             | lines = B.fromString " 123\n456\ndef\ndef\n"
             , mode = Insert
-            , registers = Dict.fromList [ ( "\"", "" ) ]
+            , registers = Dict.fromList [ ( "\"", Text "" ) ]
             , continuation = "cvw"
         }
       )
@@ -786,7 +786,7 @@ changeCases =
                                 ]
                             }
                 }
-            , registers = Dict.fromList [ ( "\"", " 123\n456\nd" ) ]
+            , registers = Dict.fromList [ ( "\"", Text " 123\n456\nd" ) ]
             , last =
                 { emptyLast
                     | matchString = Just ( "ef", True )
@@ -801,23 +801,45 @@ changeCases =
 putCasesBuf : Buffer
 putCasesBuf =
     { emptyBuffer
-        | lines = B.fromString "123\n"
-        , registers = Dict.fromList [ ( "\"", "abc" ) ]
+        | lines = B.fromString "123\n456"
+        , registers =
+            Dict.fromList
+                [ ( "\"", Text "abc" )
+                , ( "a", Lines "newline\n" )
+                ]
     }
 
 
 putCases : List ( String, Buffer )
 putCases =
-    [ ( "p"
+    [ ( "\"ap"
       , { putCasesBuf
-            | lines = B.fromString "1abc23\n"
+            | lines = B.fromString "123\nnewline\n456"
+            , cursor = ( 1, 0 )
+        }
+      )
+    , ( "\"aP"
+      , { putCasesBuf
+            | lines = B.fromString "newline\n123\n456"
+            , cursor = ( 0, 0 )
+        }
+      )
+    , ( "j\"ap"
+      , { putCasesBuf
+            | lines = B.fromString "123\n456\nnewline\n"
+            , cursor = ( 2, 0 )
+        }
+      )
+    , ( "p"
+      , { putCasesBuf
+            | lines = B.fromString "1abc23\n456"
             , cursor = ( 0, 3 )
             , cursorColumn = 3
         }
       )
     , ( "P"
       , { putCasesBuf
-            | lines = B.fromString "abc123\n"
+            | lines = B.fromString "abc123\n456"
             , cursor = ( 0, 2 )
             , cursorColumn = 2
         }
@@ -826,21 +848,29 @@ putCases =
       , { putCasesBuf
             | cursor = ( 0, 2 )
             , cursorColumn = 2
-            , registers = Dict.fromList [ ( "\"", "123" ) ]
+            , registers =
+                Dict.fromList
+                    [ ( "\"", Text "123" )
+                    , ( "a", Lines "newline\n" )
+                    ]
         }
       )
     , ( "dwP"
       , { putCasesBuf
             | cursor = ( 0, 2 )
             , cursorColumn = 2
-            , registers = Dict.fromList [ ( "\"", "123" ) ]
+            , registers =
+                Dict.fromList
+                    [ ( "\"", Text "123" )
+                    , ( "a", Lines "newline\n" )
+                    ]
         }
       )
     , ( "i<c-r>\""
       , { putCasesBuf
             | cursor = ( 0, 3 )
             , cursorColumn = 3
-            , lines = B.fromString "abc123\n"
+            , lines = B.fromString "abc123\n456"
             , mode = Insert
             , last = { emptyLast | inserts = "<c-r>\"" }
         }
@@ -849,8 +879,12 @@ putCases =
       , { putCasesBuf
             | cursor = ( 0, 3 )
             , cursorColumn = 3
-            , lines = B.fromString "123\n"
-            , registers = Dict.fromList [ ( "\"", "123" ) ]
+            , lines = B.fromString "123\n456"
+            , registers =
+                Dict.fromList
+                    [ ( "\"", Text "123" )
+                    , ( "a", Lines "newline\n" )
+                    ]
             , mode = Insert
             , last = { emptyLast | inserts = "<c-r>\"" }
         }
@@ -892,8 +926,7 @@ dotRepeatCases =
       )
     , ( "iaa<esc>"
       , { dotRepeatCasesBuf
-            | registers =
-                Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
+            | dotRegister = "i<inserts><esc>"
             , lines = B.fromString "aa123\n456\n456\n"
             , cursor = ( 0, 1 )
             , last = { emptyLast | inserts = "aa" }
@@ -902,21 +935,18 @@ dotRepeatCases =
     , ( "dw"
       , { dotRepeatCasesBuf
             | lines = B.fromString "\n456\n456\n"
-            , registers =
-                Dict.fromList [ ( ".", "dw" ) ]
+            , dotRegister = "dw"
         }
       )
     , ( "dl."
       , { dotRepeatCasesBuf
             | lines = B.fromString "3\n456\n456\n"
-            , registers =
-                Dict.fromList [ ( ".", "dl" ) ]
+            , dotRegister = "dl"
         }
       )
     , ( "iaa<esc>."
       , { dotRepeatCasesBuf
-            | registers =
-                Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
+            | dotRegister = "i<inserts><esc>"
             , lines = B.fromString "aaaa123\n456\n456\n"
             , cursor = ( 0, 2 )
             , last = { emptyLast | inserts = "aa" }
@@ -924,8 +954,7 @@ dotRepeatCases =
       )
     , ( "iaa<c-o>hbb<esc>."
       , { dotRepeatCasesBuf
-            | registers =
-                Dict.fromList [ ( ".", "i<inserts><esc>" ) ]
+            | dotRegister = "i<inserts><esc>"
             , lines = B.fromString "abbbba123\n456\n456\n"
             , cursor = ( 0, 3 )
             , last = { emptyLast | inserts = "bb" }
@@ -933,8 +962,7 @@ dotRepeatCases =
       )
     , ( "d/4<cr>"
       , { dotRepeatCasesBuf
-            | registers =
-                Dict.fromList [ ( ".", "d/<exbuf><cr>" ) ]
+            | dotRegister = "d/<exbuf><cr>"
             , lines = B.fromString "456\n456\n"
             , last =
                 { emptyLast
@@ -945,8 +973,7 @@ dotRepeatCases =
       )
     , ( "d/4<cr>."
       , { dotRepeatCasesBuf
-            | registers =
-                Dict.fromList [ ( ".", "d/<exbuf><cr>" ) ]
+            | dotRegister = "d/<exbuf><cr>"
             , lines = B.fromString "456\n"
             , last =
                 { emptyLast
@@ -1068,7 +1095,7 @@ visualModeCases =
       , { visualModeCasesBuf
             | mode = Insert
             , lines = B.fromString "23\n456\n"
-            , registers = Dict.fromList [ ( "\"", "1" ) ]
+            , registers = Dict.fromList [ ( "\"", Text "1" ) ]
             , continuation = "vc"
         }
       )
@@ -1077,7 +1104,7 @@ visualModeCases =
             | mode = Insert
             , lines = B.fromString "3\n456\n"
             , last = { emptyLast | visual = "l" }
-            , registers = Dict.fromList [ ( "\"", "12" ) ]
+            , registers = Dict.fromList [ ( "\"", Text "12" ) ]
             , continuation = "vc"
         }
       )
@@ -1085,11 +1112,8 @@ visualModeCases =
       , { visualModeCasesBuf
             | lines = B.fromString "x3\n456\n"
             , last = { emptyLast | inserts = "x", visual = "l" }
-            , registers =
-                Dict.fromList
-                    [ ( "\"", "12" )
-                    , ( ".", "v<visual>c<inserts><esc>" )
-                    ]
+            , dotRegister = "v<visual>c<inserts><esc>"
+            , registers = Dict.fromList [ ( "\"", Text "12" ) ]
         }
       )
     , ( "vc11<esc>vc22<esc>"
@@ -1099,11 +1123,8 @@ visualModeCases =
             , cursorColumn = 2
             , lines = B.fromString "12223\n456\n"
             , last = { emptyLast | inserts = "22" }
-            , registers =
-                Dict.fromList
-                    [ ( "\"", "1" )
-                    , ( ".", "v<visual>c<inserts><esc>" )
-                    ]
+            , dotRegister = "v<visual>c<inserts><esc>"
+            , registers = Dict.fromList [ ( "\"", Text "1" ) ]
         }
       )
     ]
@@ -1192,8 +1213,15 @@ allCases :
         }
 allCases =
     let
-        defaultMap =
-            Buf.setRegister "." ""
+        defaultMap buf =
+            { buf | dotRegister = "" }
+
+        clearScrollTop buf =
+            let
+                view =
+                    buf.view
+            in
+                { buf | view = { view | scrollTop = 0 } }
     in
         [ { name = "insert cases"
           , cases = insertCases
@@ -1237,7 +1265,7 @@ allCases =
                                 }
 
                             _ ->
-                                { buf | view = { view | scrollTop = 0 } }
+                                clearScrollTop buf
                 )
                     >> defaultMap
           }
@@ -1250,7 +1278,7 @@ allCases =
                         view =
                             buf.view
                     in
-                        { buf | view = { view | scrollTop = 0 } }
+                        clearScrollTop buf
                 )
                     >> Buf.clearHistory
                     >> defaultMap
@@ -1267,6 +1295,7 @@ allCases =
           , model = putCasesBuf
           , map =
                 (\buf -> { buf | continuation = "" })
+                    >> clearScrollTop
                     >> Buf.clearHistory
                     >> defaultMap
           }
@@ -1280,13 +1309,7 @@ allCases =
                             buf.registers
                                 |> Dict.get "."
                                 |> Maybe.map
-                                    (\s ->
-                                        Dict.fromList
-                                            [ ( "."
-                                              , s
-                                              )
-                                            ]
-                                    )
+                                    (\s -> Dict.fromList [ ( ".", s ) ])
                                 |> Maybe.withDefault Dict.empty
                         , last = buf.last
                         , lines = buf.lines
@@ -1299,31 +1322,15 @@ allCases =
           , cases = visualModeCases
           , model = visualModeCasesBuf
           , map =
-                (\buf ->
-                    let
-                        view =
-                            buf.view
-                    in
-                        { buf
-                            | view = { view | scrollTop = 0 }
-                        }
-                )
+                clearScrollTop
                     >> Buf.clearHistory
           }
         , { name = "join cases"
           , cases = joinCases
           , model = joinCasesBuf
           , map =
-                (\buf ->
-                    let
-                        view =
-                            buf.view
-                    in
-                        { buf
-                            | view = { view | scrollTop = 0 }
-                            , last = emptyLast
-                        }
-                )
+                (\buf -> { buf | last = emptyLast })
+                    >> clearScrollTop
                     >> Buf.clearHistory
                     >> defaultMap
           }

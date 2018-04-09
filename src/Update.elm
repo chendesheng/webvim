@@ -479,13 +479,7 @@ runOperator register operator buf =
                 |> Maybe.withDefault buf
 
         RepeatLastOperator ->
-            case Dict.get "." buf.registers of
-                Just keys ->
-                    buf
-                        |> replayKeys keys
-
-                _ ->
-                    buf
+            replayKeys buf.dotRegister buf
 
         RepeatLastInsert ->
             replayKeys buf.last.inserts buf
@@ -611,31 +605,34 @@ isPutOperator edit =
 
 replayKeys : String -> Model -> Model
 replayKeys s buf =
-    let
-        savedLast =
-            buf.last
+    if s == "" then
+        buf
+    else
+        let
+            savedLast =
+                buf.last
 
-        savedRegisters =
-            buf.registers
+            savedRegisters =
+                buf.registers
 
-        keys =
-            s
-                |> P.run (P.repeat P.zeroOrMore keyParser)
-                |> Result.withDefault []
+            keys =
+                s
+                    |> P.run (P.repeat P.zeroOrMore keyParser)
+                    |> Result.withDefault []
 
-        buf1 =
-            List.foldl
-                (\key buf ->
-                    handleKeypress True key buf
-                        |> Tuple.first
-                )
-                buf
-                keys
-    in
-        { buf1
-            | last = savedLast
-            , registers = savedRegisters
-        }
+            buf1 =
+                List.foldl
+                    (\key buf ->
+                        handleKeypress True key buf
+                            |> Tuple.first
+                    )
+                    buf
+                    keys
+        in
+            { buf1
+                | last = savedLast
+                , registers = savedRegisters
+            }
 
 
 isModeNameVisual : V.ModeName -> Bool
@@ -724,7 +721,7 @@ handleKeypress replaying key buf =
                         buf
 
                     s ->
-                        Buf.setRegister "." s buf
+                        { buf | dotRegister = s }
     in
         ( buf
             |> cacheVimAST cacheKey cacheVal

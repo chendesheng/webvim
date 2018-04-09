@@ -16,7 +16,14 @@ module Buffer
         )
 
 import Position exposing (..)
-import Model exposing (Buffer, BufferHistory, emptyBufferHistory, Mode)
+import Model
+    exposing
+        ( Buffer
+        , BufferHistory
+        , emptyBufferHistory
+        , Mode
+        , RegisterText
+        )
 import Internal.TextBuffer
     exposing
         ( applyPatch
@@ -342,7 +349,7 @@ getLastDeleted buf =
             )
 
 
-setRegister : String -> String -> Buffer -> Buffer
+setRegister : String -> RegisterText -> Buffer -> Buffer
 setRegister reg val buf =
     { buf | registers = Dict.insert reg val buf.registers }
 
@@ -364,35 +371,57 @@ setCursor cursor saveColumn buf =
     }
 
 
-putString : Bool -> String -> Buffer -> Buffer
-putString forward s buf =
+putString : Bool -> RegisterText -> Buffer -> Buffer
+putString forward text buf =
     let
         ( y, x ) =
             buf.cursor
 
-        forward1 =
-            case getLine y buf.lines of
-                Just line ->
-                    -- always put backward when line is empty
-                    if line == lineBreak then
-                        False
-                    else
-                        forward
+        ( patch, cursor ) =
+            let
+                line =
+                    getLine y buf.lines |> Maybe.withDefault ""
+            in
+                case text of
+                    Model.Text s ->
+                        if forward && line /= lineBreak then
+                            ( Insertion ( y, x + 1 ) <| fromString s
+                            , Nothing
+                            )
+                        else
+                            ( Insertion ( y, x ) <| fromString s
+                            , Nothing
+                            )
 
-                _ ->
-                    forward
+                    Model.Lines s ->
+                        if forward then
+                            let
+                                s1 =
+                                    if
+                                        String.endsWith
+                                            lineBreak
+                                            line
+                                    then
+                                        s
+                                    else
+                                        lineBreak ++ s
+                            in
+                                ( Insertion ( y + 1, 0 ) <| fromString s1
+                                , Just ( y + 1, 0 )
+                                )
+                        else
+                            (if buf.mode == Model.Insert then
+                                ( Insertion ( y, x ) <| fromString s
+                                , Nothing
+                                )
+                             else
+                                ( Insertion ( y, 0 ) <| fromString s
+                                , Just ( y, 0 )
+                                )
+                            )
 
-        buf1 =
-            transaction
-                [ if forward1 then
-                    Insertion ( y, x + 1 ) <| fromString s
-                  else
-                    Insertion ( y, x ) <| fromString s
-                ]
-                buf
-
-        cursor =
-            case getLastPatch buf1 of
+        getLastDeletedTo buf =
+            case getLastPatch buf of
                 Just patch ->
                     case patch of
                         Deletion _ to ->
@@ -404,4 +433,17 @@ putString forward s buf =
                 _ ->
                     buf.cursor
     in
-        setCursor cursor True buf1
+        buf
+            |> transaction [ patch ]
+            |> (\buf1 ->
+                    setCursor
+                        (case cursor of
+                            Just p ->
+                                p
+
+                            Nothing ->
+                                getLastDeletedTo buf1
+                        )
+                        True
+                        buf1
+               )
