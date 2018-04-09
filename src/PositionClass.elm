@@ -143,19 +143,18 @@ parserWordEdge : String -> Parser Int
 parserWordEdge wordChars =
     let
         divider pred =
-            P.succeed
-                (length1 -1)
-                |= P.keep P.oneOrMore pred
+            P.keep P.oneOrMore pred
                 |. P.oneOf
                     [ P.keep (P.Exactly 1) (pred >> not)
                     , P.end |> P.map (always "")
                     ]
     in
-        P.oneOf
-            [ divider spaceInline
-            , divider (word wordChars)
-            , divider (punctuation wordChars)
-            ]
+        P.succeed (length1 -1)
+            |= P.oneOf
+                [ divider spaceInline
+                , divider (word wordChars)
+                , divider (punctuation wordChars)
+                ]
 
 
 parserWordAround : String -> Parser Int
@@ -228,14 +227,6 @@ parserBeforeChar ch =
         |. P.ignore (P.Exactly 1) ((==) ch)
 
 
-parserCharStart : Parser Int
-parserCharStart =
-    P.succeed String.length
-        |. P.keep (P.Exactly 1) (always True)
-        |= P.oneOf
-            [ P.keep (P.Exactly 1) (always True) ]
-
-
 findPositionBackward :
     String
     -> MotionData
@@ -262,9 +253,6 @@ findPositionBackward wordChars md line =
 
                 WORDEdge ->
                     parserWORDEdge
-
-                CharStart ->
-                    parserCharStart
 
                 MatchChar ch before ->
                     let
@@ -316,9 +304,6 @@ findPositionForward wordChars md crossLine line =
                 WORDEdge ->
                     parserWORDEdge
 
-                CharStart ->
-                    parserCharStart
-
                 MatchChar ch before ->
                     let
                         p =
@@ -358,6 +343,12 @@ findPosition wordChars md mo line pos =
                 LineEnd ->
                     Just (String.length line1 - 1)
 
+                CharStart ->
+                    if pos + 1 >= String.length line1 then
+                        Nothing
+                    else
+                        Just (pos + 1)
+
                 _ ->
                     line1
                         |> String.dropLeft pos
@@ -374,6 +365,12 @@ findPosition wordChars md mo line pos =
                     P.run parserLineFirst line1
                         |> Result.toMaybe
 
+                CharStart ->
+                    if pos - 1 >= 0 then
+                        Just (pos - 1)
+                    else
+                        Nothing
+
                 _ ->
                     line1
                         |> String.left (pos + 1)
@@ -384,9 +381,5 @@ findPosition wordChars md mo line pos =
 
 findLineFirst : String -> Int
 findLineFirst line =
-    findPosition ""
-        LineFirst
-        (motionOption "<]$=")
-        line
-        0
-        |> Maybe.withDefault 0
+    P.run parserLineFirst line
+        |> Result.withDefault 0
