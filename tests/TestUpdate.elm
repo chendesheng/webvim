@@ -798,6 +798,34 @@ changeCases =
     ]
 
 
+replaceCasesBuf : Buffer
+replaceCasesBuf =
+    { emptyBuffer | lines = B.fromString "123\n  456\n" }
+
+
+replaceCases : List ( String, Buffer )
+replaceCases =
+    [ ( "rb"
+      , { replaceCasesBuf | lines = B.fromString "b23\n  456\n" }
+      )
+    , ( "jlllr<cr>"
+      , { replaceCasesBuf
+            | lines = B.fromString "123\n  4\n  6\n"
+            , cursor = ( 2, 1 )
+            , cursorColumn = 1
+            , last = { emptyLast | indent = 2 }
+        }
+      )
+    , ( "jllllr<cr>"
+      , { replaceCasesBuf
+            | lines = B.fromString "123\n  45\n\n"
+            , cursor = ( 2, 0 )
+            , last = { emptyLast | indent = 2 }
+        }
+      )
+    ]
+
+
 putCasesBuf : Buffer
 putCasesBuf =
     { emptyBuffer
@@ -1293,6 +1321,15 @@ allCases =
         , { name = "put cases"
           , cases = putCases
           , model = putCasesBuf
+          , map =
+                (\buf -> { buf | continuation = "" })
+                    >> clearScrollTop
+                    >> Buf.clearHistory
+                    >> defaultMap
+          }
+        , { name = "replace cases"
+          , cases = replaceCases
+          , model = replaceCasesBuf
           , map =
                 (\buf -> { buf | continuation = "" })
                     >> clearScrollTop

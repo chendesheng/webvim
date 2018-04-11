@@ -10,6 +10,25 @@ import Vim.Register exposing (..)
 --    start feeling that I should just list all results by hand
 
 
+keyToChar : String -> Maybe String
+keyToChar key =
+    case key of
+        "<cr>" ->
+            Just "\n"
+
+        "<tab>" ->
+            Just "\t"
+
+        "<space>" ->
+            Just " "
+
+        _ ->
+            if String.length key > 1 then
+                Nothing
+            else
+                Just key
+
+
 insertCommands : Parser ModeDelta
 insertCommands =
     --common insert commands
@@ -49,32 +68,19 @@ insertCommands =
                 ]
                 |. P.symbol "<esc>"
             , P.succeed
-                (\ch ->
-                    if ch == "<inserts>" then
-                        [ RepeatLastInsert |> PushOperator ]
+                (\key ->
+                    if key == "<inserts>" then
+                        [ PushOperator RepeatLastInsert ]
                     else
-                        let
-                            s =
-                                case ch of
-                                    "<cr>" ->
-                                        "\n"
-
-                                    "<tab>" ->
-                                        "\t"
-
-                                    "<space>" ->
-                                        " "
-
-                                    _ ->
-                                        ch
-                        in
-                            if String.length s > 1 then
-                                []
-                            else
-                                [ TextLiteral s
+                        case keyToChar key of
+                            Just ch ->
+                                [ TextLiteral ch
                                     |> InsertString
                                     |> PushOperator
                                 ]
+
+                            _ ->
+                                []
                 )
                 |= keyParser
             ]
@@ -192,7 +198,9 @@ linebuffer prefix map =
                             [ PushKey "<c-r>" ]
                             (P.oneOf
                                 [ P.succeed
-                                    [ PushOperator InsertWordUnderCursor ]
+                                    [ PushOperator <|
+                                        InsertString WordUnderCursor
+                                    ]
                                     |. P.symbol "<c-w>"
                                 , P.succeed
                                     (\key ->
@@ -821,9 +829,23 @@ operator isVisual isTemp =
                         |> dontRecord
                    , define "J" (Join True)
                    , define "p" (Put True)
-                        |> dontRecord
                    , define "P" (Put False)
-                        |> dontRecord
+                   , readKeyAndThen "r"
+                        [ PushKey "r" ]
+                        (P.map
+                            (\key ->
+                                case keyToChar key of
+                                    Just ch ->
+                                        [ PushOperator <| Replace ch
+                                        , PushKey ("r" ++ ch)
+                                        , PopKey
+                                        ]
+
+                                    _ ->
+                                        []
+                            )
+                            keyParser
+                        )
                    , define "." RepeatLastOperator
                         |> dontRecord
                    , gOperator

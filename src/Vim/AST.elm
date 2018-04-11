@@ -87,9 +87,8 @@ type Operator
     | RepeatLastVisual
     | RepeatLastOperator
     | VisualSwitchEnd
-      -- for line buffer
-    | InsertWordUnderCursor
-    | Execute
+    | Execute -- execute ex command
+    | Replace String
 
 
 type StringType

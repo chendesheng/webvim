@@ -746,6 +746,17 @@ cases =
         , "v"
         )
       )
+    , ( "r"
+      , ( initialMode, "r" )
+      )
+    , ( "rb"
+      , ( { initialMode
+            | edit = Just (Replace "b")
+            , recordKeys = "rb"
+          }
+        , ""
+        )
+      )
 
     -- template
     , ( ""

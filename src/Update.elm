@@ -512,6 +512,35 @@ runOperator register operator buf =
         Join mergeSpaces ->
             join mergeSpaces buf
 
+        Replace ch ->
+            case buf.mode of
+                Normal ->
+                    let
+                        ( y, x ) =
+                            buf.cursor
+
+                        setCursor =
+                            if ch == B.lineBreak then
+                                identity
+                            else
+                                Buf.setCursor buf.cursor True
+                    in
+                        buf
+                            |> Buf.transaction
+                                [ Deletion buf.cursor ( y, x + 1 ) ]
+                            |> insert (V.TextLiteral ch)
+                            |> setCursor
+
+                --|> Buf.setCursor buf.cursor True
+                TempNormal ->
+                    buf
+
+                Visual visual ->
+                    buf
+
+                _ ->
+                    buf
+
         _ ->
             buf
 
@@ -588,12 +617,15 @@ applyEdit edit register buf =
             buf
 
 
-isPutOperator : Maybe Operator -> Bool
-isPutOperator edit =
+isEnterInsertMode : Maybe Operator -> Bool
+isEnterInsertMode edit =
     case edit of
         Just operator ->
             case operator of
                 Put _ ->
+                    True
+
+                Replace _ ->
                     True
 
                 _ ->
@@ -707,7 +739,7 @@ handleKeypress replaying key buf =
             --   1) Start insert mode
             --   2) Put string
             --   3) Back to normal mode
-            if modeName == V.ModeNameNormal && isPutOperator edit then
+            if modeName == V.ModeNameNormal && isEnterInsertMode edit then
                 V.ModeNameInsert
             else
                 getModeName buf.mode
