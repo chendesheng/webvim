@@ -1,6 +1,7 @@
 module Buffer
     exposing
         ( transaction
+        , newBuffer
         , insert
         , delete
         , undo
@@ -15,7 +16,10 @@ module Buffer
         , syntaxHighlight
         )
 
+import Window exposing (Size)
+import Regex as Re
 import Position exposing (..)
+import Message exposing (BufferInfo)
 import Model
     exposing
         ( Buffer
@@ -23,6 +27,9 @@ import Model
         , emptyBufferHistory
         , Mode
         , RegisterText
+        , emptyBuffer
+        , emptyView
+        , View
         )
 import Internal.TextBuffer
     exposing
@@ -470,3 +477,68 @@ putString forward text buf =
                         True
                         buf1
                )
+
+
+filename : String -> ( String, String )
+filename s =
+    case
+        Re.find
+            (Re.AtMost 1)
+            (Re.regex "(^|[/\\\\])([^.]+)([.][^.]*)?$")
+            s
+    of
+        [ m ] ->
+            case m.submatches of
+                [ _, a, b ] ->
+                    ( Maybe.withDefault "" a
+                    , Maybe.withDefault "" b
+                    )
+
+                _ ->
+                    ( "", "" )
+
+        _ ->
+            ( "", "" )
+
+
+newBuffer : BufferInfo -> String -> Size -> Int -> Buffer
+newBuffer info service size lineHeight =
+    let
+        { cursor, scrollTop, path, content } =
+            info
+
+        lines =
+            content
+                |> Maybe.withDefault ""
+                |> fromString
+
+        ( name, ext ) =
+            filename path
+
+        syntax =
+            { lang =
+                if ext == "" then
+                    ""
+                else
+                    String.dropLeft 1 ext
+            , lines = emptyBuffer.syntax.lines
+            }
+    in
+        { emptyBuffer
+            | lines = lines
+            , view =
+                { emptyView
+                    | size = size
+                    , lineHeight = lineHeight
+                    , scrollTop = scrollTop
+                }
+            , cursor = cursor
+            , path = path
+            , name = name ++ ext
+            , syntax =
+                syntaxHighlight
+                    0
+                    lines
+                    syntax
+            , service = service
+        }

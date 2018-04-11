@@ -1,6 +1,6 @@
 module Model exposing (..)
 
-import Message exposing (Msg(..))
+import Message exposing (Msg(..), BufferInfo)
 import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
@@ -9,6 +9,8 @@ import Dict exposing (Dict)
 import Vim.AST as V exposing (VisualType(..))
 import Syntax exposing (..)
 import Array
+import Persistent exposing (getBuffer)
+import Json.Encode as Encode
 
 
 type alias Undo =
@@ -149,6 +151,27 @@ emptyView =
     }
 
 
+encodeBuffer : Buffer -> Encode.Value
+encodeBuffer buf =
+    let
+        ( y, x ) =
+            buf.cursor
+    in
+        Encode.object
+            [ ( "path", Encode.string buf.path )
+            , ( "cursor"
+              , Encode.array <|
+                    Array.fromList
+                        [ Encode.int y
+                        , Encode.int x
+                        ]
+              )
+            , ( "scrollTop"
+              , Encode.int buf.view.scrollTop
+              )
+            ]
+
+
 emptyBuffer : Buffer
 emptyBuffer =
     { id = 0
@@ -185,48 +208,32 @@ emptyBuffer =
 type alias Flags =
     { lineHeight : Int
     , service : String
+    , buffer : Maybe String
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
-init { lineHeight, service } =
+init { lineHeight, service, buffer } =
     let
         view =
             emptyBuffer.view
 
-        lines =
-            B.empty
-                |> B.applyPatch
-                    ("1  23\n456\n"
-                        ++ String.repeat 20 "aa"
-                        ++ "\n1dsafjdo  23\n456\n"
-                        ++ "\n1dsafjdo  23\n456\n"
-                        ++ "\n1dsafjdo  23\n456\n"
-                        ++ "\n1dsafjdo  23\n456\n"
-                        ++ "\n1dsafjdo  23\n456\n"
-                        ++ "\n1dsafjdo  23\n456\n"
-                        ++ "\n"
-                        |> B.fromString
-                        |> Insertion ( 0, 0 )
-                    )
-                |> Tuple.second
-
-        -- Ex { prefix = "/", buffer = "hello", cursor = ( 0, 0 ) }
-        mode =
-            Normal
-
         buf =
             { emptyBuffer
-                | lines = lines
-                , cursor = ( 0, 1 )
-                , cursorColumn = 1
-                , mode = mode
-                , view = { view | lineHeight = lineHeight }
+                | view = { view | lineHeight = lineHeight }
                 , service = service
             }
+
+        cmds =
+            case buffer of
+                Just path ->
+                    [ getBuffer path ]
+
+                _ ->
+                    []
     in
         ( buf
-        , Task.perform Resize Win.size
+        , Cmd.batch <| [ Task.perform Resize Win.size ] ++ cmds
         )
 
 

@@ -8,6 +8,8 @@ import Html
 import View exposing (..)
 import KeySub exposing (downs)
 import Window exposing (resizes)
+import Persistent exposing (restoreBuffer)
+import Message exposing (..)
 
 
 -- This is the first line written in webvim-elm :)
@@ -24,5 +26,6 @@ main =
                 Sub.batch
                     [ downs (PressKey 0)
                     , resizes Resize
+                    , restoreBuffer Edit
                     ]
         }

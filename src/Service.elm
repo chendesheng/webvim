@@ -1,36 +1,30 @@
 module Service exposing (..)
 
-import Model exposing (..)
 import Http
-import Message exposing (Msg(..))
-import Internal.TextBuffer as B exposing (Patch(..))
+import Message exposing (Msg(..), BufferInfo)
 import Json.Decode as Decode
 
 
-sendEditBuffer : String -> String -> Cmd Msg
-sendEditBuffer url path =
+sendEditBuffer : String -> BufferInfo -> Cmd Msg
+sendEditBuffer url info =
     url
         ++ "/edit?path="
-        ++ path
+        ++ info.path
         |> Http.getString
         |> Http.send
             (Result.map
                 (\s ->
-                    { path = path
-                    , content = s
-                    }
+                    { info | content = Just s }
                 )
                 >> Read
             )
 
 
-sendSaveBuffer : String -> String -> Buffer -> Cmd Msg
+sendSaveBuffer : String -> String -> String -> Cmd Msg
 sendSaveBuffer url path buf =
     let
         body =
-            buf.lines
-                |> B.toString
-                |> Http.stringBody "plain/text"
+            Http.stringBody "plain/text" buf
     in
         (Http.post
             (url ++ "/write?path=" ++ path)

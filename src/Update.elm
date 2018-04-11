@@ -20,6 +20,7 @@ import List
 import Tuple
 import String
 import Service exposing (..)
+import Persistent exposing (..)
 
 
 stringToPrefix : String -> ExPrefix
@@ -681,13 +682,15 @@ execute : String -> Buffer -> Cmd Msg
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            sendEditBuffer buf.service path
+            getBuffer path
 
         [ "w" ] ->
-            sendSaveBuffer buf.service buf.path buf
+            sendSaveBuffer buf.service buf.path <|
+                B.toString buf.lines
 
         [ "w", path ] ->
-            sendSaveBuffer buf.service path buf
+            sendSaveBuffer buf.service path <|
+                B.toString buf.lines
 
         _ ->
             Cmd.none
@@ -754,39 +757,23 @@ handleKeypress replaying key buf =
 
                     s ->
                         { buf | dotRegister = s }
+
+        buf1 =
+            buf
+                |> cacheVimAST cacheKey cacheVal
+                |> setContinuation continuation
+                |> applyEdit edit register
+                |> updateMode modeName
+                |> modeChanged replaying key oldModeName
+                |> scrollToCursor
+                |> saveDotRegister
     in
-        ( buf
-            |> cacheVimAST cacheKey cacheVal
-            |> setContinuation continuation
-            |> applyEdit edit register
-            |> updateMode modeName
-            |> modeChanged replaying key oldModeName
-            |> scrollToCursor
-            |> saveDotRegister
-        , getEffect edit buf
+        ( buf1
+        , Cmd.batch
+            [ getEffect edit buf
+            , encodeBuffer buf1 |> saveBuffer
+            ]
         )
-
-
-filename : String -> ( String, String )
-filename s =
-    case
-        Re.find
-            (Re.AtMost 1)
-            (Re.regex "(^|[/\\\\])([^.]+)([.][^.]*)?$")
-            s
-    of
-        [ m ] ->
-            case m.submatches of
-                [ _, a, b ] ->
-                    ( Maybe.withDefault "" a
-                    , Maybe.withDefault "" b
-                    )
-
-                _ ->
-                    ( "", "" )
-
-        _ ->
-            ( "", "" )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -815,41 +802,13 @@ update message model =
 
         Read result ->
             case result of
-                Ok { path, content } ->
-                    let
-                        lines =
-                            B.fromString content
-
-                        ( name, ext ) =
-                            filename path
-
-                        syntax =
-                            { lang =
-                                if ext == "" then
-                                    ""
-                                else
-                                    String.dropLeft 1 ext
-                            , lines = emptyBuffer.syntax.lines
-                            }
-                    in
-                        ( { emptyBuffer
-                            | lines = lines
-                            , view =
-                                { emptyView
-                                    | size = model.view.size
-                                    , lineHeight = model.view.lineHeight
-                                }
-                            , path = path
-                            , name = name ++ ext
-                            , syntax =
-                                Buf.syntaxHighlight
-                                    0
-                                    lines
-                                    syntax
-                            , service = model.service
-                          }
-                        , Cmd.none
-                        )
+                Ok info ->
+                    ( Buf.newBuffer info
+                        model.service
+                        model.view.size
+                        model.view.lineHeight
+                    , Cmd.none
+                    )
 
                 Err s ->
                     ( model, Cmd.none )
@@ -864,3 +823,6 @@ update message model =
                   }
                 , Cmd.none
                 )
+
+        Edit info ->
+            ( model, sendEditBuffer model.service info )
