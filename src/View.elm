@@ -30,11 +30,8 @@ translate x y =
 
 
 view : Model -> Html msg
-view { mode, cursor, lines, syntax, continuation, view } =
+view { mode, cursor, lines, syntax, continuation, view, history } =
     let
-        statusBar =
-            getStatusBar mode
-
         scrollTop =
             view.scrollTop
 
@@ -45,14 +42,17 @@ view { mode, cursor, lines, syntax, continuation, view } =
             B.countLines lines
 
         maybeCursor =
-            case statusBar.cursor of
-                Just _ ->
+            case mode of
+                Ex _ ->
                     Nothing
 
                 _ ->
                     case cursor of
                         ( y, x ) ->
                             Just ( y - scrollTop, x )
+
+        isBufferDirty =
+            history.pending /= Nothing || history.savePoint /= history.version
     in
         div [ class "editor" ]
             [ div [ class "buffer" ]
@@ -70,12 +70,23 @@ view { mode, cursor, lines, syntax, continuation, view } =
                            ]
                     )
                 ]
-            , div
-                [ class "status" ]
-                [ div [] [ text statusBar.text ]
-                , renderCursor statusBar.cursor
-                , div [ class "status-cmds" ] [ text continuation ]
-                ]
+            , lazy3 renderStatusBar isBufferDirty mode continuation
+            ]
+
+
+renderStatusBar : Bool -> Mode -> String -> Html msg
+renderStatusBar dirty mode continuation =
+    let
+        statusBar =
+            getStatusBar mode
+    in
+        div
+            [ class "status"
+            , classList [ ( "dirty", dirty ) ]
+            ]
+            [ div [] [ text statusBar.text ]
+            , renderCursor statusBar.cursor
+            , div [ class "status-cmds" ] [ text continuation ]
             ]
 
 

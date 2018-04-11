@@ -70,6 +70,8 @@ type alias BufferHistory =
     { undoes : List Undo
     , pending : Maybe Undo
     , redoes : List Redo
+    , savePoint : Int
+    , version : Int
     }
 
 
@@ -78,6 +80,8 @@ emptyBufferHistory =
     { undoes = []
     , pending = Nothing
     , redoes = []
+    , savePoint = 0
+    , version = 0
     }
 
 
@@ -194,7 +198,7 @@ init { lineHeight, service } =
             B.empty
                 |> B.applyPatch
                     ("1  23\n456\n"
-                        ++ String.repeat 50 "aa"
+                        ++ String.repeat 20 "aa"
                         ++ "\n1dsafjdo  23\n456\n"
                         ++ "\n1dsafjdo  23\n456\n"
                         ++ "\n1dsafjdo  23\n456\n"

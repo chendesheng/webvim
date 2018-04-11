@@ -1242,7 +1242,14 @@ allCases :
 allCases =
     let
         defaultMap buf =
-            { buf | dotRegister = "" }
+            let
+                history =
+                    buf.history
+            in
+                { buf
+                    | dotRegister = ""
+                    , history = { history | version = 0 }
+                }
 
         clearScrollTop buf =
             let

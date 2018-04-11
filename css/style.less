@@ -2,6 +2,7 @@
 
 @statusbar-height: 1.2rem;
 @statusbar-background: #166163;
+@statusbar-dirty-background: #6f0c0c;
 @statusbar-padding: 0.3ch;
 @gutter-lines-spacing: 0ch;
 @font-family: "iosevka";
@@ -112,6 +113,10 @@ html, body {
   position: relative;
   padding-left: @statusbar-padding;
   color: contrast(@statusbar-background);
+}
+
+.status.dirty {
+  background: linear-gradient(0deg, @statusbar-dirty-background, lighten(@statusbar-dirty-background, 2%));
 }
 
 .status .cursor {

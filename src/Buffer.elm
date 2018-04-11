@@ -182,16 +182,17 @@ commit buf =
                     history =
                         buf.history
                 in
-                    history.pending
-                        |> Maybe.map
-                            (\pending ->
-                                { history
-                                    | undoes = pending :: history.undoes
-                                    , pending = Nothing
-                                    , redoes = []
-                                }
-                            )
-                        |> Maybe.withDefault history
+                    case history.pending of
+                        Just pending ->
+                            { history
+                                | undoes = pending :: history.undoes
+                                , pending = Nothing
+                                , redoes = []
+                                , version = history.version + 1
+                            }
+
+                        _ ->
+                            history
         }
 
 
@@ -239,19 +240,30 @@ undo buf =
         |> Maybe.map
             (\{ cursor, patches } ->
                 let
+                    history =
+                        buf.history
+
                     ( lines1, patches1, miny ) =
                         applyPatches patches buf.lines
 
                     undoHistory { undoes, redoes } =
-                        { undoes =
-                            List.tail undoes
-                                |> Maybe.withDefault []
-                        , pending = Nothing
-                        , redoes =
-                            { cursor = buf.cursor
-                            , patches = patches1
-                            }
-                                :: redoes
+                        { history
+                            | undoes =
+                                List.tail undoes
+                                    |> Maybe.withDefault []
+                            , pending = Nothing
+                            , redoes =
+                                { cursor = buf.cursor
+                                , patches = patches1
+                                }
+                                    :: redoes
+                            , version =
+                                case undoes of
+                                    [] ->
+                                        history.version
+
+                                    _ ->
+                                        history.version - 1
                         }
                 in
                     { buf
@@ -274,19 +286,30 @@ redo buf =
         |> Maybe.map
             (\{ cursor, patches } ->
                 let
+                    history =
+                        buf.history
+
                     ( lines1, patches1, miny ) =
                         applyPatches patches buf.lines
 
                     redoHistory { undoes, redoes } =
-                        { undoes =
-                            { cursor = buf.cursor
-                            , patches = patches1
-                            }
-                                :: undoes
-                        , pending = Nothing
-                        , redoes =
-                            List.tail redoes
-                                |> Maybe.withDefault []
+                        { history
+                            | undoes =
+                                { cursor = buf.cursor
+                                , patches = patches1
+                                }
+                                    :: undoes
+                            , pending = Nothing
+                            , redoes =
+                                List.tail redoes
+                                    |> Maybe.withDefault []
+                            , version =
+                                case redoes of
+                                    [] ->
+                                        history.version
+
+                                    _ ->
+                                        history.version + 1
                         }
                 in
                     { buf

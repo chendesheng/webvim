@@ -854,5 +854,13 @@ update message model =
                 Err s ->
                     ( model, Cmd.none )
 
-        _ ->
-            ( model, Cmd.none )
+        Write _ ->
+            let
+                history =
+                    model.history
+            in
+                ( { model
+                    | history = { history | savePoint = history.version }
+                  }
+                , Cmd.none
+                )
