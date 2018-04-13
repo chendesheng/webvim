@@ -537,6 +537,7 @@ newBuffer info service size lineHeight =
                     , scrollTop = scrollTop
                 }
             , cursor = cursor
+            , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
             , syntax =
