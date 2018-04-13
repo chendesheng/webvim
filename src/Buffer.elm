@@ -19,6 +19,7 @@ module Buffer
 import Window exposing (Size)
 import Regex as Re
 import Position exposing (..)
+import PositionClass exposing (findLineFirst)
 import Message exposing (BufferInfo)
 import Model
     exposing
@@ -435,9 +436,12 @@ putString forward text buf =
                                         s
                                     else
                                         lineBreak ++ s
+
+                                _ =
+                                    findLineFirst s |> Debug.log "findLineFirst"
                             in
                                 ( Insertion ( y + 1, 0 ) <| fromString s1
-                                , Just ( y + 1, 0 )
+                                , Just ( y + 1, findLineFirst s + 1 )
                                 )
                         else
                             (if buf.mode == Model.Insert then
@@ -446,7 +450,7 @@ putString forward text buf =
                                 )
                              else
                                 ( Insertion ( y, 0 ) <| fromString s
-                                , Just ( y, 0 )
+                                , Just ( y, findLineFirst s + 1 )
                                 )
                             )
 

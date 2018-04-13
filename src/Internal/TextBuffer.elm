@@ -16,6 +16,7 @@ module Internal.TextBuffer
         , toString
         , getLineMaxColumn
         , mapLinesToList
+        , substring
         )
 
 import Position exposing (..)
@@ -436,3 +437,8 @@ getLineMaxColumn y lines =
                         len
             )
         |> Maybe.withDefault 0
+
+
+substring : Position -> Position -> TextBuffer -> TextBuffer
+substring pos1 pos2 (TextBuffer buf) =
+    TextBuffer <| slice pos1 pos2 buf

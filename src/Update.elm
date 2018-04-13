@@ -21,6 +21,7 @@ import Tuple
 import String
 import Service exposing (..)
 import Persistent exposing (..)
+import Yank exposing (yank)
 
 
 stringToPrefix : String -> ExPrefix
@@ -414,6 +415,9 @@ runOperator register operator buf =
         Delete rg ->
             delete register rg buf
                 |> cursorScope
+
+        Yank rg ->
+            yank register rg buf
 
         Undo ->
             Buf.undo buf
