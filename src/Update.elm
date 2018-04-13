@@ -144,8 +144,23 @@ updateMode modeName buf =
         { buf | mode = newMode }
 
 
-modeChanged : Bool -> Key -> V.ModeName -> Buffer -> Buffer
-modeChanged replaying key oldModeName buf =
+isLineDeltaMotion : Operator -> Bool
+isLineDeltaMotion op =
+    case op of
+        Move mo _ ->
+            case mo of
+                V.LineDelta _ ->
+                    True
+
+                _ ->
+                    False
+
+        _ ->
+            False
+
+
+modeChanged : Bool -> Key -> V.ModeName -> Bool -> Buffer -> Buffer
+modeChanged replaying key oldModeName lineDeltaMotion buf =
     case buf.mode of
         Normal ->
             let
@@ -184,11 +199,17 @@ modeChanged replaying key oldModeName buf =
                             buf
                     else
                         buf
+
+                changeColumn =
+                    if lineDeltaMotion then
+                        False
+                    else
+                        cursor /= buf.cursor
             in
                 buf1
                     |> Buf.setCursor
                         cursor
-                        (cursor /= buf.cursor)
+                        changeColumn
                     |> Buf.commit
 
         TempNormal ->
@@ -758,13 +779,18 @@ handleKeypress replaying key buf =
                     s ->
                         { buf | dotRegister = s }
 
+        lineDeltaMotion =
+            edit
+                |> Maybe.map isLineDeltaMotion
+                |> Maybe.withDefault False
+
         buf1 =
             buf
                 |> cacheVimAST cacheKey cacheVal
                 |> setContinuation continuation
                 |> applyEdit edit register
                 |> updateMode modeName
-                |> modeChanged replaying key oldModeName
+                |> modeChanged replaying key oldModeName lineDeltaMotion
                 |> scrollToCursor
                 |> saveDotRegister
     in

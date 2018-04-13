@@ -289,13 +289,19 @@ motionCasesBuf =
 motionCases : List ( String, Buffer )
 motionCases =
     [ ( "l"
-      , { motionCasesBuf | cursor = ( 0, 1 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 1 )
+            , cursorColumn = 1
+        }
       )
     , ( "lh"
       , { motionCasesBuf | cursor = ( 0, 0 ) }
       )
     , ( "lll"
-      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 2 )
+            , cursorColumn = 2
+        }
       )
     , ( "hh"
       , { motionCasesBuf | cursor = ( 0, 0 ) }
@@ -315,10 +321,16 @@ motionCases =
       , { motionCasesBuf | cursor = ( 0, 0 ) }
       )
     , ( "jlllllllk"
-      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 2 )
+            , cursorColumn = 4
+        }
       )
     , ( "e"
-      , { motionCasesBuf | cursor = ( 0, 2 ) }
+      , { motionCasesBuf
+            | cursor = ( 0, 2 )
+            , cursorColumn = 2
+        }
       )
     , ( "w"
       , { motionCasesBuf
@@ -334,6 +346,7 @@ motionCases =
     , ( "f3"
       , { motionCasesBuf
             | cursor = ( 0, 2 )
+            , cursorColumn = 2
             , last =
                 { emptyLast
                     | matchChar =
@@ -362,6 +375,7 @@ motionCases =
     , ( "t3"
       , { motionCasesBuf
             | cursor = ( 0, 1 )
+            , cursorColumn = 1
             , last =
                 { emptyLast
                     | matchChar =
@@ -390,6 +404,7 @@ motionCases =
     , ( "f3T1"
       , { motionCasesBuf
             | cursor = ( 0, 1 )
+            , cursorColumn = 1
             , last =
                 { emptyLast
                     | matchChar =
@@ -404,6 +419,7 @@ motionCases =
     , ( "f3hh;"
       , { motionCasesBuf
             | cursor = ( 0, 2 )
+            , cursorColumn = 2
             , last =
                 { emptyLast
                     | matchChar =
@@ -418,6 +434,7 @@ motionCases =
     , ( "t30;"
       , { motionCasesBuf
             | cursor = ( 0, 1 )
+            , cursorColumn = 1
             , last =
                 { emptyLast
                     | matchChar =
@@ -446,6 +463,7 @@ motionCases =
     , ( "t1$,"
       , { motionCasesBuf
             | cursor = ( 0, 1 )
+            , cursorColumn = 1
             , last =
                 { emptyLast
                     | matchChar =
@@ -481,6 +499,12 @@ motionCases =
                     | inserts = "aa"
                     , visual = "G"
                 }
+        }
+      )
+    , ( "jek"
+      , { motionCasesBuf
+            | cursorColumn = 4
+            , cursor = ( 0, 2 )
         }
       )
     ]
@@ -1271,8 +1295,7 @@ allCases =
           , map =
                 (\buf ->
                     { buf
-                        | cursorColumn = 0
-                        , history = emptyBufferHistory
+                        | history = emptyBufferHistory
                         , registers = Dict.empty
                     }
                 )

@@ -56,6 +56,16 @@ type OperatorRange
     | VisualRange Bool
 
 
+isVisualRange : OperatorRange -> Bool
+isVisualRange range =
+    case range of
+        VisualRange _ ->
+            True
+
+        _ ->
+            False
+
+
 type ScrollPosition
     = ScrollBy Int
     | ScrollToMiddle
