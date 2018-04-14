@@ -809,7 +809,7 @@ handleKeypress replaying key buf =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
-        PressKey bufid key ->
+        PressKey key ->
             handleKeypress False key model
 
         Resize size ->

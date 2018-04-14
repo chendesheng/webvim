@@ -16,13 +16,14 @@ import Vim.AST exposing (VisualType(..))
 
 handleKeys : List Key -> Model -> Model
 handleKeys keys model =
-    List.foldl
-        (\msg model ->
-            update msg model
-                |> Tuple.first
-        )
-        model
-        (List.map (PressKey 0) keys)
+    keys
+        |> List.map PressKey
+        |> List.foldl
+            (\msg model ->
+                update msg model
+                    |> Tuple.first
+            )
+            model
 
 
 keysParser : Parser (List String)

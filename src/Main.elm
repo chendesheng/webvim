@@ -24,7 +24,7 @@ main =
         , subscriptions =
             \_ ->
                 Sub.batch
-                    [ downs (PressKey 0)
+                    [ downs PressKey
                     , resizes Resize
                     , restoreBuffer Edit
                     ]

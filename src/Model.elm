@@ -93,8 +93,7 @@ type RegisterText
 
 
 type alias Buffer =
-    { id : Int
-    , lines : TextBuffer
+    { lines : TextBuffer
     , syntax : Syntax
     , cursor : Position
     , cursorColumn : Int
@@ -174,8 +173,7 @@ encodeBuffer buf =
 
 emptyBuffer : Buffer
 emptyBuffer =
-    { id = 0
-    , lines = B.fromString B.lineBreak
+    { lines = B.fromString B.lineBreak
     , syntax = { lang = "", lines = Array.empty }
     , cursor = ( 0, 0 )
     , cursorColumn = 0

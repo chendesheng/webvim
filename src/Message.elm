@@ -19,7 +19,7 @@ type alias BufferInfo =
 
 
 type Msg
-    = PressKey Int Key -- buffer id, key
+    = PressKey Key -- buffer id, key
     | Resize Size
     | Read (Result Http.Error BufferInfo)
     | Write (Result Http.Error ())

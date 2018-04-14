@@ -436,9 +436,6 @@ putString forward text buf =
                                         s
                                     else
                                         lineBreak ++ s
-
-                                _ =
-                                    findLineFirst s |> Debug.log "findLineFirst"
                             in
                                 ( Insertion ( y + 1, 0 ) <| fromString s1
                                 , Just ( y + 1, findLineFirst s + 1 )
