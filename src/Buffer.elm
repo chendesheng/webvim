@@ -14,6 +14,7 @@ module Buffer
         , setCursor
         , putString
         , syntaxHighlight
+        , updateSavePoint
         )
 
 import Window exposing (Size)
@@ -543,4 +544,15 @@ newBuffer info service size lineHeight =
                     lines
                     syntax
             , service = service
+        }
+
+
+updateSavePoint : Buffer -> Buffer
+updateSavePoint buf =
+    let
+        history =
+            buf.history
+    in
+        { buf
+            | history = { history | savePoint = history.version }
         }

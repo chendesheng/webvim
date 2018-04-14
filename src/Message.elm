@@ -22,5 +22,5 @@ type Msg
     = PressKey Key -- buffer id, key
     | Resize Size
     | Read (Result Http.Error BufferInfo)
-    | Write (Result Http.Error ())
+    | Write (Result Http.Error String)
     | Edit BufferInfo

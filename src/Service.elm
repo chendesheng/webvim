@@ -2,7 +2,6 @@ module Service exposing (..)
 
 import Http
 import Message exposing (Msg(..), BufferInfo)
-import Json.Decode as Decode
 
 
 sendEditBuffer : String -> BufferInfo -> Cmd Msg
@@ -20,15 +19,27 @@ sendEditBuffer url info =
             )
 
 
+post : String -> Http.Body -> Http.Request String
+post url body =
+    Http.request
+        { method = "POST"
+        , headers = []
+        , url = url
+        , body = body
+        , expect = Http.expectString
+        , timeout = Nothing
+        , withCredentials = False
+        }
+
+
 sendSaveBuffer : String -> String -> String -> Cmd Msg
 sendSaveBuffer url path buf =
     let
         body =
             Http.stringBody "text/plain" buf
     in
-        (Http.post
+        (post
             (url ++ "/write?path=" ++ path)
             body
-            (Decode.succeed ())
         )
             |> Http.send Write

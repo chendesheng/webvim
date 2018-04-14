@@ -843,16 +843,32 @@ update message model =
                 Err s ->
                     ( model, Cmd.none )
 
-        Write _ ->
-            let
-                history =
-                    model.history
-            in
-                ( { model
-                    | history = { history | savePoint = history.version }
-                  }
-                , Cmd.none
-                )
+        Write result ->
+            ( case result of
+                Ok s ->
+                    if s == "" then
+                        Buf.updateSavePoint model
+                    else
+                        let
+                            n =
+                                B.countLines model.lines
+
+                            patches =
+                                [ Deletion ( 0, 0 ) ( n, 0 )
+                                , Insertion ( 0, 0 ) (B.fromString s)
+                                ]
+                        in
+                            model
+                                |> Buf.transaction patches
+                                |> Buf.commit
+                                |> Buf.updateSavePoint
+                                |> Buf.setCursor model.cursor True
+                                |> cursorScope
+
+                Err err ->
+                    model
+            , Cmd.none
+            )
 
         Edit info ->
             ( model, sendEditBuffer model.service info )
