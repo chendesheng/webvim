@@ -53,17 +53,30 @@ view { mode, cursor, lines, syntax, continuation, view, history } =
 
         isBufferDirty =
             history.pending /= Nothing || history.savePoint /= history.version
+
+        ( searchRange, scrollTop1 ) =
+            case incrementSearch scrollTop height mode lines of
+                Just ( r, t ) ->
+                    ( Just r, t )
+
+                Nothing ->
+                    ( Nothing, scrollTop )
     in
         div [ class "editor" ]
             [ div [ class "buffer" ]
                 [ lazy3 renderGutter
-                    (scrollTop + 1)
-                    (Basics.min (scrollTop + height + 1) totalLines)
+                    (scrollTop1 + 1)
+                    (Basics.min (scrollTop1 + height + 1) totalLines)
                     totalLines
                 , div [ class "lines-container" ]
-                    (renderSelections scrollTop mode lines
+                    (renderVisual scrollTop1 height mode searchRange lines
+                        ++ (searchRange
+                                |> Maybe.map
+                                    (lazy3 renderHighlights scrollTop1 lines)
+                                |> maybeToList
+                           )
                         ++ [ lazy3 renderLines
-                                ( scrollTop, height + 1 )
+                                ( scrollTop1, height + 1 )
                                 lines
                                 syntax
                            , renderCursor maybeCursor
@@ -90,16 +103,60 @@ renderStatusBar dirty mode continuation =
             ]
 
 
-renderSelections : Int -> Mode -> B.TextBuffer -> List (Html msg)
-renderSelections scrollTop mode lines =
+incrementSearch :
+    Int
+    -> Int
+    -> Mode
+    -> B.TextBuffer
+    -> Maybe ( VisualMode, Int )
+incrementSearch scrollTop height mode lines =
+    (case mode of
+        Ex { prefix, visual } ->
+            case prefix of
+                ExSearch { match } ->
+                    case match of
+                        Just ( begin, end ) ->
+                            let
+                                by =
+                                    Basics.min
+                                        (Tuple.first begin)
+                                        (Tuple.first end)
+                            in
+                                Just
+                                    ( { tipe = VisualChars
+                                      , begin = begin
+                                      , end = end
+                                      }
+                                    , if by < scrollTop then
+                                        by
+                                      else if by > scrollTop + height - 1 then
+                                        by - height + 1
+                                      else
+                                        scrollTop
+                                    )
+
+                        _ ->
+                            Nothing
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+    )
+
+
+renderVisual :
+    Int
+    -> Int
+    -> Mode
+    -> Maybe VisualMode
+    -> B.TextBuffer
+    -> List (Html msg)
+renderVisual scrollTop height mode searchRange lines =
     (case mode of
         Visual visual ->
-            [ renderVisual
-                scrollTop
-                "selections"
-                visual
-                lines
-            ]
+            [ lazy3 renderSelections scrollTop lines visual ]
 
         Ex { prefix, visual } ->
             let
@@ -120,50 +177,25 @@ renderSelections scrollTop mode lines =
 
                         _ ->
                             Nothing
-
-                visual2 =
-                    case prefix of
-                        ExSearch { match } ->
-                            case match of
-                                Just ( begin, end ) ->
-                                    Just
-                                        { tipe = VisualChars
-                                        , begin = begin
-                                        , end = end
-                                        }
-
-                                _ ->
-                                    Nothing
-
-                        _ ->
-                            Nothing
             in
                 (visual1
-                    |> Maybe.map
-                        (\v ->
-                            [ renderVisual scrollTop
-                                "selections"
-                                v
-                                lines
-                            ]
-                        )
-                    |> Maybe.withDefault []
+                    |> Maybe.map (lazy3 renderSelections scrollTop lines)
+                    |> maybeToList
                 )
-                    ++ (visual2
-                            |> Maybe.map
-                                (\v ->
-                                    [ renderVisual scrollTop
-                                        "highlights"
-                                        v
-                                        lines
-                                    ]
-                                )
-                            |> Maybe.withDefault []
-                       )
 
         _ ->
             []
     )
+
+
+maybeToList : Maybe a -> List a
+maybeToList mb =
+    case mb of
+        Just x ->
+            [ x ]
+
+        _ ->
+            []
 
 
 renderCursor : Maybe Position -> Html msg
@@ -221,15 +253,25 @@ getStatusBar mode =
             }
 
 
-renderVisual :
+renderHighlights :
     Int
-    -> String
-    -> VisualMode
     -> B.TextBuffer
+    -> VisualMode
     -> Html msg
-renderVisual scrollTop classname { tipe, begin, end } lines =
+renderHighlights scrollTop lines { tipe, begin, end } =
     div
-        [ class classname ]
+        [ class "highlights" ]
+        (renderRange scrollTop tipe begin end lines)
+
+
+renderSelections :
+    Int
+    -> B.TextBuffer
+    -> VisualMode
+    -> Html msg
+renderSelections scrollTop lines { tipe, begin, end } =
+    div
+        [ class "selections" ]
         (renderRange scrollTop tipe begin end lines)
 
 
