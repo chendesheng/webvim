@@ -144,7 +144,7 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                motionOption ">]$-"
+                motionOption ">)$-"
                     |> MotionRange LineEnd
                     |> Delete
                     |> Just

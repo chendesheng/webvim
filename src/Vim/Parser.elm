@@ -768,7 +768,7 @@ operator isVisual isTemp =
                         |> Delete
                     )
                 , defineInsert "C"
-                    [ motionOption ">]$-"
+                    [ motionOption ">)$-"
                         |> MotionRange LineEnd
                         |> Delete
                         |> PushOperator

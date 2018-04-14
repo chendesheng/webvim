@@ -273,6 +273,37 @@ insertCases =
                 }
         }
       )
+    , ( "i123<cr><esc>kC"
+      , { emptyBuffer
+            | lines = B.fromString "\n\n"
+            , mode = Insert
+            , continuation = "C"
+            , registers = Dict.fromList [ ( "\"", Text "123" ) ]
+            , history =
+                { undoes =
+                    [ { cursor = ( 0, 0 )
+                      , patches =
+                            [ Deletion ( 0, 3 ) ( 1, 0 )
+                            , Deletion ( 0, 2 ) ( 0, 3 )
+                            , Deletion ( 0, 1 ) ( 0, 2 )
+                            , Deletion ( 0, 0 ) ( 0, 1 )
+                            ]
+                      }
+                    ]
+                , pending =
+                    Just
+                        { cursor = ( 0, 0 )
+                        , patches =
+                            [ Insertion ( 0, 0 )
+                                (B.fromString "123")
+                            ]
+                        }
+                , redoes = []
+                , savePoint = 0
+                , version = 0
+                }
+        }
+      )
     ]
 
 
