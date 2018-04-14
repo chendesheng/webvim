@@ -24,7 +24,7 @@ sendSaveBuffer : String -> String -> String -> Cmd Msg
 sendSaveBuffer url path buf =
     let
         body =
-            Http.stringBody "plain/text" buf
+            Http.stringBody "text/plain" buf
     in
         (Http.post
             (url ++ "/write?path=" ++ path)

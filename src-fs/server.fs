@@ -9,6 +9,8 @@ open Suave.Successful
 open Suave.RequestErrors
 open System.IO
 open System
+open Suave.Logging
+open Suave.Writers
 
 let trace x =
   printfn "%s" x
@@ -17,23 +19,27 @@ let trace x =
 let edit =
     request (fun r ->
         match r.queryParam "path" with
-        | Choice1Of2 path ->
-          if File.Exists path then
-            Files.sendFile (trace path) false
+        | Choice1Of2 p ->
+          if File.Exists p then
+            Files.sendFile p false
           else
-            NOT_FOUND path
+            NOT_FOUND p
         | Choice2Of2 msg -> BAD_REQUEST msg)
 
 let write =
     request (fun r ->
         match r.queryParam "path" with
-        | Choice1Of2 path ->
-          File.WriteAllBytes (trace path, r.rawForm)
+        | Choice1Of2 p ->
+          File.WriteAllBytes (p, r.rawForm)
           OK ""
         | Choice2Of2 msg -> BAD_REQUEST msg)
 
+let logger = Targets.create Verbose [||]
+
 let app =
-  choose
+  CORS.cors { CORS.defaultCORSConfig with allowedUris = CORS.All }
+  >=> logStructured logger logFormatStructured
+  >=> choose
     [ GET >=> choose
         [ path "/" >=> Files.file "index.html"
           Files.browse (Path.GetFullPath ".")
@@ -43,8 +49,10 @@ let app =
               Environment.Exit(0)
               OK "" x)
         ]
+
       POST >=> choose
-        [ path "/write" >=> write ] ]
-    >=> CORS.cors { CORS.defaultCORSConfig with allowedUris = CORS.All }
+        [ path "/write" >=> write ]
+
+    ]
 
 startWebServer defaultConfig app
