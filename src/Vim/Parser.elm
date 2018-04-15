@@ -337,6 +337,11 @@ gOperator =
                     , PushKey "gJ"
                     , PushComplete
                     ]
+                , define "h"
+                    [ PushOperator ToggleTip
+                    , PushKey "gh"
+                    , PushComplete
+                    ]
                 ]
 
 

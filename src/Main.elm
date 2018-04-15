@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Model exposing (..)
 import Message exposing (..)
@@ -10,6 +10,7 @@ import KeySub exposing (downs)
 import Window exposing (resizes)
 import Persistent exposing (restoreBuffer)
 import Message exposing (..)
+import Debounce exposing (onDebounce)
 
 
 -- This is the first line written in webvim-elm :)
@@ -27,5 +28,14 @@ main =
                     [ downs PressKey
                     , resizes Resize
                     , restoreBuffer Edit
+                    , onDebounce
+                        (\action ->
+                            case action of
+                                "lint" ->
+                                    SendLint
+
+                                _ ->
+                                    SendLint
+                        )
                     ]
         }

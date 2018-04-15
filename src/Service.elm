@@ -1,7 +1,13 @@
 module Service exposing (..)
 
 import Http
-import Message exposing (Msg(..), BufferInfo)
+import Message
+    exposing
+        ( Msg(..)
+        , BufferInfo
+        , LocationItem
+        , elmMakeResultDecoder
+        )
 
 
 sendEditBuffer : String -> BufferInfo -> Cmd Msg
@@ -43,3 +49,21 @@ sendSaveBuffer url path buf =
             body
         )
             |> Http.send Write
+
+
+sendLintProject : String -> Cmd Msg
+sendLintProject url =
+    elmMakeResultDecoder
+        |> Http.get (url ++ "/lint")
+        |> Http.send Lint
+
+
+sendLintOnTheFly : String -> String -> String -> Cmd Msg
+sendLintOnTheFly url path buf =
+    let
+        body =
+            Http.stringBody "text/plain" buf
+    in
+        elmMakeResultDecoder
+            |> Http.post (url ++ "/lint?path=" ++ path) body
+            |> Http.send LintOnTheFly

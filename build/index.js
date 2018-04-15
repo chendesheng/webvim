@@ -39,6 +39,14 @@ app.ports.getBuffer.subscribe((path) => {
   activeBuffer = path;
 });
 
+let debounceTimer = null;
+app.ports.debounce.subscribe(({ action, time }) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    app.ports.onDebounce.send(action);
+  }, time);
+});
+
 window.onbeforeunload = () => {
   sessionStorage.setItem('buffers', JSON.stringify(Object.values(buffers)));
   if (activeBuffer) {

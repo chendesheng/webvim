@@ -15,6 +15,7 @@ module Buffer
         , putString
         , syntaxHighlight
         , updateSavePoint
+        , setShowTip
         )
 
 import Window exposing (Size)
@@ -516,6 +517,7 @@ newBuffer info service size lineHeight =
 
         ( name, ext ) =
             filename path
+                |> Debug.log "path"
 
         syntax =
             { lang =
@@ -528,6 +530,12 @@ newBuffer info service size lineHeight =
     in
         { emptyBuffer
             | lines = lines
+            , config =
+                { wordChars = ""
+                , tabSize = 4
+                , expandTab = True
+                , lint = ext == ".elm"
+                }
             , view =
                 { emptyView
                     | size = size
@@ -556,3 +564,12 @@ updateSavePoint buf =
         { buf
             | history = { history | savePoint = history.version }
         }
+
+
+setShowTip : Bool -> Buffer -> Buffer
+setShowTip showTip buf =
+    let
+        view =
+            buf.view
+    in
+        { buf | view = { view | showTip = showTip } }

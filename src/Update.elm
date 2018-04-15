@@ -22,6 +22,7 @@ import String
 import Service exposing (..)
 import Persistent exposing (..)
 import Yank exposing (yank)
+import Debounce exposing (debounceLint)
 
 
 stringToPrefix : String -> ExPrefix
@@ -54,6 +55,39 @@ prefixToString prefix =
 
         ExCommand ->
             ":"
+
+
+isEditing : Operator -> Mode -> Bool
+isEditing op mode =
+    case mode of
+        Ex _ ->
+            False
+
+        _ ->
+            case op of
+                Move _ _ ->
+                    False
+
+                Yank _ ->
+                    False
+
+                Delete _ ->
+                    True
+
+                InsertString _ ->
+                    True
+
+                Undo ->
+                    True
+
+                Redo ->
+                    True
+
+                Join _ ->
+                    True
+
+                _ ->
+                    False
 
 
 initMode : Buffer -> V.ModeName -> Mode
@@ -567,6 +601,9 @@ runOperator register operator buf =
                 _ ->
                     buf
 
+        ToggleTip ->
+            Buf.setShowTip (not buf.view.showTip) buf
+
         _ ->
             buf
 
@@ -738,7 +775,10 @@ getEffect op buf =
                             Cmd.none
 
                 _ ->
-                    Cmd.none
+                    if isEditing op1 buf.mode then
+                        debounceLint 500
+                    else
+                        Cmd.none
 
         _ ->
             Cmd.none
@@ -833,21 +873,28 @@ update message model =
         Read result ->
             case result of
                 Ok info ->
-                    ( Buf.newBuffer info
-                        model.service
-                        model.view.size
-                        model.view.lineHeight
-                    , Cmd.none
-                    )
+                    let
+                        newbuf =
+                            Buf.newBuffer info
+                                model.service
+                                model.view.size
+                                model.view.lineHeight
+                    in
+                        ( newbuf
+                        , if newbuf.config.lint then
+                            sendLintProject model.service
+                          else
+                            Cmd.none
+                        )
 
                 Err s ->
                     ( model, Cmd.none )
 
         Write result ->
-            ( case result of
+            case result of
                 Ok s ->
                     if s == "" then
-                        Buf.updateSavePoint model
+                        ( Buf.updateSavePoint model, Cmd.none )
                     else
                         let
                             n =
@@ -858,17 +905,61 @@ update message model =
                                 , Insertion ( 0, 0 ) (B.fromString s)
                                 ]
                         in
-                            model
+                            ( model
                                 |> Buf.transaction patches
                                 |> Buf.commit
                                 |> Buf.updateSavePoint
                                 |> Buf.setCursor model.cursor True
                                 |> cursorScope
+                            , if model.config.lint then
+                                sendLintProject model.service
+                              else
+                                Cmd.none
+                            )
 
                 Err err ->
-                    model
-            , Cmd.none
-            )
+                    ( model, Cmd.none )
 
         Edit info ->
             ( model, sendEditBuffer model.service info )
+
+        SendLint ->
+            if model.config.lint then
+                ( model
+                , sendLintOnTheFly
+                    model.service
+                    model.path
+                    (B.toString model.lines)
+                )
+            else
+                ( model, Cmd.none )
+
+        LintOnTheFly resp ->
+            case resp of
+                Ok items ->
+                    ( { model | lintItems = items }, Cmd.none )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
+        Lint resp ->
+            case resp of
+                Ok items ->
+                    let
+                        items1 =
+                            items
+                                |> List.filter
+                                    (\item ->
+                                        item.file
+                                            |> String.dropLeft 2
+                                            |> String.toLower
+                                            |> flip String.endsWith model.path
+                                    )
+
+                        showTip =
+                            not (List.isEmpty items1)
+                    in
+                        ( { model | lintItems = items1 }, Cmd.none )
+
+                Err _ ->
+                    ( model, Cmd.none )

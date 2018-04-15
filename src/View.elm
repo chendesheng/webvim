@@ -10,6 +10,7 @@ import Html.Attributes exposing (..)
 import Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
 import Syntax exposing (Syntax)
+import Message exposing (LocationItem)
 
 
 rem : number -> String
@@ -30,8 +31,11 @@ translate x y =
 
 
 view : Model -> Html msg
-view { mode, cursor, lines, syntax, continuation, view, history } =
+view buf =
     let
+        { mode, cursor, lines, syntax, continuation, view, history } =
+            buf
+
         scrollTop =
             view.scrollTop
 
@@ -70,17 +74,30 @@ view { mode, cursor, lines, syntax, continuation, view, history } =
                     totalLines
                 , div [ class "lines-container" ]
                     (renderVisual scrollTop1 height mode searchRange lines
-                        ++ (searchRange
+                        ?:: (searchRange
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
-                                |> maybeToList
-                           )
-                        ++ [ lazy3 renderLines
+                            )
+                        ?:: lazy3 renderLines
                                 ( scrollTop1, height + 1 )
                                 lines
                                 syntax
-                           , renderCursor maybeCursor
-                           ]
+                        :: lazy3 renderLint scrollTop1 lines buf.lintItems
+                        :: renderCursor maybeCursor
+                        :: renderTip scrollTop1
+                            buf.lintItems
+                            (Maybe.map
+                                (\cur ->
+                                    let
+                                        ( y, x ) =
+                                            cur
+                                    in
+                                        ( y + scrollTop1, x )
+                                )
+                                maybeCursor
+                            )
+                            view.showTip
+                        ?:: []
                     )
                 ]
             , lazy3 renderStatusBar isBufferDirty mode continuation
@@ -152,11 +169,11 @@ renderVisual :
     -> Mode
     -> Maybe VisualMode
     -> B.TextBuffer
-    -> List (Html msg)
+    -> Maybe (Html msg)
 renderVisual scrollTop height mode searchRange lines =
     (case mode of
         Visual visual ->
-            [ lazy3 renderSelections scrollTop lines visual ]
+            Just <| lazy3 renderSelections scrollTop lines visual
 
         Ex { prefix, visual } ->
             let
@@ -180,11 +197,10 @@ renderVisual scrollTop height mode searchRange lines =
             in
                 (visual1
                     |> Maybe.map (lazy3 renderSelections scrollTop lines)
-                    |> maybeToList
                 )
 
         _ ->
-            []
+            Nothing
     )
 
 
@@ -196,6 +212,17 @@ maybeToList mb =
 
         _ ->
             []
+
+
+(?::) : Maybe a -> List a -> List a
+(?::) item list =
+    case item of
+        Just x ->
+            x :: list
+
+        _ ->
+            list
+infixr 5 ?::
 
 
 renderCursor : Maybe Position -> Html msg
@@ -261,7 +288,7 @@ renderHighlights :
 renderHighlights scrollTop lines { tipe, begin, end } =
     div
         [ class "highlights" ]
-        (renderRange scrollTop tipe begin end lines)
+        (renderRange scrollTop tipe begin end lines False)
 
 
 renderSelections :
@@ -272,7 +299,91 @@ renderSelections :
 renderSelections scrollTop lines { tipe, begin, end } =
     div
         [ class "selections" ]
-        (renderRange scrollTop tipe begin end lines)
+        (renderRange scrollTop tipe begin end lines False)
+
+
+renderTip :
+    Int
+    -> List LocationItem
+    -> Maybe Position
+    -> Bool
+    -> Maybe (Html msg)
+renderTip scrollTop items maybeCursor showTip =
+    if showTip then
+        maybeCursor
+            |> Maybe.andThen
+                (\cursor ->
+                    let
+                        distanceFrom ( y, x ) { region } =
+                            let
+                                ( y1, x1 ) =
+                                    Tuple.first region
+                            in
+                                ( abs (y1 - y), abs (x1 - x) )
+
+                        renderDetails top details =
+                            div
+                                [ style
+                                    [ ( "top", rem top ) ]
+                                , class "tip"
+                                ]
+                                [ text details ]
+                    in
+                        items
+                            |> List.filter
+                                (\item ->
+                                    let
+                                        ( begin, end ) =
+                                            item.region
+                                    in
+                                        cursor >= begin && cursor <= end
+                                )
+                            |> List.sortBy (distanceFrom cursor)
+                            |> List.head
+                            |> Maybe.map
+                                (\item ->
+                                    renderDetails
+                                        (Tuple.first cursor - scrollTop + 1)
+                                        --(by - scrollTop)
+                                        item.details
+                                )
+                )
+    else
+        Nothing
+
+
+renderLint :
+    Int
+    -> B.TextBuffer
+    -> List LocationItem
+    -> Html msg
+renderLint scrollTop lines items =
+    let
+        render scrollTop lines item =
+            let
+                ( begin, end ) =
+                    item.region
+
+                by =
+                    Tuple.first begin
+            in
+                div
+                    [ class "lint" ]
+                    (renderRange scrollTop VisualChars begin end lines True)
+    in
+        div [ class "lints" ]
+            (items
+                |> List.filter
+                    (\item ->
+                        let
+                            ( ( by, _ ), ( ey, _ ) ) =
+                                item.region
+                        in
+                            not (ey < scrollTop || by >= scrollTop + 50)
+                    )
+                |> List.map
+                    (render scrollTop lines)
+            )
 
 
 renderRange :
@@ -281,8 +392,9 @@ renderRange :
     -> Position
     -> Position
     -> B.TextBuffer
+    -> Bool
     -> List (Html msg)
-renderRange scrollTop tipe begin end lines =
+renderRange scrollTop tipe begin end lines excludeLineBreak =
     let
         ( by, bx ) =
             Basics.min begin end
@@ -291,6 +403,8 @@ renderRange scrollTop tipe begin end lines =
             Basics.max begin end
     in
         List.range by ey
+            -- I need Html.lazy4, use 50 as max height for now
+            |> List.filter (\i -> i >= scrollTop && i < scrollTop + 50)
             |> List.map
                 (\row ->
                     let
@@ -314,12 +428,20 @@ renderRange scrollTop tipe begin end lines =
                                         ( 0, ex )
                                     else
                                         ( 0, maxcol )
+
+                        width =
+                            (b - a + 1)
+                                - (if excludeLineBreak && b == maxcol then
+                                    1
+                                   else
+                                    0
+                                  )
                     in
                         (div
                             [ style
                                 [ ( "left", ch a )
                                 , ( "top", rem (row - scrollTop) )
-                                , ( "width", ch <| b - a + 1 )
+                                , ( "width", ch width )
                                 ]
                             ]
                             []

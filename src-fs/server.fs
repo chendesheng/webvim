@@ -12,6 +12,7 @@ open System
 open Suave.Logging
 open Suave.Writers
 open System.Diagnostics
+open System.Text
 
 let trace x =
   printfn "%s" x
@@ -27,7 +28,7 @@ let edit =
             NOT_FOUND p
         | Choice2Of2 msg -> BAD_REQUEST msg)
 
-let elmFormat (content : byte[]) =
+let elmFormat (input : String) =
     try
         let p = new Process()
         p.StartInfo.UseShellExecute <- false
@@ -36,20 +37,65 @@ let elmFormat (content : byte[]) =
         p.StartInfo.FileName <- "elm-format"
         p.StartInfo.Arguments <- "--stdin"
         p.Start()
-        p.StandardInput.BaseStream.Write(content, 0, content.Length)
+        p.StandardInput.Write(input)
         p.StandardInput.Close()
-        let result = p.StandardOutput.ReadToEnd()
+        let output = p.StandardOutput.ReadToEnd()
         p.WaitForExit()
-        if p.ExitCode = 0
+        if p.ExitCode = 0 && input <> output
         then
             p.Close()
-            Some result
+            Some output
         else
             p.Close()
             None
     with :? Exception as e ->
         printfn "[elm-format] error: %s" e.Message
         None
+
+let elmLint file =
+    try
+        trace "elm lint"
+        let p = new Process()
+        p.StartInfo.UseShellExecute <- false
+        p.StartInfo.RedirectStandardInput <- true;
+        p.StartInfo.RedirectStandardOutput <- true;
+        p.StartInfo.FileName <- "elm-make"
+        p.StartInfo.Arguments <-
+            (file + " --yes --warn --report=json --output=/dev/null")
+
+        p.Start()
+        let result = p.StandardOutput.ReadToEnd() |> trace
+        p.WaitForExit()
+        if p.ExitCode = 0
+        then
+            p.Close()
+            Some "[]"
+        else
+            p.Close()
+            Some result
+    with :? Exception as e ->
+        printfn "[elm-make] error: %s" e.Message
+        None
+
+let lintTempFile = Path.GetRandomFileName()
+
+let elmLintOnTheFly content =
+    let name = Path.Combine(Path.GetTempPath(), lintTempFile)
+    File.WriteAllBytes (name, content)
+    elmLint name
+
+let lint =
+    request (fun r ->
+        match elmLint "src/Main.elm" with
+        | Some json -> OK json
+        | None -> OK "")
+
+let lintOnTheFly =
+    request (fun r ->
+        match elmLintOnTheFly r.rawForm with
+        | Some json -> OK json
+        | None -> OK "")
+
     
 let write =
     request (fun r ->
@@ -58,7 +104,8 @@ let write =
           if p.EndsWith(".elm", StringComparison.InvariantCultureIgnoreCase)
           then
               trace "elm format"
-              match elmFormat r.rawForm with
+              let text = Encoding.UTF8.GetString r.rawForm
+              match elmFormat text with
               | Some formatted ->
                   File.WriteAllText (p, formatted)
                   OK formatted
@@ -84,10 +131,13 @@ let app =
               trace "Bye!"
               Environment.Exit(0)
               OK "" x)
+          path "/lint" >=> lint
         ]
 
       POST >=> choose
-        [ path "/write" >=> write ]
+        [ path "/write" >=> write
+          path "/lint" >=> lintOnTheFly
+        ]
 
     ]
 

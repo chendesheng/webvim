@@ -1,6 +1,6 @@
 module Model exposing (..)
 
-import Message exposing (Msg(..), BufferInfo)
+import Message exposing (Msg(..), BufferInfo, LocationItem)
 import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
@@ -61,6 +61,7 @@ type alias View =
 
     -- pixel height of a line
     , lineHeight : Int
+    , showTip : Bool
     }
 
 
@@ -95,6 +96,7 @@ type RegisterText
 type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
+    , lintItems : List LocationItem
     , cursor : Position
     , cursorColumn : Int
     , path : String
@@ -105,6 +107,7 @@ type alias Buffer =
         { wordChars : String
         , tabSize : Int
         , expandTab : Bool
+        , lint : Bool
         }
     , view : View
     , continuation : String
@@ -147,6 +150,7 @@ emptyView =
     , dataStartPosition = ( 0, 0 )
     , statusbarHeight = 1
     , lineHeight = 21
+    , showTip = False
     }
 
 
@@ -175,6 +179,7 @@ emptyBuffer : Buffer
 emptyBuffer =
     { lines = B.fromString B.lineBreak
     , syntax = { lang = "", lines = Array.empty }
+    , lintItems = []
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""
@@ -185,6 +190,7 @@ emptyBuffer =
         { wordChars = "_" -- a-z and A-Z are word chars by default
         , tabSize = 4
         , expandTab = True
+        , lint = False
         }
     , view = emptyView
     , continuation = ""

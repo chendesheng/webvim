@@ -99,6 +99,7 @@ type Operator
     | VisualSwitchEnd
     | Execute -- execute ex command
     | Replace String
+    | ToggleTip
 
 
 type StringType
