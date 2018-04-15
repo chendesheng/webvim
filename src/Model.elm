@@ -8,7 +8,7 @@ import Task
 import Dict exposing (Dict)
 import Vim.AST as V exposing (VisualType(..))
 import Syntax exposing (..)
-import Array
+import Elm.Array as Array
 import Persistent exposing (getBuffer)
 import Json.Encode as Encode
 
@@ -163,11 +163,10 @@ encodeBuffer buf =
         Encode.object
             [ ( "path", Encode.string buf.path )
             , ( "cursor"
-              , Encode.array <|
-                    Array.fromList
-                        [ Encode.int y
-                        , Encode.int x
-                        ]
+              , Encode.list <|
+                    [ Encode.int y
+                    , Encode.int x
+                    ]
               )
             , ( "scrollTop"
               , Encode.int buf.view.scrollTop

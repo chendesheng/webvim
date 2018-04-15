@@ -4,7 +4,7 @@ import Html exposing (..)
 import Html.Lazy exposing (..)
 import Model exposing (..)
 import Internal.TextBuffer as B
-import Array
+import Elm.Array as Array
 import List
 import Html.Attributes exposing (..)
 import Position exposing (Position)

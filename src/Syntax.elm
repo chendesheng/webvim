@@ -7,7 +7,7 @@ module Syntax
         , Continuation
         )
 
-import Array exposing (Array)
+import Elm.Array as Array exposing (Array)
 import Native.Highlight
 
 

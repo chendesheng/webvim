@@ -57,7 +57,7 @@ import String
 import Maybe
 import Dict
 import Syntax exposing (..)
-import Array
+import Elm.Array as Array
 
 
 applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch, Int )

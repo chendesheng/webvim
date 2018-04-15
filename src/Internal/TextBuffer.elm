@@ -20,7 +20,7 @@ module Internal.TextBuffer
         )
 
 import Position exposing (..)
-import Array exposing (Array)
+import Elm.Array as Array exposing (Array)
 import String
 
 
