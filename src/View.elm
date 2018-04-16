@@ -100,12 +100,17 @@ view buf =
                         ?:: []
                     )
                 ]
-            , lazy3 renderStatusBar isBufferDirty mode continuation
+            , renderStatusBar
+                isBufferDirty
+                mode
+                continuation
+                buf.lintErrorsCount
+                buf.name
             ]
 
 
-renderStatusBar : Bool -> Mode -> String -> Html msg
-renderStatusBar dirty mode continuation =
+renderStatusBar : Bool -> Mode -> String -> Int -> String -> Html msg
+renderStatusBar dirty mode continuation errorsCnt name =
     let
         statusBar =
             getStatusBar mode
@@ -117,6 +122,11 @@ renderStatusBar dirty mode continuation =
             [ div [] [ text statusBar.text ]
             , renderCursor statusBar.cursor
             , div [ class "status-cmds" ] [ text continuation ]
+            , div [ class "filename" ] [ text name ]
+            , div [ class "lint-status" ]
+                [ i [ class "far fa-times-circle" ] []
+                , text <| toString errorsCnt
+                ]
             ]
 
 
@@ -345,7 +355,10 @@ renderTip scrollTop items maybeCursor showTip =
                                     renderDetails
                                         (Tuple.first cursor - scrollTop + 1)
                                         --(by - scrollTop)
-                                        item.details
+                                        (item.overview
+                                            ++ B.lineBreak
+                                            ++ item.details
+                                        )
                                 )
                 )
     else

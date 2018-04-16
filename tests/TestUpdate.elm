@@ -105,15 +105,15 @@ insertCases =
       )
     , ( "i12<tab><tab><esc>"
       , { emptyBuffer
-            | cursor = ( 0, 7 )
-            , cursorColumn = 7
-            , lines = B.fromString "12      \n"
+            | cursor = ( 0, 5 )
+            , cursorColumn = 5
+            , lines = B.fromString "12    \n"
             , history =
                 { emptyBufferHistory
                     | undoes =
                         [ { cursor = ( 0, 0 )
                           , patches =
-                                [ Deletion ( 0, 4 ) ( 0, 8 )
+                                [ Deletion ( 0, 4 ) ( 0, 6 )
                                 , Deletion ( 0, 2 ) ( 0, 4 )
                                 , Deletion ( 0, 1 ) ( 0, 2 )
                                 , Deletion ( 0, 0 ) ( 0, 1 )

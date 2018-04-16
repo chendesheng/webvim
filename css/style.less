@@ -131,11 +131,6 @@ html, body {
   padding-left: 2ch;
 }
 
-.elm-overlay {
-  font-size: 13px;
-  z-index: 1000;
-}
-
 .highlights div, .selections div, .lint div {
   height: @line-height;
   position: absolute;
@@ -164,3 +159,27 @@ html, body {
   z-index: 1;
   position: absolute;
 }
+
+.lint-status {
+  margin-right: 15px;
+}
+
+.lint-status i {
+  margin-right: 4px;
+}
+
+.status .filename {
+  margin-left: auto;
+  margin-right: 15px;
+}
+
+.elm-overlay {
+  font-size: 13px;
+  z-index: 1000;
+}
+
+.elm-overlay .elm-mini-controls {
+  bottom: @statusbar-height;
+}
+
+

@@ -893,9 +893,9 @@ update message model =
         Write result ->
             case result of
                 Ok s ->
-                    if s == "" then
-                        ( Buf.updateSavePoint model, Cmd.none )
-                    else
+                    ( if s == "" then
+                        Buf.updateSavePoint model
+                      else
                         let
                             n =
                                 B.countLines model.lines
@@ -905,17 +905,17 @@ update message model =
                                 , Insertion ( 0, 0 ) (B.fromString s)
                                 ]
                         in
-                            ( model
+                            model
                                 |> Buf.transaction patches
                                 |> Buf.commit
                                 |> Buf.updateSavePoint
                                 |> Buf.setCursor model.cursor True
                                 |> cursorScope
-                            , if model.config.lint then
-                                sendLintProject model.service
-                              else
-                                Cmd.none
-                            )
+                    , if model.config.lint then
+                        sendLintProject model.service
+                      else
+                        Cmd.none
+                    )
 
                 Err err ->
                     ( model, Cmd.none )
@@ -937,7 +937,12 @@ update message model =
         LintOnTheFly resp ->
             case resp of
                 Ok items ->
-                    ( { model | lintItems = items }, Cmd.none )
+                    ( { model
+                        | lintItems = items
+                        , lintErrorsCount = List.length items
+                      }
+                    , Cmd.none
+                    )
 
                 Err _ ->
                     ( model, Cmd.none )
@@ -947,19 +952,24 @@ update message model =
                 Ok items ->
                     let
                         items1 =
-                            items
-                                |> List.filter
-                                    (\item ->
-                                        item.file
-                                            |> String.dropLeft 2
-                                            |> String.toLower
-                                            |> flip String.endsWith model.path
-                                    )
+                            List.filter
+                                (\item ->
+                                    item.file
+                                        |> String.dropLeft 2
+                                        |> String.toLower
+                                        |> flip String.endsWith model.path
+                                )
+                                items
 
                         showTip =
                             not (List.isEmpty items1)
                     in
-                        ( { model | lintItems = items1 }, Cmd.none )
+                        ( { model
+                            | lintItems = items1
+                            , lintErrorsCount = List.length items
+                          }
+                        , Cmd.none
+                        )
 
                 Err _ ->
                     ( model, Cmd.none )

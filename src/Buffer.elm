@@ -27,7 +27,9 @@ import Model
     exposing
         ( Buffer
         , BufferHistory
+        , BufferConfig
         , emptyBufferHistory
+        , defaultBufferConfig
         , Mode
         , RegisterText
         , emptyBuffer
@@ -55,7 +57,7 @@ import Vim.AST
         )
 import String
 import Maybe
-import Dict
+import Dict exposing (Dict)
 import Syntax exposing (..)
 import Elm.Array as Array
 
@@ -504,6 +506,18 @@ filename s =
             ( "", "" )
 
 
+configs : Dict String BufferConfig
+configs =
+    Dict.fromList
+        [ ( ".elm"
+          , { defaultBufferConfig
+                | tabSize = 4
+                , lint = True
+            }
+          )
+        ]
+
+
 newBuffer : BufferInfo -> String -> Size -> Int -> Buffer
 newBuffer info service size lineHeight =
     let
@@ -531,11 +545,9 @@ newBuffer info service size lineHeight =
         { emptyBuffer
             | lines = lines
             , config =
-                { wordChars = ""
-                , tabSize = 4
-                , expandTab = True
-                , lint = ext == ".elm"
-                }
+                configs
+                    |> Dict.get ext
+                    |> Maybe.withDefault defaultBufferConfig
             , view =
                 { emptyView
                     | size = size

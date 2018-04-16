@@ -97,18 +97,14 @@ type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
     , lintItems : List LocationItem
+    , lintErrorsCount : Int
     , cursor : Position
     , cursorColumn : Int
     , path : String
     , name : String
     , mode : Mode
     , history : BufferHistory
-    , config :
-        { wordChars : String
-        , tabSize : Int
-        , expandTab : Bool
-        , lint : Bool
-        }
+    , config : BufferConfig
     , view : View
     , continuation : String
     , registers : Dict String RegisterText
@@ -174,23 +170,36 @@ encodeBuffer buf =
             ]
 
 
+type alias BufferConfig =
+    { wordChars : String -- a-z and A-Z are word chars by default
+    , tabSize : Int
+    , expandTab : Bool
+    , lint : Bool
+    }
+
+
+defaultBufferConfig : BufferConfig
+defaultBufferConfig =
+    { wordChars = "_"
+    , tabSize = 2
+    , expandTab = True
+    , lint = False
+    }
+
+
 emptyBuffer : Buffer
 emptyBuffer =
     { lines = B.fromString B.lineBreak
     , syntax = { lang = "", lines = Array.empty }
     , lintItems = []
+    , lintErrorsCount = 0
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""
     , name = "no name"
     , mode = Normal
     , history = emptyBufferHistory
-    , config =
-        { wordChars = "_" -- a-z and A-Z are word chars by default
-        , tabSize = 4
-        , expandTab = True
-        , lint = False
-        }
+    , config = defaultBufferConfig
     , view = emptyView
     , continuation = ""
     , registers = Dict.empty
