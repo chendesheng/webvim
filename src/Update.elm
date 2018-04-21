@@ -876,7 +876,7 @@ handleKeypress replaying key buf =
                     [ debounceTokenize 100
                         y
                         (buf1.lines
-                            |> B.sliceLines y newBottom
+                            |> B.sliceLines y (newBottom + 1)
                             |> B.toString
                         )
                     ]
@@ -939,6 +939,9 @@ update message buf =
 
                 w =
                     size.width
+
+                syntaxLines =
+                    Array.length buf.syntax
             in
                 ( buf
                     |> updateView
@@ -946,7 +949,24 @@ update message buf =
                             { view | size = { width = w, height = h } }
                         )
                     |> cursorScope
-                , Cmd.none
+                , if
+                    (syntaxLines > 0)
+                        && (buf.view.scrollTop + h > syntaxLines)
+                  then
+                    debounceTokenize
+                        200
+                        (Array.length buf.syntax)
+                        (buf.lines
+                            |> B.sliceLines
+                                (Array.length buf.syntax)
+                                (buf.view.scrollTop
+                                    + h
+                                    + buf.config.tokenizeLinesAhead
+                                )
+                            |> B.toString
+                        )
+                  else
+                    Cmd.none
                 )
 
         Read result ->

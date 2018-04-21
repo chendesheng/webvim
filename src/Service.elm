@@ -9,11 +9,13 @@ import Message
         , elmMakeResultDecoder
         , TokenizeResponse(..)
         )
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
 import Bitwise as Bit
 import Syntax exposing (Token)
 import List
+import Parser as P exposing ((|.), (|=), Parser)
+import Char
 
 
 sendEditBuffer : String -> BufferInfo -> Cmd Msg
@@ -57,11 +59,85 @@ sendSaveBuffer url path buf =
             |> Http.send Write
 
 
+syntaxErrorParser : Parser LocationItem
+syntaxErrorParser =
+    P.succeed
+        (\tag file overview y x details ->
+            let
+                y1 =
+                    y - 1
+
+                x1 =
+                    x - (toString y1 ++ "| " |> String.length)
+            in
+                { tipe = "error"
+                , tag = tag
+                , file = file
+                , overview = overview
+                , details = details
+                , region = ( ( y1, x1 ), ( y1, x1 ) )
+                , subRegion = Nothing
+                }
+        )
+        |. P.ignore P.oneOrMore (\c -> c == '-' || c == ' ')
+        |= ((P.succeed identity
+                |. P.keep P.oneOrMore Char.isUpper
+                |. P.keep P.oneOrMore ((==) ' ')
+                |. P.keep P.oneOrMore Char.isUpper
+            )
+                |> P.source
+           )
+        |. P.ignore P.oneOrMore (\c -> c == '-' || c == ' ')
+        |= P.keep P.oneOrMore ((/=) '\n')
+        |= (P.keep P.zeroOrMore (Char.isDigit >> not)
+                |> P.source
+                |> P.map String.trim
+           )
+        |= (P.keep P.oneOrMore Char.isDigit
+                |> P.map (String.toInt >> Result.withDefault 0)
+           )
+        |. P.ignoreUntil "\n"
+        |= (P.keep P.zeroOrMore ((/=) '^') |> P.source |> P.map String.length)
+        |. P.ignoreUntil "\n"
+        |= (P.keep P.zeroOrMore (always True)
+                |> P.source
+                |> P.map String.trim
+           )
+
+
+parseLintResponse : Result a String -> Result String (List LocationItem)
+parseLintResponse =
+    (\resp ->
+        case Result.mapError toString resp of
+            Ok s ->
+                if String.startsWith "[" s then
+                    decodeString elmMakeResultDecoder s
+                else
+                    case P.run syntaxErrorParser s of
+                        Ok item ->
+                            Ok [ item ]
+
+                        Err _ ->
+                            Ok
+                                [ { tipe = "error"
+                                  , tag = ""
+                                  , file = ""
+                                  , overview = ""
+                                  , details = s
+                                  , region = ( ( 0, 0 ), ( 0, 0 ) )
+                                  , subRegion = Nothing
+                                  }
+                                ]
+
+            Err err ->
+                Err err
+    )
+
+
 sendLintProject : String -> Cmd Msg
 sendLintProject url =
-    elmMakeResultDecoder
-        |> Http.get (url ++ "/lint")
-        |> Http.send Lint
+    Http.getString (url ++ "/lint")
+        |> Http.send (parseLintResponse >> Lint)
 
 
 sendLintOnTheFly : String -> String -> String -> Cmd Msg
@@ -70,9 +146,8 @@ sendLintOnTheFly url path buf =
         body =
             Http.stringBody "text/plain" buf
     in
-        elmMakeResultDecoder
-            |> Http.post (url ++ "/lint?path=" ++ path) body
-            |> Http.send LintOnTheFly
+        post (url ++ "/lint?path=" ++ path) body
+            |> Http.send (parseLintResponse >> LintOnTheFly)
 
 
 unpackClass : Int -> String

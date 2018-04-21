@@ -78,12 +78,12 @@ view buf =
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
                             )
-                        ?:: renderLines
-                                scrollTop1
-                                (height + 1)
-                                lines
-                                syntax
-                        :: lazy3 renderLint scrollTop1 lines buf.lintItems
+                        ?:: lazy3 renderLint scrollTop1 lines buf.lintItems
+                        :: renderLines
+                            scrollTop1
+                            (height + 1)
+                            lines
+                            syntax
                         :: renderCursor maybeCursor
                         :: renderTip scrollTop1
                             buf.lintItems
@@ -373,20 +373,13 @@ renderLint :
     -> Html msg
 renderLint scrollTop lines items =
     let
-        render scrollTop lines item =
-            let
-                ( begin, end ) =
-                    item.region
-
-                by =
-                    Tuple.first begin
-            in
-                div
-                    [ class "lint" ]
-                    (renderRange scrollTop VisualChars begin end lines True)
+        render classname ( begin, end ) scrollTop lines item =
+            div
+                [ class classname ]
+                (renderRange scrollTop VisualChars begin end lines True)
     in
         div [ class "lints" ]
-            (items
+            ((items
                 |> List.filter
                     (\item ->
                         let
@@ -396,7 +389,41 @@ renderLint scrollTop lines items =
                             not (ey < scrollTop || by >= scrollTop + 50)
                     )
                 |> List.map
-                    (render scrollTop lines)
+                    (\item ->
+                        render "lint"
+                            item.region
+                            scrollTop
+                            lines
+                            item
+                    )
+             )
+                ++ (items
+                        |> List.filter
+                            (\item ->
+                                case item.subRegion of
+                                    Just ( ( by, _ ), ( ey, _ ) ) ->
+                                        not
+                                            ((ey < scrollTop)
+                                                || (by >= scrollTop + 50)
+                                            )
+
+                                    _ ->
+                                        False
+                            )
+                        |> List.map
+                            (\item ->
+                                case item.subRegion of
+                                    Just region ->
+                                        render "lint lint-subRegion"
+                                            region
+                                            scrollTop
+                                            lines
+                                            item
+
+                                    _ ->
+                                        text ""
+                            )
+                   )
             )
 
 

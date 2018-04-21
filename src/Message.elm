@@ -71,7 +71,7 @@ type Msg
     | Edit BufferInfo
     | SendLint
     | SendTokenize ( Int, String )
-    | Lint (Result Http.Error (List LocationItem))
-    | LintOnTheFly (Result Http.Error (List LocationItem))
+    | Lint (Result String (List LocationItem))
+    | LintOnTheFly (Result String (List LocationItem))
     | Tokenized (Result Http.Error TokenizeResponse)
     | NoneMessage

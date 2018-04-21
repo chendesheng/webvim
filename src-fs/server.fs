@@ -59,18 +59,25 @@ let elmLint file =
         p.StartInfo.UseShellExecute <- false
         p.StartInfo.RedirectStandardInput <- true;
         p.StartInfo.RedirectStandardOutput <- true;
+        p.StartInfo.RedirectStandardError <- true;
         p.StartInfo.FileName <- "elm-make"
         p.StartInfo.Arguments <-
             (file + " --yes --warn --report=json --output=/dev/null")
 
         p.Start()
         let result = p.StandardOutput.ReadToEnd() |> trace
-        p.WaitForExit()
-        if p.ExitCode = 0
-        then
+        trace <| sprintf "%d %d" p.ExitCode result.Length
+        if p.ExitCode = 0 then
+            p.WaitForExit()
             p.Close()
             Some "[]"
+        else if result.Length = 0 then
+            let errResult = p.StandardError.ReadToEnd()
+            p.WaitForExit()
+            p.Close()
+            Some errResult
         else
+            p.WaitForExit()
             p.Close()
             Some result
     with :? Exception as e ->
