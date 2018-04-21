@@ -180,14 +180,17 @@ server.route({
             .type('text/json'));
         }
         const r = grammar.tokenizeLine2(line, cache[n]);
-        result[i] = r.tokens;
+        const tokens = Array.from(r.tokens)
+        tokens.push(line.length);
+        tokens.push(0);
+        result[i] = tokens;
         // console.log('Line: #' + i + ', tokens: ' + r.tokens);
         cache[n+1] = r.ruleStack;
       }
       allCaches[request.query.path] = cache.slice(0, begin + lines.length);
       // console.log(result);
       return setCORSHeader(
-        h.response({ type: 'success', payload: result.map(arr=>Array.from(arr)) })
+        h.response({ type: 'success', payload: result })
           .code(200)
           .type('text/json'));
     } catch (e) {

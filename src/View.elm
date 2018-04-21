@@ -481,25 +481,22 @@ renderGutter begin end total =
         ]
 
 
-renderTokens : List Token -> String -> List (Html msg)
-renderTokens spans line =
+renderTokens : List Token -> String -> Int -> List (Html msg)
+renderTokens spans line i =
     case spans of
         sp :: rest ->
             let
-                { length, classname } =
-                    sp
-
-                s =
-                    String.left length line
-
-                nexts =
-                    String.dropLeft length line
+                j =
+                    i + sp.length
             in
                 (span
-                    [ class classname ]
-                    [ text s ]
+                    [ class sp.classname ]
+                    [ line
+                        |> String.slice i j
+                        |> text
+                    ]
                 )
-                    :: (renderTokens rest nexts)
+                    :: (renderTokens rest line j)
 
         _ ->
             []
@@ -519,7 +516,7 @@ renderLines scrollTop height lines syntax =
                     case Array.get n syntax of
                         Just tokens ->
                             div [ class "line" ]
-                                (renderTokens tokens line)
+                                (renderTokens tokens line 0)
 
                         Nothing ->
                             div [ class "line" ] [ text line ]
