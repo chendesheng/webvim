@@ -15,6 +15,8 @@ module Buffer
         , putString
         , updateSavePoint
         , setShowTip
+        , isDirty
+        , isEditing
         )
 
 import Window exposing (Size)
@@ -563,3 +565,35 @@ setShowTip showTip buf =
             buf.view
     in
         { buf | view = { view | showTip = showTip } }
+
+
+isDirty : Buffer -> Bool
+isDirty buf =
+    let
+        history =
+            buf.history
+    in
+        history.pending /= Nothing || history.savePoint /= history.version
+
+
+isEditing : Buffer -> Buffer -> Bool
+isEditing buf1 buf2 =
+    let
+        h1 =
+            buf1.history
+
+        h2 =
+            buf2.history
+
+        pendingPatches pending =
+            case pending of
+                Just { patches } ->
+                    List.length patches
+
+                _ ->
+                    0
+    in
+        h1.version
+            /= h2.version
+            || pendingPatches h1.pending
+            /= pendingPatches h2.pending

@@ -13,6 +13,7 @@ import Syntax exposing (Syntax, Token)
 import Message exposing (LocationItem)
 import String
 import Elm.Array exposing (Array)
+import Buffer as Buf
 
 
 rem : number -> String
@@ -56,9 +57,6 @@ view buf =
                     case cursor of
                         ( y, x ) ->
                             Just ( y - scrollTop, x )
-
-        isBufferDirty =
-            history.pending /= Nothing || history.savePoint /= history.version
 
         ( searchRange, scrollTop1 ) =
             case incrementSearch scrollTop height mode lines of
@@ -104,7 +102,7 @@ view buf =
                     )
                 ]
             , renderStatusBar
-                isBufferDirty
+                (Buf.isDirty buf)
                 mode
                 continuation
                 buf.lintErrorsCount

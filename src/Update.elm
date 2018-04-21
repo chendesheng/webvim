@@ -25,6 +25,7 @@ import Yank exposing (yank)
 import Debounce exposing (debounceLint, debounceTokenize)
 import Service exposing (sendTokenize)
 import Elm.Array as Array
+import Document as Doc
 
 
 stringToPrefix : String -> ExPrefix
@@ -777,10 +778,7 @@ getEffect op buf =
                             Cmd.none
 
                 _ ->
-                    if isEditing op1 buf.mode then
-                        debounceLint 500
-                    else
-                        Cmd.none
+                    Cmd.none
 
         _ ->
             Cmd.none
@@ -893,7 +891,9 @@ handleKeypress replaying key buf =
                             (buf1.lines
                                 |> B.sliceLines
                                     (Array.length buf1.syntax)
-                                    (newBottom + buf1.config.tokenizeLinesAhead)
+                                    (newBottom
+                                        + buf1.config.tokenizeLinesAhead
+                                    )
                                 |> B.toString
                             )
                         ]
@@ -904,6 +904,21 @@ handleKeypress replaying key buf =
         , Cmd.batch
             ([ getEffect edit buf
              , encodeBuffer buf1 |> saveBuffer
+             , if Buf.isEditing buf buf1 then
+                debounceLint 500
+               else
+                Cmd.none
+             , if Buf.isDirty buf /= Buf.isDirty buf1 then
+                let
+                    prefix =
+                        if Buf.isDirty buf1 then
+                            "• "
+                        else
+                            ""
+                in
+                    Doc.setTitle (prefix ++ buf1.name)
+               else
+                Cmd.none
              ]
                 ++ cmds
             )
@@ -953,6 +968,7 @@ update message buf =
                               else
                                 Cmd.none
                              )
+                                :: Doc.setTitle newbuf.name
                                 :: [ sendTokenize
                                         buf.syntaxService
                                         0

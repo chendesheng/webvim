@@ -43,6 +43,10 @@ app.ports.saveBuffer.subscribe((buf) => {
   buffers[buf.path] = buf;
 });
 
+app.ports.setTitle.subscribe(title => {
+  document.title = title;
+});
+
 app.ports.getBuffer.subscribe((path) => {
   const buf = restoreBuffer(path);
   buffers[path] = buf;

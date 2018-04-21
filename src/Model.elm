@@ -187,7 +187,7 @@ defaultBufferConfig =
     , tabSize = 2
     , expandTab = True
     , lint = False
-    , tokenizeLinesAhead = 10
+    , tokenizeLinesAhead = 20
     }
 
 

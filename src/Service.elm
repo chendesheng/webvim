@@ -132,11 +132,6 @@ unpackClass n =
         "mtk" ++ (toString foreground) ++ fontStyle
 
 
-isEven : Int -> Bool
-isEven n =
-    n % 2 == 0
-
-
 tokensParser : Decode.Decoder (List Token)
 tokensParser =
     Decode.list Decode.int
@@ -145,7 +140,10 @@ tokensParser =
                 let
                     ( indexes, classes ) =
                         tokens
-                            |> List.map2 (,) (List.range 0 <| List.length tokens)
+                            |> List.map2 (,)
+                                (List.range 0 <|
+                                    List.length tokens
+                                )
                             |> List.partition (Tuple.first >> \n -> n % 2 == 0)
                             |> (\item ->
                                     let
@@ -158,17 +156,13 @@ tokensParser =
                                )
 
                     indexes2 =
-                        (indexes ++ [ -1 ])
+                        indexes
                             |> List.tail
                             |> Maybe.withDefault []
                 in
                     (List.map3
                         (\startIndex endIndex class ->
-                            { length =
-                                if endIndex == -1 then
-                                    -1
-                                else
-                                    endIndex - startIndex
+                            { length = endIndex - startIndex
                             , classname = unpackClass class
                             }
                         )
