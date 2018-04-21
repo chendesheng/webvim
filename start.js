@@ -37,6 +37,10 @@ const serverTask = (port) => () =>
     http.get(`http://localhost:${port}/kill`)
       .on('error', () => shellAsync('./start'));
 
+const syntaxServerTask = (port) => () =>
+    http.get(`http://localhost:${port}/kill`)
+      .on('error', () => shellAsync('npm run syntaxserver'));
+
 // const testTask = () => shell('elm test');
 
 const withColor = (number, str) => `\x1b[${number}m${str}\x1b[0m`;
@@ -73,7 +77,7 @@ const watch = (path, tasks) => {
 };
 
 runTaskList([jsTask, cssTask, ctagsTask("src tests"), htmlTask,
-  reloadTask, serverTask(8080)]);
+  reloadTask, serverTask(8080), syntaxServerTask(8765)]);
 
 watch('src/**/*.elm', [jsTask, ctagsTask("src"), reloadTask]);
 watch('src/Native/*.js', [jsTask, reloadTask]);
@@ -83,4 +87,5 @@ watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
 watch(['tests/**/*.elm'], [ctagsTask("tests") ]);
 watch(['src-fs/**/*.fs'], [serverTask(8080) ]);
+watch(['src-js/textmate.js'], [syntaxServerTask(8765)]);
 

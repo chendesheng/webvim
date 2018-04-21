@@ -22,7 +22,9 @@ import String
 import Service exposing (..)
 import Persistent exposing (..)
 import Yank exposing (yank)
-import Debounce exposing (debounceLint)
+import Debounce exposing (debounceLint, debounceTokenize)
+import Service exposing (sendTokenize)
+import Elm.Array as Array
 
 
 stringToPrefix : String -> ExPrefix
@@ -787,6 +789,9 @@ getEffect op buf =
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress replaying key buf =
     let
+        oldBottom =
+            buf.view.scrollTop + buf.view.size.height
+
         cacheKey =
             ( buf.continuation, key )
 
@@ -837,31 +842,90 @@ handleKeypress replaying key buf =
                 |> modeChanged replaying key oldModeName lineDeltaMotion
                 |> scrollToCursor
                 |> saveDotRegister
+
+        newBottom =
+            buf1.view.scrollTop + buf1.view.size.height
+
+        getPatchLine =
+            Maybe.andThen
+                (.patches
+                    >> List.head
+                    >> Maybe.map
+                        (\patch ->
+                            Tuple.first
+                                (case patch of
+                                    Insertion pos _ ->
+                                        pos
+
+                                    Deletion pos _ ->
+                                        pos
+                                )
+                        )
+                )
+
+        patchesLength undo =
+            undo
+                |> Maybe.map (.patches >> List.length)
+                |> Maybe.withDefault 0
+
+        cmds =
+            case buf1.syntaxDirtyFrom of
+                Just y ->
+                    --let
+                    --    _ =
+                    --        Debug.log "y" y
+                    --in
+                    [ debounceTokenize 100
+                        y
+                        (buf1.lines
+                            |> B.sliceLines y newBottom
+                            |> B.toString
+                        )
+                    ]
+
+                _ ->
+                    if oldBottom == newBottom then
+                        []
+                    else if newBottom >= Array.length buf1.syntax then
+                        [ debounceTokenize
+                            100
+                            (Array.length buf1.syntax)
+                            (buf1.lines
+                                |> B.sliceLines
+                                    (Array.length buf1.syntax)
+                                    (newBottom + buf1.config.tokenizeLinesAhead)
+                                |> B.toString
+                            )
+                        ]
+                    else
+                        []
     in
         ( buf1
         , Cmd.batch
-            [ getEffect edit buf
-            , encodeBuffer buf1 |> saveBuffer
-            ]
+            ([ getEffect edit buf
+             , encodeBuffer buf1 |> saveBuffer
+             ]
+                ++ cmds
+            )
         )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update message model =
+update message buf =
     case message of
         PressKey key ->
-            handleKeypress False key model
+            handleKeypress False key buf
 
         Resize size ->
             let
                 h =
-                    (size.height // model.view.lineHeight)
-                        - model.view.statusbarHeight
+                    (size.height // buf.view.lineHeight)
+                        - buf.view.statusbarHeight
 
                 w =
                     size.width
             in
-                ( model
+                ( buf
                     |> updateView
                         (\view ->
                             { view | size = { width = w, height = h } }
@@ -875,69 +939,87 @@ update message model =
                 Ok info ->
                     let
                         newbuf =
-                            Buf.newBuffer info
-                                model.service
-                                model.view.size
-                                model.view.lineHeight
+                            Buf.newBuffer
+                                info
+                                buf.service
+                                buf.syntaxService
+                                buf.view.size
+                                buf.view.lineHeight
                     in
                         ( newbuf
-                        , if newbuf.config.lint then
-                            sendLintProject model.service
-                          else
-                            Cmd.none
+                        , Cmd.batch
+                            ((if newbuf.config.lint then
+                                sendLintProject buf.service
+                              else
+                                Cmd.none
+                             )
+                                :: [ sendTokenize
+                                        buf.syntaxService
+                                        0
+                                        newbuf.path
+                                        (newbuf.lines
+                                            |> B.sliceLines 0
+                                                (newbuf.view.scrollTop
+                                                    + newbuf.view.size.height
+                                                    + newbuf.config.tokenizeLinesAhead
+                                                )
+                                            |> B.toString
+                                        )
+                                   ]
+                            )
                         )
 
                 Err s ->
-                    ( model, Cmd.none )
+                    ( buf, Cmd.none )
 
         Write result ->
             case result of
                 Ok s ->
                     ( if s == "" then
-                        Buf.updateSavePoint model
+                        Buf.updateSavePoint buf
                       else
                         let
                             n =
-                                B.countLines model.lines
+                                B.countLines buf.lines
 
                             patches =
                                 [ Deletion ( 0, 0 ) ( n, 0 )
                                 , Insertion ( 0, 0 ) (B.fromString s)
                                 ]
                         in
-                            model
+                            buf
                                 |> Buf.transaction patches
                                 |> Buf.commit
                                 |> Buf.updateSavePoint
-                                |> Buf.setCursor model.cursor True
+                                |> Buf.setCursor buf.cursor True
                                 |> cursorScope
-                    , if model.config.lint then
-                        sendLintProject model.service
+                    , if buf.config.lint then
+                        sendLintProject buf.service
                       else
                         Cmd.none
                     )
 
                 Err err ->
-                    ( model, Cmd.none )
+                    ( buf, Cmd.none )
 
         Edit info ->
-            ( model, sendEditBuffer model.service info )
+            ( buf, sendEditBuffer buf.service info )
 
         SendLint ->
-            if model.config.lint then
-                ( model
+            if buf.config.lint then
+                ( buf
                 , sendLintOnTheFly
-                    model.service
-                    model.path
-                    (B.toString model.lines)
+                    buf.service
+                    buf.path
+                    (B.toString buf.lines)
                 )
             else
-                ( model, Cmd.none )
+                ( buf, Cmd.none )
 
         LintOnTheFly resp ->
             case resp of
                 Ok items ->
-                    ( { model
+                    ( { buf
                         | lintItems = items
                         , lintErrorsCount = List.length items
                       }
@@ -945,7 +1027,7 @@ update message model =
                     )
 
                 Err _ ->
-                    ( model, Cmd.none )
+                    ( buf, Cmd.none )
 
         Lint resp ->
             case resp of
@@ -957,14 +1039,14 @@ update message model =
                                     item.file
                                         |> String.dropLeft 2
                                         |> String.toLower
-                                        |> flip String.endsWith model.path
+                                        |> flip String.endsWith buf.path
                                 )
                                 items
 
                         showTip =
                             not (List.isEmpty items1)
                     in
-                        ( { model
+                        ( { buf
                             | lintItems = items1
                             , lintErrorsCount = List.length items
                           }
@@ -972,4 +1054,65 @@ update message model =
                         )
 
                 Err _ ->
-                    ( model, Cmd.none )
+                    ( buf, Cmd.none )
+
+        Tokenized resp ->
+            case resp of
+                Ok payload ->
+                    case payload of
+                        TokenizeSuccess begin syntax ->
+                            ( case buf.syntaxDirtyFrom of
+                                Just from ->
+                                    if begin <= from then
+                                        { buf
+                                            | syntax =
+                                                buf.syntax
+                                                    |> Array.slice 0 begin
+                                                    |> flip Array.append syntax
+                                            , syntaxDirtyFrom = Nothing
+                                        }
+                                    else
+                                        buf
+
+                                Nothing ->
+                                    { buf
+                                        | syntax =
+                                            buf.syntax
+                                                |> Array.slice 0 begin
+                                                |> flip Array.append syntax
+                                        , syntaxDirtyFrom = Nothing
+                                    }
+                            , Cmd.none
+                            )
+
+                        TokenizeCacheMiss ->
+                            ( buf
+                            , sendTokenize
+                                buf.syntaxService
+                                0
+                                buf.path
+                                (buf.lines
+                                    |> B.sliceLines
+                                        0
+                                        (buf.view.scrollTop
+                                            + buf.view.size.height
+                                            + buf.config.tokenizeLinesAhead
+                                        )
+                                    |> B.toString
+                                )
+                            )
+
+                Err _ ->
+                    ( buf, Cmd.none )
+
+        SendTokenize ( line, lines ) ->
+            ( buf
+            , sendTokenize
+                buf.syntaxService
+                line
+                buf.path
+                lines
+            )
+
+        _ ->
+            ( buf, Cmd.none )

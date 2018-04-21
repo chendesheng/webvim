@@ -9,6 +9,7 @@ module Internal.TextBuffer
         , fromStringExpandTabs
         , getLine
         , countLines
+        , isMutipleLine
         , foldlLines
         , expandTabs
         , mapLines
@@ -16,12 +17,15 @@ module Internal.TextBuffer
         , toString
         , getLineMaxColumn
         , mapLinesToList
+        , indexedMapLinesToList
         , substring
+        , sliceLines
         )
 
 import Position exposing (..)
 import Elm.Array as Array exposing (Array)
 import String
+import List
 
 
 type TextBuffer
@@ -73,6 +77,11 @@ countLines (TextBuffer buf) =
                     n
 
 
+isMutipleLine : TextBuffer -> Bool
+isMutipleLine (TextBuffer buf) =
+    Array.length buf > 1
+
+
 mapLines : (String -> b) -> TextBuffer -> Array b
 mapLines f (TextBuffer buf) =
     Array.map f buf
@@ -84,6 +93,14 @@ mapLinesToList begin end f (TextBuffer buf) =
         |> Array.slice begin end
         |> Array.toList
         |> List.map f
+
+
+indexedMapLinesToList : Int -> Int -> (Int -> String -> b) -> TextBuffer -> List b
+indexedMapLinesToList begin end f (TextBuffer buf) =
+    buf
+        |> Array.slice begin end
+        |> Array.toList
+        |> List.indexedMap (\i x -> f (i + begin) x)
 
 
 foldlLines : Int -> (String -> a -> a) -> a -> TextBuffer -> a
@@ -442,3 +459,8 @@ getLineMaxColumn y lines =
 substring : Position -> Position -> TextBuffer -> TextBuffer
 substring pos1 pos2 (TextBuffer buf) =
     TextBuffer <| slice pos1 pos2 buf
+
+
+sliceLines : Int -> Int -> TextBuffer -> TextBuffer
+sliceLines begin end (TextBuffer buf) =
+    TextBuffer <| slice ( begin, 0 ) ( end, 0 ) buf

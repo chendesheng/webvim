@@ -9,8 +9,10 @@ import List
 import Html.Attributes exposing (..)
 import Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
-import Syntax exposing (Syntax)
+import Syntax exposing (Syntax, Token)
 import Message exposing (LocationItem)
+import String
+import Elm.Array exposing (Array)
 
 
 rem : number -> String
@@ -78,8 +80,9 @@ view buf =
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
                             )
-                        ?:: lazy3 renderLines
-                                ( scrollTop1, height + 1 )
+                        ?:: renderLines
+                                scrollTop1
+                                (height + 1)
                                 lines
                                 syntax
                         :: lazy3 renderLint scrollTop1 lines buf.lintItems
@@ -416,7 +419,6 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
             Basics.max begin end
     in
         List.range by ey
-            -- I need Html.lazy4, use 50 as max height for now
             |> List.filter (\i -> i >= scrollTop && i < scrollTop + 50)
             |> List.map
                 (\row ->
@@ -462,49 +464,6 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
                 )
 
 
-renderLines : ( Int, Int ) -> B.TextBuffer -> Syntax -> Html msg
-renderLines ( scrollTop, height ) lines syntax =
-    div
-        [ class "lines"
-
-        --, style [ translate 0 -scrollTop ]
-        ]
-        (if syntax.lang == "" then
-            lines
-                |> B.mapLinesToList scrollTop
-                    (scrollTop + height)
-                    (\line ->
-                        div [ class "line" ] [ text line ]
-                    )
-         else
-            syntax.lines
-                |> Array.slice scrollTop
-                    (Basics.min
-                        (scrollTop + height)
-                        (B.countLines lines)
-                    )
-                |> Array.map
-                    (\sline ->
-                        let
-                            ( scopes, _ ) =
-                                sline
-                        in
-                            div [ class "line" ]
-                                (List.map
-                                    (\scope ->
-                                        let
-                                            ( cls, s ) =
-                                                scope
-                                        in
-                                            span [ class cls ] [ text s ]
-                                    )
-                                    scopes
-                                )
-                    )
-                |> Array.toList
-        )
-
-
 renderGutter : Int -> Int -> Int -> Html msg
 renderGutter begin end total =
     div [ class "gutter-container" ]
@@ -520,3 +479,49 @@ renderGutter begin end total =
                     )
             )
         ]
+
+
+renderTokens : List Token -> String -> List (Html msg)
+renderTokens spans line =
+    case spans of
+        sp :: rest ->
+            let
+                { length, classname } =
+                    sp
+
+                s =
+                    String.left length line
+
+                nexts =
+                    String.dropLeft length line
+            in
+                (span
+                    [ class classname ]
+                    [ text s ]
+                )
+                    :: (renderTokens rest nexts)
+
+        _ ->
+            []
+
+
+renderLines : Int -> Int -> B.TextBuffer -> Syntax -> Html msg
+renderLines scrollTop height lines syntax =
+    div
+        [ class "lines"
+
+        --, style [ translate 0 -scrollTop ]
+        ]
+        (lines
+            |> B.indexedMapLinesToList scrollTop
+                (scrollTop + height)
+                (\n line ->
+                    case Array.get n syntax of
+                        Just tokens ->
+                            div [ class "line" ]
+                                (renderTokens tokens line)
+
+                        Nothing ->
+                            div [ class "line" ] [ text line ]
+                )
+        )

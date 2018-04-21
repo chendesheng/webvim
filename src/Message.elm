@@ -5,6 +5,7 @@ import Result
 import Http
 import Position exposing (Position)
 import Json.Decode as Decode
+import Syntax exposing (Token, Syntax)
 
 
 type alias Key =
@@ -57,6 +58,11 @@ elmMakeResultDecoder =
         |> Decode.list
 
 
+type TokenizeResponse
+    = TokenizeSuccess Int Syntax
+    | TokenizeCacheMiss -- happens when server restart
+
+
 type Msg
     = PressKey Key -- buffer id, key
     | Resize Size
@@ -64,5 +70,8 @@ type Msg
     | Write (Result Http.Error String)
     | Edit BufferInfo
     | SendLint
+    | SendTokenize ( Int, String )
     | Lint (Result Http.Error (List LocationItem))
     | LintOnTheFly (Result Http.Error (List LocationItem))
+    | Tokenized (Result Http.Error TokenizeResponse)
+    | NoneMessage

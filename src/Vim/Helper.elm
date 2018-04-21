@@ -5,6 +5,7 @@ import Char
 import String
 import List
 import Result
+import Helper exposing (getLast)
 import Vim.AST
     exposing
         ( ModeDelta
@@ -84,19 +85,6 @@ dropLast l =
 
         x :: xs ->
             x :: dropLast xs
-
-
-getLast : List a -> Maybe a
-getLast xs =
-    case xs of
-        [] ->
-            Nothing
-
-        [ x ] ->
-            Just x
-
-        x :: xs ->
-            getLast xs
 
 
 tuple : a -> b -> ( a, b )

@@ -13,7 +13,6 @@ module Buffer
         , setRegister
         , setCursor
         , putString
-        , syntaxHighlight
         , updateSavePoint
         , setShowTip
         )
@@ -36,7 +35,7 @@ import Model
         , emptyView
         , View
         )
-import Internal.TextBuffer
+import Internal.TextBuffer as B
     exposing
         ( applyPatch
         , TextBuffer
@@ -58,8 +57,15 @@ import Vim.AST
 import String
 import Maybe
 import Dict exposing (Dict)
-import Syntax exposing (..)
-import Elm.Array as Array
+import Syntax
+    exposing
+        ( Syntax
+        , Token
+        , applyPatchToSyntax
+        , applyPatchesToSyntax
+        )
+import Elm.Array as Array exposing (Array)
+import Helper exposing (minMaybe)
 
 
 applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch, Int )
@@ -96,6 +102,11 @@ minLine patch =
             min y1 y2
 
 
+arrayLast : Array a -> Maybe a
+arrayLast arr =
+    Array.get (Array.length arr - 1) arr
+
+
 {-| batch edit text, keep cursor, save history
 -}
 transaction : List Patch -> Buffer -> Buffer
@@ -110,10 +121,18 @@ transaction patches buf =
 
                         cursor =
                             updateCursor patch patch1 buf.cursor
+
+                        ( syntax, dirtyFrom ) =
+                            applyPatchToSyntax patch buf.syntax
                     in
                         ( { buf
                             | lines = lines
                             , cursor = cursor
+                            , syntax = syntax
+                            , syntaxDirtyFrom =
+                                minMaybe
+                                    buf.syntaxDirtyFrom
+                                    dirtyFrom
                           }
                         , patch1 :: undo
                         , min miny (minLine patch)
@@ -128,7 +147,6 @@ transaction patches buf =
             { buf1
                 | history =
                     addPending buf.cursor undo buf1.history
-                , syntax = syntaxHighlight miny buf1.lines buf.syntax
             }
 
 
@@ -166,16 +184,15 @@ updateCursor patch patch1 cursor =
 
 addPending : Position -> List Patch -> BufferHistory -> BufferHistory
 addPending cursor patches history =
-    history.pending
-        |> Maybe.map
-            (\pending ->
-                let
-                    pending1 =
-                        { pending | patches = patches ++ pending.patches }
-                in
-                    { history | pending = Just pending1 }
-            )
-        |> Maybe.withDefault
+    case history.pending of
+        Just pending ->
+            let
+                pending1 =
+                    { pending | patches = patches ++ pending.patches }
+            in
+                { history | pending = Just pending1 }
+
+        _ ->
             { history
                 | pending = Just { cursor = cursor, patches = patches }
             }
@@ -208,41 +225,6 @@ commit buf =
         }
 
 
-syntaxHighlight : Int -> TextBuffer -> Syntax -> Syntax
-syntaxHighlight start lines syntax =
-    if syntax.lang == "" then
-        syntax
-    else
-        let
-            -- highlight.js doesn't support increment for now
-            start =
-                0
-
-            ( slines, _ ) =
-                foldlLines
-                    start
-                    (\line ( slines, continuation ) ->
-                        let
-                            sline =
-                                highlight
-                                    syntax.lang
-                                    line
-                                    continuation
-                        in
-                            ( Array.push sline slines
-                            , Just (Tuple.second sline)
-                            )
-                    )
-                    ( Array.empty, Nothing )
-                    lines
-        in
-            { lang = syntax.lang
-            , lines =
-                Array.append (Array.slice 0 start syntax.lines)
-                    slines
-            }
-
-
 {-| undo last change
 -}
 undo : Buffer -> Buffer
@@ -257,6 +239,9 @@ undo buf =
 
                     ( lines1, patches1, miny ) =
                         applyPatches patches buf.lines
+
+                    ( syntax, n ) =
+                        applyPatchesToSyntax patches buf.syntax
 
                     undoHistory { undoes, redoes } =
                         { history
@@ -282,8 +267,9 @@ undo buf =
                         | lines = lines1
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
+                        , syntax = syntax
+                        , syntaxDirtyFrom = minMaybe buf.syntaxDirtyFrom n
                         , history = undoHistory buf.history
-                        , syntax = syntaxHighlight miny lines1 buf.syntax
                     }
             )
         |> Maybe.withDefault buf
@@ -303,6 +289,9 @@ redo buf =
 
                     ( lines1, patches1, miny ) =
                         applyPatches patches buf.lines
+
+                    ( syntax, n ) =
+                        applyPatchesToSyntax patches buf.syntax
 
                     redoHistory { undoes, redoes } =
                         { history
@@ -328,8 +317,9 @@ redo buf =
                         | lines = lines1
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
+                        , syntax = syntax
+                        , syntaxDirtyFrom = minMaybe buf.syntaxDirtyFrom n
                         , history = redoHistory buf.history
-                        , syntax = syntaxHighlight miny lines1 buf.syntax
                     }
             )
         |> Maybe.withDefault buf
@@ -518,8 +508,8 @@ configs =
         ]
 
 
-newBuffer : BufferInfo -> String -> Size -> Int -> Buffer
-newBuffer info service size lineHeight =
+newBuffer : BufferInfo -> String -> String -> Size -> Int -> Buffer
+newBuffer info service syntaxService size lineHeight =
     let
         { cursor, scrollTop, path, content } =
             info
@@ -531,16 +521,8 @@ newBuffer info service size lineHeight =
 
         ( name, ext ) =
             filename path
-                |> Debug.log "path"
 
-        syntax =
-            { lang =
-                if ext == "" then
-                    ""
-                else
-                    String.dropLeft 1 ext
-            , lines = emptyBuffer.syntax.lines
-            }
+        --|> Debug.log "path"
     in
         { emptyBuffer
             | lines = lines
@@ -558,12 +540,8 @@ newBuffer info service size lineHeight =
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
-            , syntax =
-                syntaxHighlight
-                    0
-                    lines
-                    syntax
             , service = service
+            , syntaxService = syntaxService
         }
 
 

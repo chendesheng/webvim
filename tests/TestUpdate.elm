@@ -12,6 +12,7 @@ import Dict
 import Maybe
 import Vim.Helper exposing (keyParser)
 import Vim.AST exposing (VisualType(..))
+import Elm.Array as Array
 
 
 handleKeys : List Key -> Model -> Model
@@ -1305,7 +1306,15 @@ allCases =
                 { buf
                     | dotRegister = ""
                     , history = { history | version = 0 }
+                    , syntaxDirtyFrom = Nothing
+                    , syntax = Array.empty
                 }
+
+        clearSyntax buf =
+            { buf
+                | syntaxDirtyFrom = Nothing
+                , syntax = Array.empty
+            }
 
         clearScrollTop buf =
             let
@@ -1350,7 +1359,9 @@ allCases =
                                             { ex
                                                 | prefix = prefix
                                                 , exbuf =
-                                                    Buf.clearHistory exbuf
+                                                    exbuf
+                                                        |> Buf.clearHistory
+                                                        |> clearSyntax
                                             }
                                 }
 
@@ -1423,6 +1434,7 @@ allCases =
           , map =
                 clearScrollTop
                     >> Buf.clearHistory
+                    >> clearSyntax
           }
         , { name = "join cases"
           , cases = joinCases

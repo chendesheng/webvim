@@ -96,6 +96,7 @@ type RegisterText
 type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
+    , syntaxDirtyFrom : Maybe Int
     , lintItems : List LocationItem
     , lintErrorsCount : Int
     , cursor : Position
@@ -124,6 +125,7 @@ type alias Buffer =
         }
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
     , service : String
+    , syntaxService : String
     }
 
 
@@ -175,6 +177,7 @@ type alias BufferConfig =
     , tabSize : Int
     , expandTab : Bool
     , lint : Bool
+    , tokenizeLinesAhead : Int
     }
 
 
@@ -184,13 +187,15 @@ defaultBufferConfig =
     , tabSize = 2
     , expandTab = True
     , lint = False
+    , tokenizeLinesAhead = 10
     }
 
 
 emptyBuffer : Buffer
 emptyBuffer =
     { lines = B.fromString B.lineBreak
-    , syntax = { lang = "", lines = Array.empty }
+    , syntax = Array.empty
+    , syntaxDirtyFrom = Nothing
     , lintItems = []
     , lintErrorsCount = 0
     , cursor = ( 0, 0 )
@@ -214,18 +219,20 @@ emptyBuffer =
         }
     , vimASTCache = Dict.empty
     , service = ""
+    , syntaxService = ""
     }
 
 
 type alias Flags =
     { lineHeight : Int
     , service : String
+    , syntaxService : String
     , buffer : Maybe String
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
-init { lineHeight, service, buffer } =
+init { lineHeight, service, syntaxService, buffer } =
     let
         view =
             emptyBuffer.view
@@ -234,6 +241,7 @@ init { lineHeight, service, buffer } =
             { emptyBuffer
                 | view = { view | lineHeight = lineHeight }
                 , service = service
+                , syntaxService = syntaxService
             }
 
         cmds =
@@ -245,7 +253,10 @@ init { lineHeight, service, buffer } =
                     []
     in
         ( buf
-        , Cmd.batch <| [ Task.perform Resize Win.size ] ++ cmds
+        , Cmd.batch <|
+            [ Task.perform Resize Win.size
+            ]
+                ++ cmds
         )
 
 
