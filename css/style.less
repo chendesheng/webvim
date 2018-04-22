@@ -68,17 +68,16 @@ html, body {
   transition: transform 40ms ease-in;
 }
 
-.gutter {
-  padding: 0 1ch;
-}
-
 .lines {
   position: relative;
 }
 
 .gutter {
+  padding: 0 1ch;
   background: @body-background;
   color: @gutter-color;
+  display: flex;
+  flex-direction: column;
 }
 
 .line, .line-number {
@@ -87,6 +86,11 @@ html, body {
   line-height: @line-height;
   display: flex;
   align-items: center;
+}
+
+.line-number {
+  text-align: right;
+  display: inline-block;
 }
 
 .cursor {
