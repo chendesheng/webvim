@@ -194,7 +194,13 @@ linebuffer prefix map =
                         ]
                     )
                     |= P.oneOf
-                        [ readKeyAndThen "<c-r>"
+                        [ P.succeed
+                            [ PushOperator <| SelectAutoComplete Forward ]
+                            |. P.symbol "<tab>"
+                        , P.succeed
+                            [ PushOperator <| SelectAutoComplete Backward ]
+                            |. P.symbol "<s-tab>"
+                        , readKeyAndThen "<c-r>"
                             [ PushKey "<c-r>" ]
                             (P.oneOf
                                 [ P.succeed

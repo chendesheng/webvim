@@ -561,6 +561,7 @@ exModeCases =
                             , cursor = ( 0, 3 )
                         }
                     , visual = Nothing
+                    , autoComplete = Nothing
                     }
             , continuation = ":"
             , last = { emptyLast | ex = "11" }
@@ -577,6 +578,7 @@ exModeCases =
                             , cursor = ( 0, 2 )
                         }
                     , visual = Nothing
+                    , autoComplete = Nothing
                     }
             , continuation = ":"
             , last = { emptyLast | ex = "11<backspace>" }
@@ -662,6 +664,7 @@ exModeCases =
                             { match = Nothing
                             , forward = True
                             }
+                    , autoComplete = Nothing
                     }
             , continuation = "/"
         }
@@ -681,6 +684,7 @@ exModeCases =
                             { match = Nothing
                             , forward = False
                             }
+                    , autoComplete = Nothing
                     }
             , continuation = "?"
         }

@@ -26,6 +26,7 @@ import Debounce exposing (debounceLint, debounceTokenize)
 import Service exposing (sendTokenize)
 import Elm.Array as Array
 import Document as Doc
+import Fuzzy exposing (..)
 
 
 stringToPrefix : String -> ExPrefix
@@ -60,39 +61,6 @@ prefixToString prefix =
             ":"
 
 
-isEditing : Operator -> Mode -> Bool
-isEditing op mode =
-    case mode of
-        Ex _ ->
-            False
-
-        _ ->
-            case op of
-                Move _ _ ->
-                    False
-
-                Yank _ ->
-                    False
-
-                Delete _ ->
-                    True
-
-                InsertString _ ->
-                    True
-
-                Undo ->
-                    True
-
-                Redo ->
-                    True
-
-                Join _ ->
-                    True
-
-                _ ->
-                    False
-
-
 initMode : Buffer -> V.ModeName -> Mode
 initMode { cursor, mode } modeName =
     case modeName of
@@ -121,6 +89,7 @@ initMode { cursor, mode } modeName =
 
                         _ ->
                             Nothing
+                , autoComplete = Nothing
                 }
 
         V.ModeNameVisual tipe ->
@@ -378,11 +347,18 @@ expandVisual begin end a b =
         ( (max b begin), (min a end) )
 
 
-runOperator : String -> Operator -> Buffer -> Buffer
+cmdNone : Buffer -> ( Buffer, Cmd Msg )
+cmdNone buf =
+    ( buf, Cmd.none )
+
+
+runOperator : String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator register operator buf =
     case operator of
         Move md mo ->
-            motion md mo buf
+            buf
+                |> motion md mo
+                |> cmdNone
 
         Select textobj around ->
             case buf.mode of
@@ -410,12 +386,13 @@ runOperator register operator buf =
                                                 |> setVisualBegin begin1
                                     )
                                 |> Maybe.withDefault buf
+                                |> cmdNone
 
                         _ ->
-                            buf
+                            ( buf, Cmd.none )
 
                 _ ->
-                    buf
+                    ( buf, Cmd.none )
 
         Scroll value ->
             let
@@ -445,31 +422,43 @@ runOperator register operator buf =
                 buf
                     |> scrollToLine (scope scrollTop)
                     |> cursorScope
+                    |> cmdNone
 
         InsertString s ->
-            insert s buf
+            buf
+                |> insert s
+                |> cmdNone
 
         Delete rg ->
-            delete register rg buf
+            buf
+                |> delete register rg
                 |> cursorScope
+                |> cmdNone
 
         Yank rg ->
-            yank register rg buf
+            buf
+                |> yank register rg
+                |> cmdNone
 
         Undo ->
-            Buf.undo buf
+            buf
+                |> Buf.undo
+                |> cmdNone
 
         Redo ->
-            Buf.redo buf
+            buf
+                |> Buf.redo
+                |> cmdNone
 
         OpenNewLine forward ->
-            openNewLine
-                (if forward then
-                    Tuple.first buf.cursor + 1
-                 else
-                    Tuple.first buf.cursor
-                )
-                buf
+            buf
+                |> openNewLine
+                    (if forward then
+                        Tuple.first buf.cursor + 1
+                     else
+                        Tuple.first buf.cursor
+                    )
+                |> cmdNone
 
         JumpByView factor ->
             let
@@ -514,9 +503,10 @@ runOperator register operator buf =
                             |> Buf.setCursor cursor True
                             |> setVisualEnd cursor
                             |> scrollToLine scrollTop
+                            |> cmdNone
 
                     Nothing ->
-                        buf
+                        ( buf, Cmd.none )
 
         Put forward ->
             Dict.get register buf.registers
@@ -540,6 +530,7 @@ runOperator register operator buf =
                                 Buf.putString forward s buf
                     )
                 |> Maybe.withDefault buf
+                |> cmdNone
 
         RepeatLastOperator ->
             replayKeys buf.dotRegister buf
@@ -565,15 +556,28 @@ runOperator register operator buf =
                                 }
                             )
                         |> Buf.setCursor begin True
+                        |> cmdNone
 
                 _ ->
-                    buf
+                    ( buf, Cmd.none )
 
         Execute ->
-            buf
+            case buf.mode of
+                Ex ex ->
+                    ( { buf | mode = Ex { ex | autoComplete = Nothing } }
+                    , ex.exbuf.lines
+                        |> B.toString
+                        |> String.dropLeft 1
+                        |> flip execute buf
+                    )
+
+                _ ->
+                    ( buf, Cmd.none )
 
         Join mergeSpaces ->
-            join mergeSpaces buf
+            buf
+                |> join mergeSpaces
+                |> cmdNone
 
         Replace ch ->
             case buf.mode of
@@ -593,22 +597,101 @@ runOperator register operator buf =
                                 [ Deletion buf.cursor ( y, x + 1 ) ]
                             |> insert (V.TextLiteral ch)
                             |> setCursor
+                            |> cmdNone
 
                 --|> Buf.setCursor buf.cursor True
                 TempNormal ->
-                    buf
+                    ( buf, Cmd.none )
 
                 Visual visual ->
-                    buf
+                    ( buf, Cmd.none )
 
                 _ ->
-                    buf
+                    ( buf, Cmd.none )
 
         ToggleTip ->
-            Buf.setShowTip (not buf.view.showTip) buf
+            buf
+                |> Buf.setShowTip (not buf.view.showTip)
+                |> cmdNone
+
+        SelectAutoComplete dir ->
+            case buf.mode of
+                Ex ex ->
+                    case ex.autoComplete of
+                        Just auto ->
+                            let
+                                { matches, select } =
+                                    auto
+
+                                s =
+                                    B.toString ex.exbuf.lines
+
+                                newSelect =
+                                    (select
+                                        + if dir == V.Forward then
+                                            1
+                                          else
+                                            -1
+                                    )
+                                        % Array.length matches
+
+                                targetSelected =
+                                    newSelect == Array.length matches - 1
+
+                                scrollTop =
+                                    if targetSelected then
+                                        auto.scrollTop
+                                    else if newSelect < auto.scrollTop then
+                                        newSelect
+                                    else if newSelect >= auto.scrollTop + 15 then
+                                        newSelect - 15 + 1
+                                    else
+                                        auto.scrollTop
+
+                                txt =
+                                    case Array.get newSelect matches of
+                                        Just m ->
+                                            m.text
+
+                                        _ ->
+                                            ""
+
+                                exbuf =
+                                    if String.startsWith ":e " s then
+                                        Buf.transaction
+                                            [ Deletion ( 0, 3 ) ( 1, 0 )
+                                            , Insertion ( 0, 3 ) <|
+                                                B.fromString txt
+                                            ]
+                                            ex.exbuf
+                                    else
+                                        ex.exbuf
+                            in
+                                ( { buf
+                                    | mode =
+                                        Ex
+                                            { ex
+                                                | exbuf = exbuf
+                                                , autoComplete =
+                                                    Just
+                                                        { auto
+                                                            | select = newSelect
+                                                            , scrollTop =
+                                                                scrollTop
+                                                        }
+                                            }
+                                  }
+                                , Cmd.none
+                                )
+
+                        _ ->
+                            ( buf, Cmd.none )
+
+                _ ->
+                    ( buf, Cmd.none )
 
         _ ->
-            buf
+            ( buf, Cmd.none )
 
 
 {-| scroll to ensure pos it is insdie viewport
@@ -673,14 +756,50 @@ cursorScope ({ view, cursor, lines } as buf) =
                     buf
 
 
-applyEdit : Maybe Operator -> String -> Buffer -> Buffer
+isExEditing : Operator -> Bool
+isExEditing op =
+    case op of
+        Delete _ ->
+            True
+
+        InsertString _ ->
+            True
+
+        _ ->
+            False
+
+
+applyEdit : Maybe Operator -> String -> Buffer -> ( Buffer, Cmd Msg )
 applyEdit edit register buf =
     case edit of
         Just operator ->
-            runOperator register operator buf
+            case buf.mode of
+                Ex ex ->
+                    let
+                        ( buf1, cmd ) =
+                            runOperator register operator buf
+                    in
+                        case buf1.mode of
+                            Ex newex ->
+                                if isExEditing operator then
+                                    let
+                                        ( newex1, cmd1 ) =
+                                            exAutoComplete buf1.service newex
+                                    in
+                                        ( { buf1 | mode = Ex newex1 }
+                                        , Cmd.batch [ cmd, cmd1 ]
+                                        )
+                                else
+                                    ( buf1, cmd )
+
+                            _ ->
+                                ( buf1, cmd )
+
+                _ ->
+                    runOperator register operator buf
 
         Nothing ->
-            buf
+            ( buf, Cmd.none )
 
 
 isEnterInsertMode : Maybe Operator -> Bool
@@ -701,10 +820,10 @@ isEnterInsertMode edit =
             False
 
 
-replayKeys : String -> Model -> Model
+replayKeys : String -> Buffer -> ( Buffer, Cmd Msg )
 replayKeys s buf =
     if s == "" then
-        buf
+        ( buf, Cmd.none )
     else
         let
             savedLast =
@@ -718,19 +837,24 @@ replayKeys s buf =
                     |> P.run (P.repeat P.zeroOrMore keyParser)
                     |> Result.withDefault []
 
-            buf1 =
+            ( buf1, cmd ) =
                 List.foldl
-                    (\key buf ->
-                        handleKeypress True key buf
-                            |> Tuple.first
+                    (\key ( buf, cmd ) ->
+                        let
+                            ( buf1, cmd1 ) =
+                                handleKeypress True key buf
+                        in
+                            ( buf1, Cmd.batch [ cmd, cmd1 ] )
                     )
-                    buf
+                    ( buf, Cmd.none )
                     keys
         in
-            { buf1
+            ( { buf1
                 | last = savedLast
                 , registers = savedRegisters
-            }
+              }
+            , cmd
+            )
 
 
 isModeNameVisual : V.ModeName -> Bool
@@ -761,27 +885,73 @@ execute s buf =
             Cmd.none
 
 
-getEffect : Maybe Operator -> Buffer -> Cmd Msg
-getEffect op buf =
-    case op of
-        Just op1 ->
-            case op1 of
-                Execute ->
-                    case buf.mode of
-                        Ex { exbuf } ->
-                            exbuf.lines
-                                |> B.toString
-                                |> String.dropLeft 1
-                                |> flip execute buf
+exAutoComplete : String -> ExMode -> ( ExMode, Cmd Msg )
+exAutoComplete service ex =
+    let
+        { exbuf, autoComplete } =
+            ex
 
-                        _ ->
-                            Cmd.none
+        s =
+            B.toString exbuf.lines
+    in
+        if String.startsWith ":e " s then
+            case autoComplete of
+                Just auto ->
+                    let
+                        { source } =
+                            auto
+
+                        target =
+                            exbuf
+                                |> autoCompleteTarget
+
+                        matches =
+                            target
+                                |> fuzzyMatch source
+                                |> Array.fromList
+                    in
+                        ( { ex
+                            | autoComplete =
+                                Just
+                                    { auto
+                                        | matches =
+                                            Array.push
+                                                { text = target, matches = [] }
+                                                matches
+                                    }
+                          }
+                        , Cmd.none
+                        )
 
                 _ ->
-                    Cmd.none
+                    let
+                        newex =
+                            Ex
+                                { ex
+                                    | autoComplete =
+                                        Just
+                                            { source = []
+                                            , matches = Array.empty
+                                            , select = -1
+                                            , scrollTop = 0
+                                            }
+                                }
+                    in
+                        ( ex, sendListFiles service )
+        else
+            ( ex, Cmd.none )
 
-        _ ->
-            Cmd.none
+
+autoCompleteTarget : Buffer -> String
+autoCompleteTarget exbuf =
+    exbuf.lines
+        |> B.getLine 0
+        |> Maybe.andThen
+            (String.split " "
+                >> List.tail
+            )
+        |> Maybe.andThen List.head
+        |> Maybe.withDefault ""
 
 
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
@@ -831,15 +1001,32 @@ handleKeypress replaying key buf =
                 |> Maybe.map isLineDeltaMotion
                 |> Maybe.withDefault False
 
-        buf1 =
-            buf
-                |> cacheVimAST cacheKey cacheVal
-                |> setContinuation continuation
-                |> applyEdit edit register
-                |> updateMode modeName
-                |> modeChanged replaying key oldModeName lineDeltaMotion
-                |> scrollToCursor
-                |> saveDotRegister
+        --bind b ( buf, cmd ) =
+        --    ( b buf, cmd )
+        bind b a =
+            (\buf ->
+                let
+                    ( buf1, cmd1 ) =
+                        a buf
+
+                    buf2 =
+                        b buf1
+                in
+                    ( buf2, cmd1 )
+            )
+
+        ( buf1, todo ) =
+            (cacheVimAST cacheKey cacheVal
+                >> setContinuation continuation
+                >> applyEdit edit register
+                |> bind
+                    (updateMode modeName
+                        >> modeChanged replaying key oldModeName lineDeltaMotion
+                        >> scrollToCursor
+                        >> saveDotRegister
+                    )
+            )
+                buf
 
         newBottom =
             buf1.view.scrollTop + buf1.view.size.height
@@ -866,26 +1053,25 @@ handleKeypress replaying key buf =
                 |> Maybe.map (.patches >> List.length)
                 |> Maybe.withDefault 0
 
-        cmds =
+        doTokenize =
             case buf1.syntaxDirtyFrom of
                 Just y ->
                     --let
                     --    _ =
                     --        Debug.log "y" y
                     --in
-                    [ debounceTokenize 100
+                    debounceTokenize 100
                         y
                         (buf1.lines
                             |> B.sliceLines y (newBottom + 1)
                             |> B.toString
                         )
-                    ]
 
                 _ ->
                     if oldBottom == newBottom then
-                        []
+                        Cmd.none
                     else if newBottom >= Array.length buf1.syntax then
-                        [ debounceTokenize
+                        debounceTokenize
                             100
                             (Array.length buf1.syntax)
                             (buf1.lines
@@ -896,19 +1082,11 @@ handleKeypress replaying key buf =
                                     )
                                 |> B.toString
                             )
-                        ]
                     else
-                        []
-    in
-        ( buf1
-        , Cmd.batch
-            ([ getEffect edit buf
-             , encodeBuffer buf1 |> saveBuffer
-             , if Buf.isEditing buf buf1 then
-                debounceLint 500
-               else
-                Cmd.none
-             , if Buf.isDirty buf /= Buf.isDirty buf1 then
+                        Cmd.none
+
+        doSetTitle =
+            if Buf.isDirty buf /= Buf.isDirty buf1 then
                 let
                     prefix =
                         if Buf.isDirty buf1 then
@@ -917,10 +1095,23 @@ handleKeypress replaying key buf =
                             ""
                 in
                     Doc.setTitle (prefix ++ buf1.name)
-               else
+            else
                 Cmd.none
+
+        doLint =
+            if Buf.isEditing buf buf1 then
+                debounceLint 500
+            else
+                Cmd.none
+    in
+        ( buf1
+        , Cmd.batch
+            ([ todo
+             , encodeBuffer buf1 |> saveBuffer
+             , doLint
+             , doSetTitle
+             , doTokenize
              ]
-                ++ cmds
             )
         )
 
@@ -1149,6 +1340,47 @@ update message buf =
                 buf.path
                 lines
             )
+
+        ListFiles resp ->
+            case resp of
+                Ok files ->
+                    case buf.mode of
+                        Ex ex ->
+                            let
+                                autoComplete =
+                                    Just
+                                        { source = files
+                                        , matches =
+                                            ex.exbuf
+                                                |> autoCompleteTarget
+                                                |> fuzzyMatch files
+                                                |> Array.fromList
+                                                |> Array.push
+                                                    { text =
+                                                        autoCompleteTarget
+                                                            ex.exbuf
+                                                    , matches = []
+                                                    }
+                                        , select = -1
+                                        , scrollTop = 0
+                                        }
+                            in
+                                ( { buf
+                                    | mode =
+                                        Ex
+                                            { ex
+                                                | autoComplete =
+                                                    autoComplete
+                                            }
+                                  }
+                                , Cmd.none
+                                )
+
+                        _ ->
+                            ( buf, Cmd.none )
+
+                Err _ ->
+                    ( buf, Cmd.none )
 
         _ ->
             ( buf, Cmd.none )

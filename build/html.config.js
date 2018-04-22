@@ -11,7 +11,7 @@ const getLineHeight = () => {
 };
 
 const placeholder = '<!-- inject index.js -->';
-const htmlfile = fs.readFileSync('build/index.html', { encoding : 'utf8' });
+const htmlfile = fs.readFileSync('build/default.html', { encoding : 'utf8' });
 const jsfile
   = `const lineHeight = ${getLineHeight()};\n`
   + fs.readFileSync('build/index.js', { encoding : 'utf8' });

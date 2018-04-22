@@ -16,6 +16,9 @@ import Elm.Array exposing (Array)
 import Buffer as Buf
 
 
+--import Fuzzy exposing (FuzzyMatchItem)
+
+
 rem : number -> String
 rem n =
     toString n ++ "rem"
@@ -65,9 +68,17 @@ view buf =
 
                 Nothing ->
                     ( Nothing, scrollTop )
+
+        exAutoComplete =
+            case buf.mode of
+                Ex ex ->
+                    ex.autoComplete
+
+                _ ->
+                    Nothing
     in
         div [ class "editor" ]
-            [ div [ class "buffer" ]
+            ([ div [ class "buffer" ]
                 [ lazy3 renderGutter
                     (scrollTop1 + 1)
                     (Basics.min (scrollTop1 + height + 1) totalLines)
@@ -101,13 +112,19 @@ view buf =
                         ?:: []
                     )
                 ]
-            , renderStatusBar
+             , renderStatusBar
                 (Buf.isDirty buf)
                 mode
                 continuation
                 buf.lintErrorsCount
                 buf.name
-            ]
+             ]
+                ++ (exAutoComplete
+                        |> Maybe.map
+                            (lazy2 renderAutoCompleteMenu "ex-mode")
+                        |> maybeToList
+                   )
+            )
 
 
 renderStatusBar : Bool -> Mode -> String -> Int -> String -> Html msg
@@ -547,3 +564,62 @@ renderLines scrollTop height lines syntax =
                             div [ class "line" ] [ text line ]
                 )
         )
+
+
+renderAutoCompleteMenu : String -> AutoComplete -> Html msg
+renderAutoCompleteMenu classname { matches, select, scrollTop } =
+    let
+        index =
+            select - scrollTop
+
+        renderText s indexes i =
+            let
+                renderSpan i j matched =
+                    span
+                        (if matched then
+                            [ class "matched" ]
+                         else
+                            []
+                        )
+                        [ text <| String.slice i j s ]
+            in
+                case indexes of
+                    j :: rest ->
+                        if i < j then
+                            renderSpan i j False
+                                :: renderSpan j (j + 1) True
+                                :: renderText s rest (j + 1)
+                        else if i == j then
+                            renderSpan j (j + 1) True
+                                :: renderText s rest (j + 1)
+                        else
+                            -- shuld never happen
+                            []
+
+                    _ ->
+                        let
+                            len =
+                                String.length s
+                        in
+                            if i < len - 1 then
+                                [ renderSpan i len False ]
+                            else
+                                []
+    in
+        div [ class "auto-complete" ]
+            (List.indexedMap
+                (\i m ->
+                    div
+                        (if i == index then
+                            [ class "selected" ]
+                         else
+                            []
+                        )
+                        (renderText m.text m.matches 0)
+                )
+                (matches
+                    |> Array.slice 0 -1
+                    |> Array.slice scrollTop (scrollTop + 15)
+                    |> Array.toList
+                )
+            )

@@ -8,6 +8,10 @@ import Json.Decode as Decode
 import Syntax exposing (Token, Syntax)
 
 
+type alias File =
+    String
+
+
 type alias Key =
     String
 
@@ -74,4 +78,5 @@ type Msg
     | Lint (Result String (List LocationItem))
     | LintOnTheFly (Result String (List LocationItem))
     | Tokenized (Result Http.Error TokenizeResponse)
+    | ListFiles (Result String (List File))
     | NoneMessage

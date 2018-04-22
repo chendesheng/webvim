@@ -100,6 +100,7 @@ type Operator
     | Execute -- execute ex command
     | Replace String
     | ToggleTip
+    | SelectAutoComplete Direction
 
 
 type StringType

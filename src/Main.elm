@@ -38,11 +38,12 @@ handleTokenizeBounce event =
                 let
                     a =
                         Tuple.first result
-                            |> Debug.log "a"
 
+                    --|> Debug.log "a"
                     b =
                         Tuple.first current
-                            |> Debug.log "b"
+
+                    --|> Debug.log "b"
                 in
                     if a >= b then
                         current

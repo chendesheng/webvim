@@ -58,7 +58,7 @@ let debouncers = {};
 app.ports.debounce.subscribe(({ action, time, payload }) => {
   const data = debouncers[action] || {};
   
-  console.log('debounce', action);
+  // console.log('debounce', action);
   if (payload !== undefined) {
     const payloads = data.payloads || [];
     payloads.push(payload);
@@ -67,7 +67,7 @@ app.ports.debounce.subscribe(({ action, time, payload }) => {
 
   clearTimeout(data.timer);
   data.timer = setTimeout(() => {
-    console.log('send debounced', action);
+    // console.log('send debounced', action);
     app.ports.onDebounce.send({
       action,
       payloads: debouncers[action].payloads || [],

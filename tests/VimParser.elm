@@ -258,6 +258,14 @@ cases =
     , ( ":"
       , ( { initialMode | modeName = ModeNameEx ":" }, ":" )
       )
+    , ( ":<tab>"
+      , ( { initialMode
+            | modeName = ModeNameEx ":"
+            , edit = SelectAutoComplete Forward |> Just
+          }
+        , ":"
+        )
+      )
     , ( ":<esc>"
       , ( initialMode, "" )
       )

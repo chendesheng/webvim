@@ -8,6 +8,7 @@ import Message
         , LocationItem
         , elmMakeResultDecoder
         , TokenizeResponse(..)
+        , File
         )
 import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
@@ -106,32 +107,30 @@ syntaxErrorParser =
 
 
 parseLintResponse : Result a String -> Result String (List LocationItem)
-parseLintResponse =
-    (\resp ->
-        case Result.mapError toString resp of
-            Ok s ->
-                if String.startsWith "[" s then
-                    decodeString elmMakeResultDecoder s
-                else
-                    case P.run syntaxErrorParser s of
-                        Ok item ->
-                            Ok [ item ]
+parseLintResponse resp =
+    case Result.mapError toString resp of
+        Ok s ->
+            if String.startsWith "[" s then
+                decodeString elmMakeResultDecoder s
+            else
+                case P.run syntaxErrorParser s of
+                    Ok item ->
+                        Ok [ item ]
 
-                        Err _ ->
-                            Ok
-                                [ { tipe = "error"
-                                  , tag = ""
-                                  , file = ""
-                                  , overview = ""
-                                  , details = s
-                                  , region = ( ( 0, 0 ), ( 0, 0 ) )
-                                  , subRegion = Nothing
-                                  }
-                                ]
+                    Err _ ->
+                        Ok
+                            [ { tipe = "error"
+                              , tag = ""
+                              , file = ""
+                              , overview = ""
+                              , details = s
+                              , region = ( ( 0, 0 ), ( 0, 0 ) )
+                              , subRegion = Nothing
+                              }
+                            ]
 
-            Err err ->
-                Err err
-    )
+        Err err ->
+            Err err
 
 
 sendLintProject : String -> Cmd Msg
@@ -282,3 +281,22 @@ sendTokenize url line path lines =
                 )
                 body
             |> Http.send Tokenized
+
+
+parseFileList : Result a String -> Result String (List File)
+parseFileList resp =
+    case resp of
+        Ok s ->
+            s
+                |> String.split "\n"
+                |> List.map String.trim
+                |> Ok
+
+        Err err ->
+            Err <| toString err
+
+
+sendListFiles : String -> Cmd Msg
+sendListFiles url =
+    Http.getString (url ++ "/ls")
+        |> Http.send (parseFileList >> ListFiles)

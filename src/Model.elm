@@ -11,6 +11,8 @@ import Syntax exposing (..)
 import Elm.Array as Array
 import Persistent exposing (getBuffer)
 import Json.Encode as Encode
+import Fuzzy exposing (FuzzyMatchItem)
+import Elm.Array exposing (Array)
 
 
 type alias Undo =
@@ -39,16 +41,28 @@ type alias VisualMode =
     }
 
 
+type alias AutoComplete =
+    { source : List String
+    , matches : Array FuzzyMatchItem
+    , select : Int
+    , scrollTop : Int
+    }
+
+
 type Mode
     = Normal
     | Visual VisualMode
     | Insert
     | TempNormal
-    | Ex
-        { prefix : ExPrefix
-        , exbuf : Buffer
-        , visual : Maybe VisualMode
-        }
+    | Ex ExMode
+
+
+type alias ExMode =
+    { prefix : ExPrefix
+    , exbuf : Buffer
+    , visual : Maybe VisualMode
+    , autoComplete : Maybe AutoComplete
+    }
 
 
 type alias View =

@@ -13,6 +13,7 @@ open Suave.Logging
 open Suave.Writers
 open System.Diagnostics
 open System.Text
+open System.Collections.Generic
 
 let trace x =
   printfn "%s" x
@@ -57,7 +58,6 @@ let elmLint file =
         trace "elm lint"
         let p = new Process()
         p.StartInfo.UseShellExecute <- false
-        p.StartInfo.RedirectStandardInput <- true;
         p.StartInfo.RedirectStandardOutput <- true;
         p.StartInfo.RedirectStandardError <- true;
         p.StartInfo.FileName <- "elm-make"
@@ -124,6 +124,35 @@ let write =
               OK ""
         | Choice2Of2 msg -> BAD_REQUEST msg)
 
+
+let ag args =
+    try
+        trace ("ag " + args)
+        let p = new Process()
+        p.StartInfo.UseShellExecute <- false
+        p.StartInfo.RedirectStandardOutput <- true;
+        p.StartInfo.RedirectStandardError <- true;
+        p.StartInfo.FileName <- "ag"
+        p.StartInfo.Arguments <- "-l --nocolor"
+
+        p.Start()
+
+        let result = p.StandardOutput.ReadToEnd()
+
+        p.WaitForExit()
+        p.Close()
+        Some result
+    with :? Exception as e ->
+        printfn "[ag] error: %s" e.Message
+        None
+
+let listFiles =
+    request (fun r ->
+        match ag "-l --nocolor" with
+        | Some s -> OK s
+        | None -> OK "")
+
+
 let logger = Targets.create Verbose [||]
 
 let app =
@@ -139,6 +168,7 @@ let app =
               Environment.Exit(0)
               OK "" x)
           path "/lint" >=> lint
+          path "/ls" >=> listFiles
         ]
 
       POST >=> choose
