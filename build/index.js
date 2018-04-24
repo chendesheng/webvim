@@ -22,10 +22,16 @@ const restoreBuffer = (path) => {
 };
 
 
+const host = location.hostname || 'localhost';
+let scheme = '';
+if (!location.hostname) {
+  scheme = 'http:';
+}
+
 const flags = {
   lineHeight,
-  service: `//${location.hostname}:8080`,
-  syntaxService: `//${location.hostname}:8765`,
+  service: `${scheme}//${host}:8080`,
+  syntaxService: `${scheme}//${host}:8765`,
   buffer: activeBuffer,
 };
 const app = Elm.Main.fullscreen(flags);
