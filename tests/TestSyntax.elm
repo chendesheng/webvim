@@ -65,12 +65,10 @@ cases =
             )
       }
     , { description = "insert to right"
-      , syntax = [ [ newToken2 3 "mtk1" ] ]
+      , syntax = [ [ newToken2 3 "mtk2" ] ]
       , patches = [ Insertion ( 0, 3 ) (B.fromString "aa") ]
       , result =
-            ( [ [ newToken2 3 "mtk1"
-                , newToken2 2 "mtk1"
-                ]
+            ( [ [ newToken2 5 "mtk2" ]
               ]
             , Just 0
             )
@@ -79,8 +77,7 @@ cases =
       , syntax = [ [ newToken2 3 "mtk1" ] ]
       , patches = [ Insertion ( 0, 2 ) (B.fromString "aa") ]
       , result =
-            ( [ [ newToken2 2 "mtk1"
-                , newToken2 2 "mtk1"
+            ( [ [ newToken2 4 "mtk1"
                 , newToken2 1 "mtk1"
                 ]
               ]
@@ -95,8 +92,7 @@ cases =
             ]
       , patches = [ Insertion ( 0, 3 ) (B.fromString "aa") ]
       , result =
-            ( [ [ newToken2 3 "mtk1"
-                , newToken2 2 "mtk2"
+            ( [ [ newToken2 5 "mtk1"
                 , newToken2 4 "mtk2"
                 ]
               ]
@@ -113,8 +109,7 @@ cases =
       , patches = [ Insertion ( 0, 5 ) (B.fromString "aa") ]
       , result =
             ( [ [ newToken2 3 "mtk1"
-                , newToken2 2 "mtk2"
-                , newToken2 2 "mtk2"
+                , newToken2 4 "mtk2"
                 , newToken2 2 "mtk2"
                 , newToken2 4 "mtk3"
                 ]

@@ -283,6 +283,35 @@ sendTokenize url line path lines =
             |> Http.send Tokenized
 
 
+sendTokenizeLine : String -> Int -> String -> String -> Cmd Msg
+sendTokenizeLine url line path lines =
+    Cmd.map
+        (\msg ->
+            case msg of
+                Tokenized res ->
+                    res
+                        |> Result.map
+                            (\r ->
+                                case r of
+                                    TokenizeSuccess i syntax ->
+                                        case Array.get 0 syntax of
+                                            Just tokens ->
+                                                LineTokenizeSuccess i tokens
+
+                                            _ ->
+                                                r
+
+                                    _ ->
+                                        r
+                            )
+                        |> Tokenized
+
+                _ ->
+                    msg
+        )
+        (sendTokenize url line path lines)
+
+
 parseFileList : Result a String -> Result String (List File)
 parseFileList resp =
     case resp of

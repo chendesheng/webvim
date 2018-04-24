@@ -187,7 +187,7 @@ server.route({
         // console.log('Line: #' + i + ', tokens: ' + r.tokens);
         cache[n+1] = r.ruleStack;
       }
-      allCaches[request.query.path] = cache.slice(0, begin + lines.length);
+      allCaches[request.query.path] = cache.slice(0, begin + lines.length + 1);
       // console.log(result);
       return setCORSHeader(
         h.response({ type: 'success', payload: result })

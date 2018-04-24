@@ -46,7 +46,6 @@ applyPatchToSyntax patch syntax =
                            else
                             { token | length = x } :: left
                           )
-                            |> List.reverse
                         , (if x == token.length then
                             rest
                            else
@@ -55,7 +54,7 @@ applyPatchToSyntax patch syntax =
                           )
                         )
                     else if List.isEmpty rest then
-                        ( token :: left |> List.reverse, [] )
+                        ( token :: left, [] )
                     else
                         splitTokens (x - token.length)
                             (token :: left)
@@ -93,25 +92,34 @@ applyPatchToSyntax patch syntax =
                             splitLines lines
 
                         classname =
-                            (case List.head right of
+                            (case List.head left of
                                 Just x ->
-                                    Just x
+                                    x.classname
 
                                 _ ->
-                                    getLast left
+                                    List.head right
+                                        |> Maybe.map .classname
+                                        |> Maybe.withDefault ""
                             )
-                                |> Maybe.map .classname
-                                |> Maybe.withDefault ""
+
+                        left1 =
+                            case left of
+                                x :: xs ->
+                                    ({ x | length = x.length + String.length firstLine }
+                                        :: xs
+                                    )
+                                        |> List.reverse
+
+                                _ ->
+                                    [ { length = String.length firstLine
+                                      , classname = classname
+                                      }
+                                    ]
                     in
                         if B.isMutipleLine lines then
                             top
                                 |> Array.push
-                                    (left
-                                        ++ [ { length = String.length firstLine
-                                             , classname = classname
-                                             }
-                                           ]
-                                    )
+                                    left1
                                 |> flip Array.append
                                     (B.mapLines
                                         (\line ->
@@ -126,13 +134,7 @@ applyPatchToSyntax patch syntax =
                                 |> flip Array.append bottom
                         else
                             top
-                                |> Array.push
-                                    (left
-                                        ++ { length = String.length firstLine
-                                           , classname = classname
-                                           }
-                                        :: right
-                                    )
+                                |> Array.push (left1 ++ right)
                                 |> flip Array.append bottom
 
                 _ ->

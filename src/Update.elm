@@ -1060,13 +1060,21 @@ handleKeypress replaying key buf =
                     --    _ =
                     --        Debug.log "y" y
                     --in
-                    debounceTokenize 100
+                    sendTokenizeLine
+                        buf.syntaxService
                         y
+                        buf.path
                         (buf1.lines
-                            |> B.sliceLines y (newBottom + 1)
+                            |> B.sliceLines y (y + 1)
                             |> B.toString
                         )
 
+                --debounceTokenize 100
+                --    y
+                --    (buf1.lines
+                --        |> B.sliceLines y (newBottom + 1)
+                --        |> B.toString
+                --    )
                 _ ->
                     if oldBottom == newBottom then
                         Cmd.none
@@ -1104,7 +1112,7 @@ handleKeypress replaying key buf =
             else
                 Cmd.none
     in
-        ( buf1
+        ( { buf1 | syntaxDirtyFrom = Nothing }
         , Cmd.batch
             ([ todo
              , encodeBuffer buf1 |> saveBuffer
@@ -1114,6 +1122,58 @@ handleKeypress replaying key buf =
              ]
             )
         )
+
+
+onTokenized : Buffer -> Result error TokenizeResponse -> ( Buffer, Cmd Msg )
+onTokenized buf resp =
+    case resp of
+        Ok payload ->
+            case payload of
+                TokenizeSuccess begin syntax ->
+                    ( { buf
+                        | syntax =
+                            buf.syntax
+                                |> Array.slice 0 begin
+                                |> flip Array.append syntax
+                      }
+                    , Cmd.none
+                    )
+
+                LineTokenizeSuccess begin tokens ->
+                    ( { buf | syntax = Array.set begin tokens buf.syntax }
+                    , debounceTokenize
+                        200
+                        (begin + 1)
+                        (buf.lines
+                            |> B.sliceLines
+                                (begin + 1)
+                                (buf.view.scrollTop
+                                    + buf.view.size.height
+                                    + 1
+                                )
+                            |> B.toString
+                        )
+                    )
+
+                TokenizeCacheMiss ->
+                    ( buf
+                    , sendTokenize
+                        buf.syntaxService
+                        0
+                        buf.path
+                        (buf.lines
+                            |> B.sliceLines
+                                0
+                                (buf.view.scrollTop
+                                    + buf.view.size.height
+                                    + buf.config.tokenizeLinesAhead
+                                )
+                            |> B.toString
+                        )
+                    )
+
+        Err _ ->
+            ( buf, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -1221,9 +1281,12 @@ update message buf =
                                 |> Buf.setCursor buf.cursor True
                                 |> cursorScope
                     , if buf.config.lint then
-                        sendLintProject buf.service
+                        Cmd.batch
+                            [ sendLintProject buf.service
+                            , Doc.setTitle buf.name
+                            ]
                       else
-                        Cmd.none
+                        Doc.setTitle buf.name
                     )
 
                 Err err ->
@@ -1284,53 +1347,7 @@ update message buf =
                     ( buf, Cmd.none )
 
         Tokenized resp ->
-            case resp of
-                Ok payload ->
-                    case payload of
-                        TokenizeSuccess begin syntax ->
-                            ( case buf.syntaxDirtyFrom of
-                                Just from ->
-                                    if begin <= from then
-                                        { buf
-                                            | syntax =
-                                                buf.syntax
-                                                    |> Array.slice 0 begin
-                                                    |> flip Array.append syntax
-                                            , syntaxDirtyFrom = Nothing
-                                        }
-                                    else
-                                        buf
-
-                                Nothing ->
-                                    { buf
-                                        | syntax =
-                                            buf.syntax
-                                                |> Array.slice 0 begin
-                                                |> flip Array.append syntax
-                                        , syntaxDirtyFrom = Nothing
-                                    }
-                            , Cmd.none
-                            )
-
-                        TokenizeCacheMiss ->
-                            ( buf
-                            , sendTokenize
-                                buf.syntaxService
-                                0
-                                buf.path
-                                (buf.lines
-                                    |> B.sliceLines
-                                        0
-                                        (buf.view.scrollTop
-                                            + buf.view.size.height
-                                            + buf.config.tokenizeLinesAhead
-                                        )
-                                    |> B.toString
-                                )
-                            )
-
-                Err _ ->
-                    ( buf, Cmd.none )
+            onTokenized buf resp
 
         SendTokenize ( line, lines ) ->
             ( buf

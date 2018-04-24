@@ -64,6 +64,7 @@ elmMakeResultDecoder =
 
 type TokenizeResponse
     = TokenizeSuccess Int Syntax
+    | LineTokenizeSuccess Int (List Token)
     | TokenizeCacheMiss -- happens when server restart
 
 
