@@ -2,7 +2,6 @@
 @statusbar-height: 1.2rem;
 @statusbar-background: #166163;
 @statusbar-dirty-background: #6f0c0c;
-@statusbar-padding: 0.3ch;
 @gutter-lines-spacing: 0ch;
 @font-family: "iosevka";
 @line-height: 23px;
@@ -115,7 +114,6 @@ html, body {
   flex-grow: 0;
   flex-shrink: 1;
   position: relative;
-  padding-left: @statusbar-padding;
   color: contrast(@statusbar-background);
 }
 
@@ -123,16 +121,17 @@ html, body {
   background: linear-gradient(0deg, @statusbar-dirty-background, lighten(@statusbar-dirty-background, 2%));
 }
 
+.status > div:first-child {
+  margin-left: @gutter-lines-spacing + 0.3ch;
+}
+
+.status > div {
+  margin-left: 2ch;
+}
+
 .status .cursor {
   transform: translate(0.2ch, (@statusbar-height - 1) / 2);
-}
-
-.status > div:first-child {
-  padding-left: @gutter-lines-spacing;
-}
-
-.status-cmds {
-  padding-left: 2ch;
+  margin-left: 0.3ch;
 }
 
 .highlights div, .selections div, .lint div {
@@ -178,9 +177,14 @@ html, body {
   margin-right: 4px;
 }
 
-.status .filename {
+.status .status-right {
   margin-left: auto;
-  margin-right: 15px;
+  display: flex;
+  flex-direction: row;
+}
+
+.status-right > div {
+  margin-right: 2ch;
 }
 
 .elm-overlay {

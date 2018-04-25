@@ -139,11 +139,13 @@ renderStatusBar dirty mode continuation errorsCnt name =
             ]
             [ div [] [ text statusBar.text ]
             , renderCursor statusBar.cursor
-            , div [ class "status-cmds" ] [ text continuation ]
-            , div [ class "filename" ] [ text name ]
-            , div [ class "lint-status" ]
-                [ i [ class "far fa-times-circle" ] []
-                , text <| toString errorsCnt
+            , div [ class "status-right" ]
+                [ div [ class "status-cmds" ] [ text continuation ]
+                , div [ class "filename" ] [ text name ]
+                , div [ class "lint-status" ]
+                    [ i [ class "far fa-times-circle" ] []
+                    , text <| toString errorsCnt
+                    ]
                 ]
             ]
 
