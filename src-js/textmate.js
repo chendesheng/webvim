@@ -158,6 +158,10 @@ server.route({
       if (!/^\d+$/.test(request.query.line)) {
         throw new Error('line must be a number');
       }
+      if (!request.query.version) throw new Error('version is required');
+      if (!/^\d+$/.test(request.query.version)) {
+        throw new Error('version must be a number');
+      }
       if (!request.query.path) throw new Error('path is required');
 
       const cache = allCaches[request.query.path] || [];
@@ -169,6 +173,7 @@ server.route({
       console.log ('lines.length:', lines.length);
       console.log('cache.length:', cache.length);
       console.log('request.query.line:', request.query.line);
+      console.log('request.query.version:', request.query.version);
       for (let i = 0; i < lines.length; i++) { // lines.length
         const line = lines[i];
         const n = begin + i;
@@ -190,7 +195,11 @@ server.route({
       allCaches[request.query.path] = cache.slice(0, begin + lines.length + 1);
       // console.log(result);
       return setCORSHeader(
-        h.response({ type: 'success', payload: result })
+        h.response({
+          type: 'success',
+          payload: result,
+          version: parseInt(request.query.version),
+        })
           .code(200)
           .type('text/json'));
     } catch (e) {

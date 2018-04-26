@@ -1061,13 +1061,16 @@ handleKeypress replaying key buf =
                     --        Debug.log "y" y
                     --in
                     sendTokenizeLine
-                        buf.syntaxService
-                        y
+                        buf1.syntaxService
                         buf.path
-                        (buf1.lines
-                            |> B.sliceLines y (y + 1)
-                            |> B.toString
-                        )
+                        { version = buf1.history.version
+                        , line = y
+                        , lines =
+                            (buf1.lines
+                                |> B.sliceLines y (y + 1)
+                                |> B.toString
+                            )
+                        }
 
                 --debounceTokenize 100
                 --    y
@@ -1081,6 +1084,7 @@ handleKeypress replaying key buf =
                     else if newBottom >= Array.length buf1.syntax then
                         debounceTokenize
                             100
+                            buf1.history.version
                             (Array.length buf1.syntax)
                             (buf1.lines
                                 |> B.sliceLines
@@ -1129,20 +1133,27 @@ onTokenized buf resp =
     case resp of
         Ok payload ->
             case payload of
-                TokenizeSuccess begin syntax ->
-                    ( { buf
-                        | syntax =
-                            buf.syntax
-                                |> Array.slice 0 begin
-                                |> flip Array.append syntax
-                      }
+                TokenizeSuccess version begin syntax ->
+                    ( if version == buf.history.version then
+                        { buf
+                            | syntax =
+                                buf.syntax
+                                    |> Array.slice 0 begin
+                                    |> flip Array.append syntax
+                        }
+                      else
+                        buf
                     , Cmd.none
                     )
 
-                LineTokenizeSuccess begin tokens ->
-                    ( { buf | syntax = Array.set begin tokens buf.syntax }
+                LineTokenizeSuccess version begin tokens ->
+                    ( if version == buf.history.version then
+                        { buf | syntax = Array.set begin tokens buf.syntax }
+                      else
+                        buf
                     , debounceTokenize
                         200
+                        buf.history.version
                         (begin + 1)
                         (buf.lines
                             |> B.sliceLines
@@ -1159,17 +1170,19 @@ onTokenized buf resp =
                     ( buf
                     , sendTokenize
                         buf.syntaxService
-                        0
                         buf.path
-                        (buf.lines
-                            |> B.sliceLines
-                                0
-                                (buf.view.scrollTop
-                                    + buf.view.size.height
-                                    + buf.config.tokenizeLinesAhead
-                                )
-                            |> B.toString
-                        )
+                        { version = buf.history.version
+                        , line = 0
+                        , lines =
+                            buf.lines
+                                |> B.sliceLines
+                                    0
+                                    (buf.view.scrollTop
+                                        + buf.view.size.height
+                                        + buf.config.tokenizeLinesAhead
+                                    )
+                                |> B.toString
+                        }
                     )
 
         Err _ ->
@@ -1206,6 +1219,7 @@ update message buf =
                   then
                     debounceTokenize
                         200
+                        buf.history.version
                         (Array.length buf.syntax)
                         (buf.lines
                             |> B.sliceLines
@@ -1242,16 +1256,18 @@ update message buf =
                                 :: Doc.setTitle newbuf.name
                                 :: [ sendTokenize
                                         buf.syntaxService
-                                        0
                                         newbuf.path
-                                        (newbuf.lines
-                                            |> B.sliceLines 0
-                                                (newbuf.view.scrollTop
-                                                    + newbuf.view.size.height
-                                                    + newbuf.config.tokenizeLinesAhead
-                                                )
-                                            |> B.toString
-                                        )
+                                        { version = buf.history.version
+                                        , line = 0
+                                        , lines =
+                                            newbuf.lines
+                                                |> B.sliceLines 0
+                                                    (newbuf.view.scrollTop
+                                                        + newbuf.view.size.height
+                                                        + newbuf.config.tokenizeLinesAhead
+                                                    )
+                                                |> B.toString
+                                        }
                                    ]
                             )
                         )
@@ -1349,13 +1365,12 @@ update message buf =
         Tokenized resp ->
             onTokenized buf resp
 
-        SendTokenize ( line, lines ) ->
+        SendTokenize req ->
             ( buf
             , sendTokenize
                 buf.syntaxService
-                line
                 buf.path
-                lines
+                req
             )
 
         ListFiles resp ->

@@ -9,6 +9,7 @@ import Message
         , elmMakeResultDecoder
         , TokenizeResponse(..)
         , File
+        , TokenizeRequest
         )
 import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
@@ -254,19 +255,25 @@ tokenizeResponseDecoder n =
             (\tipe ->
                 case tipe of
                     "success" ->
-                        Decode.field "payload"
-                            (Decode.list tokensParser
-                                |> Decode.map
-                                    (Array.fromList >> TokenizeSuccess n)
-                            )
+                        Decode.field "version" Decode.int
+                            |> Decode.andThen
+                                (\version ->
+                                    Decode.field "payload"
+                                        (Decode.list tokensParser
+                                            |> Decode.map
+                                                (Array.fromList
+                                                    >> TokenizeSuccess version n
+                                                )
+                                        )
+                                )
 
                     _ ->
                         Decode.succeed TokenizeCacheMiss
             )
 
 
-sendTokenize : String -> Int -> String -> String -> Cmd Msg
-sendTokenize url line path lines =
+sendTokenize : String -> String -> TokenizeRequest -> Cmd Msg
+sendTokenize url path { version, line, lines } =
     let
         body =
             Http.stringBody "text/plain" lines
@@ -278,13 +285,15 @@ sendTokenize url line path lines =
                     ++ path
                     ++ "&line="
                     ++ (toString line)
+                    ++ "&version="
+                    ++ (toString version)
                 )
                 body
             |> Http.send Tokenized
 
 
-sendTokenizeLine : String -> Int -> String -> String -> Cmd Msg
-sendTokenizeLine url line path lines =
+sendTokenizeLine : String -> String -> TokenizeRequest -> Cmd Msg
+sendTokenizeLine url path req =
     Cmd.map
         (\msg ->
             case msg of
@@ -293,10 +302,10 @@ sendTokenizeLine url line path lines =
                         |> Result.map
                             (\r ->
                                 case r of
-                                    TokenizeSuccess i syntax ->
+                                    TokenizeSuccess version i syntax ->
                                         case Array.get 0 syntax of
                                             Just tokens ->
-                                                LineTokenizeSuccess i tokens
+                                                LineTokenizeSuccess version i tokens
 
                                             _ ->
                                                 r
@@ -309,7 +318,7 @@ sendTokenizeLine url line path lines =
                 _ ->
                     msg
         )
-        (sendTokenize url line path lines)
+        (sendTokenize url path req)
 
 
 parseFileList : Result a String -> Result String (List File)

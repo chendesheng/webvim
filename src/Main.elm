@@ -18,10 +18,16 @@ import List
 -- This is the first line written in webvim-elm :)
 
 
-decodeTuple : Decode.Decoder ( Int, String )
-decodeTuple =
-    Decode.map2
-        (\x y -> ( x, y ))
+tokenizeRequestParser : Decode.Decoder TokenizeRequest
+tokenizeRequestParser =
+    Decode.map3
+        (\version line lines ->
+            { version = version
+            , line = line
+            , lines = lines
+            }
+        )
+        (Decode.field "version" Decode.int)
         (Decode.field "line" Decode.int)
         (Decode.field "lines" Decode.string)
 
@@ -30,27 +36,20 @@ handleTokenizeBounce : DebounceEvent -> Msg
 handleTokenizeBounce event =
     event.payloads
         |> List.filterMap
-            (decodeValue decodeTuple
+            (decodeValue tokenizeRequestParser
                 >> Result.toMaybe
             )
         |> List.foldl
             (\result current ->
-                let
-                    a =
-                        Tuple.first result
-
-                    --|> Debug.log "a"
-                    b =
-                        Tuple.first current
-
-                    --|> Debug.log "b"
-                in
-                    if a >= b then
-                        current
-                    else
-                        result
+                if result.line >= current.line then
+                    current
+                else
+                    result
             )
-            ( 0xFFFFFFFF, "" )
+            { version = 0
+            , line = 0xFFFFFFFF
+            , lines = ""
+            }
         |> SendTokenize
 
 

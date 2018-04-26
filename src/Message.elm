@@ -63,9 +63,13 @@ elmMakeResultDecoder =
 
 
 type TokenizeResponse
-    = TokenizeSuccess Int Syntax
-    | LineTokenizeSuccess Int (List Token)
+    = TokenizeSuccess Int Int Syntax
+    | LineTokenizeSuccess Int Int (List Token)
     | TokenizeCacheMiss -- happens when server restart
+
+
+type alias TokenizeRequest =
+    { version : Int, line : Int, lines : String }
 
 
 type Msg
@@ -75,7 +79,7 @@ type Msg
     | Write (Result Http.Error String)
     | Edit BufferInfo
     | SendLint
-    | SendTokenize ( Int, String )
+    | SendTokenize TokenizeRequest
     | Lint (Result String (List LocationItem))
     | LintOnTheFly (Result String (List LocationItem))
     | Tokenized (Result Http.Error TokenizeResponse)
