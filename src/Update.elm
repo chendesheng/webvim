@@ -1278,32 +1278,50 @@ update message buf =
         Write result ->
             case result of
                 Ok s ->
-                    ( if s == "" then
-                        Buf.updateSavePoint buf
-                      else
-                        let
-                            n =
-                                B.countLines buf.lines
+                    let
+                        buf1 =
+                            if s == "" then
+                                Buf.updateSavePoint buf
+                            else
+                                let
+                                    n =
+                                        B.countLines buf.lines
 
-                            patches =
-                                [ Deletion ( 0, 0 ) ( n, 0 )
-                                , Insertion ( 0, 0 ) (B.fromString s)
-                                ]
-                        in
-                            buf
-                                |> Buf.transaction patches
-                                |> Buf.commit
-                                |> Buf.updateSavePoint
-                                |> Buf.setCursor buf.cursor True
-                                |> cursorScope
-                    , if buf.config.lint then
-                        Cmd.batch
-                            [ sendLintProject buf.service
+                                    patches =
+                                        [ Deletion ( 0, 0 ) ( n, 0 )
+                                        , Insertion ( 0, 0 ) (B.fromString s)
+                                        ]
+                                in
+                                    buf
+                                        |> Buf.transaction patches
+                                        |> Buf.commit
+                                        |> Buf.updateSavePoint
+                                        |> Buf.setCursor buf.cursor True
+                                        |> cursorScope
+                    in
+                        ( buf1
+                        , Cmd.batch
+                            [ sendTokenize
+                                buf1.syntaxService
+                                buf1.path
+                                { version = buf1.history.version
+                                , line = 0
+                                , lines =
+                                    buf1.lines
+                                        |> B.sliceLines 0
+                                            (buf1.view.scrollTop
+                                                + buf1.view.size.height
+                                                + 1
+                                            )
+                                        |> B.toString
+                                }
                             , Doc.setTitle buf.name
+                            , if buf.config.lint then
+                                sendLintProject buf.service
+                              else
+                                Cmd.none
                             ]
-                      else
-                        Doc.setTitle buf.name
-                    )
+                        )
 
                 Err err ->
                     ( buf, Cmd.none )
