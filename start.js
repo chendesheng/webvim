@@ -91,5 +91,5 @@ watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
 watch(['tests/**/*.elm'], [ctagsTask("tests") ]);
 watch(['src-fs/**/*.fs'], [serverTask(8080) ]);
-watch(['src-js/textmate.js'], [syntaxServerTask(8765)]);
+watch(['src-js/**/*.js'], [syntaxServerTask(8765)]);
 

@@ -37,7 +37,8 @@ const css = registry.getColorMap().map((color, i) => {
   return `.mtk${i}{color:${color}}\n`;
 }).join('')
   + '.mtki{font-style:italic}\n'
-  + '.mtkb{font-weight:bold}';
+  + '.mtkb{font-weight:bold}\n';
+  + '.mtku{border-bottom: solid 1px}';
 
 module.exports = {
   colors,
