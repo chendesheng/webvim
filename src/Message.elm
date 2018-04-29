@@ -63,13 +63,17 @@ elmMakeResultDecoder =
 
 
 type TokenizeResponse
-    = TokenizeSuccess Int Int Syntax
-    | LineTokenizeSuccess Int Int (List Token)
+    = TokenizeSuccess String Int Int Syntax
+    | LineTokenizeSuccess String Int Int (List Token)
     | TokenizeCacheMiss -- happens when server restart
 
 
 type alias TokenizeRequest =
-    { version : Int, line : Int, lines : String }
+    { path : String
+    , version : Int
+    , line : Int
+    , lines : String
+    }
 
 
 type Msg
@@ -85,3 +89,4 @@ type Msg
     | Tokenized (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List File))
     | NoneMessage
+    | OnJump Position

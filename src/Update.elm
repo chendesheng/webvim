@@ -27,6 +27,7 @@ import Service exposing (sendTokenize)
 import Elm.Array as Array
 import Document as Doc
 import Fuzzy exposing (..)
+import Jumps exposing (saveCursorPosition, jump)
 
 
 stringToPrefix : String -> ExPrefix
@@ -356,9 +357,7 @@ runOperator : String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator register operator buf =
     case operator of
         Move md mo ->
-            buf
-                |> motion md mo
-                |> cmdNone
+            motion md mo buf
 
         Select textobj around ->
             case buf.mode of
@@ -690,6 +689,9 @@ runOperator register operator buf =
                 _ ->
                     ( buf, Cmd.none )
 
+        JumpHistory isForward ->
+            ( buf, jump isForward )
+
         _ ->
             ( buf, Cmd.none )
 
@@ -784,7 +786,9 @@ applyEdit edit register buf =
                                 if isExEditing operator then
                                     let
                                         ( newex1, cmd1 ) =
-                                            exAutoComplete buf1.service newex
+                                            exAutoComplete
+                                                buf1.config.service
+                                                newex
                                     in
                                         ( { buf1 | mode = Ex newex1 }
                                         , Cmd.batch [ cmd, cmd1 ]
@@ -871,14 +875,17 @@ execute : String -> Buffer -> Cmd Msg
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            getBuffer path
+            Cmd.batch
+                [ saveCursorPosition buf.cursor
+                , getBuffer path
+                ]
 
         [ "w" ] ->
-            sendSaveBuffer buf.service buf.path <|
+            sendSaveBuffer buf.config.service buf.path <|
                 B.toString buf.lines
 
         [ "w", path ] ->
-            sendSaveBuffer buf.service path <|
+            sendSaveBuffer buf.config.service path <|
                 B.toString buf.lines
 
         _ ->
@@ -1061,8 +1068,7 @@ handleKeypress replaying key buf =
                     --        Debug.log "y" y
                     --in
                     sendTokenizeLine
-                        buf1.syntaxService
-                        buf.path
+                        buf1.config.syntaxService
                         { version = buf1.history.version
                         , line = y
                         , lines =
@@ -1070,6 +1076,7 @@ handleKeypress replaying key buf =
                                 |> B.sliceLines y (y + 1)
                                 |> B.toString
                             )
+                        , path = buf.path
                         }
 
                 --debounceTokenize 100
@@ -1084,6 +1091,7 @@ handleKeypress replaying key buf =
                     else if newBottom >= Array.length buf1.syntax then
                         debounceTokenize
                             100
+                            buf1.path
                             buf1.history.version
                             (Array.length buf1.syntax)
                             (buf1.lines
@@ -1133,8 +1141,11 @@ onTokenized buf resp =
     case resp of
         Ok payload ->
             case payload of
-                TokenizeSuccess version begin syntax ->
-                    ( if version == buf.history.version then
+                TokenizeSuccess path version begin syntax ->
+                    ( if
+                        (path == buf.path)
+                            && (version == buf.history.version)
+                      then
                         { buf
                             | syntax =
                                 buf.syntax
@@ -1146,13 +1157,17 @@ onTokenized buf resp =
                     , Cmd.none
                     )
 
-                LineTokenizeSuccess version begin tokens ->
-                    ( if version == buf.history.version then
+                LineTokenizeSuccess path version begin tokens ->
+                    ( if
+                        (path == buf.path)
+                            && (version == buf.history.version)
+                      then
                         { buf | syntax = Array.set begin tokens buf.syntax }
                       else
                         buf
                     , debounceTokenize
                         200
+                        buf.path
                         buf.history.version
                         (begin + 1)
                         (buf.lines
@@ -1169,9 +1184,9 @@ onTokenized buf resp =
                 TokenizeCacheMiss ->
                     ( buf
                     , sendTokenize
-                        buf.syntaxService
-                        buf.path
-                        { version = buf.history.version
+                        buf.config.syntaxService
+                        { path = buf.path
+                        , version = buf.history.version
                         , line = 0
                         , lines =
                             buf.lines
@@ -1219,6 +1234,7 @@ update message buf =
                   then
                     debounceTokenize
                         200
+                        buf.path
                         buf.history.version
                         (Array.length buf.syntax)
                         (buf.lines
@@ -1241,23 +1257,23 @@ update message buf =
                         newbuf =
                             Buf.newBuffer
                                 info
-                                buf.service
-                                buf.syntaxService
+                                buf.config.service
+                                buf.config.syntaxService
                                 buf.view.size
                                 buf.view.lineHeight
                     in
                         ( newbuf
                         , Cmd.batch
                             ((if newbuf.config.lint then
-                                sendLintProject buf.service
+                                sendLintProject buf.config.service
                               else
                                 Cmd.none
                              )
                                 :: Doc.setTitle newbuf.name
                                 :: [ sendTokenize
-                                        buf.syntaxService
-                                        newbuf.path
-                                        { version = buf.history.version
+                                        buf.config.syntaxService
+                                        { path = Debug.log "path" newbuf.path
+                                        , version = buf.history.version
                                         , line = 0
                                         , lines =
                                             newbuf.lines
@@ -1302,9 +1318,9 @@ update message buf =
                         ( buf1
                         , Cmd.batch
                             [ sendTokenize
-                                buf1.syntaxService
-                                buf1.path
-                                { version = buf1.history.version
+                                buf1.config.syntaxService
+                                { path = buf1.path
+                                , version = buf1.history.version
                                 , line = 0
                                 , lines =
                                     buf1.lines
@@ -1317,7 +1333,7 @@ update message buf =
                                 }
                             , Doc.setTitle buf.name
                             , if buf.config.lint then
-                                sendLintProject buf.service
+                                sendLintProject buf.config.service
                               else
                                 Cmd.none
                             ]
@@ -1327,13 +1343,13 @@ update message buf =
                     ( buf, Cmd.none )
 
         Edit info ->
-            ( buf, sendEditBuffer buf.service info )
+            ( buf, sendEditBuffer buf.config.service info )
 
         SendLint ->
             if buf.config.lint then
                 ( buf
                 , sendLintOnTheFly
-                    buf.service
+                    buf.config.service
                     buf.path
                     (B.toString buf.lines)
                 )
@@ -1386,8 +1402,7 @@ update message buf =
         SendTokenize req ->
             ( buf
             , sendTokenize
-                buf.syntaxService
-                buf.path
+                buf.config.syntaxService
                 req
             )
 
@@ -1431,6 +1446,32 @@ update message buf =
 
                 Err _ ->
                     ( buf, Cmd.none )
+
+        OnJump pos ->
+            ( buf
+                |> Buf.setCursor pos True
+                |> scrollToCursor
+            , if
+                (buf.view.scrollTop + buf.view.size.height)
+                    > Array.length buf.syntax
+              then
+                debounceTokenize
+                    200
+                    buf.path
+                    buf.history.version
+                    (Array.length buf.syntax)
+                    (buf.lines
+                        |> B.sliceLines
+                            (Array.length buf.syntax)
+                            (buf.view.scrollTop
+                                + buf.view.size.height
+                                + buf.config.tokenizeLinesAhead
+                            )
+                        |> B.toString
+                    )
+              else
+                Cmd.none
+            )
 
         _ ->
             ( buf, Cmd.none )

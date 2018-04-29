@@ -1,6 +1,6 @@
 {
   "name": "webvim",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "",
   "main": "dist/elm.js",
   "scripts": {

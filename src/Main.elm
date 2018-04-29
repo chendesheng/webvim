@@ -12,6 +12,7 @@ import Persistent exposing (restoreBuffer)
 import Message exposing (..)
 import Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
 import Json.Decode as Decode exposing (decodeValue)
+import Jumps exposing (onJump)
 import List
 
 
@@ -20,13 +21,15 @@ import List
 
 tokenizeRequestParser : Decode.Decoder TokenizeRequest
 tokenizeRequestParser =
-    Decode.map3
-        (\version line lines ->
-            { version = version
+    Decode.map4
+        (\path version line lines ->
+            { path = path
+            , version = version
             , line = line
             , lines = lines
             }
         )
+        (Decode.field "path" Decode.string)
         (Decode.field "version" Decode.int)
         (Decode.field "line" Decode.int)
         (Decode.field "lines" Decode.string)
@@ -46,7 +49,8 @@ handleTokenizeBounce event =
                 else
                     result
             )
-            { version = 0
+            { path = ""
+            , version = 0
             , line = 0xFFFFFFFF
             , lines = ""
             }
@@ -65,6 +69,7 @@ main =
                     [ downs PressKey
                     , resizes Resize
                     , restoreBuffer Edit
+                    , onJump OnJump
                     , onDebounce <|
                         decodeEvent
                             (\resp ->

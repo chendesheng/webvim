@@ -138,8 +138,6 @@ type alias Buffer =
         , indent : Int
         }
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
-    , service : String
-    , syntaxService : String
     }
 
 
@@ -192,6 +190,8 @@ type alias BufferConfig =
     , expandTab : Bool
     , lint : Bool
     , tokenizeLinesAhead : Int
+    , service : String
+    , syntaxService : String
     }
 
 
@@ -202,6 +202,8 @@ defaultBufferConfig =
     , expandTab = True
     , lint = False
     , tokenizeLinesAhead = 20
+    , service = ""
+    , syntaxService = ""
     }
 
 
@@ -232,8 +234,6 @@ emptyBuffer =
         , indent = 0
         }
     , vimASTCache = Dict.empty
-    , service = ""
-    , syntaxService = ""
     }
 
 
@@ -254,23 +254,18 @@ init { lineHeight, service, syntaxService, buffer } =
         buf =
             { emptyBuffer
                 | view = { view | lineHeight = lineHeight }
-                , service = service
-                , syntaxService = syntaxService
+                , config =
+                    { defaultBufferConfig
+                        | service = service
+                        , syntaxService = syntaxService
+                    }
             }
-
-        cmds =
-            case buffer of
-                Just path ->
-                    [ getBuffer path ]
-
-                _ ->
-                    []
     in
         ( buf
         , Cmd.batch <|
             [ Task.perform Resize Win.size
             ]
-                ++ cmds
+                ++ [ buffer |> Maybe.withDefault "" |> getBuffer ]
         )
 
 

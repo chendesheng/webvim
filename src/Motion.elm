@@ -17,6 +17,8 @@ import Position exposing (Position, positionMin)
 import String
 import PositionClass exposing (..)
 import Regex as Re
+import Jumps exposing (saveCursorPosition)
+import Message exposing (Msg(..))
 
 
 setVisualBegin : Position -> Buffer -> Buffer
@@ -415,15 +417,48 @@ isSaveColumn md =
             True
 
 
-motion : V.MotionData -> V.MotionOption -> Buffer -> Buffer
+saveCursorAfterJump : V.MotionData -> Position -> Position -> Cmd Msg
+saveCursorAfterJump md cursorBefore cursorAfter =
+    let
+        isJump md =
+            case md of
+                V.LineNumber _ ->
+                    True
+
+                V.ViewTop ->
+                    True
+
+                V.ViewMiddle ->
+                    True
+
+                V.ViewBottom ->
+                    True
+
+                V.MatchString ->
+                    True
+
+                V.RepeatMatchString ->
+                    True
+
+                _ ->
+                    False
+    in
+        if cursorBefore /= cursorAfter && isJump md then
+            saveCursorPosition cursorAfter
+        else
+            Cmd.none
+
+
+motion : V.MotionData -> V.MotionOption -> Buffer -> ( Buffer, Cmd Msg )
 motion md mo buf =
     case runMotion md mo buf of
         Just cursor ->
-            buf
+            ( buf
                 |> Buf.setCursor cursor (isSaveColumn md)
                 |> setVisualEnd cursor
                 |> saveMotion md mo
+            , saveCursorAfterJump md buf.cursor cursor
+            )
 
         Nothing ->
-            buf
-                |> saveMotion md mo
+            ( saveMotion md mo buf, Cmd.none )

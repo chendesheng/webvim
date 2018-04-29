@@ -525,13 +525,18 @@ newBuffer info service syntaxService size lineHeight =
             filename path
 
         --|> Debug.log "path"
+        config =
+            configs
+                |> Dict.get ext
+                |> Maybe.withDefault defaultBufferConfig
     in
         { emptyBuffer
             | lines = lines
             , config =
-                configs
-                    |> Dict.get ext
-                    |> Maybe.withDefault defaultBufferConfig
+                { config
+                    | service = service
+                    , syntaxService = syntaxService
+                }
             , view =
                 { emptyView
                     | size = size
@@ -542,8 +547,6 @@ newBuffer info service syntaxService size lineHeight =
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
-            , service = service
-            , syntaxService = syntaxService
         }
 
 

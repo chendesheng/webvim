@@ -199,6 +199,7 @@ server.route({
           type: 'success',
           payload: result,
           version: parseInt(request.query.version),
+          path: request.query.path,
         })
           .code(200)
           .type('text/json'));

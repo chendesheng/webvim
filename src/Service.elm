@@ -255,25 +255,23 @@ tokenizeResponseDecoder n =
             (\tipe ->
                 case tipe of
                     "success" ->
-                        Decode.field "version" Decode.int
-                            |> Decode.andThen
-                                (\version ->
-                                    Decode.field "payload"
-                                        (Decode.list tokensParser
-                                            |> Decode.map
-                                                (Array.fromList
-                                                    >> TokenizeSuccess version n
-                                                )
-                                        )
-                                )
+                        Decode.map3
+                            (\path version list ->
+                                list
+                                    |> Array.fromList
+                                    |> TokenizeSuccess path version n
+                            )
+                            (Decode.field "path" Decode.string)
+                            (Decode.field "version" Decode.int)
+                            (Decode.field "payload" (Decode.list tokensParser))
 
                     _ ->
                         Decode.succeed TokenizeCacheMiss
             )
 
 
-sendTokenize : String -> String -> TokenizeRequest -> Cmd Msg
-sendTokenize url path { version, line, lines } =
+sendTokenize : String -> TokenizeRequest -> Cmd Msg
+sendTokenize url { path, version, line, lines } =
     let
         body =
             Http.stringBody "text/plain" lines
@@ -292,8 +290,8 @@ sendTokenize url path { version, line, lines } =
             |> Http.send Tokenized
 
 
-sendTokenizeLine : String -> String -> TokenizeRequest -> Cmd Msg
-sendTokenizeLine url path req =
+sendTokenizeLine : String -> TokenizeRequest -> Cmd Msg
+sendTokenizeLine url req =
     Cmd.map
         (\msg ->
             case msg of
@@ -302,10 +300,14 @@ sendTokenizeLine url path req =
                         |> Result.map
                             (\r ->
                                 case r of
-                                    TokenizeSuccess version i syntax ->
+                                    TokenizeSuccess path version i syntax ->
                                         case Array.get 0 syntax of
                                             Just tokens ->
-                                                LineTokenizeSuccess version i tokens
+                                                LineTokenizeSuccess
+                                                    path
+                                                    version
+                                                    i
+                                                    tokens
 
                                             _ ->
                                                 r
@@ -318,7 +320,7 @@ sendTokenizeLine url path req =
                 _ ->
                     msg
         )
-        (sendTokenize url path req)
+        (sendTokenize url req)
 
 
 parseFileList : Result a String -> Result String (List File)
