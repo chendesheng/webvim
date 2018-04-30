@@ -1265,7 +1265,7 @@ update message buf =
                         ( newbuf
                         , Cmd.batch
                             ((if newbuf.config.lint then
-                                sendLintProject buf.config.service
+                                sendLintProject buf.path buf.config.service
                               else
                                 Cmd.none
                              )
@@ -1333,7 +1333,7 @@ update message buf =
                                 }
                             , Doc.setTitle buf.name
                             , if buf.config.lint then
-                                sendLintProject buf.config.service
+                                sendLintProject buf.path buf.config.service
                               else
                                 Cmd.none
                             ]

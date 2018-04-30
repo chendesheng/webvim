@@ -134,9 +134,9 @@ parseLintResponse resp =
             Err err
 
 
-sendLintProject : String -> Cmd Msg
-sendLintProject url =
-    Http.getString (url ++ "/lint")
+sendLintProject : String -> String -> Cmd Msg
+sendLintProject url path =
+    Http.getString (url ++ "/lint?path=" ++ path)
         |> Http.send (parseLintResponse >> Lint)
 
 

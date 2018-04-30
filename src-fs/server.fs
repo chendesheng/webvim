@@ -53,14 +53,15 @@ let elmFormat (input : String) =
         printfn "[elm-format] error: %s" e.Message
         None
 
-let elmLint file =
+let elmLint (dir: String) (file : String) =
     try
         trace "elm lint"
         let p = new Process()
         p.StartInfo.UseShellExecute <- false
-        p.StartInfo.RedirectStandardOutput <- true;
-        p.StartInfo.RedirectStandardError <- true;
+        p.StartInfo.RedirectStandardOutput <- true
+        p.StartInfo.RedirectStandardError <- true
         p.StartInfo.FileName <- "elm-make"
+        p.StartInfo.WorkingDirectory <- dir
         p.StartInfo.Arguments <-
             (file + " --yes --warn --report=json --output=/dev/null")
 
@@ -86,20 +87,35 @@ let elmLint file =
 
 let lintTempFile = Path.GetRandomFileName()
 
-let elmLintOnTheFly content =
+let elmLintDir (r : HttpRequest) =
+  match r.queryParam "path" with
+  | Choice1Of2 p ->
+    if p.StartsWith("tests/") then "tests" else "" 
+  | Choice2Of2 _ ->
+    ""
+  
+
+let elmLintOnTheFly r =
     let name = Path.Combine(Path.GetTempPath(), lintTempFile)
-    File.WriteAllBytes (name, content)
-    elmLint name
+    File.WriteAllBytes (name, r.rawForm)
+    elmLint (elmLintDir r) name
 
 let lint =
     request (fun r ->
-        match elmLint "src/Main.elm" with
-        | Some json -> OK json
-        | None -> OK "")
+        match r.queryParam "path" with
+        | Choice1Of2 p ->
+          let file = if p.StartsWith("tests/") then
+                        p.Substring(6)
+                     else "src/Main.elm"
+          let dir = elmLintDir r 
+          match elmLint dir file with
+          | Some json -> OK json
+          | None -> OK ""
+        | Choice2Of2 msg -> BAD_REQUEST msg)
 
 let lintOnTheFly =
     request (fun r ->
-        match elmLintOnTheFly r.rawForm with
+        match elmLintOnTheFly r with
         | Some json -> OK json
         | None -> OK "")
 
