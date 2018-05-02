@@ -417,8 +417,8 @@ isSaveColumn md =
             True
 
 
-saveCursorAfterJump : V.MotionData -> Position -> Position -> Cmd Msg
-saveCursorAfterJump md cursorBefore cursorAfter =
+saveCursorAfterJump : V.MotionData -> Position -> Position -> Buffer -> Buffer
+saveCursorAfterJump md cursorBefore cursorAfter buf =
     let
         isJump md =
             case md of
@@ -444,9 +444,17 @@ saveCursorAfterJump md cursorBefore cursorAfter =
                     False
     in
         if cursorBefore /= cursorAfter && isJump md then
-            saveCursorPosition cursorAfter
+            let
+                jumps =
+                    saveCursorPosition
+                        { path = buf.path
+                        , cursor = cursorAfter
+                        }
+                        buf.jumps
+            in
+                { buf | jumps = jumps }
         else
-            Cmd.none
+            buf
 
 
 motion : V.MotionData -> V.MotionOption -> Buffer -> ( Buffer, Cmd Msg )
@@ -457,7 +465,8 @@ motion md mo buf =
                 |> Buf.setCursor cursor (isSaveColumn md)
                 |> setVisualEnd cursor
                 |> saveMotion md mo
-            , saveCursorAfterJump md buf.cursor cursor
+                |> saveCursorAfterJump md buf.cursor cursor
+            , Cmd.none
             )
 
         Nothing ->

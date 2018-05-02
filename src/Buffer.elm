@@ -68,6 +68,7 @@ import Syntax
         )
 import Elm.Array as Array exposing (Array)
 import Helper exposing (minMaybe)
+import Jumps exposing (Jumps, saveCursorPosition)
 
 
 applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch, Int )
@@ -510,8 +511,16 @@ configs =
         ]
 
 
-newBuffer : BufferInfo -> String -> String -> Size -> Int -> Buffer
-newBuffer info service syntaxService size lineHeight =
+newBuffer :
+    BufferInfo
+    -> String
+    -> String
+    -> Size
+    -> Int
+    -> Jumps
+    -> Dict String BufferInfo
+    -> Buffer
+newBuffer info service syntaxService size lineHeight jumps buffers =
     let
         { cursor, scrollTop, path, content } =
             info
@@ -547,6 +556,8 @@ newBuffer info service syntaxService size lineHeight =
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
+            , jumps = jumps
+            , buffers = buffers
         }
 
 

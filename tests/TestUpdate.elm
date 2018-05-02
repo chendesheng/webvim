@@ -1293,6 +1293,199 @@ joinCases =
     ]
 
 
+jumpsCasesBuf : Buffer
+jumpsCasesBuf =
+    let
+        view =
+            emptyBuffer.view
+
+        jumps =
+            emptyBuffer.jumps
+    in
+        { emptyBuffer
+            | lines = B.fromString """123
+456
+789
+abc
+def
+"""
+            , view = { view | size = { width = 20, height = 6 } }
+            , path = "testpath"
+            , jumps = { jumps | current = { path = "testpath", cursor = ( 0, 0 ) } }
+        }
+
+
+jumpsCases : List ( String, Buffer )
+jumpsCases =
+    [ ( "G"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards = [ { path = "testpath", cursor = ( 0, 0 ) } ]
+                , forwards = []
+                , current = { path = "testpath", cursor = ( 4, 0 ) }
+                }
+        }
+      )
+    , ( "GM"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = []
+                , current = { path = "testpath", cursor = ( 2, 0 ) }
+                }
+        }
+      )
+    , ( "GMH"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 2, 0 ) }
+                    , { path = "testpath", cursor = ( 4, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = []
+                , current = { path = "testpath", cursor = ( 0, 0 ) }
+                }
+        }
+      )
+    , ( "GMH<c-o>"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = [ { path = "testpath", cursor = ( 0, 0 ) } ]
+                , current = { path = "testpath", cursor = ( 2, 0 ) }
+                }
+        }
+      )
+    , ( "GMH<c-o><c-o>"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards =
+                    [ { path = "testpath", cursor = ( 2, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , current = { path = "testpath", cursor = ( 4, 0 ) }
+                }
+        }
+      )
+    , ( "GMH<c-o><c-o><tab>"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = [ { path = "testpath", cursor = ( 0, 0 ) } ]
+                , current = { path = "testpath", cursor = ( 2, 0 ) }
+                }
+        }
+      )
+    , ( "GMH<c-o><c-o><tab>L"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 2, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    , { path = "testpath", cursor = ( 4, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = []
+                , current = { path = "testpath", cursor = ( 4, 0 ) }
+                }
+        }
+      )
+    , ( "GMH<c-o><c-o><tab>?23<cr>"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 2, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    , { path = "testpath", cursor = ( 4, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = []
+                , current = { path = "testpath", cursor = ( 0, 1 ) }
+                }
+        }
+      )
+    , ( "/bc<cr>"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards = [ { path = "testpath", cursor = ( 0, 0 ) } ]
+                , forwards = []
+                , current = { path = "testpath", cursor = ( 3, 1 ) }
+                }
+        }
+      )
+    , ( "G?bc<cr>"
+      , { jumpsCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
+                    , { path = "testpath", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = []
+                , current = { path = "testpath", cursor = ( 3, 1 ) }
+                }
+        }
+      )
+    ]
+
+
+editBufferCasesBuf : Buffer
+editBufferCasesBuf =
+    { emptyBuffer
+        | name = "src/test.elm"
+        , buffers =
+            Dict.fromList
+                [ ( "src/test.elm"
+                  , { path = "src/test.elm"
+                    , content = Just "123"
+                    , cursor = ( 0, 0 )
+                    , scrollTop = 0
+                    }
+                  )
+                ]
+    }
+
+
+editBufferCases : List ( String, Buffer )
+editBufferCases =
+    [ ( ":e src/test.elm<cr>"
+      , { editBufferCasesBuf
+            | jumps =
+                { backwards =
+                    [ { path = "", cursor = ( 0, 0 ) }
+                    ]
+                , forwards = []
+                , current = { path = "src/test.elm", cursor = ( 0, 0 ) }
+                }
+            , path = "src/test.elm"
+            , lines = B.fromString "123"
+            , buffers =
+                Dict.fromList
+                    [ ( ""
+                      , { path = ""
+                        , content = Just "\n"
+                        , scrollTop = 0
+                        , cursor = ( 0, 0 )
+                        }
+                      )
+                    ]
+        }
+      )
+    ]
+
+
 allCases :
     List
         { cases : List ( String, Buffer )
@@ -1326,6 +1519,9 @@ allCases =
                     buf.view
             in
                 { buf | view = { view | scrollTop = 0 } }
+
+        clearJumps buf =
+            { buf | jumps = emptyBuffer.jumps }
     in
         [ { name = "insert cases"
           , cases = insertCases
@@ -1342,6 +1538,7 @@ allCases =
                     { buf
                         | history = emptyBufferHistory
                         , registers = Dict.empty
+                        , jumps = emptyBuffer.jumps
                     }
                 )
                     >> defaultMap
@@ -1372,6 +1569,7 @@ allCases =
                             _ ->
                                 clearScrollTop buf
                 )
+                    >> clearJumps
                     >> defaultMap
           }
         , { name = "delete cases"
@@ -1449,6 +1647,28 @@ allCases =
                     >> Buf.clearHistory
                     >> defaultMap
           }
+        , { name = "jumps cases"
+          , cases = jumpsCases
+          , model = jumpsCasesBuf
+          , map =
+                (\buf ->
+                    { buf
+                        | last = emptyLast
+                        , cursor = ( 0, 0 )
+                        , cursorColumn = 0
+                    }
+                )
+                    >> defaultMap
+          }
+        , { name = "edit buffer cases"
+          , cases = editBufferCases
+          , model = editBufferCasesBuf
+          , map =
+                (\buf ->
+                    { buf | config = emptyBuffer.config }
+                )
+                    >> defaultMap
+          }
         ]
 
 
@@ -1483,12 +1703,12 @@ suite =
                 describe name <|
                     List.map
                         (\( s, buf ) ->
+                            --if s == "GMH<c-o><c-o><tab>?23<cr>" then
                             keysTest
                                 (clearASTCache >> map)
                                 s
                                 buf
                                 model
-                         --if s == "d/4<cr>" then
                          --else
                          --    (test s <| \_ -> Expect.equal 1 1)
                         )

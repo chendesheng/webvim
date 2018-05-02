@@ -90,7 +90,7 @@ const allGrammars = {
   'js': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/javascript/syntaxes/JavaScript.tmLanguage.json'),
   'jsx': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/javascript/syntaxes/JavaScriptReact.tmLanguage.json'),
   'fs': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/fsharp/syntaxes/fsharp.tmLanguage.json'),
-  'elm': registry.loadGrammarFromPathSync('/Users/chendesheng/.vscode/extensions/sbrink.elm-0.16.0/syntaxes/elm.json'),
+  'elm': registry.loadGrammarFromPathSync('/Users/chendesheng/.vscode/extensions/sbrink.elm-0.17.0/syntaxes/elm.json'),
   'rb': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/ruby/syntaxes/ruby.tmLanguage.json'),
   'sh': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/shellscript/syntaxes/shell-unix-bash.tmLanguage.json'),
   'ps': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/powershell/syntaxes/powershell.tmLanguage.json'),

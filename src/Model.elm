@@ -9,10 +9,10 @@ import Dict exposing (Dict)
 import Vim.AST as V exposing (VisualType(..))
 import Syntax exposing (..)
 import Elm.Array as Array
-import Persistent exposing (getBuffer)
 import Json.Encode as Encode
 import Fuzzy exposing (FuzzyMatchItem)
 import Elm.Array exposing (Array)
+import Jumps exposing (..)
 
 
 type alias Undo =
@@ -138,6 +138,8 @@ type alias Buffer =
         , indent : Int
         }
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
+    , jumps : Jumps
+    , buffers : Dict String BufferInfo
     }
 
 
@@ -234,6 +236,12 @@ emptyBuffer =
         , indent = 0
         }
     , vimASTCache = Dict.empty
+    , jumps =
+        { backwards = []
+        , forwards = []
+        , current = { path = "", cursor = ( 0, 0 ) }
+        }
+    , buffers = Dict.empty
     }
 
 
@@ -241,12 +249,11 @@ type alias Flags =
     { lineHeight : Int
     , service : String
     , syntaxService : String
-    , buffer : Maybe String
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
-init { lineHeight, service, syntaxService, buffer } =
+init { lineHeight, service, syntaxService } =
     let
         view =
             emptyBuffer.view
@@ -265,7 +272,6 @@ init { lineHeight, service, syntaxService, buffer } =
         , Cmd.batch <|
             [ Task.perform Resize Win.size
             ]
-                ++ [ buffer |> Maybe.withDefault "" |> getBuffer ]
         )
 
 

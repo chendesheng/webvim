@@ -8,11 +8,9 @@ import Html
 import View exposing (..)
 import KeySub exposing (downs)
 import Window exposing (resizes)
-import Persistent exposing (restoreBuffer)
 import Message exposing (..)
 import Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
 import Json.Decode as Decode exposing (decodeValue)
-import Jumps exposing (onJump)
 import List
 
 
@@ -68,8 +66,6 @@ main =
                 Sub.batch
                     [ downs PressKey
                     , resizes Resize
-                    , restoreBuffer Edit
-                    , onJump OnJump
                     , onDebounce <|
                         decodeEvent
                             (\resp ->

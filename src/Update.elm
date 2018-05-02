@@ -20,7 +20,6 @@ import List
 import Tuple
 import String
 import Service exposing (..)
-import Persistent exposing (..)
 import Yank exposing (yank)
 import Debounce exposing (debounceLint, debounceTokenize)
 import Service exposing (sendTokenize)
@@ -563,12 +562,11 @@ runOperator register operator buf =
         Execute ->
             case buf.mode of
                 Ex ex ->
-                    ( { buf | mode = Ex { ex | autoComplete = Nothing } }
-                    , ex.exbuf.lines
+                    ex.exbuf.lines
                         |> B.toString
                         |> String.dropLeft 1
-                        |> flip execute buf
-                    )
+                        |> flip execute
+                            { buf | mode = Ex { ex | autoComplete = Nothing } }
 
                 _ ->
                     ( buf, Cmd.none )
@@ -690,7 +688,19 @@ runOperator register operator buf =
                     ( buf, Cmd.none )
 
         JumpHistory isForward ->
-            ( buf, jump isForward )
+            let
+                jumps =
+                    jump isForward buf.jumps
+
+                { path, cursor } =
+                    jumps.current
+            in
+                if path == buf.path then
+                    ( Buf.setCursor cursor True { buf | jumps = jumps }
+                    , Cmd.none
+                    )
+                else
+                    editBuffer path cursor { buf | jumps = jumps }
 
         _ ->
             ( buf, Cmd.none )
@@ -871,25 +881,42 @@ isModeNameVisual name =
             False
 
 
-execute : String -> Buffer -> Cmd Msg
+execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            Cmd.batch
-                [ saveCursorPosition buf.cursor
-                , getBuffer path
-                ]
+            let
+                jumps =
+                    saveCursorPosition
+                        (if path == buf.path then
+                            { path = buf.path
+                            , cursor = buf.cursor
+                            }
+                         else
+                            { path = path
+                            , cursor = ( 0, 0 )
+                            }
+                        )
+                        buf.jumps
+            in
+                editBuffer path
+                    jumps.current.cursor
+                    { buf | jumps = jumps }
 
         [ "w" ] ->
-            sendSaveBuffer buf.config.service buf.path <|
+            ( buf
+            , sendSaveBuffer buf.config.service buf.path <|
                 B.toString buf.lines
+            )
 
         [ "w", path ] ->
-            sendSaveBuffer buf.config.service path <|
+            ( buf
+            , sendSaveBuffer buf.config.service path <|
                 B.toString buf.lines
+            )
 
         _ ->
-            Cmd.none
+            ( buf, Cmd.none )
 
 
 exAutoComplete : String -> ExMode -> ( ExMode, Cmd Msg )
@@ -957,7 +984,10 @@ autoCompleteTarget exbuf =
             (String.split " "
                 >> List.tail
             )
-        |> Maybe.andThen List.head
+        |> Maybe.andThen
+            (List.filter (String.isEmpty >> not)
+                >> List.head
+            )
         |> Maybe.withDefault ""
 
 
@@ -1127,7 +1157,6 @@ handleKeypress replaying key buf =
         ( { buf1 | syntaxDirtyFrom = Nothing }
         , Cmd.batch
             ([ todo
-             , encodeBuffer buf1 |> saveBuffer
              , doLint
              , doSetTitle
              , doTokenize
@@ -1253,40 +1282,7 @@ update message buf =
         Read result ->
             case result of
                 Ok info ->
-                    let
-                        newbuf =
-                            Buf.newBuffer
-                                info
-                                buf.config.service
-                                buf.config.syntaxService
-                                buf.view.size
-                                buf.view.lineHeight
-                    in
-                        ( newbuf
-                        , Cmd.batch
-                            ((if newbuf.config.lint then
-                                sendLintProject buf.path buf.config.service
-                              else
-                                Cmd.none
-                             )
-                                :: Doc.setTitle newbuf.name
-                                :: [ sendTokenize
-                                        buf.config.syntaxService
-                                        { path = Debug.log "path" newbuf.path
-                                        , version = buf.history.version
-                                        , line = 0
-                                        , lines =
-                                            newbuf.lines
-                                                |> B.sliceLines 0
-                                                    (newbuf.view.scrollTop
-                                                        + newbuf.view.size.height
-                                                        + newbuf.config.tokenizeLinesAhead
-                                                    )
-                                                |> B.toString
-                                        }
-                                   ]
-                            )
-                        )
+                    newBuffer info buf
 
                 Err s ->
                     ( buf, Cmd.none )
@@ -1475,3 +1471,68 @@ update message buf =
 
         _ ->
             ( buf, Cmd.none )
+
+
+newBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
+newBuffer info buf =
+    let
+        newbuf =
+            Buf.newBuffer
+                info
+                buf.config.service
+                buf.config.syntaxService
+                buf.view.size
+                buf.view.lineHeight
+                buf.jumps
+                (buf.buffers
+                    |> Dict.remove info.path
+                    |> Dict.insert buf.path
+                        { path = buf.path
+                        , content = buf.lines |> B.toString |> Just
+                        , scrollTop = buf.view.scrollTop
+                        , cursor = buf.cursor
+                        }
+                )
+    in
+        ( newbuf
+        , Cmd.batch
+            ((if newbuf.config.lint then
+                sendLintProject buf.config.service buf.path
+              else
+                Cmd.none
+             )
+                :: Doc.setTitle newbuf.name
+                :: [ sendTokenize
+                        buf.config.syntaxService
+                        { path = newbuf.path
+                        , version = buf.history.version
+                        , line = 0
+                        , lines =
+                            newbuf.lines
+                                |> B.sliceLines 0
+                                    (newbuf.view.scrollTop
+                                        + newbuf.view.size.height
+                                        + newbuf.config.tokenizeLinesAhead
+                                    )
+                                |> B.toString
+                        }
+                   ]
+            )
+        )
+
+
+editBuffer : String -> Position -> Buffer -> ( Buffer, Cmd Msg )
+editBuffer path cursor buf =
+    case Dict.get path buf.buffers of
+        Just info ->
+            newBuffer info buf
+
+        _ ->
+            ( buf
+            , sendEditBuffer buf.config.service
+                { path = path
+                , content = Nothing
+                , scrollTop = 0
+                , cursor = cursor
+                }
+            )

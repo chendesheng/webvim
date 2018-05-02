@@ -276,18 +276,21 @@ sendTokenize url { path, version, line, lines } =
         body =
             Http.stringBody "text/plain" lines
     in
-        tokenizeResponseDecoder line
-            |> Http.post
-                (url
-                    ++ "/tokenize?path="
-                    ++ path
-                    ++ "&line="
-                    ++ (toString line)
-                    ++ "&version="
-                    ++ (toString version)
-                )
-                body
-            |> Http.send Tokenized
+        if path == "" then
+            Cmd.none
+        else
+            tokenizeResponseDecoder line
+                |> Http.post
+                    (url
+                        ++ "/tokenize?path="
+                        ++ path
+                        ++ "&line="
+                        ++ (toString line)
+                        ++ "&version="
+                        ++ (toString version)
+                    )
+                    body
+                |> Http.send Tokenized
 
 
 sendTokenizeLine : String -> TokenizeRequest -> Cmd Msg
