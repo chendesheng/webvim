@@ -779,16 +779,8 @@ cursorScope ({ view, cursor, lines } as buf) =
                     buf
 
 
-newBuffer :
-    BufferInfo
-    -> String
-    -> String
-    -> Size
-    -> Int
-    -> Jumps
-    -> Dict String BufferInfo
-    -> Buffer
-newBuffer info service syntaxService size lineHeight jumps buffers =
+newBuffer : BufferInfo -> Jumps -> Dict String BufferInfo -> Buffer -> Buffer
+newBuffer info jumps buffers buf =
     let
         { cursor, scrollTop, path, content } =
             info
@@ -811,13 +803,13 @@ newBuffer info service syntaxService size lineHeight jumps buffers =
             | lines = lines
             , config =
                 { config
-                    | service = service
-                    , syntaxService = syntaxService
+                    | service = buf.config.service
+                    , syntaxService = buf.config.syntaxService
                 }
             , view =
                 { emptyView
-                    | size = size
-                    , lineHeight = lineHeight
+                    | size = buf.view.size
+                    , lineHeight = buf.view.lineHeight
                     , scrollTop = scrollTop
                 }
             , cursor = cursor
@@ -826,6 +818,10 @@ newBuffer info service syntaxService size lineHeight jumps buffers =
             , name = name ++ ext
             , jumps = jumps
             , buffers = buffers
+            , registers = buf.registers
+            , dotRegister = buf.dotRegister
+            , last = buf.last
+            , vimASTCache = buf.vimASTCache
         }
             |> scrollToCursor
 
@@ -1523,10 +1519,6 @@ editBuffer info buf =
             newbuf =
                 newBuffer
                     info
-                    buf.config.service
-                    buf.config.syntaxService
-                    buf.view.size
-                    buf.view.lineHeight
                     jumps
                     (buf.buffers
                         |> Dict.remove info.path
@@ -1537,6 +1529,7 @@ editBuffer info buf =
                             , cursor = buf.cursor
                             }
                     )
+                    buf
         in
             ( newbuf
             , Cmd.batch

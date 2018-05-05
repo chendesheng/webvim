@@ -1665,7 +1665,10 @@ allCases =
           , model = editBufferCasesBuf
           , map =
                 (\buf ->
-                    { buf | config = emptyBuffer.config }
+                    { buf
+                        | config = emptyBuffer.config
+                        , last = emptyBuffer.last
+                    }
                 )
                     >> defaultMap
           }
