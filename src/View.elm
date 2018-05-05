@@ -10,12 +10,20 @@ import Html.Attributes exposing (..)
 import Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
 import Syntax exposing (Syntax, Token)
-import Message exposing (LocationItem)
+import Message
+    exposing
+        ( LocationItem
+        , BufferInfo
+        , bufferInfoToString
+        , buffersInfoToString
+        )
 import String
 import Elm.Array exposing (Array)
 import Buffer as Buf
+import Dict exposing (Dict)
 
 
+--import Regex exposing (regex)
 --import Fuzzy exposing (FuzzyMatchItem)
 
 
@@ -118,6 +126,13 @@ view buf =
                 continuation
                 buf.lintErrorsCount
                 buf.name
+             , div [ style [ ( "display", "none" ) ] ]
+                ([ lazy saveBuffers buf.buffers ]
+                    ++ if buf.path == "" then
+                        []
+                       else
+                        [ lazy2 saveActiveBuffer buf.path cursor ]
+                )
              ]
                 ++ (exAutoComplete
                         |> Maybe.map
@@ -625,3 +640,31 @@ renderAutoCompleteMenu classname { matches, select, scrollTop } =
                     |> Array.toList
                 )
             )
+
+
+saveActiveBuffer : String -> Position -> Html msg
+saveActiveBuffer path cursor =
+    { path = path
+    , cursor = cursor
+    , scrollTop = 0
+    , content = Nothing
+    }
+        |> bufferInfoToString
+        |> renderSessionStorageItem "activeBuffer"
+
+
+saveBuffers : Dict String BufferInfo -> Html msg
+saveBuffers buffers =
+    buffers
+        |> Dict.values
+        |> buffersInfoToString
+        |> renderSessionStorageItem "buffers"
+
+
+renderSessionStorageItem : String -> String -> Html msg
+renderSessionStorageItem key value =
+    node "session-storage-item"
+        [ attribute "key" key
+        , attribute "value" value
+        ]
+        []

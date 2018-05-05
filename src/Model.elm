@@ -1,10 +1,9 @@
 module Model exposing (..)
 
-import Message exposing (Msg(..), BufferInfo, LocationItem)
+import Message exposing (Msg(..), BufferInfo, LocationItem, bufferInfoDecoder)
 import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
-import Task
 import Dict exposing (Dict)
 import Vim.AST as V exposing (VisualType(..))
 import Syntax exposing (..)
@@ -243,36 +242,6 @@ emptyBuffer =
         }
     , buffers = Dict.empty
     }
-
-
-type alias Flags =
-    { lineHeight : Int
-    , service : String
-    , syntaxService : String
-    }
-
-
-init : Flags -> ( Model, Cmd Msg )
-init { lineHeight, service, syntaxService } =
-    let
-        view =
-            emptyBuffer.view
-
-        buf =
-            { emptyBuffer
-                | view = { view | lineHeight = lineHeight }
-                , config =
-                    { defaultBufferConfig
-                        | service = service
-                        , syntaxService = syntaxService
-                    }
-            }
-    in
-        ( buf
-        , Cmd.batch <|
-            [ Task.perform Resize Win.size
-            ]
-        )
 
 
 updateView : (View -> View) -> Buffer -> Buffer

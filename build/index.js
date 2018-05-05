@@ -1,14 +1,49 @@
+class SessionStorageItem extends HTMLElement {
+  constructor() {
+    super();
+  }
+
+  connectedCallback() {
+    sessionStorage.setItem(this.getAttribute('key'), this.getAttribute('value'));
+  }
+
+  disconnectedCallback() {
+    sessionStorage.removeItem(this.getAttribute('key'));
+  }
+
+  static get observedAttributes() { return ['key', 'value']; }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    // console.log('attributeChangedCallback');
+
+    if (name == 'key') {
+      sessionStorage.removeItem(this.getAttribute('key'));
+    }
+    sessionStorage.setItem(this.getAttribute('key'), this.getAttribute('value'));
+  }
+}
+customElements.define('session-storage-item', SessionStorageItem);
+
+
 const host = location.hostname || 'localhost';
 let scheme = '';
 if (!location.hostname) {
   scheme = 'http:';
 }
 
+const safeJsonParse = s => {
+  if (s) return JSON.parse(s);
+  else return null;
+};
+
 const flags = {
   lineHeight,
   service: `${scheme}//${host}:8080`,
   syntaxService: `${scheme}//${host}:8765`,
+  activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
+  buffers: safeJsonParse(sessionStorage.getItem('buffers')) || [],
 };
+// console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);
 
 const applyCss = url => {

@@ -5,6 +5,7 @@ import Result
 import Http
 import Position exposing (Position)
 import Json.Decode as Decode
+import Json.Encode as Encode
 import Syntax exposing (Token, Syntax)
 
 
@@ -22,6 +23,60 @@ type alias BufferInfo =
     , scrollTop : Int
     , content : Maybe String
     }
+
+
+bufferInfoEncoder : BufferInfo -> Encode.Value
+bufferInfoEncoder info =
+    [ ( "path", Encode.string info.path )
+    , ( "cursor"
+      , Encode.list
+            [ info.cursor |> Tuple.first |> Encode.int
+            , info.cursor |> Tuple.second |> Encode.int
+            ]
+      )
+    , ( "scrollTop", Encode.int info.scrollTop )
+    ]
+        |> Encode.object
+
+
+bufferInfoToString : BufferInfo -> String
+bufferInfoToString info =
+    info
+        |> bufferInfoEncoder
+        |> Encode.encode 0
+
+
+buffersInfoToString : List BufferInfo -> String
+buffersInfoToString buffers =
+    buffers
+        |> List.map bufferInfoEncoder
+        |> Encode.list
+        |> Encode.encode 0
+
+
+bufferInfoDecoder : Decode.Decoder BufferInfo
+bufferInfoDecoder =
+    Decode.map3
+        (\path scrollTop cursor ->
+            { path = path
+            , scrollTop = scrollTop
+            , cursor = cursor
+            , content = Nothing
+            }
+        )
+        (Decode.field "path" Decode.string)
+        (Decode.field "scrollTop" Decode.int)
+        (Decode.field "cursor" (Decode.list Decode.int)
+            |> Decode.map
+                (\xs ->
+                    case xs of
+                        a :: b :: _ ->
+                            ( a, b )
+
+                        _ ->
+                            ( 0, 0 )
+                )
+        )
 
 
 type alias LocationItem =
@@ -89,4 +144,3 @@ type Msg
     | Tokenized (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List File))
     | NoneMessage
-    | OnJump Position

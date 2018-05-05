@@ -1,7 +1,6 @@
 module Buffer
     exposing
         ( transaction
-        , newBuffer
         , insert
         , delete
         , undo
@@ -17,13 +16,11 @@ module Buffer
         , setShowTip
         , isDirty
         , isEditing
+        , configs
         )
 
-import Window exposing (Size)
-import Regex as Re
 import Position exposing (..)
 import PositionClass exposing (findLineFirst)
-import Message exposing (BufferInfo)
 import Model
     exposing
         ( Buffer
@@ -68,7 +65,6 @@ import Syntax
         )
 import Elm.Array as Array exposing (Array)
 import Helper exposing (minMaybe)
-import Jumps exposing (Jumps, saveCursorPosition)
 
 
 applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch, Int )
@@ -477,28 +473,6 @@ putString forward text buf =
                )
 
 
-filename : String -> ( String, String )
-filename s =
-    case
-        Re.find
-            (Re.AtMost 1)
-            (Re.regex "(^|[/\\\\])([^.]+)([.][^.]*)?$")
-            s
-    of
-        [ m ] ->
-            case m.submatches of
-                [ _, a, b ] ->
-                    ( Maybe.withDefault "" a
-                    , Maybe.withDefault "" b
-                    )
-
-                _ ->
-                    ( "", "" )
-
-        _ ->
-            ( "", "" )
-
-
 configs : Dict String BufferConfig
 configs =
     Dict.fromList
@@ -509,56 +483,6 @@ configs =
             }
           )
         ]
-
-
-newBuffer :
-    BufferInfo
-    -> String
-    -> String
-    -> Size
-    -> Int
-    -> Jumps
-    -> Dict String BufferInfo
-    -> Buffer
-newBuffer info service syntaxService size lineHeight jumps buffers =
-    let
-        { cursor, scrollTop, path, content } =
-            info
-
-        lines =
-            content
-                |> Maybe.withDefault ""
-                |> fromString
-
-        ( name, ext ) =
-            filename path
-
-        --|> Debug.log "path"
-        config =
-            configs
-                |> Dict.get ext
-                |> Maybe.withDefault defaultBufferConfig
-    in
-        { emptyBuffer
-            | lines = lines
-            , config =
-                { config
-                    | service = service
-                    , syntaxService = syntaxService
-                }
-            , view =
-                { emptyView
-                    | size = size
-                    , lineHeight = lineHeight
-                    , scrollTop = scrollTop
-                }
-            , cursor = cursor
-            , cursorColumn = Tuple.second cursor
-            , path = path
-            , name = name ++ ext
-            , jumps = jumps
-            , buffers = buffers
-        }
 
 
 updateSavePoint : Buffer -> Buffer

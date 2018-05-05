@@ -1,5 +1,8 @@
 module Helper exposing (..)
 
+import Dict exposing (Dict)
+import Regex as Re
+
 
 getLast : List a -> Maybe a
 getLast xs =
@@ -22,3 +25,32 @@ minMaybe a b =
         a
     else
         Maybe.map2 (\x y -> Basics.min x y) a b
+
+
+fromListBy : (v -> comparable) -> List v -> Dict comparable v
+fromListBy fnkey lst =
+    lst
+        |> List.map (\item -> ( fnkey item, item ))
+        |> Dict.fromList
+
+
+filename : String -> ( String, String )
+filename s =
+    case
+        Re.find
+            (Re.AtMost 1)
+            (Re.regex "(^|[/\\\\])([^.]+)([.][^.]*)?$")
+            s
+    of
+        [ m ] ->
+            case m.submatches of
+                [ _, a, b ] ->
+                    ( Maybe.withDefault "" a
+                    , Maybe.withDefault "" b
+                    )
+
+                _ ->
+                    ( "", "" )
+
+        _ ->
+            ( "", "" )

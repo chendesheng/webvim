@@ -59,11 +59,17 @@ jumpsToString { backwards, forwards, current } =
 
 
 saveCursorPosition : Location -> Jumps -> Jumps
-saveCursorPosition loc { backwards, forwards, current } =
-    { backwards = current :: List.foldl (::) backwards forwards
-    , current = loc
-    , forwards = []
-    }
+saveCursorPosition loc ({ backwards, forwards, current } as jumps) =
+    if
+        (loc.path == current.path)
+            && (Tuple.first loc.cursor == Tuple.first current.cursor)
+    then
+        jumps
+    else
+        { backwards = current :: List.foldl (::) backwards forwards
+        , current = loc
+        , forwards = []
+        }
 
 
 jumpForward : Jumps -> Jumps

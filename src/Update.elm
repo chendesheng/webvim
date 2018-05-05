@@ -1,13 +1,18 @@
-module Update exposing (update)
+module Update exposing (update, init, Flags)
 
+import Task
+import Window as Win exposing (Size)
+import Json.Encode as Encode
+import Json.Decode as Decode
 import Model exposing (..)
 import Message exposing (..)
 import Vim.Helper exposing (keyParser, escapeKey)
+import Helper exposing (fromListBy, filename)
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Buffer as Buf
-import Dict
+import Dict exposing (Dict)
 import Parser as P exposing ((|.), (|=), Parser)
 import Motion exposing (..)
 import Delete exposing (..)
@@ -26,7 +31,7 @@ import Service exposing (sendTokenize)
 import Elm.Array as Array
 import Document as Doc
 import Fuzzy exposing (..)
-import Jumps exposing (saveCursorPosition, jump)
+import Jumps exposing (saveCursorPosition, jump, Jumps)
 
 
 stringToPrefix : String -> ExPrefix
@@ -700,7 +705,13 @@ runOperator register operator buf =
                     , Cmd.none
                     )
                 else
-                    editBuffer path cursor { buf | jumps = jumps }
+                    editBuffer
+                        { path = path
+                        , cursor = jumps.current.cursor
+                        , scrollTop = 0
+                        , content = Nothing
+                        }
+                        { buf | jumps = jumps }
 
         _ ->
             ( buf, Cmd.none )
@@ -766,6 +777,57 @@ cursorScope ({ view, cursor, lines } as buf) =
 
                 _ ->
                     buf
+
+
+newBuffer :
+    BufferInfo
+    -> String
+    -> String
+    -> Size
+    -> Int
+    -> Jumps
+    -> Dict String BufferInfo
+    -> Buffer
+newBuffer info service syntaxService size lineHeight jumps buffers =
+    let
+        { cursor, scrollTop, path, content } =
+            info
+
+        lines =
+            content
+                |> Maybe.withDefault ""
+                |> B.fromString
+
+        ( name, ext ) =
+            filename path
+
+        --|> Debug.log "path"
+        config =
+            Buf.configs
+                |> Dict.get ext
+                |> Maybe.withDefault defaultBufferConfig
+    in
+        { emptyBuffer
+            | lines = lines
+            , config =
+                { config
+                    | service = service
+                    , syntaxService = syntaxService
+                }
+            , view =
+                { emptyView
+                    | size = size
+                    , lineHeight = lineHeight
+                    , scrollTop = scrollTop
+                }
+            , cursor = cursor
+            , cursorColumn = Tuple.second cursor
+            , path = path
+            , name = name ++ ext
+            , jumps = jumps
+            , buffers = buffers
+        }
+            |> scrollToCursor
 
 
 isExEditing : Operator -> Bool
@@ -885,23 +947,15 @@ execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            let
-                jumps =
-                    saveCursorPosition
-                        (if path == buf.path then
-                            { path = buf.path
-                            , cursor = buf.cursor
-                            }
-                         else
-                            { path = path
-                            , cursor = ( 0, 0 )
-                            }
-                        )
-                        buf.jumps
-            in
-                editBuffer path
-                    jumps.current.cursor
-                    { buf | jumps = jumps }
+            buf.buffers
+                |> Dict.get path
+                |> Maybe.withDefault
+                    { path = path
+                    , cursor = ( 0, 0 )
+                    , scrollTop = 0
+                    , content = Nothing
+                    }
+                |> flip editBuffer buf
 
         [ "w" ] ->
             ( buf
@@ -1282,7 +1336,7 @@ update message buf =
         Read result ->
             case result of
                 Ok info ->
-                    newBuffer info buf
+                    editBuffer info buf
 
                 Err s ->
                     ( buf, Cmd.none )
@@ -1327,9 +1381,9 @@ update message buf =
                                             )
                                         |> B.toString
                                 }
-                            , Doc.setTitle buf.name
-                            , if buf.config.lint then
-                                sendLintProject buf.path buf.config.service
+                            , Doc.setTitle buf1.name
+                            , if buf1.config.lint then
+                                sendLintProject buf1.config.service buf1.path
                               else
                                 Cmd.none
                             ]
@@ -1443,96 +1497,136 @@ update message buf =
                 Err _ ->
                     ( buf, Cmd.none )
 
-        OnJump pos ->
-            ( buf
-                |> Buf.setCursor pos True
-                |> scrollToCursor
-            , if
-                (buf.view.scrollTop + buf.view.size.height)
-                    > Array.length buf.syntax
-              then
-                debounceTokenize
-                    200
-                    buf.path
-                    buf.history.version
-                    (Array.length buf.syntax)
-                    (buf.lines
-                        |> B.sliceLines
-                            (Array.length buf.syntax)
-                            (buf.view.scrollTop
-                                + buf.view.size.height
-                                + buf.config.tokenizeLinesAhead
-                            )
-                        |> B.toString
-                    )
-              else
-                Cmd.none
-            )
-
         _ ->
             ( buf, Cmd.none )
 
 
-newBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-newBuffer info buf =
-    let
-        newbuf =
-            Buf.newBuffer
-                info
-                buf.config.service
-                buf.config.syntaxService
-                buf.view.size
-                buf.view.lineHeight
-                buf.jumps
-                (buf.buffers
-                    |> Dict.remove info.path
-                    |> Dict.insert buf.path
+editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
+editBuffer info buf =
+    if info.content == Nothing then
+        ( buf, sendEditBuffer buf.config.service info )
+    else
+        let
+            jumps =
+                saveCursorPosition
+                    (if info.path == buf.path then
                         { path = buf.path
-                        , content = buf.lines |> B.toString |> Just
-                        , scrollTop = buf.view.scrollTop
                         , cursor = buf.cursor
                         }
-                )
-    in
-        ( newbuf
-        , Cmd.batch
-            ((if newbuf.config.lint then
-                sendLintProject buf.config.service buf.path
-              else
-                Cmd.none
-             )
-                :: Doc.setTitle newbuf.name
-                :: [ sendTokenize
-                        buf.config.syntaxService
-                        { path = newbuf.path
-                        , version = buf.history.version
-                        , line = 0
-                        , lines =
-                            newbuf.lines
-                                |> B.sliceLines 0
-                                    (newbuf.view.scrollTop
-                                        + newbuf.view.size.height
-                                        + newbuf.config.tokenizeLinesAhead
-                                    )
-                                |> B.toString
+                     else
+                        { path = info.path
+                        , cursor = info.cursor
                         }
-                   ]
+                    )
+                    buf.jumps
+
+            newbuf =
+                newBuffer
+                    info
+                    buf.config.service
+                    buf.config.syntaxService
+                    buf.view.size
+                    buf.view.lineHeight
+                    jumps
+                    (buf.buffers
+                        |> Dict.remove info.path
+                        |> Dict.insert buf.path
+                            { path = buf.path
+                            , content = buf.lines |> B.toString |> Just
+                            , scrollTop = buf.view.scrollTop
+                            , cursor = buf.cursor
+                            }
+                    )
+        in
+            ( newbuf
+            , Cmd.batch
+                ((if newbuf.config.lint then
+                    sendLintProject newbuf.config.service newbuf.path
+                  else
+                    Cmd.none
+                 )
+                    :: Doc.setTitle newbuf.name
+                    :: [ sendTokenize
+                            buf.config.syntaxService
+                            { path = newbuf.path
+                            , version = newbuf.history.version
+                            , line = 0
+                            , lines =
+                                newbuf.lines
+                                    |> B.sliceLines 0
+                                        (newbuf.view.scrollTop
+                                            + newbuf.view.size.height
+                                            + newbuf.config.tokenizeLinesAhead
+                                        )
+                                    |> B.toString
+                            }
+                       ]
+                )
             )
-        )
 
 
-editBuffer : String -> Position -> Buffer -> ( Buffer, Cmd Msg )
-editBuffer path cursor buf =
-    case Dict.get path buf.buffers of
-        Just info ->
-            newBuffer info buf
+type alias Flags =
+    { lineHeight : Int
+    , service : String
+    , syntaxService : String
+    , buffers : Encode.Value
+    , activeBuffer : Encode.Value
+    }
 
-        _ ->
-            ( buf
-            , sendEditBuffer buf.config.service
-                { path = path
-                , content = Nothing
-                , scrollTop = 0
-                , cursor = cursor
+
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    let
+        { lineHeight, service, syntaxService, buffers, activeBuffer } =
+            flags
+
+        _ =
+            Debug.log "flags" flags
+
+        view =
+            emptyBuffer.view
+
+        activeBuf =
+            Decode.decodeValue bufferInfoDecoder activeBuffer
+                |> Result.withDefault
+                    { path = ""
+                    , content = Nothing
+                    , scrollTop = 0
+                    , cursor = ( 0, 0 )
+                    }
+
+        jumps =
+            emptyBuffer.jumps
+
+        ( buf, cmd ) =
+            editBuffer
+                activeBuf
+                { emptyBuffer
+                    | view = { view | lineHeight = lineHeight }
+                    , jumps =
+                        { jumps
+                            | current =
+                                { path = activeBuf.path
+                                , cursor = activeBuf.cursor
+                                }
+                        }
+                            |> Debug.log "jumps"
+                    , config =
+                        { defaultBufferConfig
+                            | service = service
+                            , syntaxService = syntaxService
+                        }
                 }
-            )
+    in
+        ( { buf
+            | buffers =
+                buffers
+                    |> Decode.decodeValue (Decode.list bufferInfoDecoder)
+                    |> Result.withDefault []
+                    |> fromListBy .path
+          }
+        , Cmd.batch <|
+            [ Task.perform Resize Win.size
+            , cmd
+            ]
+        )
