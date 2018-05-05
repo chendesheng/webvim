@@ -3,6 +3,11 @@ const fs = require('fs');
 const hasha = require('hasha');
 const compile = require('google-closure-compiler-js').compile;
 
+const base64Encode = (file) => {
+  var image = fs.readFileSync(file);
+  return new Buffer(image).toString('base64');
+};
+
 const shell = (sh) => {
   return execa.shellSync(sh, { stdio: 'inherit' });
 };
@@ -53,8 +58,11 @@ const placeholder = '<!-- inject index.js -->';
 const htmlfile = read('build/template.html');
 
 fs.writeFileSync('dist/webvim.html', 
-  htmlfile.replace(placeholder, '')
+  htmlfile
+    .replace(placeholder, '')
     .replace('dist/style.min.css', 'style.min.css')
-    .replace('dist/elm.js', bundlefile));
+    .replace('dist/elm.js', bundlefile)
+    .replace('href="favicon.ico"',
+      `href="data:image/x-icon;base64,${base64Encode("favicon.ico")}"`));
 
 console.log('Successfully generated webvim.html');

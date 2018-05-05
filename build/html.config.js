@@ -10,10 +10,20 @@ const getLineHeight = () => {
   }
 };
 
+const base64Encode = (file) => {
+  var image = fs.readFileSync(file);
+  return new Buffer(image).toString('base64');
+};
+
 const placeholder = '<!-- inject index.js -->';
 const htmlfile = fs.readFileSync('build/template.html', { encoding : 'utf8' });
 const jsfile
   = `const lineHeight = ${getLineHeight()};\n`
   + fs.readFileSync('build/index.js', { encoding : 'utf8' });
-fs.writeFileSync('index.html', htmlfile.replace(placeholder, jsfile));
+fs.writeFileSync('index.html',
+  htmlfile
+    .replace(placeholder, jsfile)
+    .replace('href="favicon.ico"',
+             `href="data:image/x-icon;base64,${base64Encode("favicon.ico")}"`)
+);
 
