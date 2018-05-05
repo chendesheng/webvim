@@ -145,14 +145,6 @@ cases =
             , Just 1
             )
       }
-    , { description = "delete char"
-      , syntax = [ [ newToken2 3 "mtk1" ] ]
-      , patches = [ Deletion ( 0, 0 ) ( 0, 1 ) ]
-      , result =
-            ( [ [ newToken2 2 "mtk1" ] ]
-            , Just 0
-            )
-      }
     , { description = "delete line"
       , syntax =
             [ [ newToken2 3 "mtk1" ]
@@ -173,6 +165,25 @@ cases =
       , patches = [ Deletion ( 0, 0 ) ( 2, 3 ) ]
       , result =
             ( [ [ newToken2 3 "mtk3" ] ]
+            , Just 0
+            )
+      }
+    , { description = "delete char"
+      , syntax =
+            [ [ newToken2 6 "mtk7"
+              , newToken2 1 "mtk1"
+              , newToken2 6 "mtk8"
+              , newToken2 2 "mtk1"
+              ]
+            ]
+      , patches = [ Deletion ( 0, 7 ) ( 0, 8 ) ]
+      , result =
+            ( [ [ newToken2 6 "mtk7"
+                , newToken2 1 "mtk1"
+                , newToken2 5 "mtk8"
+                , newToken2 2 "mtk1"
+                ]
+              ]
             , Just 0
             )
       }

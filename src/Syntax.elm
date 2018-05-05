@@ -180,7 +180,8 @@ applyPatchToSyntax patch syntax =
                                                 then
                                                     identity
                                                 else
-                                                    Array.push (left ++ right)
+                                                    Array.push
+                                                        (List.reverse left ++ right)
                                                )
                                             |> flip Array.append
                                                 (Array.slice
