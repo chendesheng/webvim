@@ -866,8 +866,12 @@ replaceCasesBuf =
 
 replaceCases : List ( String, Buffer )
 replaceCases =
-    [ ( "rb"
-      , { replaceCasesBuf | lines = B.fromString "b23\n  456\n" }
+    [ ( "lrb"
+      , { replaceCasesBuf
+            | lines = B.fromString "1b3\n  456\n"
+            , cursor = ( 0, 1 )
+            , cursorColumn = 1
+        }
       )
     , ( "jlllr<cr>"
       , { replaceCasesBuf

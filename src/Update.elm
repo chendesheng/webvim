@@ -587,18 +587,11 @@ runOperator register operator buf =
                     let
                         ( y, x ) =
                             buf.cursor
-
-                        setCursor =
-                            if ch == B.lineBreak then
-                                identity
-                            else
-                                Buf.setCursor buf.cursor True
                     in
                         buf
                             |> Buf.transaction
                                 [ Deletion buf.cursor ( y, x + 1 ) ]
                             |> insert (V.TextLiteral ch)
-                            |> setCursor
                             |> cmdNone
 
                 --|> Buf.setCursor buf.cursor True
