@@ -70,7 +70,7 @@ insertCommands =
             , P.succeed
                 (\key ->
                     if key == "<inserts>" then
-                        [ PushOperator RepeatLastInsert ]
+                        [ PushOperator (InsertString LastSavedString) ]
                     else
                         case keyToChar key of
                             Just ch ->
@@ -314,9 +314,9 @@ gKey map extra =
                         |> dontRecord
                     , define "k" (VLineDelta -1) gotoLineOption
                         |> dontRecord
-                    , define "n" MatchString (motionOption ">]+-")
+                    , define "n" (MatchString LastSavedString) (motionOption ">]+-")
                         |> dontRecord
-                    , define "N" MatchString (motionOption "<]+-")
+                    , define "N" (MatchString LastSavedString) (motionOption "<]+-")
                         |> dontRecord
                     , define "e" WordEnd backwardWordEndOption
                         |> dontRecord
@@ -400,7 +400,7 @@ motion map gMotion =
                                 option =
                                     motionOption ">)+-"
                             in
-                                map MatchString
+                                map (MatchString LastSavedString)
                                     { option | forward = prefix == "/" }
                         )
                       )
@@ -435,8 +435,10 @@ motion map gMotion =
              , define "}" ParagraphStart <| motionOption ">)+-"
              , define ";" RepeatMatchChar <| motionOption ">]$-"
              , define "," RepeatMatchChar <| motionOption "<]$-"
-             , define "n" RepeatMatchString <| motionOption ">)+-"
-             , define "N" RepeatMatchString <| motionOption "<)+-"
+             , define "n" (MatchString LastSavedString) <| motionOption ">)+-"
+             , define "N" (MatchString LastSavedString) <| motionOption "<)+-"
+             , define "*" (MatchString WordUnderCursor) <| motionOption ">)+-"
+             , define "#" (MatchString WordUnderCursor) <| motionOption "<)+-"
              , gMotion
              ]
             )

@@ -92,7 +92,6 @@ type Operator
     | Redo
     | ReplayMacro Register
     | InsertString StringType
-    | RepeatLastInsert
     | RepeatLastEx
     | RepeatLastVisual
     | RepeatLastOperator
@@ -108,6 +107,7 @@ type StringType
     | WordUnderCursor
     | CharBelowCursor
     | CharAbroveCursor
+    | LastSavedString
 
 
 type VisualType
@@ -274,7 +274,6 @@ type MotionData
       -- f|t{char}
     | MatchChar String Bool
       -- /search
-    | MatchString
     | ViewTop
     | ViewMiddle
     | ViewBottom
@@ -283,4 +282,4 @@ type MotionData
     | LineNumber Int -- negtive means backward from last line
     | MatchPair -- %
     | RepeatMatchChar
-    | RepeatMatchString
+    | MatchString StringType

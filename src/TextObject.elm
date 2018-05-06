@@ -31,7 +31,7 @@ expandTextObjectHelper wordChars textobj around line cursor =
     else
         case textobj of
             Word ->
-                Maybe.map2 (\a b -> ( a, b ))
+                Maybe.map2 (,)
                     ((findPosition
                         wordChars
                         WordEdge
@@ -74,6 +74,37 @@ expandTextObjectHelper wordChars textobj around line cursor =
 
             _ ->
                 Nothing
+
+
+wordUnderCursor : String -> Position -> B.TextBuffer -> Maybe ( Position, Position )
+wordUnderCursor wordChars cursor lines =
+    let
+        ( y, x ) =
+            cursor
+    in
+        B.getLine y lines
+            |> Maybe.andThen
+                (\line ->
+                    (findPosition
+                        wordChars
+                        WordEnd
+                        (motionOption ">]$-")
+                        line
+                        x
+                    )
+                        |> Maybe.andThen
+                            (\end ->
+                                (findPosition
+                                    wordChars
+                                    WordStart
+                                    (motionOption "<]$-")
+                                    line
+                                    end
+                                )
+                                    |> Maybe.map
+                                        (\begin -> ( ( y, begin ), ( y, end ) ))
+                            )
+                )
 
 
 expandTextObject :

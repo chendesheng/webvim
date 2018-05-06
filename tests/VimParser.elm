@@ -171,7 +171,7 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                Delete (MotionRange MatchString (motionOption ">)+-"))
+                Delete (MotionRange (MatchString LastSavedString) (motionOption ">)+-"))
                     |> Just
           }
         , "c/<cr>"
@@ -290,7 +290,7 @@ cases =
       , ( { initialMode
             | edit =
                 motionOption ">)+-"
-                    |> Move MatchString
+                    |> Move (MatchString LastSavedString)
                     |> Just
           }
         , ""
@@ -314,7 +314,7 @@ cases =
       , ( { initialMode
             | edit =
                 motionOption "<)+-"
-                    |> Move MatchString
+                    |> Move (MatchString LastSavedString)
                     |> Just
           }
         , ""
@@ -344,7 +344,7 @@ cases =
       , ( { initialMode
             | edit =
                 motionOption ">)+-"
-                    |> Move RepeatMatchString
+                    |> Move (MatchString LastSavedString)
                     |> Just
           }
         , ""

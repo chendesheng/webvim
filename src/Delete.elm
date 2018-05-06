@@ -119,20 +119,13 @@ delete register rg buf =
                 case rg of
                     V.MotionRange md mo ->
                         case md of
-                            V.MatchString ->
+                            V.MatchString _ ->
                                 buf
                                     |> deleteAnd
                                         (saveLastDeleted linewise register
                                             >> updateCursorColumn
                                         )
                                     |> saveMotion md mo
-
-                            V.RepeatMatchString ->
-                                buf
-                                    |> deleteAnd
-                                        (saveLastDeleted linewise register
-                                            >> updateCursorColumn
-                                        )
 
                             _ ->
                                 Buf.setMode

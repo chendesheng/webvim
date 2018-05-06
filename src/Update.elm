@@ -428,9 +428,14 @@ runOperator register operator buf =
                     |> cmdNone
 
         InsertString s ->
-            buf
-                |> insert s
-                |> cmdNone
+            case s of
+                V.LastSavedString ->
+                    replayKeys buf.last.inserts buf
+
+                _ ->
+                    buf
+                        |> insert s
+                        |> cmdNone
 
         Delete rg ->
             buf
@@ -537,9 +542,6 @@ runOperator register operator buf =
 
         RepeatLastOperator ->
             replayKeys buf.dotRegister buf
-
-        RepeatLastInsert ->
-            replayKeys buf.last.inserts buf
 
         RepeatLastVisual ->
             replayKeys buf.last.visual buf

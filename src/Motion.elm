@@ -19,6 +19,7 @@ import PositionClass exposing (..)
 import Regex as Re
 import Jumps exposing (saveCursorPosition)
 import Message exposing (Msg(..))
+import TextObject exposing (wordUnderCursor)
 
 
 setVisualBegin : Position -> Buffer -> Buffer
@@ -103,27 +104,47 @@ saveMotion md mo buf =
                                 }
                     }
 
-                V.MatchString ->
-                    case buf.mode of
-                        Ex { prefix, exbuf } ->
-                            case prefix of
-                                ExSearch { forward, match } ->
-                                    let
-                                        s =
-                                            exbuf.lines
-                                                |> B.toString
-                                                |> String.dropLeft 1
-                                    in
+                V.MatchString str ->
+                    case str of
+                        V.WordUnderCursor ->
+                            let
+                                s =
+                                    buf
+                                        |> wordStringUnderCursor
+                                        |> Maybe.map Tuple.second
+                                        |> Maybe.map Re.escape
+                            in
+                                case s of
+                                    Just s1 ->
                                         { last
                                             | matchString =
-                                                Just ( s, forward )
+                                                Just ( s1, mo.forward )
                                         }
+
+                                    _ ->
+                                        last
+
+                        _ ->
+                            case buf.mode of
+                                Ex { prefix, exbuf } ->
+                                    case prefix of
+                                        ExSearch { forward, match } ->
+                                            let
+                                                s =
+                                                    exbuf.lines
+                                                        |> B.toString
+                                                        |> String.dropLeft 1
+                                            in
+                                                { last
+                                                    | matchString =
+                                                        Just ( s, forward )
+                                                }
+
+                                        _ ->
+                                            buf.last
 
                                 _ ->
                                     buf.last
-
-                        _ ->
-                            buf.last
 
                 _ ->
                     buf.last
@@ -388,11 +409,40 @@ runMotion md mo buf =
                         _ ->
                             Nothing
 
-                V.MatchString ->
-                    gotoMatchedString mo buf
+                V.MatchString str ->
+                    case str of
+                        V.LastSavedString ->
+                            gotoMatchedString mo buf
 
-                V.RepeatMatchString ->
-                    gotoMatchedString mo buf
+                        V.WordUnderCursor ->
+                            buf
+                                |> wordStringUnderCursor
+                                |> Maybe.andThen
+                                    (\res ->
+                                        let
+                                            ( begin, str ) =
+                                                res
+
+                                            s =
+                                                Re.escape str
+                                        in
+                                            (matchString mo.forward
+                                                (Re.regex s |> Re.caseInsensitive)
+                                                begin
+                                                buf.lines
+                                            )
+                                                |> Maybe.map
+                                                    (\rg ->
+                                                        let
+                                                            last =
+                                                                buf.last
+                                                        in
+                                                            Tuple.first rg
+                                                    )
+                                    )
+
+                        _ ->
+                            Nothing
 
                 _ ->
                     findPositionInBuffer md
@@ -402,6 +452,24 @@ runMotion md mo buf =
                         ""
                         buf.config.wordChars
                         buf.lines
+
+
+wordStringUnderCursor : Buffer -> Maybe ( Position, String )
+wordStringUnderCursor { cursor, lines, config } =
+    lines
+        |> wordUnderCursor config.wordChars cursor
+        |> Maybe.map
+            (\rg ->
+                let
+                    ( begin, end ) =
+                        rg
+                in
+                    ( begin
+                    , lines
+                        |> B.substring begin end
+                        |> B.toString
+                    )
+            )
 
 
 isSaveColumn : V.MotionData -> Bool
@@ -434,10 +502,7 @@ saveCursorAfterJump md cursorBefore cursorAfter buf =
                 V.ViewBottom ->
                     True
 
-                V.MatchString ->
-                    True
-
-                V.RepeatMatchString ->
+                V.MatchString _ ->
                     True
 
                 _ ->
