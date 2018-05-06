@@ -131,7 +131,11 @@ view buf =
                     ++ if buf.path == "" then
                         []
                        else
-                        [ lazy2 saveActiveBuffer buf.path cursor ]
+                        [ lazy3 saveActiveBuffer
+                            buf.path
+                            cursor
+                            buf.view.scrollTop
+                        ]
                 )
              ]
                 ++ (exAutoComplete
@@ -642,11 +646,11 @@ renderAutoCompleteMenu classname { matches, select, scrollTop } =
             )
 
 
-saveActiveBuffer : String -> Position -> Html msg
-saveActiveBuffer path cursor =
+saveActiveBuffer : String -> Position -> Int -> Html msg
+saveActiveBuffer path cursor scrollTop =
     { path = path
     , cursor = cursor
-    , scrollTop = 0
+    , scrollTop = scrollTop
     , content = Nothing
     }
         |> bufferInfoToString
