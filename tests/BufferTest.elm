@@ -54,6 +54,7 @@ suite =
                                             [ Deletion ( 0, 0 ) ( 0, 3 ) ]
                                         }
                                 , redoes = []
+                                , version = 1
                             }
                             buf.history
                 ]
@@ -88,6 +89,7 @@ suite =
                                             ]
                                         }
                                 , redoes = []
+                                , version = 1
                             }
                             buf.history
                 ]
@@ -123,6 +125,7 @@ suite =
                                             ]
                                         }
                                 , redoes = []
+                                , version = 1
                             }
                             buf.history
                 ]
@@ -171,6 +174,7 @@ suite =
                                             ]
                                       }
                                     ]
+                                , version = 2
                             }
                             buf.history
                 ]
@@ -200,7 +204,7 @@ suite =
                                     ]
                                 , pending = Nothing
                                 , redoes = []
-                                , version = 1
+                                , version = 3
                             }
                             buf.history
                 ]
@@ -232,7 +236,7 @@ suite =
                                   , patches = [ Deletion ( 0, 1 ) ( 0, 2 ) ]
                                   }
                                 ]
-                            , version = 1
+                            , version = 3
                         }
                         buf.history
         , test "commit" <|
@@ -258,7 +262,7 @@ suite =
                                 ]
                             , pending = Nothing
                             , redoes = []
-                            , version = 1
+                            , version = 3
                         }
                         buf.history
         , fuzz (Fuzz.list fuzzPatch) "undo random patches" <|

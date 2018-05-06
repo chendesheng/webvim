@@ -143,10 +143,13 @@ transaction patches buf =
         if List.isEmpty undo then
             buf
         else
-            { buf1
-                | history =
+            let
+                history =
                     addPending buf.cursor undo buf1.history
-            }
+            in
+                { buf1
+                    | history = { history | version = history.version + 1 }
+                }
 
 
 updateCursor : Patch -> Patch -> Position -> Position
@@ -216,7 +219,6 @@ commit buf =
                                 | undoes = pending :: history.undoes
                                 , pending = Nothing
                                 , redoes = []
-                                , version = history.version + 1
                             }
 
                         _ ->
@@ -259,7 +261,7 @@ undo buf =
                                         history.version
 
                                     _ ->
-                                        history.version - 1
+                                        history.version + 1
                         }
                 in
                     { buf
@@ -507,31 +509,10 @@ setShowTip showTip buf =
 
 isDirty : Buffer -> Bool
 isDirty buf =
-    let
-        history =
-            buf.history
-    in
-        history.pending /= Nothing || history.savePoint /= history.version
+    buf.history.savePoint /= buf.history.version
 
 
 isEditing : Buffer -> Buffer -> Bool
 isEditing buf1 buf2 =
-    let
-        h1 =
-            buf1.history
-
-        h2 =
-            buf2.history
-
-        pendingPatches pending =
-            case pending of
-                Just { patches } ->
-                    List.length patches
-
-                _ ->
-                    0
-    in
-        h1.version
-            /= h2.version
-            || pendingPatches h1.pending
-            /= pendingPatches h2.pending
+    buf1.history.version
+        /= buf2.history.version
