@@ -288,13 +288,13 @@ lastItemOf pred list =
         lastItemOfHelper pred Nothing list
 
 
-matchString :
+matchStringInner :
     Bool
     -> Re.Regex
     -> Position
     -> B.TextBuffer
     -> Maybe ( Position, Position )
-matchString forward re ( y, x ) lines =
+matchStringInner forward re ( y, x ) lines =
     case B.getLine y lines of
         Just line ->
             if forward then
@@ -310,7 +310,7 @@ matchString forward re ( y, x ) lines =
                                 )
 
                         _ ->
-                            matchString forward re ( y + 1, -1 ) lines
+                            matchStringInner forward re ( y + 1, -1 ) lines
             else
                 Re.find Re.All re line
                     |> lastItemOf
@@ -325,10 +325,54 @@ matchString forward re ( y, x ) lines =
                                 )
                         )
                     |> Maybe.withDefault
-                        (matchString forward re ( y - 1, -1 ) lines)
+                        (matchStringInner forward re ( y - 1, -1 ) lines)
 
         _ ->
             Nothing
+
+
+matchString :
+    Bool
+    -> Re.Regex
+    -> Position
+    -> B.TextBuffer
+    -> Maybe ( Position, Position )
+matchString forward re pos lines =
+    case matchStringInner forward re pos lines of
+        Just res ->
+            Just res
+
+        _ ->
+            let
+                ( y, _ ) =
+                    pos
+
+                n =
+                    B.countLines lines
+            in
+                if forward then
+                    matchStringInner forward
+                        re
+                        ( 0, -1 )
+                        (B.sliceLines 0 (y + 1) lines)
+                    --|> Debug.log "search hit bottom"
+                else
+                    matchStringInner forward
+                        re
+                        ( n - y - 1, -1 )
+                        (B.sliceLines y n lines)
+                        |> Maybe.map
+                            (\rg ->
+                                let
+                                    ( ( y1, x1 ), ( y2, x2 ) ) =
+                                        rg
+                                in
+                                    ( ( y1 + y, x1 ), ( y2 + y, x2 ) )
+                            )
+
+
+
+--|> Debug.log "search hit top"
 
 
 runMotion : V.MotionData -> V.MotionOption -> Buffer -> Maybe Position

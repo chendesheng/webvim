@@ -102,7 +102,7 @@ wordUnderCursor wordChars cursor lines =
                                     end
                                 )
                                     |> Maybe.map
-                                        (\begin -> ( ( y, begin ), ( y, end ) ))
+                                        (\begin -> ( ( y, begin ), ( y, end + 1 ) ))
                             )
                 )
 
