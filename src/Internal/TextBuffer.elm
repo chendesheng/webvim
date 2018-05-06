@@ -9,6 +9,7 @@ module Internal.TextBuffer
         , fromStringExpandTabs
         , getLine
         , countLines
+        , count
         , isMutipleLine
         , foldlLines
         , expandTabs
@@ -57,7 +58,13 @@ empty =
     TextBuffer Array.empty
 
 
+count : TextBuffer -> Int
+count (TextBuffer buf) =
+    Array.length buf
+
+
 {-| return how many lines of text buffer
+TODO: this is wrong, should always use Array.length
 -}
 countLines : TextBuffer -> Int
 countLines (TextBuffer buf) =

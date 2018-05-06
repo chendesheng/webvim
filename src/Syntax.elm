@@ -66,7 +66,7 @@ applyPatchToSyntax patch syntax =
         splitLines lines =
             let
                 max =
-                    B.countLines lines - 1
+                    B.count lines - 1
             in
                 ( B.getLine 0 lines |> Maybe.withDefault ""
                 , B.sliceLines 1 max lines
@@ -115,6 +115,22 @@ applyPatchToSyntax patch syntax =
                                       , classname = classname
                                       }
                                     ]
+
+                        right1 =
+                            case right of
+                                x :: xs ->
+                                    { x
+                                        | length =
+                                            x.length
+                                                + String.length lastLine
+                                    }
+                                        :: xs
+
+                                _ ->
+                                    [ { length = String.length lastLine
+                                      , classname = classname
+                                      }
+                                    ]
                     in
                         if B.isMutipleLine lines then
                             top
@@ -130,7 +146,7 @@ applyPatchToSyntax patch syntax =
                                         )
                                         middleLines
                                     )
-                                |> Array.push right
+                                |> Array.push right1
                                 |> flip Array.append bottom
                         else
                             top
