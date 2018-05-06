@@ -692,6 +692,11 @@ runOperator register operator buf =
 
                 { path, cursor } =
                     jumps.current
+
+                scrollTop =
+                    Tuple.first jumps.current.cursor
+                        - (Tuple.first buf.cursor - buf.view.scrollTop)
+                        |> Basics.max 0
             in
                 if path == buf.path then
                     ( Buf.setCursor cursor True { buf | jumps = jumps }
@@ -701,7 +706,7 @@ runOperator register operator buf =
                     editBuffer
                         { path = path
                         , cursor = jumps.current.cursor
-                        , scrollTop = 0
+                        , scrollTop = scrollTop
                         , content = Nothing
                         }
                         { buf | jumps = jumps }
