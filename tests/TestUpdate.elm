@@ -49,13 +49,9 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | pending =
-                        Just
-                            { cursor = ( 0, 0 )
-                            , patches =
-                                [ Deletion ( 0, 1 ) ( 0, 2 )
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                ]
-                            }
+                        [ Deletion ( 0, 1 ) ( 0, 2 )
+                        , Deletion ( 0, 0 ) ( 0, 1 )
+                        ]
                 }
             , last = { emptyLast | inserts = "12" }
         }
@@ -68,12 +64,9 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ { cursor = ( 0, 0 )
-                          , patches =
-                                [ Deletion ( 0, 1 ) ( 0, 2 )
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                ]
-                          }
+                        [ [ Deletion ( 0, 1 ) ( 0, 2 )
+                          , Deletion ( 0, 0 ) ( 0, 1 )
+                          ]
                         ]
                 }
             , last = { emptyLast | inserts = "12" }
@@ -86,13 +79,10 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ { cursor = ( 0, 0 )
-                          , patches =
-                                [ Deletion ( 0, 2 ) ( 1, 0 )
-                                , Deletion ( 0, 1 ) ( 0, 2 )
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                ]
-                          }
+                        [ [ Deletion ( 0, 2 ) ( 1, 0 )
+                          , Deletion ( 0, 1 ) ( 0, 2 )
+                          , Deletion ( 0, 0 ) ( 0, 1 )
+                          ]
                         ]
                 }
             , view =
@@ -112,14 +102,11 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ { cursor = ( 0, 0 )
-                          , patches =
-                                [ Deletion ( 0, 4 ) ( 0, 6 )
-                                , Deletion ( 0, 2 ) ( 0, 4 )
-                                , Deletion ( 0, 1 ) ( 0, 2 )
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                ]
-                          }
+                        [ [ Deletion ( 0, 4 ) ( 0, 6 )
+                          , Deletion ( 0, 2 ) ( 0, 4 )
+                          , Deletion ( 0, 1 ) ( 0, 2 )
+                          , Deletion ( 0, 0 ) ( 0, 1 )
+                          ]
                         ]
                 }
             , last = { emptyLast | inserts = "12<tab><tab>" }
@@ -133,13 +120,9 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | pending =
-                        Just
-                            { cursor = ( 0, 0 )
-                            , patches =
-                                [ Insertion ( 0, 0 ) <| B.fromString "1"
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                ]
-                            }
+                        [ Insertion ( 0, 0 ) <| B.fromString "1"
+                        , Deletion ( 0, 0 ) ( 0, 1 )
+                        ]
                 }
             , last = { emptyLast | inserts = "1<backspace>" }
         }
@@ -153,14 +136,10 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | pending =
-                        Just
-                            { cursor = ( 0, 0 )
-                            , patches =
-                                [ Insertion ( 0, 1 ) <| B.fromString "\n"
-                                , Deletion ( 0, 1 ) ( 1, 0 )
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                ]
-                            }
+                        [ Insertion ( 0, 1 ) <| B.fromString "\n"
+                        , Deletion ( 0, 1 ) ( 1, 0 )
+                        , Deletion ( 0, 0 ) ( 0, 1 )
+                        ]
                 }
             , last = { emptyLast | inserts = "1<cr><backspace>" }
         }
@@ -170,12 +149,9 @@ insertCases =
             | history =
                 { emptyBufferHistory
                     | redoes =
-                        [ { cursor = ( 0, 1 )
-                          , patches =
-                                [ Insertion ( 0, 0 ) <| B.fromString "1"
-                                , Insertion ( 0, 1 ) <| B.fromString "2"
-                                ]
-                          }
+                        [ [ Insertion ( 0, 0 ) <| B.fromString "1"
+                          , Insertion ( 0, 1 ) <| B.fromString "2"
+                          ]
                         ]
                 }
             , last = { emptyLast | inserts = "12" }
@@ -184,17 +160,14 @@ insertCases =
     , ( "i12<esc>u<c-r>"
       , { emptyBuffer
             | lines = B.fromString "12\n"
-            , cursor = ( 0, 1 )
-            , cursorColumn = 1
+            , cursor = ( 0, 0 )
+            , cursorColumn = 0
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ { cursor = ( 0, 0 )
-                          , patches =
-                                [ Deletion ( 0, 1 ) ( 0, 2 )
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                ]
-                          }
+                        [ [ Deletion ( 0, 1 ) ( 0, 2 )
+                          , Deletion ( 0, 0 ) ( 0, 1 )
+                          ]
                         ]
                 }
             , last = { emptyLast | inserts = "12" }
@@ -207,19 +180,12 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ { cursor = ( 0, 0 )
-                          , patches =
-                                [ Deletion ( 0, 0 ) ( 0, 1 ) ]
-                          }
+                        [ [ Deletion ( 0, 0 ) ( 0, 1 ) ]
                         ]
                     , pending =
-                        Just
-                            { cursor = ( 0, 0 )
-                            , patches =
-                                [ Deletion ( 1, 0 ) ( 1, 1 )
-                                , Deletion ( 1, 0 ) ( 2, 0 )
-                                ]
-                            }
+                        [ Deletion ( 1, 0 ) ( 1, 1 )
+                        , Deletion ( 1, 0 ) ( 2, 0 )
+                        ]
                 }
             , view =
                 let
@@ -239,19 +205,12 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ { cursor = ( 0, 0 )
-                          , patches =
-                                [ Deletion ( 0, 0 ) ( 0, 1 ) ]
-                          }
+                        [ [ Deletion ( 0, 0 ) ( 0, 1 ) ]
                         ]
                     , pending =
-                        Just
-                            { cursor = ( 0, 0 )
-                            , patches =
-                                [ Deletion ( 0, 0 ) ( 0, 1 )
-                                , Deletion ( 0, 0 ) ( 1, 0 )
-                                ]
-                            }
+                        [ Deletion ( 0, 0 ) ( 0, 1 )
+                        , Deletion ( 0, 0 ) ( 1, 0 )
+                        ]
                 }
             , mode = Insert
             , continuation = "O"
@@ -266,10 +225,7 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ { cursor = ( 0, 0 )
-                          , patches =
-                                [ Deletion ( 0, 0 ) ( 1, 0 ) ]
-                          }
+                        [ [ Deletion ( 0, 0 ) ( 1, 0 ) ]
                         ]
                 }
         }
@@ -282,23 +238,16 @@ insertCases =
             , registers = Dict.fromList [ ( "\"", Text "123" ) ]
             , history =
                 { undoes =
-                    [ { cursor = ( 0, 0 )
-                      , patches =
-                            [ Deletion ( 0, 3 ) ( 1, 0 )
-                            , Deletion ( 0, 2 ) ( 0, 3 )
-                            , Deletion ( 0, 1 ) ( 0, 2 )
-                            , Deletion ( 0, 0 ) ( 0, 1 )
-                            ]
-                      }
+                    [ [ Deletion ( 0, 3 ) ( 1, 0 )
+                      , Deletion ( 0, 2 ) ( 0, 3 )
+                      , Deletion ( 0, 1 ) ( 0, 2 )
+                      , Deletion ( 0, 0 ) ( 0, 1 )
+                      ]
                     ]
                 , pending =
-                    Just
-                        { cursor = ( 0, 0 )
-                        , patches =
-                            [ Insertion ( 0, 0 )
-                                (B.fromString "123")
-                            ]
-                        }
+                    [ Insertion ( 0, 0 )
+                        (B.fromString "123")
+                    ]
                 , redoes = []
                 , savePoint = 0
                 , version = 0
@@ -838,14 +787,10 @@ changeCases =
             , history =
                 { emptyBufferHistory
                     | pending =
-                        Just
-                            { cursor = ( 0, 0 )
-                            , patches =
-                                [ Insertion
-                                    ( 0, 0 )
-                                    (B.fromString " 123\n456\nd")
-                                ]
-                            }
+                        [ Insertion
+                            ( 0, 0 )
+                            (B.fromString " 123\n456\nd")
+                        ]
                 }
             , registers = Dict.fromList [ ( "\"", Text " 123\n456\nd" ) ]
             , last =

@@ -186,44 +186,52 @@ updateCursor patch patch1 cursor =
 
 addPending : Position -> List Patch -> BufferHistory -> BufferHistory
 addPending cursor patches history =
-    case history.pending of
-        Just pending ->
-            let
-                pending1 =
-                    { pending | patches = patches ++ pending.patches }
-            in
-                { history | pending = Just pending1 }
+    { history
+        | pending = patches ++ history.pending
 
-        _ ->
-            { history
-                | pending = Just { cursor = cursor, patches = patches }
-            }
+        --List.foldl
+        --(\patch result ->
+        --case result of
+        --x :: xs ->
+        --case B.mergePatch x patch of
+        --Just patch1 ->
+        --patch1 :: xs
+        --
+        --_ ->
+        --patch :: x :: xs
+        --
+        --_ ->
+        --[ patch ]
+        --)
+        --history.pending
+        --patches
+    }
 
 
 {-| add pending changes to undo ist and clear redo list
 -}
 commit : Buffer -> Buffer
 commit buf =
-    if buf.history.pending == Nothing then
-        buf
-    else
-        { buf
-            | history =
-                let
-                    history =
-                        buf.history
-                in
-                    case history.pending of
-                        Just pending ->
-                            { history
-                                | undoes = pending :: history.undoes
-                                , pending = Nothing
-                                , redoes = []
-                            }
+    let
+        history =
+            buf.history
 
-                        _ ->
-                            history
-        }
+        { pending, undoes } =
+            history
+    in
+        case pending of
+            [] ->
+                buf
+
+            _ ->
+                { buf
+                    | history =
+                        { history
+                            | undoes = pending :: undoes
+                            , pending = []
+                            , redoes = []
+                        }
+                }
 
 
 {-| undo last change
@@ -233,28 +241,24 @@ undo buf =
     buf.history.undoes
         |> List.head
         |> Maybe.map
-            (\{ cursor, patches } ->
+            (\undo ->
                 let
                     history =
                         buf.history
 
                     ( lines1, patches1, miny ) =
-                        applyPatches patches buf.lines
+                        applyPatches undo buf.lines
 
                     ( syntax, n ) =
-                        applyPatchesToSyntax patches buf.syntax
+                        applyPatchesToSyntax undo buf.syntax
 
                     undoHistory { undoes, redoes } =
                         { history
                             | undoes =
                                 List.tail undoes
                                     |> Maybe.withDefault []
-                            , pending = Nothing
-                            , redoes =
-                                { cursor = buf.cursor
-                                , patches = patches1
-                                }
-                                    :: redoes
+                            , pending = []
+                            , redoes = patches1 :: redoes
                             , version =
                                 case undoes of
                                     [] ->
@@ -263,6 +267,12 @@ undo buf =
                                     _ ->
                                         history.version + 1
                         }
+
+                    cursor =
+                        patches1
+                            |> List.map B.patchCursor
+                            |> List.minimum
+                            |> Maybe.withDefault buf.cursor
                 in
                     { buf
                         | lines = lines1
@@ -283,25 +293,21 @@ redo buf =
     buf.history.redoes
         |> List.head
         |> Maybe.map
-            (\{ cursor, patches } ->
+            (\redo ->
                 let
                     history =
                         buf.history
 
                     ( lines1, patches1, miny ) =
-                        applyPatches patches buf.lines
+                        applyPatches redo buf.lines
 
                     ( syntax, n ) =
-                        applyPatchesToSyntax patches buf.syntax
+                        applyPatchesToSyntax redo buf.syntax
 
                     redoHistory { undoes, redoes } =
                         { history
-                            | undoes =
-                                { cursor = buf.cursor
-                                , patches = patches1
-                                }
-                                    :: undoes
-                            , pending = Nothing
+                            | undoes = patches1 :: undoes
+                            , pending = []
                             , redoes =
                                 List.tail redoes
                                     |> Maybe.withDefault []
@@ -313,6 +319,12 @@ redo buf =
                                     _ ->
                                         history.version + 1
                         }
+
+                    cursor =
+                        patches1
+                            |> List.map B.patchCursor
+                            |> List.minimum
+                            |> Maybe.withDefault buf.cursor
                 in
                     { buf
                         | lines = lines1
@@ -352,13 +364,7 @@ clearHistory buf =
 
 getLastPatch : Buffer -> Maybe Patch
 getLastPatch { history } =
-    history.pending
-        |> Maybe.andThen
-            (\undo ->
-                -- TODO: merge patchs
-                undo.patches
-                    |> List.head
-            )
+    List.head history.pending
 
 
 getLastDeleted : Buffer -> Maybe TextBuffer

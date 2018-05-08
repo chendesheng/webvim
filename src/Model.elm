@@ -15,9 +15,7 @@ import Jumps exposing (..)
 
 
 type alias Undo =
-    { cursor : Position
-    , patches : List Patch
-    }
+    List Patch
 
 
 type alias Redo =
@@ -84,7 +82,7 @@ type alias Model =
 
 type alias BufferHistory =
     { undoes : List Undo
-    , pending : Maybe Undo
+    , pending : Undo
     , redoes : List Redo
     , savePoint : Int
     , version : Int
@@ -94,7 +92,7 @@ type alias BufferHistory =
 emptyBufferHistory : BufferHistory
 emptyBufferHistory =
     { undoes = []
-    , pending = Nothing
+    , pending = []
     , redoes = []
     , savePoint = 0
     , version = 0

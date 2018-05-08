@@ -21,6 +21,8 @@ module Internal.TextBuffer
         , indexedMapLinesToList
         , substring
         , sliceLines
+        , patchCursor
+        , mergePatch
         )
 
 import Position exposing (..)
@@ -36,6 +38,58 @@ type TextBuffer
 type Patch
     = Insertion Position TextBuffer
     | Deletion Position Position
+
+
+patchCursor : Patch -> Position
+patchCursor patch =
+    case patch of
+        Insertion pos _ ->
+            pos
+
+        Deletion pos _ ->
+            pos
+
+
+mergePatch : Patch -> Patch -> Maybe Patch
+mergePatch p1 p2 =
+    case p1 of
+        Insertion pos1 (TextBuffer lines1) ->
+            let
+                add ( y1, x1 ) ( y2, x2 ) =
+                    if y2 == 0 then
+                        ( y1, x1 + x2 )
+                    else
+                        ( y1 + y2, x2 )
+            in
+                case p2 of
+                    Insertion pos2 (TextBuffer lines2) ->
+                        if add pos1 (boundPosition lines1) == pos2 then
+                            append lines1 lines2
+                                |> TextBuffer
+                                |> Insertion pos1
+                                |> Just
+                        else
+                            Nothing
+
+                    Deletion b2 e2 ->
+                        if e2 == add pos1 (boundPosition lines1) then
+                            slice pos1 b2 lines1
+                                |> TextBuffer
+                                |> Insertion pos1
+                                |> Just
+                        else
+                            Nothing
+
+        Deletion b1 e1 ->
+            case p2 of
+                Deletion b2 e2 ->
+                    if b1 == e2 then
+                        Just <| Deletion b2 e1
+                    else
+                        Nothing
+
+                _ ->
+                    Nothing
 
 
 emptyPatch : Patch

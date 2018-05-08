@@ -7,6 +7,7 @@ import Buffer exposing (..)
 import Model exposing (Buffer, emptyBuffer, BufferHistory, emptyBufferHistory)
 import Internal.TextBuffer as B exposing (Patch(..))
 import TextBuffer exposing (..)
+import Helper exposing (getLast)
 
 
 repeat : Int -> (a -> a) -> (a -> a)
@@ -47,12 +48,7 @@ suite =
                         Expect.equal
                             { emptyBufferHistory
                                 | undoes = []
-                                , pending =
-                                    Just
-                                        { cursor = ( 0, 0 )
-                                        , patches =
-                                            [ Deletion ( 0, 0 ) ( 0, 3 ) ]
-                                        }
+                                , pending = [ Deletion ( 0, 0 ) ( 0, 3 ) ]
                                 , redoes = []
                                 , version = 1
                             }
@@ -81,13 +77,9 @@ suite =
                                 | undoes =
                                     []
                                 , pending =
-                                    Just
-                                        { cursor = ( 0, 0 )
-                                        , patches =
-                                            [ Deletion ( 1, 0 ) ( 1, 3 )
-                                            , Deletion ( 0, 0 ) ( 1, 0 )
-                                            ]
-                                        }
+                                    [ Deletion ( 1, 0 ) ( 1, 3 )
+                                    , Deletion ( 0, 0 ) ( 1, 0 )
+                                    ]
                                 , redoes = []
                                 , version = 1
                             }
@@ -116,14 +108,10 @@ suite =
                                 | undoes =
                                     []
                                 , pending =
-                                    Just
-                                        { cursor = ( 0, 0 )
-                                        , patches =
-                                            [ Insertion ( 0, 0 ) <|
-                                                B.fromString "12"
-                                            , Deletion ( 0, 0 ) ( 0, 3 )
-                                            ]
-                                        }
+                                    [ Insertion ( 0, 0 ) <|
+                                        B.fromString "12"
+                                    , Deletion ( 0, 0 ) ( 0, 3 )
+                                    ]
                                 , redoes = []
                                 , version = 1
                             }
@@ -165,14 +153,11 @@ suite =
                         Expect.equal
                             { emptyBufferHistory
                                 | undoes = []
-                                , pending = Nothing
+                                , pending = []
                                 , redoes =
-                                    [ { cursor = ( 0, 3 )
-                                      , patches =
-                                            [ Insertion ( 0, 0 ) <|
-                                                B.fromString "123"
-                                            ]
-                                      }
+                                    [ [ Insertion ( 0, 0 ) <|
+                                            B.fromString "123"
+                                      ]
                                     ]
                                 , version = 2
                             }
@@ -189,7 +174,7 @@ suite =
             in
                 [ test "cursor" <|
                     \_ ->
-                        Expect.equal ( 0, 3 ) buf.cursor
+                        Expect.equal ( 0, 0 ) buf.cursor
                 , test "lines" <|
                     \_ ->
                         Expect.equal (B.fromString "123\n") buf.lines
@@ -198,11 +183,8 @@ suite =
                         Expect.equal
                             { emptyBufferHistory
                                 | undoes =
-                                    [ { cursor = ( 0, 0 )
-                                      , patches = [ Deletion ( 0, 0 ) ( 0, 3 ) ]
-                                      }
-                                    ]
-                                , pending = Nothing
+                                    [ [ Deletion ( 0, 0 ) ( 0, 3 ) ] ]
+                                , pending = []
                                 , redoes = []
                                 , version = 3
                             }
@@ -226,16 +208,10 @@ suite =
                     Expect.equal
                         { emptyBufferHistory
                             | undoes =
-                                [ { cursor = ( 0, 0 )
-                                  , patches = [ Deletion ( 0, 0 ) ( 0, 4 ) ]
-                                  }
-                                ]
-                            , pending = Nothing
+                                [ [ Deletion ( 0, 0 ) ( 0, 4 ) ] ]
+                            , pending = []
                             , redoes =
-                                [ { cursor = ( 0, 3 )
-                                  , patches = [ Deletion ( 0, 1 ) ( 0, 2 ) ]
-                                  }
-                                ]
+                                [ [ Deletion ( 0, 1 ) ( 0, 2 ) ] ]
                             , version = 3
                         }
                         buf.history
@@ -252,15 +228,12 @@ suite =
                     Expect.equal
                         { emptyBufferHistory
                             | undoes =
-                                [ { cursor = ( 0, 0 )
-                                  , patches =
-                                        [ Insertion ( 0, 1 ) <| B.fromString "56"
-                                        , Deletion ( 0, 0 ) ( 0, 3 )
-                                        , Deletion ( 0, 0 ) ( 0, 3 )
-                                        ]
-                                  }
+                                [ [ Insertion ( 0, 1 ) <| B.fromString "56"
+                                  , Deletion ( 0, 0 ) ( 0, 3 )
+                                  , Deletion ( 0, 0 ) ( 0, 3 )
+                                  ]
                                 ]
-                            , pending = Nothing
+                            , pending = []
                             , redoes = []
                             , version = 3
                         }
@@ -274,9 +247,7 @@ suite =
                             |> commit
                             |> undo
                 in
-                    Expect.equal
-                        ( emptyBuffer.cursor, emptyBuffer.lines )
-                        ( buf.cursor, buf.lines )
+                    Expect.equal emptyBuffer.lines buf.lines
         , fuzz (Fuzz.list fuzzPatch) "redo random patches" <|
             \patches ->
                 let
@@ -291,8 +262,8 @@ suite =
                             |> redo
                 in
                     Expect.equal
-                        ( buf.cursor, buf.lines )
-                        ( buf1.cursor, buf1.lines )
+                        buf.lines
+                        buf1.lines
         , fuzz
             (Fuzz.list fuzzPatch |> Fuzz.list)
             "mutiple undoes"
@@ -313,8 +284,8 @@ suite =
                         List.foldl (\_ b -> undo b) buf patcheslist
                 in
                     Expect.equal
-                        ( emptyBuffer.cursor, emptyBuffer.lines )
-                        ( buf1.cursor, buf1.lines )
+                        emptyBuffer.lines
+                        buf1.lines
         , fuzz
             (Fuzz.list fuzzPatch |> Fuzz.list)
             "mutiple redoes"
@@ -337,9 +308,7 @@ suite =
                     buf2 =
                         List.foldl (\_ b -> undo b) buf1 patcheslist
                 in
-                    Expect.equal
-                        ( buf1.cursor, buf1.lines )
-                        ( buf2.cursor, buf2.lines )
+                    Expect.equal buf1.lines buf2.lines
         , describe "history items" <|
             [ fuzz (Fuzz.intRange 0 5) "undo items amount" <|
                 \n ->
@@ -373,10 +342,7 @@ suite =
                                 emptyBuffer
                     in
                         Expect.equal n
-                            (buf.history.pending
-                                |> Maybe.map (.patches >> List.length)
-                                |> Maybe.withDefault 0
-                            )
+                            (List.length buf.history.pending)
             , fuzz (Fuzz.intRange 0 5) "redo items amount" <|
                 \n ->
                     let
