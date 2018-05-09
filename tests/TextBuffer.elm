@@ -262,4 +262,64 @@ suite =
                         ]
                         (B.applyPatch patch buf |> Tuple.second)
             ]
+        , let
+            testMergePatch cases =
+                let
+                    ( a, b ) =
+                        cases.patches
+                in
+                    test cases.label <|
+                        \_ ->
+                            Expect.equal
+                                (B.mergePatch a b)
+                                cases.result
+          in
+            describe "mergePatch"
+                [ describe "insert + insert"
+                    (List.map testMergePatch
+                        [ { label = "merge success"
+                          , patches =
+                                ( Insertion ( 0, 1 ) (B.fromString "2")
+                                , Insertion ( 0, 0 ) (B.fromString "1")
+                                )
+                          , result = Just <| Insertion ( 0, 0 ) (B.fromString "12")
+                          }
+                        , { label = "merge mutiple lines success"
+                          , patches =
+                                ( Insertion ( 1, 1 ) (B.fromString "2")
+                                , Insertion ( 0, 0 ) (B.fromString "13344\n2")
+                                )
+                          , result =
+                                Just <|
+                                    Insertion ( 0, 0 )
+                                        (B.fromString "13344\n22")
+                          }
+                        , { label = "merge failed"
+                          , patches =
+                                ( Insertion ( 0, 0 ) (B.fromString "1")
+                                , Insertion ( 0, 2 ) (B.fromString "2")
+                                )
+                          , result = Nothing
+                          }
+                        ]
+                    )
+                , describe "delete + delete"
+                    (List.map testMergePatch
+                        [ { label = "merge success"
+                          , patches =
+                                ( Deletion ( 0, 1 ) ( 0, 2 )
+                                , Deletion ( 0, 0 ) ( 0, 1 )
+                                )
+                          , result = Just <| Deletion ( 0, 0 ) ( 0, 2 )
+                          }
+                        , { label = "merge failed"
+                          , patches =
+                                ( Deletion ( 0, 1 ) ( 0, 2 )
+                                , Deletion ( 0, 1 ) ( 0, 2 )
+                                )
+                          , result = Nothing
+                          }
+                        ]
+                    )
+                ]
         ]

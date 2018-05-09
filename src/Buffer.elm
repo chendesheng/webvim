@@ -139,13 +139,21 @@ transaction patches buf =
                 )
                 ( buf, [], 0x000000FFFFFFFFFF )
                 patches
+
+        --_ =
+        --    Debug.log "patches" patches
+        --_ =
+        --    Debug.log "undo" undo
     in
         if List.isEmpty undo then
             buf
         else
             let
                 history =
-                    addPending buf.cursor undo buf1.history
+                    addPending undo buf1.history
+
+                --_ =
+                --    Debug.log "history" history
             in
                 { buf1
                     | history = { history | version = history.version + 1 }
@@ -184,27 +192,26 @@ updateCursor patch patch1 cursor =
                     cursor
 
 
-addPending : Position -> List Patch -> BufferHistory -> BufferHistory
-addPending cursor patches history =
+addPending : List Patch -> BufferHistory -> BufferHistory
+addPending patches history =
     { history
-        | pending = patches ++ history.pending
+        | pending =
+            List.foldl
+                (\patch result ->
+                    case result of
+                        x :: xs ->
+                            case B.mergePatch patch x of
+                                Just patch1 ->
+                                    patch1 :: xs
 
-        --List.foldl
-        --(\patch result ->
-        --case result of
-        --x :: xs ->
-        --case B.mergePatch x patch of
-        --Just patch1 ->
-        --patch1 :: xs
-        --
-        --_ ->
-        --patch :: x :: xs
-        --
-        --_ ->
-        --[ patch ]
-        --)
-        --history.pending
-        --patches
+                                _ ->
+                                    patch :: x :: xs
+
+                        _ ->
+                            [ patch ]
+                )
+                history.pending
+                (List.reverse patches)
     }
 
 
@@ -259,13 +266,7 @@ undo buf =
                                     |> Maybe.withDefault []
                             , pending = []
                             , redoes = patches1 :: redoes
-                            , version =
-                                case undoes of
-                                    [] ->
-                                        history.version
-
-                                    _ ->
-                                        history.version + 1
+                            , version = history.version + 1
                         }
 
                     cursor =
@@ -311,13 +312,7 @@ redo buf =
                             , redoes =
                                 List.tail redoes
                                     |> Maybe.withDefault []
-                            , version =
-                                case redoes of
-                                    [] ->
-                                        history.version
-
-                                    _ ->
-                                        history.version + 1
+                            , version = history.version + 1
                         }
 
                     cursor =

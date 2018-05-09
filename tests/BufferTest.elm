@@ -7,7 +7,6 @@ import Buffer exposing (..)
 import Model exposing (Buffer, emptyBuffer, BufferHistory, emptyBufferHistory)
 import Internal.TextBuffer as B exposing (Patch(..))
 import TextBuffer exposing (..)
-import Helper exposing (getLast)
 
 
 repeat : Int -> (a -> a) -> (a -> a)
@@ -26,6 +25,34 @@ repeat n f =
 
 suite : Test
 suite =
+    --    describe "debug" <|
+    --        [ test "debug undo" <|
+    --            (\_ ->
+    --                let
+    --                    patcheslist =
+    --                        [ [ Insertion ( 0, 1 ) <| B.fromString " "
+    --                          , Insertion ( 0, 0 ) <| B.fromString "\n"
+    --                          ]
+    --                        ]
+    --
+    --                    buf =
+    --                        List.foldl
+    --                            (\patches buf ->
+    --                                buf
+    --                                    |> transaction patches
+    --                                    |> commit
+    --                            )
+    --                            emptyBuffer
+    --                            patcheslist
+    --
+    --                    buf1 =
+    --                        List.foldl (\_ b -> undo b) buf patcheslist
+    --                in
+    --                    Expect.equal
+    --                        emptyBuffer.lines
+    --                        buf1.lines
+    --            )
+    --        ]
     describe "basic cases"
         [ describe "insert" <|
             let
@@ -77,9 +104,7 @@ suite =
                                 | undoes =
                                     []
                                 , pending =
-                                    [ Deletion ( 1, 0 ) ( 1, 3 )
-                                    , Deletion ( 0, 0 ) ( 1, 0 )
-                                    ]
+                                    [ Deletion ( 0, 0 ) ( 1, 3 ) ]
                                 , redoes = []
                                 , version = 1
                             }
@@ -266,7 +291,7 @@ suite =
                         buf1.lines
         , fuzz
             (Fuzz.list fuzzPatch |> Fuzz.list)
-            "mutiple undoes"
+            "multiple undoes"
           <|
             \patcheslist ->
                 let
@@ -288,7 +313,7 @@ suite =
                         buf1.lines
         , fuzz
             (Fuzz.list fuzzPatch |> Fuzz.list)
-            "mutiple redoes"
+            "multiple redoes"
           <|
             \patcheslist ->
                 let
