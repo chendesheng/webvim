@@ -42,6 +42,7 @@ const flags = {
   syntaxService: `${scheme}//${host}:8765`,
   activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
   buffers: safeJsonParse(sessionStorage.getItem('buffers')) || [],
+  registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
 };
 // console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);
@@ -56,7 +57,7 @@ const applyCss = url => {
 applyCss(`${flags.syntaxService}/css`);
 
 app.ports.setTitle.subscribe(title => {
-  document.title = title;
+  document.title = title || "no name";
 });
 
 let debouncers = {};

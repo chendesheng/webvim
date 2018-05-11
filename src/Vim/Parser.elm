@@ -792,6 +792,7 @@ operator isVisual isTemp =
                         |> Delete
                         |> PushOperator
                     ]
+                , define "<c-^>" JumpLastBuffer
                 ]
              )
                 ++ [ countPrefix

@@ -310,16 +310,19 @@ toKey { ctrlKey, altKey, shiftKey, keyCode } =
                 && (keyCode /= 17)
                 && (keyCode /= 18)
          then
-            if ctrlKey then
-                ("c-" ++ key)
-                    |> mapCtrl
-            else if altKey then
-                ("a-" ++ key) |> quote
-            else if shiftKey then
-                ("s-" ++ key)
-                    |> mapShift
-            else
-                key
+            let
+                key1 =
+                    if shiftKey then
+                        mapShift ("s-" ++ key)
+                    else
+                        key
+            in
+                if ctrlKey then
+                    mapCtrl ("c-" ++ key1)
+                else if altKey then
+                    "a-" ++ key1
+                else
+                    key1
          else
             ""
         )

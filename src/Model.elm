@@ -12,6 +12,9 @@ import Json.Encode as Encode
 import Fuzzy exposing (FuzzyMatchItem)
 import Elm.Array exposing (Array)
 import Jumps exposing (..)
+import Dict exposing (Dict)
+import Json.Encode as Encode
+import Json.Decode as Decode
 
 
 type alias Undo =
@@ -249,3 +252,63 @@ updateView f buf =
             buf.view
     in
         { buf | view = f buf.view }
+
+
+registerString : RegisterText -> String
+registerString reg =
+    case reg of
+        Text s ->
+            s
+
+        Lines s ->
+            s
+
+
+registerToString : Dict String RegisterText -> String
+registerToString registers =
+    registers
+        |> Dict.toList
+        |> List.map
+            (\item ->
+                let
+                    ( k, v ) =
+                        item
+                in
+                    Encode.object
+                        [ ( "name", Encode.string k )
+                        , case v of
+                            Text s ->
+                                ( "type", Encode.string "text" )
+
+                            Lines s ->
+                                ( "type", Encode.string "lines" )
+                        , case v of
+                            Text s ->
+                                ( "value", Encode.string s )
+
+                            Lines s ->
+                                ( "value", Encode.string s )
+                        ]
+            )
+        |> Encode.list
+        |> Encode.encode 0
+
+
+registersDecoder : Decode.Decoder (Dict String RegisterText)
+registersDecoder =
+    Decode.map3
+        (\name tipe value ->
+            ( name
+            , case tipe of
+                "text" ->
+                    Text value
+
+                _ ->
+                    Lines value
+            )
+        )
+        (Decode.field "name" Decode.string)
+        (Decode.field "type" Decode.string)
+        (Decode.field "value" Decode.string)
+        |> Decode.list
+        |> Decode.map Dict.fromList

@@ -713,6 +713,29 @@ runOperator register operator buf =
                         }
                         { buf | jumps = jumps }
 
+        JumpLastBuffer ->
+            case Dict.get "#" buf.registers of
+                Just reg ->
+                    let
+                        path =
+                            registerString reg
+                                |> Debug.log "JumpLastBuffer"
+                    in
+                        editBuffer
+                            (buf.buffers
+                                |> Dict.get path
+                                |> Maybe.withDefault
+                                    { cursor = ( 0, 0 )
+                                    , path = path
+                                    , content = Nothing
+                                    , scrollTop = 0
+                                    }
+                            )
+                            buf
+
+                _ ->
+                    ( buf, Cmd.none )
+
         _ ->
             ( buf, Cmd.none )
 
@@ -779,16 +802,11 @@ cursorScope ({ view, cursor, lines } as buf) =
                     buf
 
 
-newBuffer : BufferInfo -> Jumps -> Dict String BufferInfo -> Buffer -> Buffer
-newBuffer info jumps buffers buf =
+newBuffer : BufferInfo -> Buffer -> Buffer
+newBuffer info buf =
     let
         { cursor, scrollTop, path, content } =
             info
-
-        lines =
-            content
-                |> Maybe.withDefault ""
-                |> B.fromString
 
         ( name, ext ) =
             filename path
@@ -799,8 +817,11 @@ newBuffer info jumps buffers buf =
                 |> Dict.get ext
                 |> Maybe.withDefault defaultBufferConfig
     in
-        { emptyBuffer
-            | lines = lines
+        { buf
+            | lines =
+                content
+                    |> Maybe.withDefault ""
+                    |> B.fromString
             , config =
                 { config
                     | service = buf.config.service
@@ -816,12 +837,7 @@ newBuffer info jumps buffers buf =
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
-            , jumps = jumps
-            , buffers = buffers
-            , registers = buf.registers
-            , dotRegister = buf.dotRegister
-            , last = buf.last
-            , vimASTCache = buf.vimASTCache
+            , history = emptyBufferHistory
         }
             |> scrollToCursor
 
@@ -1499,37 +1515,46 @@ update message buf =
 
 editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
 editBuffer info buf =
-    if info.content == Nothing then
+    if info.path /= "" && info.content == Nothing then
         ( buf, sendEditBuffer buf.config.service info )
     else
         let
-            jumps =
-                saveCursorPosition
-                    (if info.path == buf.path then
-                        { path = buf.path
-                        , cursor = buf.cursor
-                        }
-                     else
-                        { path = info.path
-                        , cursor = info.cursor
-                        }
-                    )
-                    buf.jumps
-
             newbuf =
                 newBuffer
                     info
-                    jumps
-                    (buf.buffers
-                        |> Dict.remove info.path
-                        |> Dict.insert buf.path
-                            { path = buf.path
-                            , content = buf.lines |> B.toString |> Just
-                            , scrollTop = buf.view.scrollTop
-                            , cursor = buf.cursor
-                            }
-                    )
-                    buf
+                    { buf
+                        | jumps =
+                            saveCursorPosition
+                                (if info.path == buf.path then
+                                    { path = buf.path
+                                    , cursor = buf.cursor
+                                    }
+                                 else
+                                    { path = info.path
+                                    , cursor = info.cursor
+                                    }
+                                )
+                                buf.jumps
+                        , buffers =
+                            (buf.buffers
+                                |> Dict.remove info.path
+                                |> Dict.insert buf.path
+                                    { path = buf.path
+                                    , content = buf.lines |> B.toString |> Just
+                                    , scrollTop = buf.view.scrollTop
+                                    , cursor = buf.cursor
+                                    }
+                            )
+                        , registers =
+                            buf.registers
+                                |> Dict.insert "%" (Text info.path)
+                                |> (\regs ->
+                                        if buf.path == info.path then
+                                            regs
+                                        else
+                                            Dict.insert "#" (Text buf.path) regs
+                                   )
+                    }
         in
             ( newbuf
             , Cmd.batch
@@ -1564,13 +1589,14 @@ type alias Flags =
     , syntaxService : String
     , buffers : Encode.Value
     , activeBuffer : Encode.Value
+    , registers : Encode.Value
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        { lineHeight, service, syntaxService, buffers, activeBuffer } =
+        { lineHeight, service, syntaxService, buffers, activeBuffer, registers } =
             flags
 
         _ =
@@ -1609,6 +1635,9 @@ init flags =
                             | service = service
                             , syntaxService = syntaxService
                         }
+                    , registers =
+                        Decode.decodeValue registersDecoder registers
+                            |> Result.withDefault Dict.empty
                 }
     in
         ( { buf

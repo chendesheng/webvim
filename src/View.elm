@@ -37,7 +37,7 @@ ch n =
     toString n ++ "ch"
 
 
-translate : number -> number1 -> ( String, String )
+translate : number -> number -> ( String, String )
 translate x y =
     ( "transform"
     , "translate(" ++ ch x ++ ", " ++ rem y ++ ")"
@@ -127,7 +127,9 @@ view buf =
                 buf.lintErrorsCount
                 buf.name
              , div [ style [ ( "display", "none" ) ] ]
-                ([ lazy saveBuffers buf.buffers ]
+                ([ lazy saveBuffers buf.buffers
+                 , lazy saveRegisters buf.registers
+                 ]
                     ++ if buf.path == "" then
                         []
                        else
@@ -663,6 +665,13 @@ saveBuffers buffers =
         |> Dict.values
         |> buffersInfoToString
         |> renderSessionStorageItem "buffers"
+
+
+saveRegisters : Dict String RegisterText -> Html msg
+saveRegisters registers =
+    registers
+        |> registerToString
+        |> renderSessionStorageItem "registers"
 
 
 renderSessionStorageItem : String -> String -> Html msg

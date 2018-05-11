@@ -1399,6 +1399,11 @@ editBufferCases =
                 }
             , path = "src/test.elm"
             , lines = B.fromString "123"
+            , registers =
+                Dict.fromList
+                    [ ( "#", Text "" )
+                    , ( "%", Text "src/test.elm" )
+                    ]
             , buffers =
                 Dict.fromList
                     [ ( ""

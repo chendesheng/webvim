@@ -85,6 +85,7 @@ type Operator
     | OpenNewLine Bool
     | JumpHistory Bool
     | JumpByView Float -- factor of view height
+    | JumpLastBuffer
     | CenterView
     | Scroll ScrollPosition
     | CompleteWord Direction
