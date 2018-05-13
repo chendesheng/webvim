@@ -1438,10 +1438,9 @@ update message buf =
                         items1 =
                             List.filter
                                 (\item ->
-                                    item.file
-                                        |> String.dropLeft 2
-                                        |> String.toLower
-                                        |> flip String.endsWith buf.path
+                                    String.endsWith
+                                        (String.toLower buf.path)
+                                        (String.toLower item.file)
                                 )
                                 items
 
