@@ -14,70 +14,46 @@ type alias FuzzyMatchItem =
 fuzzyMatchInner : String -> String -> List Int
 fuzzyMatchInner s t =
     let
+        lenS =
+            String.length s
+
+        lenT =
+            String.length t
+
         charAt i =
             String.slice i (i + 1)
                 >> String.uncons
                 >> Maybe.map Tuple.first
 
-        indexOf i s c =
-            case String.uncons s of
-                Just ( c1, rest ) ->
-                    if c1 == c then
-                        Just i
-                    else
-                        indexOf (i + 1) rest c
-
-                _ ->
-                    Nothing
-
-        matchForward s t result =
-            case String.uncons t of
-                Just ( ch, rest ) ->
-                    let
-                        j =
-                            result |> List.head |> Maybe.withDefault 0
-
-                        --_ =
-                        --    Debug.log "ch" ch
-                        --_ =
-                        --    Debug.log "rest" rest
-                        --_ =
-                        --    Debug.log "j" j
-                    in
-                        case (ch |> indexOf j (String.dropLeft j s)) of
-                            Just i ->
-                                matchForward s rest (i :: result)
-
-                            _ ->
-                                []
-
-                _ ->
-                    result
-
-        matchBackward s t i j result =
-            if i < 0 || j < 0 then
+        match delta i j result =
+            if i < 0 || j < 0 || i >= lenS || j >= lenT then
                 result
             else if charAt i s == charAt j t then
-                matchBackward s t (i - 1) (j - 1) (i :: result)
+                match delta (i + delta) (j + delta) (i :: result)
             else
-                matchBackward s t (i - 1) j result
+                match delta (i + delta) j result
+
+        matchForward i j result =
+            match 1 i j result
+
+        matchBackward i j result =
+            match -1 i j result
 
         indexes =
-            matchForward s t []
-
-        rindexes =
+            matchForward 0 0 []
+    in
+        if List.length indexes == lenT then
             case indexes of
                 i :: _ ->
-                    matchBackward s
-                        t
+                    matchBackward
                         (i - 1)
-                        (String.length t - 2)
+                        (lenT - 2)
                         [ i ]
 
                 _ ->
                     []
-    in
-        rindexes
+        else
+            []
 
 
 fuzzyMatch : List String -> String -> List FuzzyMatchItem

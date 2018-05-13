@@ -595,25 +595,27 @@ renderAutoCompleteMenu classname { matches, select, scrollTop } =
         index =
             select - scrollTop
 
+        renderSpan s matched =
+            if matched then
+                span
+                    [ class "matched" ]
+                    [ text s ]
+            else
+                text s
+
         renderText s indexes i =
             let
-                renderSpan i j matched =
-                    span
-                        (if matched then
-                            [ class "matched" ]
-                         else
-                            []
-                        )
-                        [ text <| String.slice i j s ]
+                render i j matched =
+                    renderSpan (String.slice i j s) matched
             in
                 case indexes of
                     j :: rest ->
                         if i < j then
-                            renderSpan i j False
-                                :: renderSpan j (j + 1) True
+                            render i j False
+                                :: render j (j + 1) True
                                 :: renderText s rest (j + 1)
                         else if i == j then
-                            renderSpan j (j + 1) True
+                            render j (j + 1) True
                                 :: renderText s rest (j + 1)
                         else
                             -- shuld never happen
@@ -624,8 +626,8 @@ renderAutoCompleteMenu classname { matches, select, scrollTop } =
                             len =
                                 String.length s
                         in
-                            if i < len - 1 then
-                                [ renderSpan i len False ]
+                            if i <= len - 1 then
+                                [ render i len False ]
                             else
                                 []
     in
