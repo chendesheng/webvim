@@ -86,8 +86,13 @@ setVisualEnd pos buf =
             buf
 
 
-saveMotion : V.MotionData -> V.MotionOption -> Buffer -> Buffer
-saveMotion md mo buf =
+wholeWord : String -> String
+wholeWord s =
+    "\\b" ++ Re.escape s ++ "\\b"
+
+
+saveMotion : V.MotionData -> V.MotionOption -> Buffer -> Buffer -> Buffer
+saveMotion md mo oldbuf buf =
     let
         last =
             buf.last
@@ -109,10 +114,9 @@ saveMotion md mo buf =
                         V.WordUnderCursor ->
                             let
                                 s =
-                                    buf
+                                    oldbuf
                                         |> wordStringUnderCursor
-                                        |> Maybe.map Tuple.second
-                                        |> Maybe.map Re.escape
+                                        |> Maybe.map (Tuple.second >> wholeWord)
                             in
                                 case s of
                                     Just s1 ->
@@ -461,6 +465,7 @@ runMotion md mo buf =
                         V.WordUnderCursor ->
                             buf
                                 |> wordStringUnderCursor
+                                --|> Debug.log "word under cursor"
                                 |> Maybe.andThen
                                     (\res ->
                                         let
@@ -468,7 +473,7 @@ runMotion md mo buf =
                                                 res
 
                                             s =
-                                                Re.escape str
+                                                wholeWord str
                                         in
                                             (matchString mo.forward
                                                 (Re.regex s |> Re.caseInsensitive)
@@ -573,10 +578,10 @@ motion md mo buf =
             ( buf
                 |> Buf.setCursor cursor (isSaveColumn md)
                 |> setVisualEnd cursor
-                |> saveMotion md mo
+                |> saveMotion md mo buf
                 |> saveCursorAfterJump md buf.cursor cursor
             , Cmd.none
             )
 
         Nothing ->
-            ( saveMotion md mo buf, Cmd.none )
+            ( saveMotion md mo buf buf, Cmd.none )

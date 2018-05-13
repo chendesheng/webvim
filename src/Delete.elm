@@ -125,7 +125,7 @@ delete register rg buf =
                                         (saveLastDeleted linewise register
                                             >> updateCursorColumn
                                         )
-                                    |> saveMotion md mo
+                                    |> saveMotion md mo buf
 
                             _ ->
                                 Buf.setMode
