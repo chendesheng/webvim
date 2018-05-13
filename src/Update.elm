@@ -1165,7 +1165,27 @@ handleKeypress replaying key buf =
                 buf
 
         newBottom =
-            buf1.view.scrollTop + buf1.view.size.height
+            let
+                n =
+                    buf1.view.scrollTop + buf1.view.size.height
+            in
+                case buf1.mode of
+                    Ex { prefix, visual } ->
+                        case prefix of
+                            ExSearch { match } ->
+                                case match of
+                                    Just ( begin, _ ) ->
+                                        Tuple.first begin
+                                            + buf1.view.size.height
+
+                                    _ ->
+                                        n
+
+                            _ ->
+                                n
+
+                    _ ->
+                        n
 
         getPatchLine =
             Maybe.andThen
