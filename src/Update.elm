@@ -31,7 +31,7 @@ import Service exposing (sendTokenize)
 import Elm.Array as Array
 import Document as Doc
 import Fuzzy exposing (..)
-import Jumps exposing (saveCursorPosition, jump, Jumps)
+import Jumps exposing (saveCursorPosition, jump, Jumps, Location)
 
 
 stringToPrefix : String -> ExPrefix
@@ -834,10 +834,12 @@ newBuffer info buf =
                     , scrollTop = scrollTop
                 }
             , cursor = cursor
+            , lint = { items = [], count = buf.lint.count }
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
             , history = emptyBufferHistory
+            , syntax = Array.empty
         }
             |> scrollToCursor
 
@@ -980,6 +982,37 @@ execute s buf =
             , sendSaveBuffer buf.config.service path <|
                 B.toString buf.lines
             )
+
+        [ "ll" ] ->
+            case List.head buf.locationList of
+                Just loc ->
+                    let
+                        { path, cursor } =
+                            loc
+
+                        jumps =
+                            saveCursorPosition loc buf.jumps
+
+                        scrollTop =
+                            Tuple.first buf.cursor
+                                - (Tuple.first buf.cursor - buf.view.scrollTop)
+                                |> Basics.max 0
+                    in
+                        if path == buf.path then
+                            ( Buf.setCursor cursor True { buf | jumps = jumps }
+                            , Cmd.none
+                            )
+                        else
+                            editBuffer
+                                { path = path
+                                , cursor = cursor
+                                , scrollTop = scrollTop
+                                , content = Nothing
+                                }
+                                { buf | jumps = jumps }
+
+                _ ->
+                    ( buf, Cmd.none )
 
         _ ->
             ( buf, Cmd.none )
@@ -1299,6 +1332,17 @@ onTokenized buf resp =
             ( buf, Cmd.none )
 
 
+lintErrorToLocationList : List LintError -> List Location
+lintErrorToLocationList items =
+    List.map
+        (\item ->
+            { path = item.file
+            , cursor = Tuple.first item.region
+            }
+        )
+        items
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message buf =
     case message of
@@ -1420,13 +1464,22 @@ update message buf =
 
         LintOnTheFly resp ->
             case resp of
-                Ok items ->
-                    ( { buf
-                        | lintItems = items
-                        , lintErrorsCount = List.length items
-                      }
-                    , Cmd.none
-                    )
+                Ok errors ->
+                    let
+                        items =
+                            List.map (\item -> { item | file = buf.path })
+                                errors
+                    in
+                        ( { buf
+                            | lint =
+                                { items = items
+                                , count = List.length items
+                                }
+                            , locationList =
+                                lintErrorToLocationList items
+                          }
+                        , Cmd.none
+                        )
 
                 Err _ ->
                     ( buf, Cmd.none )
@@ -1448,8 +1501,12 @@ update message buf =
                             not (List.isEmpty items1)
                     in
                         ( { buf
-                            | lintItems = items1
-                            , lintErrorsCount = List.length items
+                            | lint =
+                                { items = items1
+                                , count = List.length items
+                                }
+                            , locationList =
+                                lintErrorToLocationList items
                           }
                         , Cmd.none
                         )

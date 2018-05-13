@@ -79,7 +79,7 @@ bufferInfoDecoder =
         )
 
 
-type alias LocationItem =
+type alias LintError =
     { tipe : String
     , tag : String
     , file : String
@@ -104,9 +104,9 @@ regionDecoder =
         (Decode.field "end" positionDecoder)
 
 
-elmMakeResultDecoder : Decode.Decoder (List LocationItem)
+elmMakeResultDecoder : Decode.Decoder (List LintError)
 elmMakeResultDecoder =
-    Decode.map7 LocationItem
+    Decode.map7 LintError
         (Decode.field "type" Decode.string)
         (Decode.field "tag" Decode.string)
         (Decode.field "file" Decode.string)
@@ -139,8 +139,8 @@ type Msg
     | Edit BufferInfo
     | SendLint
     | SendTokenize TokenizeRequest
-    | Lint (Result String (List LocationItem))
-    | LintOnTheFly (Result String (List LocationItem))
+    | Lint (Result String (List LintError))
+    | LintOnTheFly (Result String (List LintError))
     | Tokenized (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List File))
     | NoneMessage

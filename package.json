@@ -34,7 +34,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "elm format src/ --yes && elm format tests/ --yes && elm test && ./fake"
+      "pre-commit": "elm format src/ --yes && elm format tests/ --yes && elm test && npm run release && ./fake"
     }
   }
 }

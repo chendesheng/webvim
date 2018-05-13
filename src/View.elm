@@ -12,7 +12,7 @@ import Vim.AST exposing (VisualType(..))
 import Syntax exposing (Syntax, Token)
 import Message
     exposing
-        ( LocationItem
+        ( LintError
         , BufferInfo
         , bufferInfoToString
         , buffersInfoToString
@@ -97,7 +97,7 @@ view buf =
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
                             )
-                        ?:: lazy3 renderLint scrollTop1 lines buf.lintItems
+                        ?:: lazy3 renderLint scrollTop1 lines buf.lint.items
                         :: renderLines
                             scrollTop1
                             (height + 1)
@@ -105,7 +105,7 @@ view buf =
                             syntax
                         :: renderCursor maybeCursor
                         :: renderTip scrollTop1
-                            buf.lintItems
+                            buf.lint.items
                             (Maybe.map
                                 (\cur ->
                                     let
@@ -124,7 +124,7 @@ view buf =
                 (Buf.isDirty buf)
                 mode
                 continuation
-                buf.lintErrorsCount
+                buf.lint.count
                 buf.name
              , div [ style [ ( "display", "none" ) ] ]
                 ([ lazy saveBuffers buf.buffers
@@ -355,7 +355,7 @@ renderSelections scrollTop lines { tipe, begin, end } =
 
 renderTip :
     Int
-    -> List LocationItem
+    -> List LintError
     -> Maybe Position
     -> Bool
     -> Maybe (Html msg)
@@ -409,7 +409,7 @@ renderTip scrollTop items maybeCursor showTip =
 renderLint :
     Int
     -> B.TextBuffer
-    -> List LocationItem
+    -> List LintError
     -> Html msg
 renderLint scrollTop lines items =
     let

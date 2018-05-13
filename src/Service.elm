@@ -5,7 +5,7 @@ import Message
     exposing
         ( Msg(..)
         , BufferInfo
-        , LocationItem
+        , LintError
         , elmMakeResultDecoder
         , TokenizeResponse(..)
         , File
@@ -61,7 +61,7 @@ sendSaveBuffer url path buf =
             |> Http.send Write
 
 
-syntaxErrorParser : Parser LocationItem
+syntaxErrorParser : Parser LintError
 syntaxErrorParser =
     P.succeed
         (\tag file overview y x details ->
@@ -107,7 +107,7 @@ syntaxErrorParser =
            )
 
 
-parseLintResponse : Result a String -> Result String (List LocationItem)
+parseLintResponse : Result a String -> Result String (List LintError)
 parseLintResponse resp =
     case Result.mapError toString resp of
         Ok s ->

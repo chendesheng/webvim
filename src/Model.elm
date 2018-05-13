@@ -1,6 +1,6 @@
 module Model exposing (..)
 
-import Message exposing (Msg(..), BufferInfo, LocationItem, bufferInfoDecoder)
+import Message exposing (Msg(..), BufferInfo, LintError, bufferInfoDecoder)
 import Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
@@ -107,12 +107,17 @@ type RegisterText
     | Lines String
 
 
+type alias BufferLint =
+    { items : List LintError
+    , count : Int
+    }
+
+
 type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
     , syntaxDirtyFrom : Maybe Int
-    , lintItems : List LocationItem
-    , lintErrorsCount : Int
+    , lint : BufferLint
     , cursor : Position
     , cursorColumn : Int
     , path : String
@@ -140,6 +145,7 @@ type alias Buffer =
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
     , jumps : Jumps
     , buffers : Dict String BufferInfo
+    , locationList : List Location
     }
 
 
@@ -214,8 +220,7 @@ emptyBuffer =
     { lines = B.fromString B.lineBreak
     , syntax = Array.empty
     , syntaxDirtyFrom = Nothing
-    , lintItems = []
-    , lintErrorsCount = 0
+    , lint = { items = [], count = 0 }
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""
@@ -242,6 +247,7 @@ emptyBuffer =
         , current = { path = "", cursor = ( 0, 0 ) }
         }
     , buffers = Dict.empty
+    , locationList = []
     }
 
 
