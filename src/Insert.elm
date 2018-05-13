@@ -93,13 +93,10 @@ autoIndent y lines =
 openNewLine : Int -> Buffer -> Buffer
 openNewLine y buf =
     let
-        n =
-            B.countLines buf.lines
-
         y1 =
             y
                 |> max 0
-                |> min n
+                |> min (B.count buf.lines)
 
         indent =
             autoIndent (y1 - 1) buf.lines

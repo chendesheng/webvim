@@ -420,7 +420,7 @@ runOperator register operator buf =
                 scope n =
                     n
                         |> max 0
-                        |> min (B.countLines buf.lines - 1)
+                        |> min (B.count buf.lines - 1)
             in
                 buf
                     |> scrollToLine (scope scrollTop)
@@ -440,7 +440,7 @@ runOperator register operator buf =
         Delete rg ->
             buf
                 |> delete register rg
-                |> cursorScope
+                |> scrollToCursor
                 |> cmdNone
 
         Yank rg ->
@@ -479,7 +479,7 @@ runOperator register operator buf =
                 lineScope row =
                     row
                         |> max 0
-                        |> min (B.countLines buf.lines - 1)
+                        |> min (B.count buf.lines - 1)
 
                 scrollScope scrollTop n =
                     let
@@ -487,7 +487,7 @@ runOperator register operator buf =
                             scrollTop + n
 
                         maxy =
-                            B.countLines buf.lines - 1
+                            B.count buf.lines - 1
                     in
                         if newn < 0 then
                             scrollTop
@@ -781,7 +781,7 @@ cursorScope ({ view, cursor, lines } as buf) =
         maxy =
             min
                 (view.scrollTop + view.size.height - 1)
-                (B.countLines lines - 1)
+                (B.count lines - 1)
 
         miny =
             min view.scrollTop maxy
@@ -820,7 +820,7 @@ newBuffer info buf =
         { buf
             | lines =
                 content
-                    |> Maybe.withDefault ""
+                    |> Maybe.withDefault (B.toString emptyBuffer.lines)
                     |> B.fromString
             , config =
                 { config
@@ -1427,7 +1427,7 @@ update message buf =
                             else
                                 let
                                     n =
-                                        B.countLines buf.lines
+                                        B.count buf.lines
 
                                     patches =
                                         [ Deletion ( 0, 0 ) ( n, 0 )
@@ -1682,7 +1682,8 @@ init flags =
             emptyBuffer.view
 
         activeBuf =
-            Decode.decodeValue bufferInfoDecoder activeBuffer
+            activeBuffer
+                |> Decode.decodeValue bufferInfoDecoder
                 |> Result.withDefault
                     { path = ""
                     , content = Nothing

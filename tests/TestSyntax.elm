@@ -187,6 +187,20 @@ cases =
             , Just 0
             )
       }
+    , { description = "insert to bottom"
+      , syntax =
+            [ [ newToken2 3 "mtk1" ]
+            , [ newToken2 3 "mtk2" ]
+            ]
+      , patches = [ Insertion ( 2, 0 ) (B.fromString "a") ]
+      , result =
+            ( [ [ newToken2 3 "mtk1" ]
+              , [ newToken2 3 "mtk2" ]
+              , [ newToken2 1 "" ]
+              ]
+            , Just 2
+            )
+      }
     ]
 
 

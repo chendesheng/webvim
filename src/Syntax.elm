@@ -63,33 +63,12 @@ applyPatchToSyntax patch syntax =
                 _ ->
                     ( tokens, [] )
 
-        splitLines lines =
-            let
-                max =
-                    B.count lines - 1
-            in
-                ( B.getLine 0 lines |> Maybe.withDefault ""
-                , B.sliceLines 1 max lines
-                , lines
-                    |> B.getLine max
-                    |> Maybe.withDefault ""
-                )
-
         insert ( y, x ) lines syntax =
             case Array.get y syntax of
                 Just tokens ->
                     let
                         ( left, right ) =
                             splitTokens x [] tokens
-
-                        top =
-                            Array.slice 0 y syntax
-
-                        bottom =
-                            Array.slice (y + 1) (Array.length syntax) syntax
-
-                        ( firstLine, middleLines, lastLine ) =
-                            splitLines lines
 
                         classname =
                             (case List.head left of
@@ -102,69 +81,64 @@ applyPatchToSyntax patch syntax =
                                         |> Maybe.withDefault ""
                             )
 
-                        left1 =
-                            case left of
+                        expand tokens n =
+                            case tokens of
                                 x :: xs ->
-                                    ({ x | length = x.length + String.length firstLine }
+                                    ({ x | length = x.length + n }
                                         :: xs
                                     )
-                                        |> List.reverse
 
                                 _ ->
-                                    [ { length = String.length firstLine
+                                    [ { length = n
                                       , classname = classname
                                       }
                                     ]
 
-                        right1 =
-                            case right of
-                                x :: xs ->
-                                    { x
-                                        | length =
-                                            x.length
-                                                + String.length lastLine
-                                    }
-                                        :: xs
+                        cnt =
+                            B.count lines
 
-                                _ ->
-                                    [ { length = String.length lastLine
-                                      , classname = classname
-                                      }
-                                    ]
-                    in
-                        if B.isMutipleLine lines then
-                            top
-                                |> Array.push
-                                    left1
-                                |> flip Array.append
-                                    (B.mapLines
-                                        (\line ->
-                                            [ { length = String.length line
+                        middle =
+                            lines
+                                |> B.mapLines String.length
+                                |> Array.indexedMap
+                                    (\i n ->
+                                        if i == 0 then
+                                            (expand left n
+                                                |> List.reverse
+                                            )
+                                                ++ if cnt == 1 then
+                                                    right
+                                                   else
+                                                    []
+                                        else if i == cnt - 1 then
+                                            expand right n
+                                        else
+                                            [ { length = n
                                               , classname = classname
                                               }
                                             ]
-                                        )
-                                        middleLines
                                     )
-                                |> Array.push right1
-                                |> flip Array.append bottom
-                        else
-                            top
-                                |> Array.push (left1 ++ right)
-                                |> flip Array.append bottom
+
+                        top =
+                            Array.slice 0 y syntax
+
+                        bottom =
+                            Array.slice (y + 1) (Array.length syntax) syntax
+                    in
+                        top
+                            |> flip Array.append middle
+                            |> flip Array.append bottom
 
                 _ ->
-                    if y == 0 && x == 0 then
-                        lines
-                            |> B.mapLines
-                                (\line ->
-                                    [ { length = String.length line
-                                      , classname = ""
-                                      }
-                                    ]
-                                )
-                    else
-                        syntax
+                    lines
+                        |> B.mapLines
+                            (\line ->
+                                [ { length = String.length line
+                                  , classname = ""
+                                  }
+                                ]
+                            )
+                        |> Array.append syntax
     in
         case patch of
             Insertion pos lines ->

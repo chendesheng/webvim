@@ -162,62 +162,62 @@ findPositionInBuffer :
     -> Int
     -> Int
     -> String
-    -> String
     -> B.TextBuffer
     -> Maybe Position
-findPositionInBuffer md mo y x_ pline wordChars lines =
-    case B.getLine y lines of
-        Just line_ ->
-            let
-                line =
-                    if mo.forward then
-                        pline ++ line_
-                    else
-                        line_ ++ pline
+findPositionInBuffer md mo y x wordChars lines =
+    let
+        findPositionInBufferInner md mo y x target line wordChars lines =
+            case findPosition wordChars md mo target x of
+                Just x1 ->
+                    Just
+                        ( y
+                        , if mo.forward then
+                            x1 - (String.length target - String.length line)
+                          else
+                            x1
+                        )
 
-                x =
-                    if mo.forward then
-                        x_
-                    else if String.isEmpty pline then
-                        x_
-                    else
-                        x_ + String.length line_
-            in
-                case findPosition wordChars md mo line x of
-                    Just x1 ->
-                        Just
-                            ( y
-                            , if mo.forward then
-                                x1 - String.length pline
-                              else
-                                x1
-                            )
+                Nothing ->
+                    if mo.crossLine then
+                        if mo.forward then
+                            case B.getLine (y + 1) lines of
+                                Just nextLine ->
+                                    findPositionInBufferInner
+                                        md
+                                        mo
+                                        (y + 1)
+                                        x
+                                        (target ++ nextLine)
+                                        nextLine
+                                        wordChars
+                                        lines
 
-                    Nothing ->
-                        if mo.crossLine then
-                            if mo.forward then
-                                findPositionInBuffer
-                                    md
-                                    mo
-                                    (y + 1)
-                                    x
-                                    line
-                                    wordChars
-                                    lines
-                            else
-                                findPositionInBuffer
-                                    md
-                                    mo
-                                    (y - 1)
-                                    x
-                                    line
-                                    wordChars
-                                    lines
+                                _ ->
+                                    Nothing
                         else
-                            Nothing
+                            case B.getLine (y - 1) lines of
+                                Just nextLine ->
+                                    findPositionInBufferInner
+                                        md
+                                        mo
+                                        (y - 1)
+                                        (x + String.length nextLine)
+                                        (nextLine ++ target)
+                                        nextLine
+                                        wordChars
+                                        lines
 
-        _ ->
-            Nothing
+                                _ ->
+                                    Nothing
+                    else
+                        Nothing
+    in
+        case B.getLine y lines of
+            Just line ->
+                findPositionInBufferInner md mo y x line line wordChars lines
+
+            _ ->
+                Nothing
 
 
 gotoLine : Int -> B.TextBuffer -> Maybe Position
@@ -352,7 +352,7 @@ matchString forward re pos lines =
                     pos
 
                 n =
-                    B.countLines lines
+                    B.count lines
             in
                 if forward then
                     matchStringInner forward
@@ -390,7 +390,7 @@ runMotion md mo buf =
 
             bottomLine buf =
                 (min
-                    (B.countLines buf.lines)
+                    (B.count buf.lines)
                     (buf.view.scrollTop + buf.view.size.height)
                 )
                     - 1
@@ -400,14 +400,14 @@ runMotion md mo buf =
         in
             case md of
                 V.LineNumber n ->
-                    gotoLine (n % (B.countLines buf.lines)) buf.lines
+                    gotoLine (n % (B.count buf.lines - 1)) buf.lines
 
                 V.LineDelta n ->
                     let
                         y1 =
                             (y + n)
                                 |> max 0
-                                |> min (B.countLines buf.lines - 1)
+                                |> min (B.count buf.lines - 2)
 
                         x1 =
                             buf.lines
@@ -450,7 +450,6 @@ runMotion md mo buf =
                                     option1
                                     y
                                     x
-                                    ""
                                     buf.config.wordChars
                                     buf.lines
 
@@ -498,7 +497,6 @@ runMotion md mo buf =
                         mo
                         y
                         x
-                        ""
                         buf.config.wordChars
                         buf.lines
 

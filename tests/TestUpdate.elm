@@ -148,9 +148,7 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ [ Deletion ( 0, 0 ) ( 0, 2 )
-                          ]
-                        ]
+                        [ [ Deletion ( 0, 0 ) ( 0, 2 ) ] ]
                 }
             , last = { emptyLast | inserts = "12" }
         }
@@ -162,12 +160,9 @@ insertCases =
             , history =
                 { emptyBufferHistory
                     | undoes =
-                        [ [ Deletion ( 0, 0 ) ( 0, 1 ) ]
-                        ]
+                        [ [ Deletion ( 0, 0 ) ( 0, 1 ) ] ]
                     , pending =
-                        [ Deletion ( 1, 0 ) ( 1, 1 )
-                        , Deletion ( 1, 0 ) ( 2, 0 )
-                        ]
+                        [ Deletion ( 1, 0 ) ( 1, 1 ), Deletion ( 1, 0 ) ( 2, 0 ) ]
                 }
             , view =
                 let
@@ -566,7 +561,7 @@ exModeCases =
                 }
         }
       )
-    , ( "G?def<cr>"
+    , ( "jj?def<cr>"
       , { exModeCasesBuf
             | last = { emptyLast | matchString = Just ( "def", False ) }
             , cursor = ( 1, 0 )
@@ -686,8 +681,7 @@ deleteCases =
       , { deleteCasesBuf
             | lines = B.fromString " 123\n"
             , registers = Dict.fromList [ ( "\"", Lines "456\n" ) ]
-            , cursor = ( 0, 1 )
-            , cursorColumn = 1
+            , cursor = ( 1, 0 )
         }
       )
     , ( "d/456<cr>"
@@ -1196,12 +1190,12 @@ joinCases =
             , cursorColumn = 0
         }
       )
-    , ( "jjjjJ", { joinCasesBuf | cursor = ( 4, 0 ) } )
-    , ( "vjjjjJ"
+    , ( "jjjjjJ", { joinCasesBuf | cursor = ( 5, 0 ) } )
+    , ( "vjjjjjJ"
       , { joinCasesBuf
             | cursor = ( 0, 11 )
             , cursorColumn = 11
-            , lines = B.fromString "123 456 789 \n"
+            , lines = B.fromString "123 456 789 "
         }
       )
     , ( "A<space><esc>J"
@@ -1235,8 +1229,7 @@ jumpsCasesBuf =
 456
 789
 abc
-def
-"""
+def"""
             , view = { view | size = { width = 20, height = 6 } }
             , path = "testpath"
             , jumps = { jumps | current = { path = "testpath", cursor = ( 0, 0 ) } }
@@ -1408,7 +1401,7 @@ editBufferCases =
                 Dict.fromList
                     [ ( ""
                       , { path = ""
-                        , content = Just "\n"
+                        , content = Just <| B.toString emptyBuffer.lines
                         , scrollTop = 0
                         , cursor = ( 0, 0 )
                         }
@@ -1639,14 +1632,14 @@ suite =
                 describe name <|
                     List.map
                         (\( s, buf ) ->
-                            --if s == "GMH<c-o><c-o><tab>?23<cr>" then
-                            keysTest
-                                (clearASTCache >> map)
-                                s
-                                buf
-                                model
-                         --else
-                         --    (test s <| \_ -> Expect.equal 1 1)
+                            if s == "i1<cr><backspace>" then
+                                keysTest
+                                    (clearASTCache >> map)
+                                    s
+                                    buf
+                                    model
+                            else
+                                (test s <| \_ -> Expect.equal 1 1)
                         )
                         cases
             )

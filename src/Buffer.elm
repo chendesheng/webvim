@@ -41,7 +41,6 @@ import Internal.TextBuffer as B
         , getLine
         , lineBreak
         , fromString
-        , countLines
         , Patch(..)
         , isEmpty
         , foldlLines

@@ -8,9 +8,7 @@ module Internal.TextBuffer
         , fromString
         , fromStringExpandTabs
         , getLine
-        , countLines
         , count
-        , isMutipleLine
         , foldlLines
         , expandTabs
         , mapLines
@@ -98,43 +96,24 @@ lineBreak =
 
 isEmpty : TextBuffer -> Bool
 isEmpty (TextBuffer buf) =
-    Array.isEmpty buf
+    isEmptyInner buf
+
+
+isEmptyInner : Array String -> Bool
+isEmptyInner buf =
+    Array.get 0 buf
+        |> Maybe.map String.isEmpty
+        |> Maybe.withDefault True
 
 
 empty : TextBuffer
 empty =
-    TextBuffer Array.empty
+    fromString ""
 
 
 count : TextBuffer -> Int
 count (TextBuffer buf) =
     Array.length buf
-
-
-{-| return how many lines of text buffer
-TODO: this is wrong, should always use Array.length
--}
-countLines : TextBuffer -> Int
-countLines (TextBuffer buf) =
-    let
-        n =
-            Array.length buf
-    in
-        case Array.get (n - 1) buf of
-            Nothing ->
-                0
-
-            Just line ->
-                -- ignore last empty line
-                if String.length line == 0 then
-                    n - 1
-                else
-                    n
-
-
-isMutipleLine : TextBuffer -> Bool
-isMutipleLine (TextBuffer buf) =
-    Array.length buf > 1
 
 
 mapLines : (String -> b) -> TextBuffer -> Array b
@@ -165,15 +144,7 @@ foldlLines n f a (TextBuffer buf) =
 
 getLine : Int -> TextBuffer -> Maybe String
 getLine n (TextBuffer buf) =
-    case Array.get n buf of
-        Just s ->
-            if s == "" then
-                Nothing
-            else
-                Just s
-
-        _ ->
-            Nothing
+    Array.get n buf
 
 
 getLastLine : Array String -> String
@@ -204,7 +175,7 @@ getFirstLine buf =
 
 boundPosition : Array String -> Position
 boundPosition buf =
-    if Array.isEmpty buf then
+    if isEmptyInner buf then
         ( 0, 0 )
     else
         let
@@ -234,12 +205,9 @@ fromStringExpandTabs n firstLineOffset s =
 
 fromStringHelper : String -> Array String
 fromStringHelper s =
-    if String.isEmpty s then
-        Array.fromList []
-    else
-        s
-            |> String.split lineBreak
-            |> fromStringList
+    s
+        |> String.split lineBreak
+        |> fromStringList
 
 
 fromStringList : List String -> Array String
@@ -249,16 +217,15 @@ fromStringList s =
     else
         let
             buf =
-                s
-                    |> Array.fromList
+                Array.fromList s
 
-            lastRow =
+            lastLine =
                 Array.length buf - 1
         in
             buf
                 |> Array.indexedMap
                     (\i s ->
-                        if i == lastRow then
+                        if i == lastLine then
                             s
                         else
                             s ++ lineBreak
@@ -276,9 +243,9 @@ toString (TextBuffer buf) =
 -}
 append : Array String -> Array String -> Array String
 append buf1 buf2 =
-    if Array.isEmpty buf1 then
+    if isEmptyInner buf1 then
         buf2
-    else if Array.isEmpty buf2 then
+    else if isEmptyInner buf2 then
         buf1
     else
         let
@@ -316,7 +283,7 @@ slice pos1 pos2 buf =
             valid pos2
     in
         if pos22 <= pos11 then
-            Array.empty
+            fromStringHelper ""
         else
             Maybe.map2
                 (\line1 line2 ->

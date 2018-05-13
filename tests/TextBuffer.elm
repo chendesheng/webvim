@@ -227,7 +227,7 @@ suite =
                             let
                                 line =
                                     buf
-                                        |> B.getLine (B.countLines buf)
+                                        |> B.getLine (B.count buf - 1)
                                         |> Maybe.withDefault ""
                             in
                                 String.endsWith B.lineBreak line
@@ -244,7 +244,7 @@ suite =
                                 )
                                 buf
                                 |> Array.slice 0
-                                    (B.countLines buf - 1)
+                                    (B.count buf - 1)
                                 |> Array.toList
                                 |> List.all ((==) True)
                                 |> Expect.true
@@ -253,7 +253,7 @@ suite =
                         , (\buf ->
                             B.mapLines String.isEmpty buf
                                 |> Array.slice 0
-                                    (B.countLines buf - 1)
+                                    (B.count buf - 1)
                                 |> Array.toList
                                 |> List.all not
                                 |> Expect.true

@@ -57,7 +57,7 @@ view buf =
             view.size
 
         totalLines =
-            B.countLines lines
+            B.count lines - 1
 
         maybeCursor =
             case mode of
