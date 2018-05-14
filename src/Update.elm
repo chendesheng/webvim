@@ -18,6 +18,7 @@ import Motion exposing (..)
 import Delete exposing (..)
 import Insert exposing (..)
 import Position exposing (Position)
+import PositionClass exposing (findLineFirst)
 import Regex as Re
 import TextObject exposing (expandTextObject)
 import Result
@@ -32,6 +33,7 @@ import Elm.Array as Array
 import Document as Doc
 import Fuzzy exposing (..)
 import Jumps exposing (saveCursorPosition, jump, Jumps, Location)
+import Range exposing (operatorRanges)
 
 
 stringToPrefix : String -> ExPrefix
@@ -735,6 +737,73 @@ runOperator register operator buf =
 
                 _ ->
                     ( buf, Cmd.none )
+
+        Indent forward range ->
+            let
+                genPatches y =
+                    if forward then
+                        buf.lines
+                            |> B.getLine y
+                            |> Maybe.map
+                                (\s ->
+                                    " "
+                                        |> String.repeat
+                                            (if String.length s > 1 then
+                                                buf.config.tabSize
+                                             else
+                                                0
+                                            )
+                                        |> B.fromString
+                                        |> Insertion ( y, 0 )
+                                )
+                            |> Maybe.withDefault (Insertion ( y, 0 ) B.empty)
+                    else
+                        let
+                            size =
+                                buf.lines
+                                    |> B.getLine y
+                                    |> Maybe.map findLineFirst
+                                    |> Maybe.withDefault 0
+                                    |> Basics.min
+                                        buf.config.tabSize
+                        in
+                            Deletion
+                                ( y, 0 )
+                                ( y, size )
+
+                lineNumbers =
+                    buf
+                        |> operatorRanges range
+                        |> List.concatMap
+                            (\rg ->
+                                let
+                                    ( begin, end ) =
+                                        rg
+                                in
+                                    List.range
+                                        (Tuple.first begin)
+                                        (Tuple.first end)
+                            )
+            in
+                case lineNumbers of
+                    y :: _ ->
+                        let
+                            buf1 =
+                                Buf.transaction
+                                    (List.map genPatches lineNumbers)
+                                    buf
+                        in
+                            ( gotoLine y buf1.lines
+                                |> Maybe.map
+                                    (\pos ->
+                                        Buf.setCursor pos True buf1
+                                    )
+                                |> Maybe.withDefault buf
+                            , Cmd.none
+                            )
+
+                    _ ->
+                        ( buf, Cmd.none )
 
         _ ->
             ( buf, Cmd.none )

@@ -79,7 +79,7 @@ type Operator
     | Delete OperatorRange
     | Yank OperatorRange
     | Put Bool
-    | Indent Direction OperatorRange
+    | Indent Bool OperatorRange
     | Join Bool -- J/gJ collapse spaces if argument is true
     | RepeatLastAction
     | OpenNewLine Bool

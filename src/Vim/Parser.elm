@@ -817,11 +817,11 @@ operator isVisual isTemp =
                         Yank
                         (Yank <| TextObject Line True)
                    , defineOperator ">"
-                        (Indent Forward)
-                        (Indent Forward <| TextObject Line False)
+                        (Indent True)
+                        (Indent True <| TextObject Line False)
                    , defineOperator "\\<"
-                        (Indent Backward)
-                        (Indent Backward <| TextObject Line False)
+                        (Indent False)
+                        (Indent False <| TextObject Line False)
                    , readKeyAndThen ":"
                         [ PushKey ":", PushMode <| ModeNameEx ":" ]
                         (linebuffer ":" identity)

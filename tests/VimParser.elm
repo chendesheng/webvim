@@ -225,7 +225,7 @@ cases =
             | edit =
                 motionOption ">)$-"
                     |> MotionRange WordStart
-                    |> Indent Backward
+                    |> Indent False
                     |> Just
             , recordKeys = "\\<w"
           }
@@ -238,7 +238,7 @@ cases =
             | edit =
                 motionOption ">]$-"
                     |> MotionRange WordStart
-                    |> Indent Backward
+                    |> Indent False
                     |> Just
             , recordKeys = "\\<vw"
           }
