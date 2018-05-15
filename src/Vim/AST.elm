@@ -278,9 +278,10 @@ type MotionData
     | ViewTop
     | ViewMiddle
     | ViewBottom
-    | VLineDelta Int
-    | LineDelta Int
-    | LineNumber Int -- negtive means backward from last line
+    | VLineDelta Bool
+    | LineDelta Bool
+    | BufferTop
+    | BufferBottom
     | MatchPair -- %
     | RepeatMatchChar
     | MatchString StringType

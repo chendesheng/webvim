@@ -20,6 +20,7 @@ import Regex as Re
 import Jumps exposing (saveCursorPosition)
 import Message exposing (Msg(..))
 import TextObject exposing (wordUnderCursor)
+import Helper exposing (repeatfn)
 
 
 setVisualBegin : Position -> Buffer -> Buffer
@@ -236,8 +237,8 @@ gotoLine y lines =
             )
 
 
-gotoMatchedString : V.MotionOption -> Buffer -> Maybe Position
-gotoMatchedString mo buf =
+gotoMatchedString : Int -> V.MotionOption -> Buffer -> Maybe Position
+gotoMatchedString count mo buf =
     case buf.mode of
         Ex { prefix, exbuf } ->
             case prefix of
@@ -256,19 +257,21 @@ gotoMatchedString mo buf =
                                 forward
                             else
                                 not forward
-                    in
-                        case
-                            (matchString forward1
-                                (Re.regex s |> Re.caseInsensitive)
-                                buf.cursor
-                                buf.lines
-                            )
-                        of
-                            Just ( cursor, _ ) ->
-                                Just cursor
 
-                            _ ->
-                                Nothing
+                        re =
+                            s
+                                |> Re.regex
+                                |> Re.caseInsensitive
+
+                        findNext cursor =
+                            Maybe.map Tuple.first
+                                (matchString forward1
+                                    re
+                                    cursor
+                                    buf.lines
+                                )
+                    in
+                        repeatfn count findNext buf.cursor
 
                 _ ->
                     Nothing
@@ -379,15 +382,12 @@ matchString forward re pos lines =
 --|> Debug.log "search hit top"
 
 
-runMotion : V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
-runMotion md mo buf =
+runMotion : Int -> V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
+runMotion count md mo buf =
     if B.isEmpty buf.lines then
         Nothing
     else
         let
-            ( y, x ) =
-                buf.cursor
-
             bottomLine buf =
                 (min
                     (B.count buf.lines)
@@ -399,11 +399,23 @@ runMotion md mo buf =
                 (bottomLine buf + buf.view.scrollTop) // 2
         in
             case md of
-                V.LineNumber n ->
-                    gotoLine (n % (B.count buf.lines - 1)) buf.lines
+                V.BufferTop ->
+                    gotoLine (count - 1) buf.lines
 
-                V.LineDelta n ->
+                V.BufferBottom ->
+                    gotoLine (B.count buf.lines - 1) buf.lines
+
+                V.LineDelta forward ->
                     let
+                        n =
+                            if forward then
+                                count
+                            else
+                                -count
+
+                        ( y, x ) =
+                            buf.cursor
+
                         y1 =
                             (y + n)
                                 |> max 0
@@ -417,7 +429,9 @@ runMotion md mo buf =
                         Just ( y1, x1 )
 
                 V.ViewTop ->
-                    gotoLine buf.view.scrollTop buf.lines
+                    (buf.view.scrollTop + count - 1)
+                        |> Basics.min (bottomLine buf)
+                        |> flip gotoLine buf.lines
 
                 V.ViewMiddle ->
                     gotoLine
@@ -425,33 +439,28 @@ runMotion md mo buf =
                         buf.lines
 
                 V.ViewBottom ->
-                    gotoLine
-                        (bottomLine buf)
-                        buf.lines
+                    (bottomLine buf - count + 1)
+                        |> Basics.max buf.view.scrollTop
+                        |> flip gotoLine buf.lines
 
                 V.RepeatMatchChar ->
                     case buf.last.matchChar of
                         Just { char, before, forward } ->
                             let
-                                option =
-                                    V.motionOption "<]$-"
-
-                                option1 =
-                                    { option
-                                        | forward =
-                                            if forward then
-                                                mo.forward
-                                            else
-                                                not mo.forward
-                                    }
+                                findNext ( y, x ) =
+                                    findPositionInBuffer
+                                        (V.MatchChar char before)
+                                        (if forward then
+                                            V.motionOption "<]$-"
+                                         else
+                                            V.motionOption ">]$-"
+                                        )
+                                        y
+                                        x
+                                        buf.config.wordChars
+                                        buf.lines
                             in
-                                findPositionInBuffer
-                                    (V.MatchChar char before)
-                                    option1
-                                    y
-                                    x
-                                    buf.config.wordChars
-                                    buf.lines
+                                repeatfn count findNext buf.cursor
 
                         _ ->
                             Nothing
@@ -459,7 +468,7 @@ runMotion md mo buf =
                 V.MatchString str ->
                     case str of
                         V.LastSavedString ->
-                            gotoMatchedString mo buf
+                            gotoMatchedString count mo buf
 
                         V.WordUnderCursor ->
                             buf
@@ -471,34 +480,36 @@ runMotion md mo buf =
                                             ( begin, str ) =
                                                 res
 
-                                            s =
+                                            re =
                                                 wholeWord str
-                                        in
-                                            (matchString mo.forward
-                                                (Re.regex s |> Re.caseInsensitive)
-                                                begin
-                                                buf.lines
-                                            )
-                                                |> Maybe.map
-                                                    (\rg ->
-                                                        let
-                                                            last =
-                                                                buf.last
-                                                        in
-                                                            Tuple.first rg
+                                                    |> Re.regex
+                                                    |> Re.caseInsensitive
+
+                                            findNext cursor =
+                                                Maybe.map Tuple.first
+                                                    (matchString mo.forward
+                                                        re
+                                                        cursor
+                                                        buf.lines
                                                     )
+                                        in
+                                            repeatfn count findNext buf.cursor
                                     )
 
                         _ ->
                             Nothing
 
                 _ ->
-                    findPositionInBuffer md
-                        mo
-                        y
-                        x
-                        buf.config.wordChars
-                        buf.lines
+                    let
+                        findNext ( y, x ) =
+                            findPositionInBuffer md
+                                mo
+                                y
+                                x
+                                buf.config.wordChars
+                                buf.lines
+                    in
+                        repeatfn count findNext buf.cursor
 
 
 wordStringUnderCursor : Buffer -> Maybe ( Position, String )
@@ -537,7 +548,10 @@ saveCursorAfterJump md cursorBefore cursorAfter buf =
     let
         isJump md =
             case md of
-                V.LineNumber _ ->
+                V.BufferTop ->
+                    True
+
+                V.BufferBottom ->
                     True
 
                 V.ViewTop ->
@@ -569,9 +583,9 @@ saveCursorAfterJump md cursorBefore cursorAfter buf =
             buf
 
 
-motion : V.MotionData -> V.MotionOption -> Buffer -> ( Buffer, Cmd Msg )
-motion md mo buf =
-    case runMotion md mo buf of
+motion : Int -> V.MotionData -> V.MotionOption -> Buffer -> ( Buffer, Cmd Msg )
+motion count md mo buf =
+    case runMotion count md mo buf of
         Just cursor ->
             ( buf
                 |> Buf.setCursor cursor (isSaveColumn md)

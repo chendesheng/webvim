@@ -359,11 +359,11 @@ cmdNone buf =
     ( buf, Cmd.none )
 
 
-runOperator : String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
-runOperator register operator buf =
+runOperator : Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
+runOperator count register operator buf =
     case operator of
         Move md mo ->
-            motion md mo buf
+            motion count md mo buf
 
         Select textobj around ->
             case buf.mode of
@@ -441,13 +441,13 @@ runOperator register operator buf =
 
         Delete rg ->
             buf
-                |> delete register rg
+                |> delete count register rg
                 |> scrollToCursor
                 |> cmdNone
 
         Yank rg ->
             buf
-                |> yank register rg
+                |> yank count register rg
                 |> cmdNone
 
         Undo ->
@@ -773,7 +773,7 @@ runOperator register operator buf =
 
                 lineNumbers =
                     buf
-                        |> operatorRanges range
+                        |> operatorRanges count range
                         |> List.concatMap
                             (\rg ->
                                 let
@@ -926,15 +926,15 @@ isExEditing op =
             False
 
 
-applyEdit : Maybe Operator -> String -> Buffer -> ( Buffer, Cmd Msg )
-applyEdit edit register buf =
+applyEdit : Int -> Maybe Operator -> String -> Buffer -> ( Buffer, Cmd Msg )
+applyEdit count edit register buf =
     case edit of
         Just operator ->
             case buf.mode of
                 Ex ex ->
                     let
                         ( buf1, cmd ) =
-                            runOperator register operator buf
+                            runOperator count register operator buf
                     in
                         case buf1.mode of
                             Ex newex ->
@@ -955,7 +955,7 @@ applyEdit edit register buf =
                                 ( buf1, cmd )
 
                 _ ->
-                    runOperator register operator buf
+                    runOperator count register operator buf
 
         Nothing ->
             ( buf, Cmd.none )
@@ -1176,7 +1176,7 @@ handleKeypress replaying key buf =
                 _ ->
                     parse buf.continuation key
 
-        { edit, modeName, register, recordKeys } =
+        { count, edit, modeName, register, recordKeys } =
             ast
 
         -- |> Debug.log key
@@ -1223,7 +1223,7 @@ handleKeypress replaying key buf =
         ( buf1, todo ) =
             (cacheVimAST cacheKey cacheVal
                 >> setContinuation continuation
-                >> applyEdit edit register
+                >> applyEdit count edit register
                 |> bind
                     (updateMode modeName
                         >> modeChanged replaying key oldModeName lineDeltaMotion

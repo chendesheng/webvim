@@ -34,16 +34,16 @@ applyTransaction { pos, patches } buf =
             Buf.transaction patches buf
 
 
-deleteOperator : V.OperatorRange -> Buffer -> Maybe Transaction
-deleteOperator range buf =
+deleteOperator : Int -> V.OperatorRange -> Buffer -> Maybe Transaction
+deleteOperator count range buf =
     let
         ranges =
-            operatorRanges range buf
+            operatorRanges count range buf
 
         pos =
             case range of
                 V.MotionRange md mo ->
-                    case runMotion md mo buf of
+                    case runMotion count md mo buf of
                         Just pos ->
                             if mo.linewise then
                                 Just ( pos, False )
@@ -94,8 +94,8 @@ deleteOperator range buf =
                 }
 
 
-delete : String -> V.OperatorRange -> Buffer -> Buffer
-delete register rg buf =
+delete : Int -> String -> V.OperatorRange -> Buffer -> Buffer
+delete count register rg buf =
     let
         updateCursorColumn buf =
             { buf | cursorColumn = Tuple.second buf.cursor }
@@ -104,7 +104,7 @@ delete register rg buf =
             isLinewise rg buf.mode
 
         deleteAnd f buf =
-            case deleteOperator rg buf of
+            case deleteOperator count rg buf of
                 Just trans ->
                     buf
                         |> applyTransaction trans

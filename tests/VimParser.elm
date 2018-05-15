@@ -41,7 +41,7 @@ cases =
       , ( { initialMode
             | edit =
                 motionOption ">]+="
-                    |> Move (LineNumber 0)
+                    |> Move BufferTop
                     |> Just
             , recordKeys = "gg"
           }
@@ -55,7 +55,7 @@ cases =
       , ( { initialMode
             | edit =
                 motionOption ">]+="
-                    |> Move (VLineDelta 1)
+                    |> Move (VLineDelta True)
                     |> Just
           }
         , ""
@@ -428,7 +428,7 @@ cases =
             , count = 8
             , edit =
                 motionOption ">]+="
-                    |> Move (LineDelta 1)
+                    |> Move (LineDelta True)
                     |> Just
           }
         , "10i"
@@ -749,7 +749,7 @@ cases =
     , ( "vgg"
       , ( { initialMode
             | modeName = ModeNameVisual VisualChars
-            , edit = Just (Move (LineNumber 0) (motionOption ">]+="))
+            , edit = Just (Move BufferTop (motionOption ">]+="))
           }
         , "v"
         )

@@ -309,10 +309,10 @@ gKey map extra =
             [ PushKey "g" ]
             (P.oneOf
                 [ P.oneOf
-                    [ define "g" (LineNumber 0) gotoLineOption
-                    , define "j" (VLineDelta 1) gotoLineOption
+                    [ define "g" BufferTop gotoLineOption
+                    , define "j" (VLineDelta True) gotoLineOption
                         |> dontRecord
-                    , define "k" (VLineDelta -1) gotoLineOption
+                    , define "k" (VLineDelta False) gotoLineOption
                         |> dontRecord
                     , define "n" (MatchString LastSavedString) (motionOption ">]+-")
                         |> dontRecord
@@ -414,13 +414,13 @@ motion map gMotion =
              , define "e" WordEnd <| motionOption ">]+-"
              , define "E" WORDEnd <| motionOption ">]+-"
              , define "h" CharStart <| motionOption "<)$-"
-             , define "j" (LineDelta 1) <| motionOption ">]+="
-             , define "k" (LineDelta -1) <| motionOption "<]+="
+             , define "j" (LineDelta True) <| motionOption ">]+="
+             , define "k" (LineDelta False) <| motionOption "<]+="
              , define "l" CharStart <| motionOption ">)$-"
              , define "^" LineFirst <| motionOption "<)$-"
              , define "0" LineStart <| motionOption "<)$-"
              , define "$" LineEnd <| motionOption ">]$-"
-             , define "G" (LineNumber -1) <| motionOption ">]+="
+             , define "G" BufferBottom <| motionOption ">]+="
              , matchChar "f" True False
              , matchChar "F" False False
              , matchChar "t" True True

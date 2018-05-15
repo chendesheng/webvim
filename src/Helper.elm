@@ -54,3 +54,20 @@ filename s =
 
         _ ->
             ( "", "" )
+
+
+repeatfn : number -> (a -> Maybe a) -> a -> Maybe a
+repeatfn n f =
+    let
+        fn i arg =
+            if i == 0 then
+                Just arg
+            else
+                case f arg of
+                    Just arg1 ->
+                        fn (i - 1) arg1
+
+                    _ ->
+                        Nothing
+    in
+        fn n

@@ -8,11 +8,11 @@ import Internal.TextBuffer as B
 import String
 
 
-yank : String -> V.OperatorRange -> Buffer -> Buffer
-yank register range buf =
+yank : Int -> String -> V.OperatorRange -> Buffer -> Buffer
+yank count register range buf =
     let
         s =
-            operatorRanges range buf
+            operatorRanges count range buf
                 |> Debug.log "operatorRanges"
                 |> List.map
                     (\rg ->
