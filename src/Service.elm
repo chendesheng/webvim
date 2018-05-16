@@ -186,22 +186,34 @@ unpackClass n =
         foreground =
             n
                 |> Bit.and foreground_mask
-                |> Bit.shiftRightBy foreground_offset
+                |> Bit.shiftRightZfBy foreground_offset
+
+        italic =
+            1
+
+        bold =
+            2
+
+        underline =
+            4
 
         fontStyle =
             n
                 |> Bit.and font_style_mask
-                |> Bit.shiftRightBy font_style_offset
+                |> Bit.shiftRightZfBy font_style_offset
                 |> (\style ->
-                        case style of
-                            1 ->
-                                " mtki"
-
-                            2 ->
-                                " mtkb"
-
-                            _ ->
-                                ""
+                        if Bit.and style italic > 0 then
+                            " mtki"
+                        else
+                            ""
+                                ++ if Bit.and style bold > 0 then
+                                    " mtkb"
+                                   else
+                                    ""
+                                        ++ if Bit.and style underline > 0 then
+                                            " mtku"
+                                           else
+                                            ""
                    )
     in
         "mtk" ++ (toString foreground) ++ fontStyle

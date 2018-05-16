@@ -6,10 +6,23 @@
 @font-family: "iosevka";
 @line-height: 23px;
 @font-size: 17px;
-@body-background: #272922;
-@body-color: contrast(@body-background);
-@gutter-color: lighten(@body-background, 40%);
+
+// solarized light
+// @body-background: #FDF6E3;
+// @body-color: contrast(@body-background);
+// @gutter-color: #567983;
+// @ruler: 80ch;
+// @cursor-color: #657B83;
+
+// solarized dark
+@body-background: #002B36;
+@body-color: darken(contrast(@body-background), 20%);
+@gutter-color: #949494;
 @ruler: 80ch;
+@cursor-color: #D30102;
+
+// @body-background: #272922;
+// @gutter-color: lighten(@body-background, 40%);
 
 html, body {
   margin: 0;
@@ -57,10 +70,19 @@ html, body {
 }
 
 .gutter-container {
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='@{gutter-color}'>~</text></svg>"); 
-  background-repeat: repeat-y;
   user-select: none;
   margin-right: @gutter-lines-spacing;
+}
+.gutter-container:first-child {
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='@{gutter-color}'>~</text></svg>"); 
+  background-repeat: repeat-y;
+}
+
+.gutter.absolute-gutter {
+  padding: 0 0 0 1ch;
+}
+.gutter.relative-gutter {
+  padding: 0 1ch;
 }
 
 .lines, .gutter {
@@ -72,7 +94,6 @@ html, body {
 }
 
 .gutter {
-  padding: 0 1ch;
   background: @body-background;
   color: @gutter-color;
   display: flex;
@@ -95,11 +116,23 @@ html, body {
 .cursor {
   position: absolute;
   width: 1ch;
-  background: rgba(255,255,255,.5);
+  background: @cursor-color;
+  opacity: 0.5;
   white-space: pre;
   height: 1rem;
   border-radius: 1px;
 }
+
+.cursor-column {
+  position: absolute;
+  width: 1ch;
+  top: 0;
+  background: lighten(@body-background, 2%);
+  white-space: pre;
+  height: 100%;
+  border-radius: 1px;
+}
+
 
 .status {
   width: 100%;

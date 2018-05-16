@@ -2,7 +2,9 @@ const fs = require('fs');
 const json = require('comment-json');
 const Registry = require('vscode-textmate').Registry;
 
-const file = fs.readFileSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/theme-monokai/themes/monokai-color-theme.json',
+// const file = fs.readFileSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/theme-monokai/themes/monokai-color-theme.json',
+// const file = fs.readFileSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/theme-solarized-light/themes/solarized-light-color-theme.json',
+const file = fs.readFileSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/theme-solarized-dark/themes/solarized-dark-color-theme.json',
   { encoding: 'utf-8' }
 );
 const theme = json.parse(file);
@@ -16,32 +18,27 @@ const defaultForeground = getDefaultSettings(theme.tokenColors).foreground;
 // console.log('defaultForeground:', defaultForeground);
 
 
-const colors = [];
-theme.tokenColors.forEach(({scope,settings})=> {
-  if (scope) {
-    const color = settings.foreground || defaultForeground;
-    if (colors.indexOf(color) === -1) {
-      colors.push(color);
-    }
-  }
-});
-
 const registry = new Registry();
 registry.setTheme({
-  name: 'Monokai',
+  name: theme.label,
   settings: theme.tokenColors,
 });
 
+const generateTokensCSSForColorMap = (colorMap) => {
+	let rules = [];
+	for (let i = 1, len = colorMap.length; i < len; i++) {
+		const color = colorMap[i];
+		rules[i] = `.mtk${i} { color: ${color}; }`;
+	}
+	rules.push('.mtki { font-style: italic; }');
+	rules.push('.mtkb { font-weight: 400; }');
+	rules.push('.mtku { border-bottom: solid 1px }');
+	return rules.join('\n');
+};
 
-const css = registry.getColorMap().map((color, i) => {
-  return `.mtk${i}{color:${color}}\n`;
-}).join('')
-  + '.mtki{font-style:italic}\n'
-  + '.mtkb{font-weight:bold}\n';
-  + '.mtku{border-bottom: solid 1px}';
+const css = generateTokensCSSForColorMap(registry.getColorMap());
 
 module.exports = {
-  colors,
   defaultColor: defaultForeground,
   registry,
   css,

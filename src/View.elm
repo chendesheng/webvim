@@ -91,12 +91,18 @@ view buf =
                     (scrollTop1 + 1)
                     (Basics.min (scrollTop1 + height + 1) totalLines)
                     totalLines
+                , lazy2 renderRelativeGutter
+                    (Tuple.first buf.cursor - scrollTop1)
+                    (Basics.min (scrollTop1 + height + 1) totalLines
+                        - Tuple.first buf.cursor
+                    )
                 , div [ class "lines-container" ]
                     (renderVisual scrollTop1 height mode searchRange lines
-                        ?:: (searchRange
+                        ?:: renderCursorColumn maybeCursor
+                        :: (searchRange
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
-                            )
+                           )
                         ?:: lazy3 renderLint scrollTop1 lines buf.lint.items
                         :: renderLines
                             scrollTop1
@@ -285,6 +291,22 @@ renderCursor cursor =
                 , style
                     [ ( "left", ch x )
                     , ( "top", rem y )
+                    ]
+                ]
+                []
+
+        _ ->
+            text ""
+
+
+renderCursorColumn : Maybe Position -> Html msg
+renderCursorColumn cursor =
+    case cursor of
+        Just ( y, x ) ->
+            div
+                [ class "cursor-column"
+                , style
+                    [ ( "left", ch x )
                     ]
                 ]
                 []
@@ -534,14 +556,50 @@ renderGutter begin end total =
     div [ class "gutter-container" ]
         [ div
             [ class "gutter"
+            , class "absolute-gutter"
             , style [ ( "width", total |> toString |> String.length |> ch ) ]
             ]
             (List.range begin end
                 |> List.map
                     (\i ->
+                        div
+                            [ class "line-number" ]
+                            [ text <| toString i ]
+                    )
+            )
+        ]
+
+
+renderRelativeGutter : Int -> Int -> Html msg
+renderRelativeGutter topn bottomn =
+    div [ class "gutter-container" ]
+        [ div
+            [ class "gutter"
+            , class "relative-gutter"
+
+            --, style [ ( "width", total |> toString |> String.length |> ch ) ]
+            ]
+            ((List.range 1 topn
+                |> List.reverse
+                |> List.map
+                    (\i ->
                         div [ class "line-number" ]
                             [ text <| toString i ]
                     )
+             )
+                ++ [ div
+                        [ class "line-number"
+                        , class "current-line"
+                        ]
+                        []
+                   ]
+                ++ (List.range 1 bottomn
+                        |> List.map
+                            (\i ->
+                                div [ class "line-number" ]
+                                    [ text <| toString i ]
+                            )
+                   )
             )
         ]
 

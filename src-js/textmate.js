@@ -164,7 +164,7 @@ server.route({
       }
       if (!request.query.path) throw new Error('path is required');
 
-      const cache = allCaches[request.query.path] || [];
+      const cache = allCaches[request.query.path] || [null];
       const begin = parseInt(request.query.line);  
       const lines = request.payload.split(/^/m);
       const result = [];
@@ -174,6 +174,7 @@ server.route({
       console.log('cache.length:', cache.length);
       console.log('request.query.line:', request.query.line);
       console.log('request.query.version:', request.query.version);
+
       for (let i = 0; i < lines.length; i++) { // lines.length
         const line = lines[i];
         const n = begin + i;
