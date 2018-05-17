@@ -175,7 +175,7 @@ html, body {
 }
 
 .highlights div {
-  filter: invert(100%);
+  filter: invert(30%);
 }
 
 .lint div {
@@ -230,9 +230,9 @@ html, body {
 
 .auto-complete {
   position: absolute;
+  box-shadow: 0px 0px 10px darken(@body-background, 30%);
   background: @body-background;
-  border: solid 1px lighten(@body-background, 30%);
-  border-radius: 2px;
+  border-radius: 5px;
   bottom: @statusbar-height;
   left: 2ch;
   display: flex;

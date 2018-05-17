@@ -93,16 +93,16 @@ view buf =
                     totalLines
                 , lazy2 renderRelativeGutter
                     (Tuple.first buf.cursor - scrollTop1)
-                    (Basics.min (scrollTop1 + height + 1) totalLines
+                    (Basics.min (scrollTop1 + height + 1) (totalLines - 1)
                         - Tuple.first buf.cursor
                     )
                 , div [ class "lines-container" ]
-                    (renderVisual scrollTop1 height mode searchRange lines
-                        ?:: renderCursorColumn maybeCursor
-                        :: (searchRange
+                    (renderCursorColumn maybeCursor
+                        :: renderVisual scrollTop1 height mode searchRange lines
+                        ?:: (searchRange
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
-                           )
+                            )
                         ?:: lazy3 renderLint scrollTop1 lines buf.lint.items
                         :: renderLines
                             scrollTop1
@@ -228,7 +228,7 @@ renderVisual :
     -> B.TextBuffer
     -> Maybe (Html msg)
 renderVisual scrollTop height mode searchRange lines =
-    (case mode of
+    case mode of
         Visual visual ->
             Just <| lazy3 renderSelections scrollTop lines visual
 
@@ -258,7 +258,6 @@ renderVisual scrollTop height mode searchRange lines =
 
         _ ->
             Nothing
-    )
 
 
 maybeToList : Maybe a -> List a
