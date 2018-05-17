@@ -403,7 +403,10 @@ runMotion count md mo buf =
                     gotoLine (count - 1) buf.lines
 
                 V.BufferBottom ->
-                    gotoLine (B.count buf.lines - 1) buf.lines
+                    if count > 1 then
+                        gotoLine (count - 1) buf.lines
+                    else
+                        gotoLine (B.count buf.lines - 2) buf.lines
 
                 V.LineDelta forward ->
                     let
