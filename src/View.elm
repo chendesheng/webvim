@@ -125,6 +125,7 @@ view buf =
                             view.showTip
                         ?:: []
                     )
+                , div [ class "ruler" ] []
                 ]
              , renderStatusBar
                 (Buf.isDirty buf)
