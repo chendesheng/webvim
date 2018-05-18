@@ -101,6 +101,7 @@ type Operator
     | Replace String
     | ToggleTip
     | SelectAutoComplete Direction
+    | IncreaseNumber Bool
 
 
 type StringType

@@ -793,6 +793,8 @@ operator isVisual isTemp =
                         |> PushOperator
                     ]
                 , define "<c-^>" JumpLastBuffer
+                , define "<c-a>" (IncreaseNumber True)
+                , define "<c-x>" (IncreaseNumber False)
                 ]
              )
                 ++ [ countPrefix

@@ -1,5 +1,6 @@
 module Update exposing (update, init, Flags)
 
+import Char
 import Task
 import Window as Win exposing (Size)
 import Json.Encode as Encode
@@ -804,6 +805,95 @@ runOperator count register operator buf =
 
                     _ ->
                         ( buf, Cmd.none )
+
+        IncreaseNumber larger ->
+            let
+                ( y, x ) =
+                    buf.cursor
+
+                delta =
+                    if larger then
+                        count
+                    else
+                        -count
+
+                numParser =
+                    P.succeed
+                        (\pre s ->
+                            ( String.length pre
+                            , String.length s
+                            , s
+                                |> String.toInt
+                                |> Result.withDefault 0
+                            )
+                        )
+                        |= P.keep P.zeroOrMore (Char.isDigit >> not)
+                        |= P.keep P.oneOrMore Char.isDigit
+            in
+                buf.lines
+                    |> B.getLine y
+                    |> Maybe.andThen
+                        (\line ->
+                            line
+                                |> String.slice x -1
+                                |> P.run numParser
+                                |> Result.toMaybe
+                                |> Maybe.map
+                                    (\res ->
+                                        let
+                                            ( dx, len, n ) =
+                                                res
+
+                                            isNegative =
+                                                String.slice
+                                                    (x + dx - 1)
+                                                    (x + dx)
+                                                    line
+                                                    == "-"
+
+                                            dx1 =
+                                                if isNegative then
+                                                    dx - 1
+                                                else
+                                                    dx
+
+                                            n1 =
+                                                if isNegative then
+                                                    -n
+                                                else
+                                                    n
+
+                                            len1 =
+                                                if isNegative then
+                                                    len + 1
+                                                else
+                                                    len
+
+                                            cursor =
+                                                ( y, x + dx1 )
+
+                                            patches =
+                                                [ Deletion cursor
+                                                    ( y
+                                                    , x + dx1 + len1
+                                                    )
+                                                , n1
+                                                    |> ((+) delta)
+                                                    |> toString
+                                                    |> B.fromString
+                                                    |> Insertion cursor
+                                                ]
+                                        in
+                                            buf
+                                                |> Buf.transaction
+                                                    patches
+                                                |> Buf.setCursor
+                                                    cursor
+                                                    True
+                                    )
+                        )
+                    |> Maybe.withDefault buf
+                    |> cmdNone
 
         _ ->
             ( buf, Cmd.none )
