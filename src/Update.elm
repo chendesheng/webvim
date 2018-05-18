@@ -780,10 +780,22 @@ runOperator count register operator buf =
                                 let
                                     ( begin, end ) =
                                         rg
+
+                                    ( y, x ) =
+                                        end
                                 in
                                     List.range
                                         (Tuple.first begin)
-                                        (Tuple.first end)
+                                        (y
+                                            |> ((+)
+                                                    (if x == 0 then
+                                                        -1
+                                                     else
+                                                        0
+                                                    )
+                                               )
+                                            |> Basics.max 0
+                                        )
                             )
             in
                 case lineNumbers of
