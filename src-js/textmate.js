@@ -103,8 +103,10 @@ const loadAllGrammars = (dir) => {
   walk(dir, (filename) => {
     if (/[.]tmLanguage[.]json$/i.test(filename)) {
       
-      console.log('load grammar:', filename);
-      allGrammars[path.basename(filename).split('.')[0]] = registry.loadGrammarFromPathSync(filename);
+      const grammar = registry.loadGrammarFromPathSync(filename);
+      const name = path.basename(filename).split('.')[0];
+      // console.log('load grammar:', filename, name);
+      allGrammars[name.toLowerCase()] = grammar;
     }
   });
 };
@@ -131,7 +133,7 @@ const loadGrammar = (p) => new Promise((resolve, reject) => {
 const getGrammar = (p) => {
   // console.log(p);
   // console.log(path.extname(p));
-  return allGrammars[path.extname(p).substr(1)];
+  return allGrammars[path.extname(p).substr(1).toLowerCase()];
 };
 
 const setCORSHeader = h => 
