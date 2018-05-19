@@ -59,14 +59,12 @@ html, body {
 }
 
 .ruler {
-  content: '';
   position: absolute;
   height: 100%;
   top: 0;
   left: @ruler;
-  background: @body-background;
-  width: calc(~"100% - @{ruler}");
-  opacity: 0.5;
+  border-left: solid 1px contrast(@body-background);
+  opacity: 0.1;
 }
 
 .gutter-container {

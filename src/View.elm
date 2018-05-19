@@ -97,7 +97,8 @@ view buf =
                         - Tuple.first buf.cursor
                     )
                 , div [ class "lines-container" ]
-                    (renderCursorColumn maybeCursor
+                    (div [ class "ruler" ] []
+                        :: renderCursorColumn maybeCursor
                         :: renderVisual scrollTop1 height mode searchRange lines
                         ?:: (searchRange
                                 |> Maybe.map
@@ -125,7 +126,6 @@ view buf =
                             view.showTip
                         ?:: []
                     )
-                , div [ class "ruler" ] []
                 ]
              , renderStatusBar
                 (Buf.isDirty buf)
