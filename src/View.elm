@@ -84,6 +84,12 @@ view buf =
 
                 _ ->
                     Nothing
+
+        relativeNumberLine =
+            searchRange
+                |> Maybe.map .begin
+                |> Maybe.withDefault buf.cursor
+                |> Tuple.first
     in
         div [ class "editor" ]
             ([ div [ class "buffer" ]
@@ -92,9 +98,9 @@ view buf =
                     (Basics.min (scrollTop1 + height + 1) totalLines)
                     totalLines
                 , lazy2 renderRelativeGutter
-                    (Tuple.first buf.cursor - scrollTop1)
+                    (relativeNumberLine - scrollTop1)
                     (Basics.min (scrollTop1 + height + 1) (totalLines - 1)
-                        - Tuple.first buf.cursor
+                        - relativeNumberLine
                     )
                 , div [ class "lines-container" ]
                     (div [ class "ruler" ] []
