@@ -21,6 +21,7 @@ module Internal.TextBuffer
         , sliceLines
         , patchCursor
         , mergePatch
+        , shiftPositionByPatch
         )
 
 import Position exposing (..)
@@ -46,6 +47,58 @@ patchCursor patch =
 
         Deletion pos _ ->
             pos
+
+
+shiftPositionByPatch : Patch -> Position -> Position
+shiftPositionByPatch patch pos =
+    case patch of
+        Insertion begin (TextBuffer lines) ->
+            if pos < begin then
+                pos
+            else
+                let
+                    ( py, px ) =
+                        pos
+
+                    ( by, bx ) =
+                        begin
+
+                    dy =
+                        Array.length lines - 1
+
+                    dx =
+                        Array.get dy lines
+                            |> Maybe.map String.length
+                            |> Maybe.withDefault 0
+                in
+                    if by == py then
+                        ( py, px + dx )
+                    else
+                        ( py + dy, px )
+
+        Deletion begin end ->
+            if pos < begin then
+                pos
+            else if pos >= end then
+                let
+                    ( by, bx ) =
+                        begin
+
+                    ( ey, ex ) =
+                        end
+
+                    ( py, px ) =
+                        pos
+                in
+                    if ey == py then
+                        if by == ey then
+                            ( py, px - (ex - bx) )
+                        else
+                            ( py - (ey - by), px - ex )
+                    else
+                        ( py - (ey - by), px )
+            else
+                begin
 
 
 mergePatch : Patch -> Patch -> Maybe Patch

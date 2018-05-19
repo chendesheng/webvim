@@ -7,9 +7,16 @@ module Jumps
         , jumpBackward
         , jumpsToString
         , currentLocation
+        , applyPatchesToJumps
+        , applyPatchesToLocations
         )
 
 import Position exposing (Position)
+import Internal.TextBuffer
+    exposing
+        ( Patch
+        , shiftPositionByPatch
+        )
 
 
 type alias Location =
@@ -113,3 +120,29 @@ jumpBackward cursor ({ backwards, forwards } as jumps) =
 currentLocation : Jumps -> Maybe Location
 currentLocation { forwards } =
     List.head forwards
+
+
+applyPatchesToLocations : List Location -> List Patch -> List Location
+applyPatchesToLocations locations patches =
+    List.foldl
+        (\patch result ->
+            List.map
+                (\loc ->
+                    { loc
+                        | cursor =
+                            shiftPositionByPatch patch loc.cursor
+                    }
+                )
+                result
+        )
+        locations
+        patches
+
+
+applyPatchesToJumps : List Patch -> Jumps -> Jumps
+applyPatchesToJumps patches { backwards, forwards } =
+    { backwards =
+        applyPatchesToLocations backwards patches
+    , forwards =
+        applyPatchesToLocations forwards patches
+    }

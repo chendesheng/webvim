@@ -44,6 +44,7 @@ import Internal.TextBuffer as B
         , Patch(..)
         , isEmpty
         , foldlLines
+        , shiftPositionByPatch
         )
 import List
 import Vim.AST
@@ -64,6 +65,32 @@ import Syntax
         )
 import Elm.Array as Array exposing (Array)
 import Helper exposing (minMaybe)
+import Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
+import Message exposing (LintError)
+
+
+applyPatchToLintError : Patch -> LintError -> LintError
+applyPatchToLintError patch ({ region, subRegion } as error) =
+    let
+        updateRegion ( b, e ) =
+            ( shiftPositionByPatch patch b
+            , shiftPositionByPatch patch e
+            )
+    in
+        { error
+            | region = updateRegion region
+            , subRegion = Maybe.map updateRegion subRegion
+        }
+
+
+applyPatchesToLintErrors : List LintError -> List Patch -> List LintError
+applyPatchesToLintErrors =
+    List.foldl
+        (\patch result ->
+            List.map
+                (applyPatchToLintError patch)
+                result
+        )
 
 
 applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch, Int )
@@ -156,6 +183,19 @@ transaction patches buf =
             in
                 { buf1
                     | history = { history | version = history.version + 1 }
+                    , jumps = applyPatchesToJumps patches buf.jumps
+                    , lint =
+                        { items =
+                            applyPatchesToLintErrors
+                                buf.lint.items
+                                patches
+                                |> Debug.log "update lint.items"
+                        , count = buf.lint.count
+                        }
+                    , locationList =
+                        applyPatchesToLocations
+                            buf.locationList
+                            patches
                 }
 
 
@@ -258,6 +298,14 @@ undo buf =
                     ( syntax, n ) =
                         applyPatchesToSyntax undo buf.syntax
 
+                    jumps =
+                        applyPatchesToJumps undo buf.jumps
+
+                    lintErrors =
+                        applyPatchesToLintErrors
+                            buf.lint.items
+                            undo
+
                     undoHistory { undoes, redoes } =
                         { history
                             | undoes =
@@ -281,6 +329,11 @@ undo buf =
                         , syntax = syntax
                         , syntaxDirtyFrom = minMaybe buf.syntaxDirtyFrom n
                         , history = undoHistory buf.history
+                        , jumps = jumps
+                        , lint =
+                            { items = lintErrors
+                            , count = buf.lint.count
+                            }
                     }
             )
         |> Maybe.withDefault buf
@@ -303,6 +356,12 @@ redo buf =
 
                     ( syntax, n ) =
                         applyPatchesToSyntax redo buf.syntax
+
+                    jumps =
+                        applyPatchesToJumps redo buf.jumps
+
+                    lintErrors =
+                        applyPatchesToLintErrors buf.lint.items redo
 
                     redoHistory { undoes, redoes } =
                         { history
@@ -327,6 +386,11 @@ redo buf =
                         , syntax = syntax
                         , syntaxDirtyFrom = minMaybe buf.syntaxDirtyFrom n
                         , history = redoHistory buf.history
+                        , jumps = jumps
+                        , lint =
+                            { items = lintErrors
+                            , count = buf.lint.count
+                            }
                     }
             )
         |> Maybe.withDefault buf

@@ -322,4 +322,82 @@ suite =
                         ]
                     )
                 ]
+        , describe "shiftPositionByPatch"
+            [ describe "insertion"
+                [ test "before" <|
+                    \_ ->
+                        Expect.equal
+                            ( 61, 13 )
+                            (B.shiftPositionByPatch
+                                (Insertion ( 57, 0 ) (B.fromString "\n"))
+                                ( 60, 13 )
+                            )
+                , test "after" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 13 )
+                            (B.shiftPositionByPatch
+                                (Insertion ( 67, 0 ) (B.fromString "\n"))
+                                ( 60, 13 )
+                            )
+                , test "same line" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 16 )
+                            (B.shiftPositionByPatch
+                                (Insertion ( 60, 13 ) (B.fromString "123"))
+                                ( 60, 13 )
+                            )
+                ]
+            , describe "deletion"
+                [ test "before" <|
+                    \_ ->
+                        Expect.equal
+                            ( 61, 13 )
+                            (B.shiftPositionByPatch
+                                (Deletion ( 60, 13 ) ( 60, 15 ))
+                                ( 61, 13 )
+                            )
+                , test "same line before" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 13 )
+                            (B.shiftPositionByPatch
+                                (Deletion ( 60, 13 ) ( 60, 15 ))
+                                ( 60, 13 )
+                            )
+                , test "after" <|
+                    \_ ->
+                        Expect.equal
+                            ( 61, 13 )
+                            (B.shiftPositionByPatch
+                                (Deletion ( 60, 13 ) ( 61, 12 ))
+                                ( 62, 13 )
+                            )
+                , test "multipe lines deletion, same line after" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 1 )
+                            (B.shiftPositionByPatch
+                                (Deletion ( 60, 13 ) ( 61, 12 ))
+                                ( 61, 13 )
+                            )
+                , test "same line after" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 14 )
+                            (B.shiftPositionByPatch
+                                (Deletion ( 60, 13 ) ( 60, 14 ))
+                                ( 60, 15 )
+                            )
+                , test "contains" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 13 )
+                            (B.shiftPositionByPatch
+                                (Deletion ( 60, 13 ) ( 60, 18 ))
+                                ( 60, 15 )
+                            )
+                ]
+            ]
         ]
