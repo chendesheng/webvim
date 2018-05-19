@@ -33,7 +33,15 @@ import Service exposing (sendTokenize)
 import Elm.Array as Array
 import Document as Doc
 import Fuzzy exposing (..)
-import Jumps exposing (saveCursorPosition, jump, Jumps, Location)
+import Jumps
+    exposing
+        ( saveJump
+        , jumpForward
+        , jumpBackward
+        , Jumps
+        , Location
+        , currentLocation
+        )
 import Range exposing (operatorRanges)
 
 
@@ -693,28 +701,40 @@ runOperator count register operator buf =
         JumpHistory isForward ->
             let
                 jumps =
-                    jump isForward buf.jumps
-
-                { path, cursor } =
-                    jumps.current
-
-                scrollTop =
-                    Tuple.first jumps.current.cursor
-                        - (Tuple.first buf.cursor - buf.view.scrollTop)
-                        |> Basics.max 0
+                    if isForward then
+                        jumpForward buf.jumps
+                    else
+                        jumpBackward
+                            { path = buf.path
+                            , cursor = buf.cursor
+                            }
+                            buf.jumps
             in
-                if path == buf.path then
-                    ( Buf.setCursor cursor True { buf | jumps = jumps }
-                    , Cmd.none
-                    )
-                else
-                    editBuffer
-                        { path = path
-                        , cursor = jumps.current.cursor
-                        , scrollTop = scrollTop
-                        , content = Nothing
-                        }
-                        { buf | jumps = jumps }
+                case currentLocation jumps of
+                    Just { path, cursor } ->
+                        if path == buf.path then
+                            ( Buf.setCursor
+                                cursor
+                                True
+                                { buf | jumps = jumps }
+                            , Cmd.none
+                            )
+                        else
+                            editBuffer
+                                { path = path
+                                , cursor = cursor
+                                , scrollTop =
+                                    Tuple.first cursor
+                                        - (Tuple.first buf.cursor
+                                            - buf.view.scrollTop
+                                          )
+                                        |> Basics.max 0
+                                , content = Nothing
+                                }
+                                { buf | jumps = jumps }
+
+                    _ ->
+                        ( buf, Cmd.none )
 
         JumpLastBuffer ->
             case Dict.get "#" buf.registers of
@@ -723,17 +743,26 @@ runOperator count register operator buf =
                         path =
                             registerString reg
                                 |> Debug.log "JumpLastBuffer"
+
+                        cursor =
+                            buf.buffers
+                                |> Dict.get path
+                                |> Maybe.map .cursor
+                                |> Maybe.withDefault ( 0, 0 )
+
+                        jumps =
+                            saveJump
+                                { path = path
+                                , cursor = cursor
+                                }
+                                buf.jumps
                     in
                         editBuffer
-                            (buf.buffers
-                                |> Dict.get path
-                                |> Maybe.withDefault
-                                    { cursor = ( 0, 0 )
-                                    , path = path
-                                    , content = Nothing
-                                    , scrollTop = 0
-                                    }
-                            )
+                            { cursor = cursor
+                            , path = path
+                            , content = Nothing
+                            , scrollTop = 0
+                            }
                             buf
 
                 _ ->
@@ -1162,7 +1191,7 @@ execute s buf =
                             loc
 
                         jumps =
-                            saveCursorPosition loc buf.jumps
+                            saveJump loc buf.jumps
 
                         scrollTop =
                             Tuple.first buf.cursor
@@ -1770,18 +1799,7 @@ editBuffer info buf =
                 newBuffer
                     info
                     { buf
-                        | jumps =
-                            saveCursorPosition
-                                (if info.path == buf.path then
-                                    { path = buf.path
-                                    , cursor = buf.cursor
-                                    }
-                                 else
-                                    { path = info.path
-                                    , cursor = info.cursor
-                                    }
-                                )
-                                buf.jumps
+                        | jumps = buf.jumps
                         , buffers =
                             (buf.buffers
                                 |> Dict.remove info.path
@@ -1870,14 +1888,7 @@ init flags =
                 activeBuf
                 { emptyBuffer
                     | view = { view | lineHeight = lineHeight }
-                    , jumps =
-                        { jumps
-                            | current =
-                                { path = activeBuf.path
-                                , cursor = activeBuf.cursor
-                                }
-                        }
-                            |> Debug.log "jumps"
+                    , jumps = jumps |> Debug.log "jumps"
                     , config =
                         { defaultBufferConfig
                             | service = service

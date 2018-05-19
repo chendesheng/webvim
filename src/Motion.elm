@@ -17,7 +17,7 @@ import Position exposing (Position, positionMin)
 import String
 import PositionClass exposing (..)
 import Regex as Re
-import Jumps exposing (saveCursorPosition)
+import Jumps exposing (saveJump)
 import Message exposing (Msg(..))
 import TextObject exposing (wordUnderCursor)
 import Helper exposing (repeatfn)
@@ -450,14 +450,17 @@ runMotion count md mo buf =
                     case buf.last.matchChar of
                         Just { char, before, forward } ->
                             let
+                                mo1 =
+                                    (if mo.forward then
+                                        { mo | forward = forward }
+                                     else
+                                        { mo | forward = not forward }
+                                    )
+
                                 findNext ( y, x ) =
                                     findPositionInBuffer
                                         (V.MatchChar char before)
-                                        (if forward then
-                                            V.motionOption "<]$-"
-                                         else
-                                            V.motionOption ">]$-"
-                                        )
+                                        mo1
                                         y
                                         x
                                         buf.config.wordChars
@@ -546,8 +549,8 @@ isSaveColumn md =
             True
 
 
-saveCursorAfterJump : V.MotionData -> Position -> Position -> Buffer -> Buffer
-saveCursorAfterJump md cursorBefore cursorAfter buf =
+saveCursorBeforeJump : V.MotionData -> Position -> Buffer -> Buffer
+saveCursorBeforeJump md cursorAfter buf =
     let
         isJump md =
             case md of
@@ -572,12 +575,12 @@ saveCursorAfterJump md cursorBefore cursorAfter buf =
                 _ ->
                     False
     in
-        if cursorBefore /= cursorAfter && isJump md then
+        if buf.cursor /= cursorAfter && isJump md then
             let
                 jumps =
-                    saveCursorPosition
+                    saveJump
                         { path = buf.path
-                        , cursor = cursorAfter
+                        , cursor = buf.cursor
                         }
                         buf.jumps
             in
@@ -586,15 +589,20 @@ saveCursorAfterJump md cursorBefore cursorAfter buf =
             buf
 
 
-motion : Int -> V.MotionData -> V.MotionOption -> Buffer -> ( Buffer, Cmd Msg )
+motion :
+    Int
+    -> V.MotionData
+    -> V.MotionOption
+    -> Buffer
+    -> ( Buffer, Cmd Msg )
 motion count md mo buf =
     case runMotion count md mo buf of
         Just cursor ->
             ( buf
+                |> saveCursorBeforeJump md cursor
                 |> Buf.setCursor cursor (isSaveColumn md)
                 |> setVisualEnd cursor
                 |> saveMotion md mo buf
-                |> saveCursorAfterJump md buf.cursor cursor
             , Cmd.none
             )
 

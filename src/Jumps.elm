@@ -1,10 +1,12 @@
 module Jumps
     exposing
-        ( saveCursorPosition
+        ( saveJump
         , Location
         , Jumps
-        , jump
+        , jumpForward
+        , jumpBackward
         , jumpsToString
+        , currentLocation
         )
 
 import Position exposing (Position)
@@ -18,19 +20,19 @@ type alias Location =
 
 
 -- backwards 1 -> 2 -> 3
--- current 0
 -- forwards 1 -> 2 -> 3
 
 
 type alias Jumps =
     { backwards : List Location
+
+    -- head of forwards is current location
     , forwards : List Location
-    , current : Location
     }
 
 
 jumpsToString : Jumps -> String
-jumpsToString { backwards, forwards, current } =
+jumpsToString { backwards, forwards } =
     let
         locationToString { path, cursor } =
             let
@@ -54,53 +56,60 @@ jumpsToString { backwards, forwards, current } =
     in
         backwards
             |> backwardsToString
-            |> joinStr (locationToString current)
             |> joinStr (forwardsToString forwards)
 
 
-saveCursorPosition : Location -> Jumps -> Jumps
-saveCursorPosition loc ({ backwards, forwards, current } as jumps) =
-    if
-        (loc.path == current.path)
-            && (Tuple.first loc.cursor == Tuple.first current.cursor)
-    then
-        jumps
-    else
-        { backwards = current :: List.foldl (::) backwards forwards
-        , current = loc
-        , forwards = []
-        }
+sameLine : Location -> Location -> Bool
+sameLine loc1 loc2 =
+    (loc1.path == loc2.path)
+        && (Tuple.first loc1.cursor == Tuple.first loc2.cursor)
+
+
+saveJump : Location -> Jumps -> Jumps
+saveJump loc { backwards, forwards } =
+    { backwards =
+        List.foldl (::) backwards forwards
+            |> List.filter (sameLine loc >> not)
+            |> ((::) loc)
+    , forwards = []
+    }
 
 
 jumpForward : Jumps -> Jumps
-jumpForward ({ backwards, forwards, current } as jumps) =
+jumpForward ({ backwards, forwards } as jumps) =
     case forwards of
-        loc :: forwards2 ->
-            { backwards = current :: backwards
-            , current = loc
-            , forwards = forwards2
+        loc :: loc1 :: forwards2 ->
+            { backwards = loc :: backwards
+            , forwards = loc1 :: forwards2
             }
 
         _ ->
             jumps
 
 
-jumpBackward : Jumps -> Jumps
-jumpBackward ({ backwards, forwards, current } as jumps) =
+jumpBackward : Location -> Jumps -> Jumps
+jumpBackward cursor ({ backwards, forwards } as jumps) =
     case backwards of
         loc :: backwards2 ->
-            { backwards = backwards2
-            , current = loc
-            , forwards = current :: forwards
-            }
+            if List.isEmpty forwards then
+                { backwards =
+                    List.filter (sameLine cursor >> not)
+                        backwards2
+                , forwards =
+                    if sameLine loc cursor then
+                        [ cursor ]
+                    else
+                        [ loc, cursor ]
+                }
+            else
+                { backwards = backwards2
+                , forwards = loc :: forwards
+                }
 
         _ ->
             jumps
 
 
-jump : Bool -> Jumps -> Jumps
-jump isForward =
-    if isForward then
-        jumpForward
-    else
-        jumpBackward
+currentLocation : Jumps -> Maybe Location
+currentLocation { forwards } =
+    List.head forwards

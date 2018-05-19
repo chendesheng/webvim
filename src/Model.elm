@@ -244,7 +244,6 @@ emptyBuffer =
     , jumps =
         { backwards = []
         , forwards = []
-        , current = { path = "", cursor = ( 0, 0 ) }
         }
     , buffers = Dict.empty
     , locationList = []
