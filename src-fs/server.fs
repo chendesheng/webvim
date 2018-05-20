@@ -106,7 +106,7 @@ let lint =
         | Choice1Of2 p ->
           let file = if p.StartsWith("tests/") then
                         p.Substring(6)
-                     else "src/Main.elm"
+                     else p //"src/Main.elm"
           let dir = elmLintDir r 
           match elmLint dir file with
           | Some json -> OK json

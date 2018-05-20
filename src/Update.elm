@@ -1411,17 +1411,7 @@ handleKeypress replaying key buf =
             Maybe.andThen
                 (.patches
                     >> List.head
-                    >> Maybe.map
-                        (\patch ->
-                            Tuple.first
-                                (case patch of
-                                    Insertion pos _ ->
-                                        pos
-
-                                    Deletion pos _ ->
-                                        pos
-                                )
-                        )
+                    >> Maybe.map B.patchCursor
                 )
 
         patchesLength undo =
