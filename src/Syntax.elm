@@ -6,8 +6,16 @@ import Helper exposing (..)
 import List
 
 
+type TokenType
+    = TokenComment
+    | TokenString
+    | TokenRegex
+    | TokenOther
+
+
 type alias Token =
-    { classname : String
+    { tipe : TokenType
+    , classname : String
     , length : Int
     }
 
@@ -29,15 +37,10 @@ type alias Syntax =
     Array (List Token)
 
 
-applyPatchToSyntax : Patch -> Syntax -> ( Syntax, Maybe Int )
-applyPatchToSyntax patch syntax =
+splitTokens : Int -> List Token -> ( List Token, List Token )
+splitTokens x tokens =
     let
-        longerToken x len =
-            updateToken
-                x
-                (\token -> { token | length = token.length + len })
-
-        splitTokens x left tokens =
+        splitTokensHelper x left tokens =
             case tokens of
                 token :: rest ->
                     if x <= token.length then
@@ -56,29 +59,44 @@ applyPatchToSyntax patch syntax =
                     else if List.isEmpty rest then
                         ( token :: left, [] )
                     else
-                        splitTokens (x - token.length)
+                        splitTokensHelper (x - token.length)
                             (token :: left)
                             rest
 
                 _ ->
-                    ( tokens, [] )
+                    ( [], [] )
+    in
+        splitTokensHelper x [] tokens
+
+
+applyPatchToSyntax : Patch -> Syntax -> ( Syntax, Maybe Int )
+applyPatchToSyntax patch syntax =
+    let
+        longerToken x len =
+            updateToken
+                x
+                (\token -> { token | length = token.length + len })
 
         insert ( y, x ) lines syntax =
             case Array.get y syntax of
                 Just tokens ->
                     let
                         ( left, right ) =
-                            splitTokens x [] tokens
+                            splitTokens x tokens
 
-                        classname =
+                        { tipe, classname } =
                             (case List.head left of
                                 Just x ->
-                                    x.classname
+                                    x
 
                                 _ ->
-                                    List.head right
-                                        |> Maybe.map .classname
-                                        |> Maybe.withDefault ""
+                                    right
+                                        |> List.head
+                                        |> Maybe.withDefault
+                                            { tipe = TokenOther
+                                            , classname = ""
+                                            , length = 0
+                                            }
                             )
 
                         expand tokens n =
@@ -91,6 +109,7 @@ applyPatchToSyntax patch syntax =
                                 _ ->
                                     [ { length = n
                                       , classname = classname
+                                      , tipe = tipe
                                       }
                                     ]
 
@@ -115,6 +134,7 @@ applyPatchToSyntax patch syntax =
                                         else
                                             [ { length = n
                                               , classname = classname
+                                              , tipe = tipe
                                               }
                                             ]
                                     )
@@ -135,6 +155,7 @@ applyPatchToSyntax patch syntax =
                             (\line ->
                                 [ { length = String.length line
                                   , classname = ""
+                                  , tipe = TokenOther
                                   }
                                 ]
                             )
@@ -154,13 +175,13 @@ applyPatchToSyntax patch syntax =
                     Just tokens ->
                         let
                             ( left, _ ) =
-                                splitTokens xa [] tokens
+                                splitTokens xa tokens
                         in
                             case Array.get yb syntax of
                                 Just tokens2 ->
                                     let
                                         ( _, right ) =
-                                            splitTokens xb [] tokens2
+                                            splitTokens xb tokens2
                                     in
                                         ( syntax
                                             |> Array.slice 0 ya

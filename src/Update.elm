@@ -1,5 +1,6 @@
 module Update exposing (update, init, Flags)
 
+import Brackets exposing (pairBracket)
 import Char
 import Task
 import Window as Win exposing (Size)
@@ -1016,12 +1017,14 @@ newBuffer info buf =
             Buf.configs
                 |> Dict.get ext
                 |> Maybe.withDefault defaultBufferConfig
+
+        lines =
+            content
+                |> Maybe.withDefault (B.toString emptyBuffer.lines)
+                |> B.fromString
     in
         { buf
-            | lines =
-                content
-                    |> Maybe.withDefault (B.toString emptyBuffer.lines)
-                    |> B.fromString
+            | lines = lines
             , config =
                 { config
                     | service = buf.config.service
@@ -1364,6 +1367,23 @@ handleKeypress replaying key buf =
             )
                 buf
 
+        matchedCursor =
+            if
+                (buf1.cursor /= buf.cursor)
+                    || (buf1.view.scrollTop /= buf.view.scrollTop)
+                    || (buf1.view.size /= buf1.view.size)
+                    || (buf1.lines /= buf1.lines)
+                    || (buf1.syntax /= buf1.syntax)
+            then
+                pairBracket
+                    buf1.view.scrollTop
+                    (buf1.view.scrollTop + buf1.view.size.height)
+                    buf1.lines
+                    buf1.syntax
+                    buf1.cursor
+            else
+                buf.view.matchedCursor
+
         newBottom =
             let
                 n =
@@ -1472,8 +1492,14 @@ handleKeypress replaying key buf =
                 debounceLint 500
             else
                 Cmd.none
+
+        view =
+            buf1.view
     in
-        ( { buf1 | syntaxDirtyFrom = Nothing }
+        ( { buf1
+            | syntaxDirtyFrom = Nothing
+            , view = { view | matchedCursor = matchedCursor }
+          }
         , Cmd.batch
             ([ todo
              , doLint
@@ -1494,12 +1520,28 @@ onTokenized buf resp =
                         (path == buf.path)
                             && (version == buf.history.version)
                       then
-                        { buf
-                            | syntax =
+                        let
+                            syntax1 =
                                 buf.syntax
                                     |> Array.slice 0 begin
                                     |> flip Array.append syntax
-                        }
+
+                            view =
+                                buf.view
+                        in
+                            { buf
+                                | syntax = syntax1
+                                , view =
+                                    { view
+                                        | matchedCursor =
+                                            pairBracket
+                                                buf.view.scrollTop
+                                                (buf.view.scrollTop + buf.view.size.height)
+                                                buf.lines
+                                                syntax1
+                                                buf.cursor
+                                    }
+                            }
                       else
                         buf
                     , Cmd.none
@@ -1795,6 +1837,9 @@ editBuffer info buf =
         ( buf, sendEditBuffer buf.config.service info )
     else
         let
+            view =
+                buf.view
+
             newbuf =
                 newBuffer
                     info

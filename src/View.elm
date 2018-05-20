@@ -90,6 +90,10 @@ view buf =
                 |> Maybe.map .begin
                 |> Maybe.withDefault buf.cursor
                 |> Tuple.first
+
+        matchedCursor =
+            buf.view.matchedCursor
+                |> Maybe.map (Tuple.mapFirst (\y -> y - scrollTop))
     in
         div [ class "editor" ]
             ([ div [ class "buffer" ]
@@ -116,7 +120,8 @@ view buf =
                             (height + 1)
                             lines
                             syntax
-                        :: renderCursor maybeCursor
+                        :: renderCursor "" maybeCursor
+                        :: lazy2 renderCursor "matched-cursor" matchedCursor
                         :: renderTip scrollTop1
                             buf.lint.items
                             (Maybe.map
@@ -172,7 +177,7 @@ renderStatusBar dirty mode continuation errorsCnt name =
             , classList [ ( "dirty", dirty ) ]
             ]
             [ div [] [ text statusBar.text ]
-            , renderCursor statusBar.cursor
+            , renderCursor "" statusBar.cursor
             , div [ class "status-right" ]
                 [ div [ class "status-cmds" ] [ text continuation ]
                 , div [ class "filename" ] [ text name ]
@@ -288,12 +293,13 @@ maybeToList mb =
 infixr 5 ?::
 
 
-renderCursor : Maybe Position -> Html msg
-renderCursor cursor =
+renderCursor : String -> Maybe Position -> Html msg
+renderCursor classname cursor =
     case cursor of
         Just ( y, x ) ->
             div
                 [ class "cursor"
+                , class classname
                 , style
                     [ ( "left", ch x )
                     , ( "top", rem y )

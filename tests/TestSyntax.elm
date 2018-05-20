@@ -11,8 +11,8 @@ import Helper exposing (..)
 testSyntax : Syntax
 testSyntax =
     Array.fromList
-        [ [ { length = 2, classname = "mtk1" } ]
-        , [ { length = 2, classname = "mtk2" } ]
+        [ [ { length = 2, classname = "mtk1", tipe = TokenOther } ]
+        , [ { length = 2, classname = "mtk2", tipe = TokenOther } ]
         ]
 
 
@@ -25,6 +25,7 @@ newToken2 : Int -> String -> Token
 newToken2 length classname =
     { length = length
     , classname = classname
+    , tipe = TokenOther
     }
 
 
@@ -32,6 +33,7 @@ newToken : Int -> Token
 newToken length =
     { length = length
     , classname = ""
+    , tipe = TokenOther
     }
 
 

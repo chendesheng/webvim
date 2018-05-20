@@ -7,6 +7,9 @@ import Buffer exposing (..)
 import Model exposing (Buffer, emptyBuffer, BufferHistory, emptyBufferHistory)
 import Internal.TextBuffer as B exposing (Patch(..))
 import TextBuffer exposing (..)
+import Syntax exposing (TokenType(..))
+import Elm.Array as Array
+import Brackets exposing (pairBracket)
 
 
 repeat : Int -> (a -> a) -> (a -> a)
@@ -411,4 +414,265 @@ suite =
                     in
                         Expect.equal 0 (List.length redoes)
             ]
+        , describe "iterateTokens"
+            (let
+                syntax =
+                    Array.fromList
+                        [ [ { length = 4
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 4
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 2
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 2
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          ]
+                        ]
+
+                lines =
+                    B.fromString "func main() {}\n"
+             in
+                [ test "stop immediately" <|
+                    \_ ->
+                        Expect.equal 0
+                            (iterateTokens
+                                True
+                                (\pos line token x -> ( x, True ))
+                                lines
+                                syntax
+                                ( 0, 0 )
+                                10
+                                0
+                            )
+                , test "count tokens" <|
+                    \_ ->
+                        Expect.equal 7
+                            (iterateTokens
+                                True
+                                (\pos line token x ->
+                                    ( x + 1, False )
+                                )
+                                lines
+                                syntax
+                                ( 0, 0 )
+                                10
+                                0
+                            )
+                , test "start at middle" <|
+                    \_ ->
+                        Expect.equal 13
+                            (iterateTokens
+                                True
+                                (\pos line token x ->
+                                    ( x + token.length, False )
+                                )
+                                lines
+                                syntax
+                                ( 0, 2 )
+                                10
+                                0
+                            )
+                , test "count start at middle" <|
+                    \_ ->
+                        Expect.equal 6
+                            (iterateTokens
+                                True
+                                (\pos line token x ->
+                                    ( x + 1, False )
+                                )
+                                lines
+                                syntax
+                                ( 0, 4 )
+                                10
+                                0
+                            )
+                , test "count backward start at middle" <|
+                    \_ ->
+                        Expect.equal 3
+                            (iterateTokens
+                                False
+                                (\pos line token x ->
+                                    ( x + 1, False )
+                                )
+                                lines
+                                syntax
+                                ( 0, 6 )
+                                0
+                                0
+                            )
+                , test "backward start at middle" <|
+                    \_ ->
+                        Expect.equal 6
+                            (iterateTokens
+                                False
+                                (\pos line token len ->
+                                    ( len + token.length, False )
+                                )
+                                lines
+                                syntax
+                                ( 0, 6 )
+                                0
+                                0
+                            )
+                ]
+            )
+        , describe "iterateTokens mutiple lines"
+            (let
+                syntax =
+                    Array.fromList
+                        [ [ { length = 4
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 4
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 2
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          ]
+                        , [ { length = 8
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 6
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 13
+                            , classname = ""
+                            , tipe = TokenString
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenString
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenString
+                            }
+                          ]
+                        , [ { length = 4
+                            , classname = ""
+                            , tipe = TokenOther
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenString
+                            }
+                          , { length = 1
+                            , classname = ""
+                            , tipe = TokenString
+                            }
+                          ]
+                        ]
+
+                lines =
+                    B.fromString """func main() {
+        printf{"hello world"}
+    }
+"""
+             in
+                [ test "count tokens" <|
+                    \_ ->
+                        Expect.equal 16
+                            (iterateTokens
+                                True
+                                (\pos line token x ->
+                                    ( x + 1, False )
+                                )
+                                lines
+                                syntax
+                                ( 0, 0 )
+                                10
+                                0
+                            )
+                , test "count start at middle" <|
+                    \_ ->
+                        Expect.equal 8
+                            (iterateTokens
+                                True
+                                (\pos line token x ->
+                                    ( x + 1, False )
+                                )
+                                lines
+                                syntax
+                                ( 1, 9 )
+                                10
+                                0
+                            )
+                , test "count backward start at middle" <|
+                    \_ ->
+                        Expect.equal 8
+                            (iterateTokens
+                                False
+                                (\pos line token x ->
+                                    ( x + 1, False )
+                                )
+                                lines
+                                syntax
+                                ( 1, 8 )
+                                0
+                                0
+                            )
+                , test "pair brackets in the same line success" <|
+                    \_ ->
+                        Expect.equal (Just ( 0, 10 ))
+                            (pairBracket 0 10 lines syntax ( 0, 9 ))
+                , test "pair brackets backward in the same line success" <|
+                    \_ ->
+                        Expect.equal (Just ( 1, 14 ))
+                            (pairBracket 0 10 lines syntax ( 1, 28 ))
+                , test "pair brackets success" <|
+                    \_ ->
+                        Expect.equal (Just ( 2, 4 ))
+                            (pairBracket 0 10 lines syntax ( 0, 12 ))
+                , test "pair brackets backward success" <|
+                    \_ ->
+                        Expect.equal (Just ( 0, 12 ))
+                            (pairBracket 0 10 lines syntax ( 2, 4 ))
+                ]
+            )
         ]

@@ -14,7 +14,7 @@ import Message
 import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
 import Bitwise as Bit
-import Syntax exposing (Token)
+import Syntax exposing (Token, TokenType(..))
 import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
@@ -150,8 +150,8 @@ sendLintOnTheFly url path buf =
             |> Http.send (parseLintResponse >> LintOnTheFly)
 
 
-unpackClass : Int -> String
-unpackClass n =
+unpackClass : Int -> Int -> Int -> Token
+unpackClass startIndex endIndex n =
     let
         languageid_mask =
             255
@@ -215,8 +215,28 @@ unpackClass n =
                                            else
                                             ""
                    )
+
+        tokenType =
+            n
+                |> Bit.and token_type_mask
+                |> Bit.shiftRightZfBy token_type_offset
     in
-        "mtk" ++ (toString foreground) ++ fontStyle
+        { length = endIndex - startIndex
+        , classname = "mtk" ++ (toString foreground) ++ fontStyle
+        , tipe =
+            case tokenType of
+                1 ->
+                    TokenComment
+
+                2 ->
+                    TokenString
+
+                4 ->
+                    TokenRegex
+
+                _ ->
+                    TokenOther
+        }
 
 
 tokensParser : Decode.Decoder (List Token)
@@ -248,11 +268,7 @@ tokensParser =
                             |> Maybe.withDefault []
                 in
                     (List.map3
-                        (\startIndex endIndex class ->
-                            { length = endIndex - startIndex
-                            , classname = unpackClass class
-                            }
-                        )
+                        unpackClass
                         indexes
                         indexes2
                         classes

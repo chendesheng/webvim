@@ -76,6 +76,7 @@ type alias View =
     -- pixel height of a line
     , lineHeight : Int
     , showTip : Bool
+    , matchedCursor : Maybe Position
     }
 
 
@@ -169,6 +170,7 @@ emptyView =
     , statusbarHeight = 1
     , lineHeight = 21
     , showTip = False
+    , matchedCursor = Nothing
     }
 
 
