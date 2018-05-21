@@ -4,6 +4,7 @@ import Elm.Array as Array exposing (Array)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Helper exposing (..)
 import List
+import Position exposing (Position)
 
 
 type TokenType
@@ -232,3 +233,27 @@ applyPatchesToSyntax patches syntax =
         )
         ( syntax, Nothing )
         patches
+
+
+getToken : Position -> Syntax -> Maybe Token
+getToken ( y, x ) syntax =
+    case
+        Array.get y syntax
+    of
+        Just tokens ->
+            let
+                getTokenHelper tokens x =
+                    case tokens of
+                        token :: rest ->
+                            if x < token.length then
+                                Just token
+                            else
+                                getTokenHelper rest (x - token.length)
+
+                        _ ->
+                            Nothing
+            in
+                getTokenHelper tokens x
+
+        _ ->
+            Nothing

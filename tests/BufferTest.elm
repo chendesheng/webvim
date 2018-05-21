@@ -587,11 +587,11 @@ suite =
                             }
                           , { length = 1
                             , classname = ""
-                            , tipe = TokenString
+                            , tipe = TokenOther
                             }
                           , { length = 1
                             , classname = ""
-                            , tipe = TokenString
+                            , tipe = TokenOther
                             }
                           ]
                         , [ { length = 4
@@ -600,18 +600,18 @@ suite =
                             }
                           , { length = 1
                             , classname = ""
-                            , tipe = TokenString
+                            , tipe = TokenOther
                             }
                           , { length = 1
                             , classname = ""
-                            , tipe = TokenString
+                            , tipe = TokenOther
                             }
                           ]
                         ]
 
                 lines =
                     B.fromString """func main() {
-        printf{"hello world"}
+        printf{"hello{world"}
     }
 """
              in
