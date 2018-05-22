@@ -16,11 +16,14 @@ import Buffer as Buf
 import Position exposing (Position, positionMin)
 import String
 import PositionClass exposing (..)
-import Regex as Re
+import Regex as Re exposing (regex)
 import Jumps exposing (saveJump)
 import Message exposing (Msg(..))
 import TextObject exposing (wordUnderCursor)
 import Helper exposing (repeatfn)
+import Brackets exposing (pairBracket, bracketsParser)
+import Parser as P
+import Elm.Array as Array
 
 
 setVisualBegin : Position -> Buffer -> Buffer
@@ -505,6 +508,27 @@ runMotion count md mo buf =
                         _ ->
                             Nothing
 
+                V.MatchPair ->
+                    let
+                        ( y, x ) =
+                            buf.cursor
+                    in
+                        buf.lines
+                            |> B.getLine y
+                            |> Maybe.andThen
+                                (String.dropLeft x
+                                    >> P.run bracketsParser
+                                    >> Result.toMaybe
+                                    >> Maybe.map (\dx -> ( y, x + dx ))
+                                )
+                            |> Maybe.andThen
+                                (pairBracket
+                                    0
+                                    (Array.length buf.syntax)
+                                    buf.lines
+                                    buf.syntax
+                                )
+
                 _ ->
                     let
                         findNext ( y, x ) =
@@ -570,6 +594,9 @@ saveCursorBeforeJump md cursorAfter buf =
                     True
 
                 V.MatchString _ ->
+                    True
+
+                V.MatchPair ->
                     True
 
                 _ ->

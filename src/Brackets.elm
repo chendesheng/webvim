@@ -12,6 +12,20 @@ import Syntax
 import Internal.TextBuffer as B exposing (TextBuffer)
 import Buffer exposing (iterateTokens)
 import Position exposing (Position)
+import Parser as P exposing ((|.), (|=), Parser)
+
+
+isBracket : Char -> Bool
+isBracket c =
+    List.any ((==) c)
+        [ '(', ')', '[', ']', '{', '}', '<', '>' ]
+
+
+bracketsParser : Parser Int
+bracketsParser =
+    P.succeed String.length
+        |= P.keep P.zeroOrMore (isBracket >> not)
+        |. P.keep (P.Exactly 1) isBracket
 
 
 bracket : String -> Maybe ( String, Regex, Bool )
