@@ -1383,7 +1383,7 @@ editBufferCases =
     [ ( ":e src/test.elm<cr>"
       , { editBufferCasesBuf
             | jumps =
-                { backwards = []
+                { backwards = [ { path = "", cursor = ( 0, 0 ) } ]
                 , forwards = []
                 }
             , path = "src/test.elm"

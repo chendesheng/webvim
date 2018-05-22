@@ -1164,15 +1164,23 @@ execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            buf.buffers
-                |> Dict.get path
-                |> Maybe.withDefault
-                    { path = path
-                    , cursor = ( 0, 0 )
-                    , scrollTop = 0
-                    , content = Nothing
-                    }
-                |> flip editBuffer buf
+            let
+                jumps =
+                    saveJump
+                        { path = buf.path
+                        , cursor = buf.cursor
+                        }
+                        buf.jumps
+            in
+                buf.buffers
+                    |> Dict.get path
+                    |> Maybe.withDefault
+                        { path = path
+                        , cursor = ( 0, 0 )
+                        , scrollTop = 0
+                        , content = Nothing
+                        }
+                    |> flip editBuffer { buf | jumps = jumps }
 
         [ "w" ] ->
             ( buf
