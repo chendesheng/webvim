@@ -8,7 +8,7 @@ import Internal.TextBuffer as B
 import String
 
 
-yank : Int -> String -> V.OperatorRange -> Buffer -> Buffer
+yank : Maybe Int -> String -> V.OperatorRange -> Buffer -> Buffer
 yank count register range buf =
     let
         s =

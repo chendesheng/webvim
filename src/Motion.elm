@@ -240,7 +240,7 @@ gotoLine y lines =
             )
 
 
-gotoMatchedString : Int -> V.MotionOption -> Buffer -> Maybe Position
+gotoMatchedString : Maybe Int -> V.MotionOption -> Buffer -> Maybe Position
 gotoMatchedString count mo buf =
     case buf.mode of
         Ex { prefix, exbuf } ->
@@ -274,7 +274,10 @@ gotoMatchedString count mo buf =
                                     buf.lines
                                 )
                     in
-                        repeatfn count findNext buf.cursor
+                        repeatfn
+                            (Maybe.withDefault 1 count)
+                            findNext
+                            buf.cursor
 
                 _ ->
                     Nothing
@@ -385,7 +388,7 @@ matchString forward re pos lines =
 --|> Debug.log "search hit top"
 
 
-runMotion : Int -> V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
+runMotion : Maybe Int -> V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
 runMotion count md mo buf =
     if B.isEmpty buf.lines then
         Nothing
@@ -393,7 +396,7 @@ runMotion count md mo buf =
         let
             bottomLine buf =
                 (min
-                    (B.count buf.lines)
+                    (B.count buf.lines - 1)
                     (buf.view.scrollTop + buf.view.size.height)
                 )
                     - 1
@@ -403,21 +406,28 @@ runMotion count md mo buf =
         in
             case md of
                 V.BufferTop ->
-                    gotoLine (count - 1) buf.lines
+                    case count of
+                        Just n ->
+                            gotoLine (n - 1) buf.lines
+
+                        _ ->
+                            gotoLine 0 buf.lines
 
                 V.BufferBottom ->
-                    if count > 1 then
-                        gotoLine (count - 1) buf.lines
-                    else
-                        gotoLine (B.count buf.lines - 2) buf.lines
+                    case count of
+                        Just n ->
+                            gotoLine (n - 1) buf.lines
+
+                        _ ->
+                            gotoLine (B.count buf.lines - 2) buf.lines
 
                 V.LineDelta forward ->
                     let
                         n =
                             if forward then
-                                count
+                                Maybe.withDefault 1 count
                             else
-                                -count
+                                -(Maybe.withDefault 1 count)
 
                         ( y, x ) =
                             buf.cursor
@@ -435,7 +445,7 @@ runMotion count md mo buf =
                         Just ( y1, x1 )
 
                 V.ViewTop ->
-                    (buf.view.scrollTop + count - 1)
+                    (buf.view.scrollTop + (Maybe.withDefault 0 count))
                         |> Basics.min (bottomLine buf)
                         |> flip gotoLine buf.lines
 
@@ -445,7 +455,7 @@ runMotion count md mo buf =
                         buf.lines
 
                 V.ViewBottom ->
-                    (bottomLine buf - count + 1)
+                    (bottomLine buf - (Maybe.withDefault 0 count))
                         |> Basics.max buf.view.scrollTop
                         |> flip gotoLine buf.lines
 
@@ -469,7 +479,7 @@ runMotion count md mo buf =
                                         buf.config.wordChars
                                         buf.lines
                             in
-                                repeatfn count findNext buf.cursor
+                                repeatfn (Maybe.withDefault 1 count) findNext buf.cursor
 
                         _ ->
                             Nothing
@@ -502,32 +512,51 @@ runMotion count md mo buf =
                                                         buf.lines
                                                     )
                                         in
-                                            repeatfn count findNext buf.cursor
+                                            repeatfn
+                                                (Maybe.withDefault 1 count)
+                                                findNext
+                                                buf.cursor
                                     )
 
                         _ ->
                             Nothing
 
                 V.MatchPair ->
-                    let
-                        ( y, x ) =
-                            buf.cursor
-                    in
-                        buf.lines
-                            |> B.getLine y
-                            |> Maybe.andThen
-                                (String.dropLeft x
-                                    >> P.run bracketsParser
-                                    >> Result.toMaybe
-                                    >> Maybe.map (\dx -> ( y, x + dx ))
-                                )
-                            |> Maybe.andThen
-                                (pairBracket
-                                    0
-                                    (Array.length buf.syntax)
-                                    buf.lines
-                                    buf.syntax
-                                )
+                    case count of
+                        Just n ->
+                            let
+                                cnt =
+                                    B.count buf.lines - 1
+                            in
+                                n
+                                    |> toFloat
+                                    |> flip (/) 100
+                                    |> (*) (toFloat cnt)
+                                    |> ceiling
+                                    |> (\x -> x - 1)
+                                    |> Basics.min (cnt - 1)
+                                    |> flip gotoLine buf.lines
+
+                        _ ->
+                            let
+                                ( y, x ) =
+                                    buf.cursor
+                            in
+                                buf.lines
+                                    |> B.getLine y
+                                    |> Maybe.andThen
+                                        (String.dropLeft x
+                                            >> P.run bracketsParser
+                                            >> Result.toMaybe
+                                            >> Maybe.map (\dx -> ( y, x + dx ))
+                                        )
+                                    |> Maybe.andThen
+                                        (pairBracket
+                                            0
+                                            (Array.length buf.syntax)
+                                            buf.lines
+                                            buf.syntax
+                                        )
 
                 _ ->
                     let
@@ -539,7 +568,10 @@ runMotion count md mo buf =
                                 buf.config.wordChars
                                 buf.lines
                     in
-                        repeatfn count findNext buf.cursor
+                        repeatfn
+                            (Maybe.withDefault 1 count)
+                            findNext
+                            buf.cursor
 
 
 wordStringUnderCursor : Buffer -> Maybe ( Position, String )
@@ -617,7 +649,7 @@ saveCursorBeforeJump md cursorAfter buf =
 
 
 motion :
-    Int
+    Maybe Int
     -> V.MotionData
     -> V.MotionOption
     -> Buffer

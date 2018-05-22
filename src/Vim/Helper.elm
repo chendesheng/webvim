@@ -173,21 +173,24 @@ isEscaped =
     aggregateChanges PushEscape PopEscape
 
 
-aggregateCount : ModeDelta -> Int
+aggregateCount : ModeDelta -> Maybe Int
 aggregateCount =
     List.foldl
         (\change res ->
             case change of
                 PushCount n ->
-                    res * n
+                    res
+                        |> Maybe.withDefault 1
+                        |> ((*) n)
+                        |> Just
 
                 PopCount ->
-                    1
+                    Maybe.map (always 1) res
 
                 _ ->
                     res
         )
-        1
+        Nothing
 
 
 aggregateRegister : ModeDelta -> Register

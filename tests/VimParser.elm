@@ -416,7 +416,7 @@ cases =
     , ( "10i<c-o>8"
       , ( { initialMode
             | modeName = ModeNameTempNormal
-            , count = 8
+            , count = Just 8
             , edit = Nothing
           }
         , "10i<c-o>8"
@@ -425,7 +425,7 @@ cases =
     , ( "10i<c-o>8j"
       , ( { initialMode
             | modeName = ModeNameInsert
-            , count = 8
+            , count = Just 8
             , edit =
                 motionOption ">]+="
                     |> Move (LineDelta True)
@@ -575,16 +575,16 @@ cases =
 
     --count
     , ( "2"
-      , ( { initialMode | count = 2 }, "2" )
+      , ( { initialMode | count = Just 2 }, "2" )
       )
     , ( "23"
-      , ( { initialMode | count = 23 }, "23" )
+      , ( { initialMode | count = Just 23 }, "23" )
       )
     , ( "23<esc>", ( initialMode, "" ) )
     , ( "23\"a24"
       , ( { initialMode
             | register = "a"
-            , count = 23 * 24
+            , count = Just (23 * 24)
           }
         , "23\"a24"
         )
@@ -665,7 +665,7 @@ cases =
     , ( "v12iw"
       , ( { initialMode
             | modeName = ModeNameVisual VisualChars
-            , count = 12
+            , count = Just 12
             , edit = Select Word False |> Just
           }
         , "v"
@@ -689,7 +689,7 @@ cases =
       )
     , ( "v10f"
       , ( { initialMode
-            | count = 10
+            | count = Just 10
             , modeName = ModeNameVisual VisualChars
           }
         , "v10f"
@@ -698,7 +698,7 @@ cases =
     , ( "v10fm"
       , ( { initialMode
             | edit = Move (MatchChar "m" False) (motionOption ">]$-") |> Just
-            , count = 10
+            , count = Just 10
             , modeName = ModeNameVisual VisualChars
           }
         , "v"

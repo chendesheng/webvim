@@ -1236,7 +1236,8 @@ jumpsCasesBuf =
 456
 789
 abc
-def"""
+def
+"""
             , view = { view | size = { width = 20, height = 6 } }
             , path = "testpath"
             , jumps = jumps
@@ -1257,7 +1258,7 @@ jumpsCases =
       , { jumpsCasesBuf
             | jumps =
                 { backwards =
-                    [ { path = "testpath", cursor = ( 3, 0 ) }
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
                     , { path = "testpath", cursor = ( 0, 0 ) }
                     ]
                 , forwards = []
@@ -1269,7 +1270,7 @@ jumpsCases =
             | jumps =
                 { backwards =
                     [ { path = "testpath", cursor = ( 2, 0 ) }
-                    , { path = "testpath", cursor = ( 3, 0 ) }
+                    , { path = "testpath", cursor = ( 4, 0 ) }
                     , { path = "testpath", cursor = ( 0, 0 ) }
                     ]
                 , forwards = []
@@ -1280,7 +1281,7 @@ jumpsCases =
       , { jumpsCasesBuf
             | jumps =
                 { backwards =
-                    [ { path = "testpath", cursor = ( 3, 0 ) }
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
                     ]
                 , forwards =
                     [ { path = "testpath", cursor = ( 2, 0 ) }
@@ -1295,7 +1296,7 @@ jumpsCases =
                 { backwards =
                     []
                 , forwards =
-                    [ { path = "testpath", cursor = ( 3, 0 ) }
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
                     , { path = "testpath", cursor = ( 2, 0 ) }
                     , { path = "testpath", cursor = ( 0, 0 ) }
                     ]
@@ -1306,7 +1307,7 @@ jumpsCases =
       , { jumpsCasesBuf
             | jumps =
                 { backwards =
-                    [ { path = "testpath", cursor = ( 3, 0 ) }
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
                     ]
                 , forwards =
                     [ { path = "testpath", cursor = ( 2, 0 ) }
@@ -1321,7 +1322,7 @@ jumpsCases =
                 { backwards =
                     [ { path = "testpath", cursor = ( 2, 0 ) }
                     , { path = "testpath", cursor = ( 0, 0 ) }
-                    , { path = "testpath", cursor = ( 3, 0 ) }
+                    , { path = "testpath", cursor = ( 4, 0 ) }
                     ]
                 , forwards = []
                 }
@@ -1333,7 +1334,7 @@ jumpsCases =
                 { backwards =
                     [ { path = "testpath", cursor = ( 2, 0 ) }
                     , { path = "testpath", cursor = ( 0, 0 ) }
-                    , { path = "testpath", cursor = ( 3, 0 ) }
+                    , { path = "testpath", cursor = ( 4, 0 ) }
                     ]
                 , forwards = []
                 }
@@ -1351,7 +1352,7 @@ jumpsCases =
       , { jumpsCasesBuf
             | jumps =
                 { backwards =
-                    [ { path = "testpath", cursor = ( 3, 0 ) }
+                    [ { path = "testpath", cursor = ( 4, 0 ) }
                     , { path = "testpath", cursor = ( 0, 0 ) }
                     ]
                 , forwards = []

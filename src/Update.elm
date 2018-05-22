@@ -369,7 +369,7 @@ cmdNone buf =
     ( buf, Cmd.none )
 
 
-runOperator : Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
+runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator count register operator buf =
     case operator of
         Move md mo ->
@@ -855,9 +855,9 @@ runOperator count register operator buf =
 
                 delta =
                     if larger then
-                        count
+                        Maybe.withDefault 1 count
                     else
-                        -count
+                        -(Maybe.withDefault 1 count)
 
                 numParser =
                     P.succeed
@@ -1060,7 +1060,7 @@ isExEditing op =
             False
 
 
-applyEdit : Int -> Maybe Operator -> String -> Buffer -> ( Buffer, Cmd Msg )
+applyEdit : Maybe Int -> Maybe Operator -> String -> Buffer -> ( Buffer, Cmd Msg )
 applyEdit count edit register buf =
     case edit of
         Just operator ->

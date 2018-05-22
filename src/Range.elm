@@ -34,7 +34,7 @@ isLinewise range mode =
             textobj == V.Line && around
 
 
-operatorRanges : Int -> V.OperatorRange -> Buffer -> List ( Position, Position )
+operatorRanges : Maybe Int -> V.OperatorRange -> Buffer -> List ( Position, Position )
 operatorRanges count range buf =
     case range of
         V.MotionRange md mo ->

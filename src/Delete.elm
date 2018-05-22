@@ -34,7 +34,7 @@ applyTransaction { pos, patches } buf =
             Buf.transaction patches buf
 
 
-deleteOperator : Int -> V.OperatorRange -> Buffer -> Maybe Transaction
+deleteOperator : Maybe Int -> V.OperatorRange -> Buffer -> Maybe Transaction
 deleteOperator count range buf =
     let
         ranges =
@@ -94,7 +94,7 @@ deleteOperator count range buf =
                 }
 
 
-delete : Int -> String -> V.OperatorRange -> Buffer -> Buffer
+delete : Maybe Int -> String -> V.OperatorRange -> Buffer -> Buffer
 delete count register rg buf =
     let
         updateCursorColumn buf =

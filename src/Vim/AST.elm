@@ -127,7 +127,7 @@ type ModeName
 
 
 type alias AST =
-    { count : Int -- default 1
+    { count : Maybe Int -- default 1
     , edit : Maybe Operator
     , register : Register
     , modeName : ModeName
@@ -138,7 +138,7 @@ type alias AST =
 
 initialMode : AST
 initialMode =
-    { count = 1
+    { count = Nothing
     , edit = Nothing
     , register = defaultRegister
     , modeName = ModeNameNormal
