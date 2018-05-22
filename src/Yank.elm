@@ -13,7 +13,7 @@ yank count register range buf =
     let
         s =
             operatorRanges count range buf
-                |> Debug.log "operatorRanges"
+                --|> Debug.log "operatorRanges"
                 |> List.map
                     (\rg ->
                         let
@@ -25,8 +25,8 @@ yank count register range buf =
                                 |> B.toString
                     )
                 |> String.join ""
-                |> Debug.log "yank"
 
+        --|> Debug.log "yank"
         txt =
             if isLinewise range buf.mode then
                 Lines s

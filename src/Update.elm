@@ -743,8 +743,8 @@ runOperator count register operator buf =
                     let
                         path =
                             registerString reg
-                                |> Debug.log "JumpLastBuffer"
 
+                        --|> Debug.log "JumpLastBuffer"
                         cursor =
                             buf.buffers
                                 |> Dict.get path
@@ -1597,7 +1597,10 @@ lintErrorToLocationList items =
     List.map
         (\item ->
             { path = item.file
-            , cursor = Tuple.first item.region
+            , cursor =
+                item.subRegion
+                    |> Maybe.withDefault item.region
+                    |> Tuple.first
             }
         )
         items

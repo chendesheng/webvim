@@ -419,7 +419,9 @@ renderTip scrollTop items maybeCursor showTip =
                                 (\item ->
                                     let
                                         ( begin, end ) =
-                                            item.region
+                                            Maybe.withDefault
+                                                item.region
+                                                item.subRegion
                                     in
                                         cursor >= begin && cursor <= end
                                 )
@@ -447,57 +449,28 @@ renderLint :
     -> Html msg
 renderLint scrollTop lines items =
     let
-        render classname ( begin, end ) scrollTop lines item =
+        render classname ( begin, end ) scrollTop lines =
             div
                 [ class classname ]
                 (renderRange scrollTop VisualChars begin end lines True)
     in
         div [ class "lints" ]
-            ((items
-                |> List.filter
-                    (\item ->
-                        let
-                            ( ( by, _ ), ( ey, _ ) ) =
-                                item.region
-                        in
-                            not (ey < scrollTop || by >= scrollTop + 50)
-                    )
-                |> List.map
-                    (\item ->
-                        render "lint"
-                            item.region
-                            scrollTop
-                            lines
-                            item
-                    )
-             )
-                ++ (items
-                        |> List.filter
-                            (\item ->
-                                case item.subRegion of
-                                    Just ( ( by, _ ), ( ey, _ ) ) ->
-                                        not
-                                            ((ey < scrollTop)
-                                                || (by >= scrollTop + 50)
-                                            )
+            (List.filterMap
+                (\item ->
+                    let
+                        region =
+                            Maybe.withDefault item.region item.subRegion
 
-                                    _ ->
-                                        False
-                            )
-                        |> List.map
-                            (\item ->
-                                case item.subRegion of
-                                    Just region ->
-                                        render "lint lint-subRegion"
-                                            region
-                                            scrollTop
-                                            lines
-                                            item
-
-                                    _ ->
-                                        text ""
-                            )
-                   )
+                        ( ( by, _ ), ( ey, _ ) ) =
+                            region
+                    in
+                        if not (ey < scrollTop || by >= scrollTop + 50) then
+                            render "lint" region scrollTop lines
+                                |> Just
+                        else
+                            Nothing
+                )
+                items
             )
 
 

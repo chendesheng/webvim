@@ -51,54 +51,60 @@ patchCursor patch =
 
 shiftPositionByPatch : Patch -> Position -> Position
 shiftPositionByPatch patch pos =
-    case patch of
-        Insertion begin (TextBuffer lines) ->
-            if pos < begin then
-                pos
-            else
-                let
-                    ( py, px ) =
+    let
+        --_ =
+        --Debug.log "patch pos" ( patch, pos, res )
+        res =
+            case patch of
+                Insertion begin (TextBuffer lines) ->
+                    if pos < begin then
                         pos
-
-                    ( by, bx ) =
-                        begin
-
-                    dy =
-                        Array.length lines - 1
-
-                    dx =
-                        Array.get dy lines
-                            |> Maybe.map String.length
-                            |> Maybe.withDefault 0
-                in
-                    if by == py then
-                        ( py, px + dx )
                     else
-                        ( py + dy, px )
+                        let
+                            ( py, px ) =
+                                pos
 
-        Deletion begin end ->
-            if pos < begin then
-                pos
-            else if pos >= end then
-                let
-                    ( by, bx ) =
-                        begin
+                            ( by, bx ) =
+                                begin
 
-                    ( ey, ex ) =
-                        end
+                            dy =
+                                Array.length lines - 1
 
-                    ( py, px ) =
+                            dx =
+                                Array.get dy lines
+                                    |> Maybe.map String.length
+                                    |> Maybe.withDefault 0
+                        in
+                            if py == by then
+                                ( py + dy, px + dx )
+                            else
+                                ( py + dy, px )
+
+                Deletion begin end ->
+                    if pos < begin then
                         pos
-                in
-                    if ey == py then
-                        if by == ey then
-                            ( py, px - (ex - bx) )
-                        else
-                            ( py - (ey - by), px - ex )
+                    else if pos >= end then
+                        let
+                            ( by, bx ) =
+                                begin
+
+                            ( ey, ex ) =
+                                end
+
+                            ( py, px ) =
+                                pos
+                        in
+                            if ey == py then
+                                if by == ey then
+                                    ( py, px - (ex - bx) )
+                                else
+                                    ( py - (ey - by), px - ex )
+                            else
+                                ( py - (ey - by), px )
                     else
-                        ( py - (ey - by), px )
-            else
-                begin
+                        begin
+    in
+        res
 
 
 mergePatch : Patch -> Patch -> Maybe Patch

@@ -332,6 +332,14 @@ suite =
                                 (Insertion ( 57, 0 ) (B.fromString "\n"))
                                 ( 60, 13 )
                             )
+                , test "before, single line" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 13 )
+                            (B.shiftPositionByPatch
+                                (Insertion ( 57, 0 ) (B.fromString "123"))
+                                ( 60, 13 )
+                            )
                 , test "after" <|
                     \_ ->
                         Expect.equal
@@ -347,6 +355,14 @@ suite =
                             (B.shiftPositionByPatch
                                 (Insertion ( 60, 13 ) (B.fromString "123"))
                                 ( 60, 13 )
+                            )
+                , test "same line, insert mutiple lines" <|
+                    \_ ->
+                        Expect.equal
+                            ( 62, 13 )
+                            (B.shiftPositionByPatch
+                                (Insertion ( 61, 0 ) (B.fromString "    \n"))
+                                ( 61, 13 )
                             )
                 ]
             , describe "deletion"
