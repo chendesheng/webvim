@@ -107,8 +107,9 @@ view buf =
                         - relativeNumberLine
                     )
                 , div [ class "lines-container" ]
-                    (div [ class "ruler" ] []
-                        :: renderCursorColumn maybeCursor
+                    (renderCursorColumn maybeCursor
+                        :: renderLineGuide scrollTop1 maybeCursor
+                        :: div [ class "ruler" ] []
                         :: renderVisual scrollTop1 height mode searchRange lines
                         ?:: (searchRange
                                 |> Maybe.map
@@ -316,10 +317,25 @@ renderCursorColumn cursor =
     case cursor of
         Just ( y, x ) ->
             div
-                [ class "cursor-column"
+                [ class "guide column-guide"
                 , style
                     [ ( "left", ch x )
                     ]
+                ]
+                []
+
+        _ ->
+            text ""
+
+
+renderLineGuide : Int -> Maybe Position -> Html msg
+renderLineGuide scrollTop cursor =
+    case cursor of
+        Just ( y, x ) ->
+            div
+                [ class "guide line-guide"
+                , style
+                    [ ( "top", rem y ) ]
                 ]
                 []
 

@@ -82,6 +82,7 @@ html, body {
 .gutter.relative-gutter {
   padding: 0 1ch;
   opacity: 0.3;
+  min-width: 2ch;
 }
 
 .lines, .gutter {
@@ -126,14 +127,22 @@ html, body {
   opacity: 0.3;
 }
 
-.cursor-column {
+.guide {
   position: absolute;
-  width: 1ch;
-  top: 0;
   background: lighten(@body-background, 2%);
   white-space: pre;
+}
+
+.column-guide {
   height: 100%;
-  border-radius: 1px;
+  width: 1ch;
+  top: 0;
+}
+
+.line-guide {
+  height: 1rem;
+  width: 100%;
+  left: 0;
 }
 
 
@@ -169,7 +178,7 @@ html, body {
 }
 
 .highlights div, .selections div, .lint div {
-  height: 1rem;;
+  height: 1rem;
   position: absolute;
 }
 
