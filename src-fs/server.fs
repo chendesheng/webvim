@@ -171,20 +171,25 @@ let listFiles =
 
 let logger = Targets.create Verbose [||]
 
+let noCache = 
+  setHeader "Cache-Control" "no-cache, no-store, must-revalidate"
+  >=> setHeader "Pragma" "no-cache"
+  >=> setHeader "Expires" "0"
+
 let app =
   CORS.cors { CORS.defaultCORSConfig with allowedUris = CORS.All }
   >=> logStructured logger logFormatStructured
   >=> choose
     [ GET >=> choose
-        [ path "/" >=> Files.file "index.html"
+        [ path "/" >=> Files.file "index.html" >=> noCache
           Files.browse (Path.GetFullPath ".")
-          path "/edit" >=> edit
+          path "/edit" >=> edit >=> noCache
           path "/kill" >=> (fun x ->
               trace "Bye!"
               Environment.Exit(0)
-              OK "" x)
-          path "/lint" >=> lint
-          path "/ls" >=> listFiles
+              OK "" x) >=> noCache
+          path "/lint" >=> lint >=> noCache
+          path "/ls" >=> listFiles >=> noCache
         ]
 
       POST >=> choose
