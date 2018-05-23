@@ -90,7 +90,7 @@ wordUnderCursor wordChars cursor lines =
                         WordEnd
                         (motionOption ">]$-")
                         line
-                        x
+                        (Basics.max 0 (x - 1))
                     )
                         |> Maybe.andThen
                             (\end ->
@@ -99,7 +99,7 @@ wordUnderCursor wordChars cursor lines =
                                     WordStart
                                     (motionOption "<]$-")
                                     line
-                                    end
+                                    (end + 1)
                                 )
                                     |> Maybe.map
                                         (\begin -> ( ( y, begin ), ( y, end + 1 ) ))

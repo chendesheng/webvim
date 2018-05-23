@@ -92,7 +92,10 @@ setVisualEnd pos buf =
 
 wholeWord : String -> String
 wholeWord s =
-    "\\b" ++ Re.escape s ++ "\\b"
+    if Re.contains (regex "\\w") s then
+        "\\b" ++ Re.escape s ++ "\\b"
+    else
+        Re.escape s
 
 
 saveMotion : V.MotionData -> V.MotionOption -> Buffer -> Buffer -> Buffer
