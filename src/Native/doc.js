@@ -1,3 +1,5 @@
+//check https://github.com/google/closure-compiler/issues/1875
+var JSCOMPILER_PRESERVE = function() {}; 
 var _chendesheng$webvim_elm$Native_Doc = function() {
 
 var fakeNode = {
@@ -37,6 +39,16 @@ function on(node)
 
 return {
     onDocument: F3(onDocument),
+    checkRegex: function(s) {
+      if (!s) return false;
+
+      try {
+        new RegExp(s);
+        return true;
+      } catch(e) {
+        return false;
+      }
+    },
 };
 
 }();

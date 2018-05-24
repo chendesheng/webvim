@@ -1,7 +1,8 @@
 module Helper exposing (..)
 
 import Dict exposing (Dict)
-import Regex as Re
+import Regex as Re exposing (Regex)
+import Native.Doc
 
 
 getLast : List a -> Maybe a
@@ -71,3 +72,11 @@ repeatfn n f =
                         Nothing
     in
         fn n
+
+
+safeRegex : String -> Maybe Regex
+safeRegex s =
+    if Native.Doc.checkRegex s then
+        Just (Re.regex s)
+    else
+        Nothing

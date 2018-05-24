@@ -9,7 +9,7 @@ import Json.Decode as Decode
 import Model exposing (..)
 import Message exposing (..)
 import Vim.Helper exposing (keyParser, escapeKey)
-import Helper exposing (fromListBy, filename)
+import Helper exposing (fromListBy, filename, safeRegex)
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
@@ -253,20 +253,14 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                     prefix1 =
                         case prefix of
                             ExSearch ({ forward } as search) ->
-                                let
-                                    s =
-                                        exbuf.lines
-                                            |> B.toString
-                                            |> String.dropLeft 1
-
-                                    re =
-                                        Re.regex s
-                                            |> Re.caseInsensitive
-                                in
-                                    if String.isEmpty s then
-                                        ExSearch
-                                            { search | match = Nothing }
-                                    else
+                                case
+                                    exbuf.lines
+                                        |> B.toString
+                                        |> String.dropLeft 1
+                                        |> safeRegex
+                                        |> Maybe.map Re.caseInsensitive
+                                of
+                                    Just re ->
                                         ExSearch
                                             { search
                                                 | match =
@@ -275,6 +269,10 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                                                         buf.cursor
                                                         buf.lines
                                             }
+
+                                    _ ->
+                                        ExSearch
+                                            { search | match = Nothing }
 
                             _ ->
                                 prefix
