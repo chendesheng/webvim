@@ -1021,7 +1021,7 @@ newBuffer info buf =
         lines =
             content
                 |> Maybe.withDefault (B.toString emptyBuffer.lines)
-                |> B.fromString
+                |> B.fromStringExpandTabs buf.config.tabSize 0
     in
         { buf
             | lines = lines
