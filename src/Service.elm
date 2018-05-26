@@ -113,7 +113,9 @@ parseLintResponse : Result a String -> Result String (List LintError)
 parseLintResponse resp =
     case Result.mapError toString resp of
         Ok s ->
-            if String.startsWith "[" s then
+            if String.isEmpty s then
+                Ok []
+            else if String.startsWith "[" s then
                 decodeString elmMakeResultDecoder s
             else
                 case P.run syntaxErrorParser s of
