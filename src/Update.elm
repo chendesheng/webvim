@@ -337,8 +337,8 @@ setContinuation s buf =
     { buf | continuation = s }
 
 
-scrollToLine : Int -> Buffer -> Buffer
-scrollToLine n buf =
+setScrollTop : Int -> Buffer -> Buffer
+setScrollTop n buf =
     updateView (\v -> { v | scrollTop = n }) buf
 
 
@@ -434,7 +434,7 @@ runOperator count register operator buf =
                         |> min (B.count buf.lines - 1)
             in
                 buf
-                    |> scrollToLine (scope scrollTop)
+                    |> setScrollTop (scope scrollTop)
                     |> cursorScope
                     |> cmdNone
 
@@ -519,7 +519,7 @@ runOperator count register operator buf =
                         buf
                             |> Buf.setCursor cursor True
                             |> setVisualEnd cursor
-                            |> scrollToLine scrollTop
+                            |> setScrollTop scrollTop
                             |> cmdNone
 
                     Nothing ->
@@ -716,27 +716,8 @@ runOperator count register operator buf =
                             buf.jumps
             in
                 case currentLocation jumps of
-                    Just { path, cursor } ->
-                        if path == buf.path then
-                            ( Buf.setCursor
-                                cursor
-                                True
-                                { buf | jumps = jumps }
-                            , Cmd.none
-                            )
-                        else
-                            editBuffer
-                                { path = path
-                                , cursor = cursor
-                                , scrollTop =
-                                    Tuple.first cursor
-                                        - (Tuple.first buf.cursor
-                                            - buf.view.scrollTop
-                                          )
-                                        |> Basics.max 0
-                                , content = Nothing
-                                }
-                                { buf | jumps = jumps }
+                    Just loc ->
+                        jumpTo False loc { buf | jumps = jumps }
 
                     _ ->
                         ( buf, Cmd.none )
@@ -754,21 +735,16 @@ runOperator count register operator buf =
                                 |> Dict.get path
                                 |> Maybe.map .cursor
                                 |> Maybe.withDefault ( 0, 0 )
-
-                        jumps =
-                            saveJump
-                                { path = path
-                                , cursor = cursor
-                                }
-                                buf.jumps
                     in
-                        editBuffer
-                            { cursor = cursor
-                            , path = path
-                            , content = Nothing
-                            , scrollTop = 0
-                            }
-                            buf
+                        jumpTo True { path = path, cursor = cursor } buf
+
+                _ ->
+                    ( buf, Cmd.none )
+
+        JumpToTag ->
+            case wordStringUnderCursor buf of
+                Just ( _, s ) ->
+                    ( buf, sendReadTags buf.config.service buf.path s )
 
                 _ ->
                     ( buf, Cmd.none )
@@ -799,7 +775,7 @@ runOperator count register operator buf =
                                     |> B.getLine y
                                     |> Maybe.map findLineFirst
                                     |> Maybe.withDefault 0
-                                    |> Basics.min
+                                    |> min
                                         buf.config.tabSize
                         in
                             Deletion
@@ -828,7 +804,7 @@ runOperator count register operator buf =
                                                         0
                                                     )
                                                )
-                                            |> Basics.max 0
+                                            |> max 0
                                         )
                             )
             in
@@ -967,7 +943,7 @@ scrollTo pos ({ view, lines } as buf) =
             else
                 buf.view.scrollTop
     in
-        scrollToLine scrollTop buf
+        setScrollTop scrollTop buf
 
 
 scrollToCursor : Buffer -> Buffer
@@ -1038,7 +1014,7 @@ newBuffer info buf =
                 { emptyView
                     | size = buf.view.size
                     , lineHeight = buf.view.lineHeight
-                    , scrollTop = scrollTop
+                    , scrollTop = min (B.count lines - 1) scrollTop
                 }
             , cursor = cursor
             , lint = { items = [], count = buf.lint.count }
@@ -1164,6 +1140,71 @@ isModeNameVisual name =
             False
 
 
+jumpTo : Bool -> Location -> Buffer -> ( Buffer, Cmd Msg )
+jumpTo isSaveJump loc buf =
+    let
+        { path, cursor } =
+            loc
+
+        jumps =
+            if isSaveJump then
+                saveJump { path = buf.path, cursor = buf.cursor } buf.jumps
+            else
+                buf.jumps
+
+        scrollTop =
+            let
+                n =
+                    Tuple.first cursor
+                        - (Tuple.first buf.cursor - buf.view.scrollTop)
+                        |> max 0
+            in
+                if n < buf.view.size.height then
+                    0
+                else
+                    n
+    in
+        if path == buf.path then
+            let
+                buf1 =
+                    { buf | jumps = jumps }
+                        |> Buf.setCursor cursor True
+                        |> setScrollTop scrollTop
+
+                bottom =
+                    buf1.view.scrollTop
+                        + buf1.view.size.height
+                        + buf.config.tokenizeLinesAhead
+
+                syntaxBottom =
+                    Array.length buf.syntax
+            in
+                ( buf1
+                , if bottom <= syntaxBottom then
+                    Cmd.none
+                  else
+                    debounceTokenize
+                        100
+                        buf.path
+                        buf.history.version
+                        syntaxBottom
+                        (buf.lines
+                            |> B.sliceLines
+                                syntaxBottom
+                                bottom
+                            |> B.toString
+                        )
+                )
+        else
+            editBuffer
+                { path = path
+                , cursor = cursor
+                , scrollTop = scrollTop
+                , content = Nothing
+                }
+                { buf | jumps = jumps }
+
+
 execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
@@ -1201,30 +1242,7 @@ execute s buf =
         [ "ll" ] ->
             case List.head buf.locationList of
                 Just loc ->
-                    let
-                        { path, cursor } =
-                            loc
-
-                        jumps =
-                            saveJump loc buf.jumps
-
-                        scrollTop =
-                            Tuple.first buf.cursor
-                                - (Tuple.first buf.cursor - buf.view.scrollTop)
-                                |> Basics.max 0
-                    in
-                        if path == buf.path then
-                            ( Buf.setCursor cursor True { buf | jumps = jumps }
-                            , Cmd.none
-                            )
-                        else
-                            editBuffer
-                                { path = path
-                                , cursor = cursor
-                                , scrollTop = scrollTop
-                                , content = Nothing
-                                }
-                                { buf | jumps = jumps }
+                    jumpTo True loc buf
 
                 _ ->
                     ( buf, Cmd.none )
@@ -1818,6 +1836,14 @@ update message buf =
                 buf.config.syntaxService
                 req
             )
+
+        ReadTags result ->
+            case result of
+                Ok loc ->
+                    jumpTo True loc buf
+
+                _ ->
+                    ( buf, Cmd.none )
 
         ListFiles resp ->
             case resp of

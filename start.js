@@ -29,7 +29,19 @@ const jsTask = () => shell('npm run js --silent');
 const cssTask = () => shell('npm run css');
 const reloadTask = () => browserSync.reload();
 const reloadCSSTask = () => browserSync.reload('dist/style.min.css');
-const ctagsTask = folder => () => shell(`ctags -R ${folder}`);
+const ctagsTask = () => shell([
+  'ctags -R --fields=+n',
+  '--exclude="tests/elm-stuff"',
+  '--exclude="*.json"',
+  '--exclude="elm-stuff/**/tests"',
+  '--exclude="elm-stuff/**/benchmarks"',
+  '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/tests"',
+  '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/benchmarks"',
+  'src',
+  'tests',
+  'elm-stuff/packages',
+  'tests/elm-stuff/packages/elm-community/elm-test'
+  ].join(' '));
 const exitTask = () => process.exit(0);
 const htmlTask = () => shell('npm run html');
 const fontTask = () => shell('npm run font');
@@ -76,10 +88,10 @@ const watch = (path, tasks) => {
   });
 };
 
-runTaskList([jsTask, cssTask, ctagsTask("src tests"), htmlTask,
+runTaskList([jsTask, cssTask, ctagsTask, htmlTask,
   reloadTask, serverTask(8080), syntaxServerTask(8765)]);
 
-watch('src/**/*.elm', [jsTask, ctagsTask("src"), reloadTask]);
+watch('src/**/*.elm', [jsTask, ctagsTask, reloadTask]);
 watch('src/Native/*.js', [jsTask, reloadTask]);
 watch([
   'build/default.html',
@@ -89,7 +101,7 @@ watch([
 watch(['css/**/*.less'], [cssTask, reloadCSSTask]);
 watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
-watch(['tests/**/*.elm'], [ctagsTask("tests") ]);
+watch(['tests/**/*.elm'], [ctagsTask]);
 watch(['src-fs/**/*.fs'], [serverTask(8080) ]);
 watch(['src-js/**/*.js'], [syntaxServerTask(8765)]);
 

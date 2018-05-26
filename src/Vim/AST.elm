@@ -86,6 +86,7 @@ type Operator
     | JumpHistory Bool
     | JumpByView Float -- factor of view height
     | JumpLastBuffer
+    | JumpToTag --word under cursor
     | CenterView
     | Scroll ScrollPosition
     | CompleteWord Direction

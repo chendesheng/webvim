@@ -80,3 +80,8 @@ safeRegex s =
         Just (Re.regex s)
     else
         Nothing
+
+
+levenshtein : String -> String -> Int
+levenshtein =
+    Native.Doc.levenshtein

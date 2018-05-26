@@ -7,6 +7,7 @@ module Motion
         , runMotion
         , motion
         , matchString
+        , wordStringUnderCursor
         )
 
 import Model exposing (..)

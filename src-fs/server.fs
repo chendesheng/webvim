@@ -220,6 +220,34 @@ let noCache =
 let setUTF8 =
   setHeader "Content-Type" "text/plain; charset=UTF-8"
 
+let readTags =
+    request (fun r -> 
+      match r.queryParam "name" with
+      | Choice1Of2 name ->
+        trace name
+        try
+            let p = new Process()
+            p.StartInfo.UseShellExecute <- false
+            p.StartInfo.RedirectStandardOutput <- true;
+            p.StartInfo.FileName <- "readtags"
+            p.StartInfo.Arguments <- "-en " + name
+            p.Start()
+            let output = p.StandardOutput.ReadToEnd()
+            p.WaitForExit()
+            if p.ExitCode = 0
+            then
+                p.Close()
+                OK output
+            else
+                p.Close()
+                OK ""
+        with :? Exception as e ->
+            printfn "[readtags] error: %s" e.Message
+            OK ""
+      | Choice2Of2 msg -> BAD_REQUEST msg
+    )
+    
+
 let app =
   CORS.cors { CORS.defaultCORSConfig with allowedUris = CORS.All }
   >=> logStructured logger logFormatStructured
@@ -234,6 +262,7 @@ let app =
               OK "" x) >=> noCache
           path "/lint" >=> lint >=> noCache
           path "/ls" >=> listFiles >=> setUTF8 >=> noCache
+          path "/readtags" >=> readTags >=> setUTF8 >=> noCache
           path "/clipboard" >=> readClipboard >=> setUTF8 >=> noCache
         ]
 

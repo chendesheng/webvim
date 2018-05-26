@@ -8,6 +8,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Syntax exposing (Token, Syntax)
 import Vim.AST exposing (AST)
+import Jumps exposing (Location)
 
 
 type alias File =
@@ -146,4 +147,5 @@ type Msg
     | LintOnTheFly (Result String (List LintError))
     | Tokenized (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List File))
+    | ReadTags (Result String Location)
     | NoneMessage

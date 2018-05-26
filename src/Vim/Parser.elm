@@ -795,6 +795,7 @@ operator isVisual isTemp =
                 , define "<c-^>" JumpLastBuffer
                 , define "<c-a>" (IncreaseNumber True)
                 , define "<c-x>" (IncreaseNumber False)
+                , define "<c-]>" JumpToTag
                 ]
              )
                 ++ [ countPrefix

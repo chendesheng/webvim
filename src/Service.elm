@@ -20,6 +20,9 @@ import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
 import Vim.AST exposing (AST)
+import Jumps exposing (Location)
+import Elm.JsArray as JsArray
+import Helper exposing (levenshtein)
 
 
 sendEditBuffer : String -> BufferInfo -> Cmd Msg
@@ -398,3 +401,58 @@ sendWriteClipboard url str =
         , withCredentials = False
         }
         |> Http.send WriteClipboard
+
+
+ctagsParser : Parser (List Location)
+ctagsParser =
+    let
+        isSpace c =
+            Char.toCode c <= 20
+
+        notSpace =
+            isSpace >> not
+    in
+        P.succeed
+            (\path line ->
+                { cursor = ( line - 1, 0 ), path = path }
+            )
+            |. P.ignore P.zeroOrMore isSpace
+            |. P.ignore P.oneOrMore notSpace
+            |. P.ignore P.oneOrMore isSpace
+            |= P.keep P.oneOrMore notSpace
+            |. P.ignoreUntil "line:"
+            |= P.int
+            |. P.ignoreUntil "\n"
+            |> P.repeat P.oneOrMore
+
+
+pickClosest : String -> List Location -> Maybe Location
+pickClosest path locs =
+    locs
+        |> List.sortBy
+            (\loc ->
+                levenshtein path loc.path
+            )
+        |> List.head
+
+
+sendReadTags : String -> String -> String -> Cmd Msg
+sendReadTags url path name =
+    Http.getString (url ++ "/readtags?name=" ++ name)
+        |> Http.send
+            (\result ->
+                result
+                    |> Result.mapError toString
+                    |> Result.andThen
+                        (\s ->
+                            P.run ctagsParser (Debug.log "parse" s)
+                                |> Result.mapError (always "parse result error")
+                                |> Result.andThen
+                                    (\locs ->
+                                        locs
+                                            |> pickClosest path
+                                            |> Result.fromMaybe "parse result error"
+                                    )
+                        )
+                    |> ReadTags
+            )
