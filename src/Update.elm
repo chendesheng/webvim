@@ -1518,12 +1518,12 @@ applyVimAST replaying key ast buf =
                     >> scrollToCursor
                     >> saveDotRegister replaying
                     >> setMatchedCursor buf
-                    >> clearSyntaxDirtyFrom
                 )
             |> Tuple.mapSecond List.singleton
             |> doLint buf
             |> doSetTitle buf
             |> doTokenize buf
+            |> Tuple.mapFirst clearSyntaxDirtyFrom
             |> Tuple.mapSecond Cmd.batch
 
 
