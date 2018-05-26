@@ -9,6 +9,7 @@ import Json.Decode as Decode
 import Model exposing (..)
 import Message exposing (..)
 import Vim.Helper exposing (keyParser, escapeKey)
+import Vim.AST exposing (AST)
 import Helper exposing (fromListBy, filename, safeRegex)
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -454,9 +455,7 @@ runOperator count register operator buf =
                 |> cmdNone
 
         Yank rg ->
-            buf
-                |> yank count register rg
-                |> cmdNone
+            yank count register rg buf
 
         Undo ->
             buf
@@ -527,28 +526,35 @@ runOperator count register operator buf =
                         ( buf, Cmd.none )
 
         Put forward ->
-            Dict.get register buf.registers
-                |> Maybe.map
-                    (\s ->
-                        case buf.mode of
-                            Ex ({ exbuf } as ex) ->
-                                Buf.setMode
-                                    (Ex
-                                        { ex
-                                            | exbuf =
-                                                Buf.putString
-                                                    forward
-                                                    s
-                                                    exbuf
-                                        }
-                                    )
+            let
+                removeRegister reg buf =
+                    { buf | registers = Dict.remove reg buf.registers }
+            in
+                Dict.get register buf.registers
+                    |> Maybe.map
+                        (\s ->
+                            case buf.mode of
+                                Ex ({ exbuf } as ex) ->
                                     buf
+                                        |> Buf.setMode
+                                            (Ex
+                                                { ex
+                                                    | exbuf =
+                                                        Buf.putString
+                                                            forward
+                                                            s
+                                                            exbuf
+                                                }
+                                            )
+                                        |> removeRegister "+"
 
-                            _ ->
-                                Buf.putString forward s buf
-                    )
-                |> Maybe.withDefault buf
-                |> cmdNone
+                                _ ->
+                                    buf
+                                        |> Buf.putString forward s
+                                        |> removeRegister "+"
+                        )
+                    |> Maybe.withDefault buf
+                    |> cmdNone
 
         RepeatLastOperator ->
             replayKeys buf.dotRegister buf
@@ -1302,9 +1308,6 @@ autoCompleteTarget exbuf =
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress replaying key buf =
     let
-        oldBottom =
-            buf.view.scrollTop + buf.view.size.height
-
         cacheKey =
             ( buf.continuation, key )
 
@@ -1315,7 +1318,44 @@ handleKeypress replaying key buf =
 
                 _ ->
                     parse buf.continuation key
+    in
+        case serviceBeforeApplyVimAST replaying key ast buf of
+            Just cmd ->
+                ( buf, cmd )
 
+            _ ->
+                buf
+                    |> cacheVimAST cacheKey cacheVal
+                    |> setContinuation continuation
+                    |> applyVimAST replaying key ast
+
+
+serviceBeforeApplyVimAST : Bool -> Key -> AST -> Buffer -> Maybe (Cmd Msg)
+serviceBeforeApplyVimAST replaying key ast buf =
+    case ast.edit of
+        Just op ->
+            case op of
+                Put forward ->
+                    if ast.register == "+" then
+                        sendReadClipboard
+                            replaying
+                            key
+                            buf.config.service
+                            ast
+                            |> Just
+                    else
+                        Nothing
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+
+applyVimAST : Bool -> Key -> AST -> Buffer -> ( Buffer, Cmd Msg )
+applyVimAST replaying key ast buf =
+    let
         { count, edit, modeName, register, recordKeys } =
             ast
 
@@ -1330,7 +1370,7 @@ handleKeypress replaying key buf =
             else
                 getModeName buf.mode
 
-        saveDotRegister buf =
+        saveDotRegister replaying buf =
             if replaying then
                 buf
             else
@@ -1346,164 +1386,145 @@ handleKeypress replaying key buf =
                 |> Maybe.map isLineDeltaMotion
                 |> Maybe.withDefault False
 
-        --bind b ( buf, cmd ) =
-        --    ( b buf, cmd )
-        bind b a =
-            (\buf ->
+        setMatchedCursor oldBuf buf =
+            if
+                (oldBuf.cursor /= buf.cursor)
+                    || (oldBuf.view.scrollTop /= buf.view.scrollTop)
+                    || (oldBuf.view.size /= buf.view.size)
+                    || (oldBuf.lines /= buf.lines)
+                    || (oldBuf.syntax /= buf.syntax)
+            then
                 let
-                    ( buf1, cmd1 ) =
-                        a buf
+                    view =
+                        buf.view
 
-                    buf2 =
-                        b buf1
+                    matchedCursor =
+                        pairBracket
+                            buf.view.scrollTop
+                            (buf.view.scrollTop + buf.view.size.height)
+                            buf.lines
+                            buf.syntax
+                            buf.cursor
                 in
-                    ( buf2, cmd1 )
-            )
-
-        ( buf1, todo ) =
-            (cacheVimAST cacheKey cacheVal
-                >> setContinuation continuation
-                >> applyEdit count edit register
-                |> bind
-                    (updateMode modeName
-                        >> modeChanged replaying key oldModeName lineDeltaMotion
-                        >> scrollToCursor
-                        >> saveDotRegister
-                    )
-            )
+                    { buf | view = { view | matchedCursor = matchedCursor } }
+            else
                 buf
 
-        matchedCursor =
-            if
-                (buf1.cursor /= buf.cursor)
-                    || (buf1.view.scrollTop /= buf.view.scrollTop)
-                    || (buf1.view.size /= buf1.view.size)
-                    || (buf1.lines /= buf1.lines)
-                    || (buf1.syntax /= buf1.syntax)
-            then
-                pairBracket
-                    buf1.view.scrollTop
-                    (buf1.view.scrollTop + buf1.view.size.height)
-                    buf1.lines
-                    buf1.syntax
-                    buf1.cursor
-            else
-                buf.view.matchedCursor
-
-        newBottom =
+        doTokenize oldBuf ( buf, cmds ) =
             let
-                n =
-                    buf1.view.scrollTop + buf1.view.size.height
-            in
-                case buf1.mode of
-                    Ex { prefix, visual } ->
-                        case prefix of
-                            ExSearch { match } ->
-                                case match of
-                                    Just ( begin, _ ) ->
-                                        Tuple.first begin
-                                            + buf1.view.size.height
+                oldBottom =
+                    oldBuf.view.scrollTop + oldBuf.view.size.height
+
+                newBottom =
+                    let
+                        n =
+                            buf.view.scrollTop + buf.view.size.height
+                    in
+                        case buf.mode of
+                            Ex { prefix, visual } ->
+                                case prefix of
+                                    ExSearch { match } ->
+                                        case match of
+                                            Just ( begin, _ ) ->
+                                                Tuple.first begin
+                                                    + buf.view.size.height
+
+                                            _ ->
+                                                n
 
                                     _ ->
                                         n
 
                             _ ->
                                 n
+            in
+                case buf.syntaxDirtyFrom of
+                    Just y ->
+                        --let
+                        --    _ =
+                        --        Debug.log "y" y
+                        --in
+                        ( buf
+                        , sendTokenizeLine
+                            buf.config.syntaxService
+                            { version = buf.history.version
+                            , line = y
+                            , lines =
+                                (buf.lines
+                                    |> B.sliceLines y (y + 1)
+                                    |> B.toString
+                                )
+                            , path = buf.path
+                            }
+                            :: cmds
+                        )
 
+                    --debounceTokenize 100
+                    --    y
+                    --    (buf.lines
+                    --        |> B.sliceLines y (newBottom + 1)
+                    --        |> B.toString
+                    --    )
                     _ ->
-                        n
-
-        getPatchLine =
-            Maybe.andThen
-                (.patches
-                    >> List.head
-                    >> Maybe.map B.patchCursor
-                )
-
-        patchesLength undo =
-            undo
-                |> Maybe.map (.patches >> List.length)
-                |> Maybe.withDefault 0
-
-        doTokenize =
-            case buf1.syntaxDirtyFrom of
-                Just y ->
-                    --let
-                    --    _ =
-                    --        Debug.log "y" y
-                    --in
-                    sendTokenizeLine
-                        buf1.config.syntaxService
-                        { version = buf1.history.version
-                        , line = y
-                        , lines =
-                            (buf1.lines
-                                |> B.sliceLines y (y + 1)
-                                |> B.toString
+                        if oldBottom == newBottom then
+                            ( buf, cmds )
+                        else if newBottom >= Array.length buf.syntax then
+                            ( buf
+                            , debounceTokenize
+                                100
+                                buf.path
+                                buf.history.version
+                                (Array.length buf.syntax)
+                                (buf.lines
+                                    |> B.sliceLines
+                                        (Array.length buf.syntax)
+                                        (newBottom
+                                            + buf.config.tokenizeLinesAhead
+                                        )
+                                    |> B.toString
+                                )
+                                :: cmds
                             )
-                        , path = buf.path
-                        }
+                        else
+                            ( buf, cmds )
 
-                --debounceTokenize 100
-                --    y
-                --    (buf1.lines
-                --        |> B.sliceLines y (newBottom + 1)
-                --        |> B.toString
-                --    )
-                _ ->
-                    if oldBottom == newBottom then
-                        Cmd.none
-                    else if newBottom >= Array.length buf1.syntax then
-                        debounceTokenize
-                            100
-                            buf1.path
-                            buf1.history.version
-                            (Array.length buf1.syntax)
-                            (buf1.lines
-                                |> B.sliceLines
-                                    (Array.length buf1.syntax)
-                                    (newBottom
-                                        + buf1.config.tokenizeLinesAhead
-                                    )
-                                |> B.toString
-                            )
-                    else
-                        Cmd.none
-
-        doSetTitle =
-            if Buf.isDirty buf /= Buf.isDirty buf1 then
+        doSetTitle oldBuf ( buf, cmds ) =
+            if Buf.isDirty oldBuf /= Buf.isDirty buf then
                 let
                     prefix =
-                        if Buf.isDirty buf1 then
+                        if Buf.isDirty buf then
                             "• "
                         else
                             ""
                 in
-                    Doc.setTitle (prefix ++ buf1.name)
+                    ( buf, Doc.setTitle (prefix ++ buf.name) :: cmds )
             else
-                Cmd.none
+                ( buf, cmds )
 
-        doLint =
-            if Buf.isEditing buf buf1 then
-                debounceLint 500
+        doLint oldBuf ( buf, cmds ) =
+            if Buf.isEditing oldBuf buf then
+                ( buf, debounceLint 500 :: cmds )
             else
-                Cmd.none
+                ( buf, cmds )
 
-        view =
-            buf1.view
+        clearSyntaxDirtyFrom buf =
+            { buf | syntaxDirtyFrom = Nothing }
     in
-        ( { buf1
-            | syntaxDirtyFrom = Nothing
-            , view = { view | matchedCursor = matchedCursor }
-          }
-        , Cmd.batch
-            ([ todo
-             , doLint
-             , doSetTitle
-             , doTokenize
-             ]
-            )
-        )
+        buf
+            |> applyEdit count edit register
+            |> Tuple.mapFirst
+                (updateMode modeName
+                    >> modeChanged replaying key oldModeName lineDeltaMotion
+                    >> scrollToCursor
+                    >> saveDotRegister replaying
+                    >> setMatchedCursor buf
+                    >> clearSyntaxDirtyFrom
+                )
+            |> Tuple.mapSecond List.singleton
+            |> doLint buf
+            |> doSetTitle buf
+            |> doTokenize buf
+            |> Tuple.mapSecond Cmd.batch
 
 
 onTokenized : Buffer -> Result error TokenizeResponse -> ( Buffer, Cmd Msg )
@@ -1649,6 +1670,19 @@ update message buf =
                   else
                     Cmd.none
                 )
+
+        ReadClipboard result ->
+            case result of
+                Ok ( replaying, key, ast, s ) ->
+                    buf
+                        |> Buf.setRegister "+" (Text s)
+                        |> applyVimAST replaying key ast
+
+                Err s ->
+                    ( buf, Cmd.none )
+
+        WriteClipboard _ ->
+            ( buf, Cmd.none )
 
         Read result ->
             case result of

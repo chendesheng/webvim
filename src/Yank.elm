@@ -6,9 +6,11 @@ import Range exposing (operatorRanges, isLinewise)
 import Buffer exposing (setRegister)
 import Internal.TextBuffer as B
 import String
+import Message exposing (..)
+import Service exposing (sendWriteClipboard)
 
 
-yank : Maybe Int -> String -> V.OperatorRange -> Buffer -> Buffer
+yank : Maybe Int -> String -> V.OperatorRange -> Buffer -> ( Buffer, Cmd Msg )
 yank count register range buf =
     let
         s =
@@ -32,7 +34,21 @@ yank count register range buf =
                 Lines s
             else
                 Text s
+
+        cmd =
+            if register == "+" then
+                sendWriteClipboard buf.config.service s
+            else
+                Cmd.none
     in
-        buf
+        ( buf
             |> setRegister "0" txt
-            |> setRegister register txt
+            |> setRegister
+                (if register == "+" then
+                    "\""
+                 else
+                    register
+                )
+                txt
+        , cmd
+        )

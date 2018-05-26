@@ -7,6 +7,7 @@ import Position exposing (Position)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Syntax exposing (Token, Syntax)
+import Vim.AST exposing (AST)
 
 
 type alias File =
@@ -136,6 +137,8 @@ type Msg
     | Resize Size
     | Read (Result Http.Error BufferInfo)
     | Write (Result Http.Error String)
+    | ReadClipboard (Result Http.Error ( Bool, Key, AST, String ))
+    | WriteClipboard (Result Http.Error ())
     | Edit BufferInfo
     | SendLint
     | SendTokenize TokenizeRequest

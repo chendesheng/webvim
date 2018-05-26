@@ -119,6 +119,47 @@ let lintOnTheFly =
         | Some json -> OK json
         | None -> OK "")
 
+let readClipboard =
+    request (fun r -> 
+      try
+          let p = new Process()
+          p.StartInfo.UseShellExecute <- false
+          p.StartInfo.RedirectStandardOutput <- true;
+          p.StartInfo.FileName <- "pbpaste"
+          p.Start()
+          let output = p.StandardOutput.ReadToEnd()
+          p.WaitForExit()
+          if p.ExitCode = 0
+          then
+              p.Close()
+              OK output
+          else
+              p.Close()
+              OK ""
+      with :? Exception as e ->
+          printfn "[pbpaste] error: %s" e.Message
+          OK ""
+    )
+    
+let writeClipboard = 
+    request (fun r -> 
+      try
+          let input = Encoding.UTF8.GetString r.rawForm
+          trace input
+          let p = new Process()
+          p.StartInfo.UseShellExecute <- false
+          p.StartInfo.RedirectStandardInput <- true;
+          p.StartInfo.FileName <- "pbcopy"
+          p.Start()
+          p.StandardInput.Write(input)
+          p.StandardInput.Close()
+          p.WaitForExit()
+          p.Close()
+          OK ""
+      with :? Exception as e ->
+          printfn "[pbcopy] error: %s" e.Message
+          OK ""
+    )
     
 let write =
     request (fun r ->
@@ -176,6 +217,9 @@ let noCache =
   >=> setHeader "Pragma" "no-cache"
   >=> setHeader "Expires" "0"
 
+let setUTF8 =
+  setHeader "Content-Type" "text/plain; charset=UTF-8"
+
 let app =
   CORS.cors { CORS.defaultCORSConfig with allowedUris = CORS.All }
   >=> logStructured logger logFormatStructured
@@ -183,18 +227,20 @@ let app =
     [ GET >=> choose
         [ path "/" >=> Files.file "index.html" >=> noCache
           Files.browse (Path.GetFullPath ".")
-          path "/edit" >=> edit >=> noCache
+          path "/edit" >=> edit >=> setUTF8 >=> noCache
           path "/kill" >=> (fun x ->
               trace "Bye!"
               Environment.Exit(0)
               OK "" x) >=> noCache
           path "/lint" >=> lint >=> noCache
-          path "/ls" >=> listFiles >=> noCache
+          path "/ls" >=> listFiles >=> setUTF8 >=> noCache
+          path "/clipboard" >=> readClipboard >=> setUTF8 >=> noCache
         ]
 
       POST >=> choose
         [ path "/write" >=> write
           path "/lint" >=> lintOnTheFly
+          path "/clipboard" >=> writeClipboard
         ]
 
     ]

@@ -10,6 +10,7 @@ import Message
         , TokenizeResponse(..)
         , File
         , TokenizeRequest
+        , Key
         )
 import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
@@ -18,6 +19,7 @@ import Syntax exposing (Token, TokenType(..))
 import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
+import Vim.AST exposing (AST)
 
 
 sendEditBuffer : String -> BufferInfo -> Cmd Msg
@@ -371,3 +373,26 @@ sendListFiles : String -> Cmd Msg
 sendListFiles url =
     Http.getString (url ++ "/ls")
         |> Http.send (parseFileList >> ListFiles)
+
+
+sendReadClipboard : Bool -> Key -> String -> AST -> Cmd Msg
+sendReadClipboard replaying key url op =
+    Http.getString (url ++ "/clipboard")
+        |> Http.send
+            (Result.map (\s -> ( replaying, key, op, s ))
+                >> ReadClipboard
+            )
+
+
+sendWriteClipboard : String -> String -> Cmd Msg
+sendWriteClipboard url str =
+    Http.request
+        { method = "POST"
+        , headers = []
+        , url = url ++ "/clipboard"
+        , body = Http.stringBody "text/plain" str
+        , expect = Http.expectStringResponse (\_ -> Ok ())
+        , timeout = Nothing
+        , withCredentials = False
+        }
+        |> Http.send WriteClipboard
