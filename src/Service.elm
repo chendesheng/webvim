@@ -22,7 +22,7 @@ import Char
 import Vim.AST exposing (AST)
 import Jumps exposing (Location)
 import Elm.JsArray as JsArray
-import Helper exposing (levenshtein)
+import Helper exposing (levenshtein, isSpace, notSpace)
 
 
 sendEditBuffer : String -> BufferInfo -> Cmd Msg
@@ -405,25 +405,26 @@ sendWriteClipboard url str =
 
 ctagsParser : Parser (List Location)
 ctagsParser =
-    let
-        isSpace c =
-            Char.toCode c <= 20
-
-        notSpace =
-            isSpace >> not
-    in
-        P.succeed
-            (\path line ->
-                { cursor = ( line - 1, 0 ), path = path }
-            )
-            |. P.ignore P.zeroOrMore isSpace
-            |. P.ignore P.oneOrMore notSpace
-            |. P.ignore P.oneOrMore isSpace
-            |= P.keep P.oneOrMore notSpace
-            |. P.ignoreUntil "line:"
-            |= P.int
-            |. P.ignoreUntil "\n"
-            |> P.repeat P.oneOrMore
+    P.succeed
+        (\path x y ->
+            { cursor = ( y - 1, x ), path = path }
+                |> Debug.log "ctagsParser"
+        )
+        |. P.ignore P.zeroOrMore isSpace
+        |. P.ignore P.oneOrMore notSpace
+        |. P.ignore P.oneOrMore isSpace
+        |= P.keep P.oneOrMore notSpace
+        |. P.ignore P.oneOrMore isSpace
+        |= P.oneOf
+            [ P.succeed String.length
+                |. P.ignoreUntil "/^"
+                |= P.keep P.oneOrMore isSpace
+            , P.succeed 0
+            ]
+        |. P.ignoreUntil "line:"
+        |= P.int
+        |. P.ignoreUntil "\n"
+        |> P.repeat P.oneOrMore
 
 
 pickClosest : String -> List Location -> Maybe Location
@@ -456,3 +457,9 @@ sendReadTags url path name =
                         )
                     |> ReadTags
             )
+
+
+sendFind : String -> String -> Cmd Msg
+sendFind url s =
+    Http.getString (url ++ "/find?s=" ++ s)
+        |> Http.send FindResult

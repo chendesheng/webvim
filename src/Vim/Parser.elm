@@ -333,21 +333,22 @@ gKey map extra =
 gOperator : Parser ModeDelta
 gOperator =
     let
-        define key modeDelta =
-            P.succeed (pushComplete modeDelta) |. P.symbol key
+        define key op =
+            P.succeed
+                [ PushKey ("g" ++ key)
+                , op
+                , PushComplete
+                ]
+                |. P.symbol key
     in
         gKey Move <|
             P.oneOf
                 [ define "J"
-                    [ PushOperator <| Join False
-                    , PushKey "gJ"
-                    , PushComplete
-                    ]
+                    (PushOperator <| Join False)
                 , define "h"
-                    [ PushOperator ToggleTip
-                    , PushKey "gh"
-                    , PushComplete
-                    ]
+                    (PushOperator ToggleTip)
+                , define "f"
+                    (PushOperator JumpToFile)
                 ]
 
 

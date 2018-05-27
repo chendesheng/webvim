@@ -8,6 +8,7 @@ module Motion
         , motion
         , matchString
         , wordStringUnderCursor
+        , wORDStringUnderCursor
         )
 
 import Model exposing (..)
@@ -20,7 +21,7 @@ import PositionClass exposing (..)
 import Regex as Re exposing (regex)
 import Jumps exposing (saveJump)
 import Message exposing (Msg(..))
-import TextObject exposing (wordUnderCursor)
+import TextObject exposing (wordUnderCursor, wORDUnderCursor)
 import Helper exposing (repeatfn)
 import Brackets exposing (pairBracket, bracketsParser)
 import Parser as P
@@ -582,6 +583,24 @@ wordStringUnderCursor : Buffer -> Maybe ( Position, String )
 wordStringUnderCursor { cursor, lines, config } =
     lines
         |> wordUnderCursor config.wordChars cursor
+        |> Maybe.map
+            (\rg ->
+                let
+                    ( begin, end ) =
+                        rg
+                in
+                    ( begin
+                    , lines
+                        |> B.substring begin end
+                        |> B.toString
+                    )
+            )
+
+
+wORDStringUnderCursor : Buffer -> Maybe ( Position, String )
+wORDStringUnderCursor { cursor, lines } =
+    lines
+        |> wORDUnderCursor cursor
         |> Maybe.map
             (\rg ->
                 let

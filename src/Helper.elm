@@ -3,6 +3,7 @@ module Helper exposing (..)
 import Dict exposing (Dict)
 import Regex as Re exposing (Regex)
 import Native.Doc
+import Char
 
 
 getLast : List a -> Maybe a
@@ -85,3 +86,11 @@ safeRegex s =
 levenshtein : String -> String -> Int
 levenshtein =
     Native.Doc.levenshtein
+
+
+isSpace c =
+    Char.toCode c <= 20 || c == ' '
+
+
+notSpace =
+    isSpace >> not

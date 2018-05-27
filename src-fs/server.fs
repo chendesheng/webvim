@@ -190,7 +190,7 @@ let ag args =
         p.StartInfo.RedirectStandardOutput <- true;
         p.StartInfo.RedirectStandardError <- true;
         p.StartInfo.FileName <- "ag"
-        p.StartInfo.Arguments <- "-l --nocolor"
+        p.StartInfo.Arguments <- args
 
         p.Start()
 
@@ -208,6 +208,17 @@ let listFiles =
         match ag "-l --nocolor" with
         | Some s -> OK s
         | None -> OK "")
+
+let find =
+    request (fun r ->
+        match r.queryParam "s" with
+        | Choice1Of2 str ->
+            match ag ("--nocolor --vimgrep " + str) with
+            | Some s -> OK s
+            | None -> OK ""
+        | Choice2Of2 msg -> BAD_REQUEST msg
+   )
+            
 
 
 let logger = Targets.create Verbose [||]
@@ -264,6 +275,7 @@ let app =
           path "/ls" >=> listFiles >=> setUTF8 >=> noCache
           path "/readtags" >=> readTags >=> setUTF8 >=> noCache
           path "/clipboard" >=> readClipboard >=> setUTF8 >=> noCache
+          path "/find" >=> find >=> setUTF8 >=> noCache
         ]
 
       POST >=> choose

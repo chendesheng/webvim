@@ -107,6 +107,37 @@ wordUnderCursor wordChars cursor lines =
                 )
 
 
+wORDUnderCursor : Position -> B.TextBuffer -> Maybe ( Position, Position )
+wORDUnderCursor cursor lines =
+    let
+        ( y, x ) =
+            cursor
+    in
+        B.getLine y lines
+            |> Maybe.andThen
+                (\line ->
+                    (findPosition
+                        ""
+                        WORDEnd
+                        (motionOption ">]$-")
+                        line
+                        (Basics.max 0 (x - 1))
+                    )
+                        |> Maybe.andThen
+                            (\end ->
+                                (findPosition
+                                    ""
+                                    WORDStart
+                                    (motionOption "<]$-")
+                                    line
+                                    (end + 1)
+                                )
+                                    |> Maybe.map
+                                        (\begin -> ( ( y, begin ), ( y, end + 1 ) ))
+                            )
+                )
+
+
 expandTextObject :
     String
     -> TextObject
