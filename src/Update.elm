@@ -3,12 +3,13 @@ module Update exposing (update, init, Flags)
 import Brackets exposing (pairBracket)
 import Char
 import Task
+import Keymap exposing (keymap)
 import Window as Win exposing (Size)
 import Json.Encode as Encode
 import Json.Decode as Decode
 import Model exposing (..)
 import Message exposing (..)
-import Vim.Helper exposing (keyParser, escapeKey)
+import Vim.Helper exposing (parseKeys, escapeKey)
 import Vim.AST exposing (AST)
 import Helper exposing (fromListBy, filename, safeRegex, isSpace, notSpace)
 import Vim.Parser exposing (parse)
@@ -1177,8 +1178,8 @@ replayKeys s buf =
 
             keys =
                 s
-                    |> P.run (P.repeat P.zeroOrMore keyParser)
-                    |> Result.withDefault []
+                    |> parseKeys
+                    |> Maybe.withDefault []
 
             ( buf1, cmd ) =
                 List.foldl
@@ -1727,7 +1728,22 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update message buf =
     case message of
         PressKey key ->
-            handleKeypress False key buf
+            List.foldl
+                (\key ( buf, cmds ) ->
+                    let
+                        ( buf1, cmd ) =
+                            handleKeypress False key buf
+                    in
+                        ( buf1
+                        , if cmd == Cmd.none then
+                            cmds
+                          else
+                            cmd :: cmds
+                        )
+                )
+                ( buf, [] )
+                (keymap buf.mode key)
+                |> Tuple.mapSecond (List.reverse >> Cmd.batch)
 
         Resize size ->
             let

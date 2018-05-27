@@ -410,3 +410,10 @@ keyParser =
         , (P.symbol "<" |. P.ignoreUntil ">")
             |> P.source
         ]
+
+
+parseKeys : String -> Maybe (List Key)
+parseKeys s =
+    s
+        |> P.run (P.repeat P.oneOrMore keyParser)
+        |> Result.toMaybe
