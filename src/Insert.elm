@@ -7,6 +7,7 @@ import Buffer as Buf
 import Tuple
 import PositionClass exposing (findPosition, findLineFirst)
 import String
+import Motion exposing (wordStringUnderCursor)
 
 
 getString : Buffer -> V.StringType -> String
@@ -14,6 +15,12 @@ getString buf ins =
     case ins of
         V.TextLiteral s ->
             s
+
+        V.WordUnderCursor ->
+            buf
+                |> wordStringUnderCursor
+                |> Maybe.map Tuple.second
+                |> Maybe.withDefault ""
 
         _ ->
             ""
@@ -50,23 +57,22 @@ insert s buf =
                 buf
 
         _ ->
-            case s of
-                V.TextLiteral str ->
-                    if str == B.lineBreak then
-                        let
-                            indent =
-                                autoIndent (Tuple.first buf.cursor) buf.lines
-                        in
-                            buf
-                                |> setLastIndent (String.length indent)
-                                |> insertString (str ++ indent)
-                    else
+            let
+                str =
+                    getString buf s
+            in
+                if str == B.lineBreak then
+                    let
+                        indent =
+                            autoIndent (Tuple.first buf.cursor) buf.lines
+                    in
                         buf
-                            |> setLastIndent 0
-                            |> insertString str
-
-                _ ->
+                            |> setLastIndent (String.length indent)
+                            |> insertString (str ++ indent)
+                else
                     buf
+                        |> setLastIndent 0
+                        |> insertString str
 
 
 setLastIndent : Int -> Buffer -> Buffer
