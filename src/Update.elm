@@ -1324,7 +1324,7 @@ execute s buf =
                 _ ->
                     ( buf, Cmd.none )
 
-        [ "ag", s ] ->
+        [ "f", s ] ->
             ( buf, sendFind buf.config.service s )
 
         _ ->
@@ -1935,7 +1935,7 @@ update message buf =
             case result of
                 Ok s ->
                     jumpTo True
-                        { path = "[ag]"
+                        { path = "[Find]"
                         , cursor = ( 0, 0 )
                         , scrollTop = 0
                         , content = Just s
