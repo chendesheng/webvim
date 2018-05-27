@@ -17,6 +17,7 @@ import Vim.AST
         , motionOption
         )
 import Maybe
+import Helper exposing (isSpace, notSpace)
 
 
 isBetween : Char -> Char -> Char -> Bool
@@ -38,12 +39,7 @@ word wordChars char =
 
 punctuation : String -> Char -> Bool
 punctuation wordChars char =
-    not (word wordChars char) && not (space char)
-
-
-space : Char -> Bool
-space char =
-    Char.toCode char < 20 || char == ' '
+    not (word wordChars char) && not (isSpace char)
 
 
 spaceInline : Char -> Bool
@@ -58,9 +54,9 @@ parserWordStart wordChars crossLine =
         |= P.oneOf
             [ P.keep P.oneOrMore (word wordChars)
             , P.keep P.oneOrMore (punctuation wordChars)
-            , P.keep P.oneOrMore space
+            , P.keep P.oneOrMore isSpace
             ]
-        |= P.keep P.zeroOrMore space
+        |= P.keep P.zeroOrMore isSpace
         |= P.oneOf
             ([ P.keep (P.Exactly 1) (word wordChars)
              , P.keep (P.Exactly 1) (punctuation wordChars)
@@ -89,7 +85,7 @@ parserWordEnd wordChars =
     P.succeed
         (length2 0)
         |. P.keep (P.Exactly 1) (always True)
-        |= P.keep P.zeroOrMore space
+        |= P.keep P.zeroOrMore isSpace
         |= P.oneOf
             [ P.keep P.oneOrMore (word wordChars)
             , P.keep P.oneOrMore (punctuation wordChars)
@@ -97,7 +93,7 @@ parserWordEnd wordChars =
         |. P.oneOf
             [ P.ignore (P.Exactly 1) (word wordChars)
             , P.ignore (P.Exactly 1) (punctuation wordChars)
-            , P.ignore (P.Exactly 1) space
+            , P.ignore (P.Exactly 1) isSpace
             , P.end
             ]
 
@@ -107,15 +103,15 @@ parserWORDStart crossLine =
     P.succeed
         (length3 -1)
         |= P.oneOf
-            [ P.keep P.oneOrMore (space >> not)
-            , P.keep P.oneOrMore space
+            [ P.keep P.oneOrMore notSpace
+            , P.keep P.oneOrMore isSpace
             ]
-        |= P.keep P.zeroOrMore space
+        |= P.keep P.zeroOrMore isSpace
         |= (if crossLine then
-                P.keep (P.Exactly 1) (space >> not)
+                P.keep (P.Exactly 1) notSpace
             else
                 P.oneOf
-                    [ P.keep (P.Exactly 1) (space >> not)
+                    [ P.keep (P.Exactly 1) notSpace
                     , P.end |> P.map (always "")
                     ]
            )
@@ -174,7 +170,7 @@ parserWORDAround =
                 ]
         , P.succeed
             (length2 -1)
-            |= P.keep P.oneOrMore (space >> not)
+            |= P.keep P.oneOrMore notSpace
             |= P.keep P.zeroOrMore spaceInline
         ]
 
@@ -193,7 +189,7 @@ parserWORDEdge =
     in
         P.oneOf
             [ divider spaceInline
-            , divider (space >> not)
+            , divider notSpace
             ]
 
 
@@ -202,10 +198,10 @@ parserWORDEnd =
     P.succeed
         (length2 0)
         |. P.keep (P.Exactly 1) (always True)
-        |= P.keep P.zeroOrMore space
-        |= P.keep P.oneOrMore (space >> not)
+        |= P.keep P.zeroOrMore isSpace
+        |= P.keep P.oneOrMore notSpace
         |. P.oneOf
-            [ P.ignore (P.Exactly 1) space
+            [ P.ignore (P.Exactly 1) isSpace
             , P.end
             ]
 

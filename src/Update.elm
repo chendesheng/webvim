@@ -754,7 +754,12 @@ runOperator count register operator buf =
         JumpToTag ->
             case wordStringUnderCursor buf of
                 Just ( _, s ) ->
-                    ( buf, sendReadTags buf.config.service buf.path s )
+                    ( buf
+                    , sendReadTags buf.config.service
+                        buf.path
+                        (Maybe.withDefault 1 count - 1)
+                        s
+                    )
 
                 _ ->
                     ( buf, Cmd.none )

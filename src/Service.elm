@@ -21,7 +21,6 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Char
 import Vim.AST exposing (AST)
 import Jumps exposing (Location)
-import Elm.JsArray as JsArray
 import Helper exposing (levenshtein, isSpace, notSpace)
 
 
@@ -408,37 +407,37 @@ ctagsParser =
     P.succeed
         (\path x y ->
             { cursor = ( y - 1, x ), path = path }
-                |> Debug.log "ctagsParser"
         )
         |. P.ignore P.zeroOrMore isSpace
         |. P.ignore P.oneOrMore notSpace
         |. P.ignore P.oneOrMore isSpace
         |= P.keep P.oneOrMore notSpace
-        |. P.ignore P.oneOrMore isSpace
-        |= P.oneOf
-            [ P.succeed String.length
+        |= (P.succeed String.length
                 |. P.ignoreUntil "/^"
-                |= P.keep P.oneOrMore isSpace
-            , P.succeed 0
-            ]
+                |= P.oneOf
+                    [ P.keep P.oneOrMore isSpace
+                    , P.succeed ""
+                    ]
+           )
         |. P.ignoreUntil "line:"
         |= P.int
         |. P.ignoreUntil "\n"
         |> P.repeat P.oneOrMore
 
 
-pickClosest : String -> List Location -> Maybe Location
-pickClosest path locs =
+pickClosest : String -> Int -> List Location -> Maybe Location
+pickClosest path index locs =
     locs
         |> List.sortBy
             (\loc ->
                 levenshtein path loc.path
             )
-        |> List.head
+        |> Array.fromList
+        |> Array.get index
 
 
-sendReadTags : String -> String -> String -> Cmd Msg
-sendReadTags url path name =
+sendReadTags : String -> String -> Int -> String -> Cmd Msg
+sendReadTags url path index name =
     Http.getString (url ++ "/readtags?name=" ++ name)
         |> Http.send
             (\result ->
@@ -446,13 +445,15 @@ sendReadTags url path name =
                     |> Result.mapError toString
                     |> Result.andThen
                         (\s ->
-                            P.run ctagsParser (Debug.log "parse" s)
-                                |> Result.mapError (always "parse result error")
+                            P.run ctagsParser s
+                                |> Result.mapError
+                                    (always "parse result error")
                                 |> Result.andThen
                                     (\locs ->
                                         locs
-                                            |> pickClosest path
-                                            |> Result.fromMaybe "parse result error"
+                                            |> pickClosest path index
+                                            |> Result.fromMaybe
+                                                "parse result error"
                                     )
                         )
                     |> ReadTags

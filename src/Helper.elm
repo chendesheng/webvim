@@ -89,7 +89,7 @@ levenshtein =
 
 
 isSpace c =
-    Char.toCode c <= 20 || c == ' '
+    Char.toCode c < 20 || c == ' '
 
 
 notSpace =
