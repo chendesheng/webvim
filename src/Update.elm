@@ -716,13 +716,17 @@ runOperator count register operator buf =
                             buf.jumps
             in
                 case currentLocation jumps of
-                    Just loc ->
+                    Just { path, cursor } ->
                         jumpTo False
-                            { path = loc.path
-                            , cursor = loc.cursor
-                            , scrollTop = 0
-                            , content = Nothing
-                            }
+                            (buf.buffers
+                                |> Dict.get path
+                                |> Maybe.withDefault
+                                    { path = path
+                                    , cursor = cursor
+                                    , scrollTop = 0
+                                    , content = Nothing
+                                    }
+                            )
                             { buf | jumps = jumps }
 
                     _ ->
@@ -769,16 +773,30 @@ runOperator count register operator buf =
                 Just ( _, s ) ->
                     let
                         locationParser =
-                            P.succeed (\path y x -> ( path, ( y - 1, x - 1 ) ))
+                            P.succeed
+                                (\path ints ->
+                                    ( path
+                                    , case (Debug.log "ints" ints) of
+                                        y :: x :: _ ->
+                                            ( y - 1, x - 1 )
+
+                                        [ y ] ->
+                                            ( y - 1, 0 )
+
+                                        _ ->
+                                            ( 0, 0 )
+                                    )
+                                )
                                 |= P.keep P.oneOrMore (\c -> notSpace c && (c /= ':'))
-                                |. P.keep (P.Exactly 1) (\c -> c == ':')
-                                |= P.int
-                                |= P.oneOf
-                                    [ P.succeed identity
-                                        |. P.keep (P.Exactly 1) (\c -> c == ':')
-                                        |= P.int
-                                    , P.succeed 1
-                                    ]
+                                |= ((P.succeed identity
+                                        |. P.symbol ":"
+                                        |= P.oneOf
+                                            [ P.int
+                                            , P.succeed 1
+                                            ]
+                                    )
+                                        |> P.repeat P.zeroOrMore
+                                   )
                     in
                         case P.run locationParser s of
                             Ok ( path, cursor ) ->
@@ -792,9 +810,6 @@ runOperator count register operator buf =
                                                 , scrollTop = 0
                                                 , content = Nothing
                                                 }
-
-                                    _ =
-                                        Debug.log "jumpToFile" info
                                 in
                                     jumpTo True { info | cursor = cursor } buf
 
