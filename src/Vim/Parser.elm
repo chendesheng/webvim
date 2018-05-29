@@ -353,10 +353,11 @@ gOperator =
 
 
 motion :
-    (MotionData -> MotionOption -> Operator)
+    Bool
+    -> (MotionData -> MotionOption -> Operator)
     -> Parser ModeDelta
     -> Parser ModeDelta
-motion map gMotion =
+motion isVisual map gMotion =
     let
         matchChar trigger forward before =
             readKeyAndThen trigger
@@ -395,7 +396,8 @@ motion map gMotion =
                         , PushMode <| ModeNameEx prefix
                         ]
                         |. P.end
-                    , (linebuffer prefix
+                    , (linebuffer
+                        prefix
                         (\cmd ->
                             let
                                 option =
@@ -405,6 +407,13 @@ motion map gMotion =
                                     { option | forward = prefix == "/" }
                         )
                       )
+                        |> P.map
+                            (\changes ->
+                                if isVisual && isEscaped changes then
+                                    popComplete changes
+                                else
+                                    changes
+                            )
                     ]
     in
         P.oneOf
@@ -548,7 +557,7 @@ operator isVisual isTemp =
                         |. P.symbol ch
 
                 motionParser =
-                    motion
+                    motion False
                         toOperator
                         (gKey toOperator <| P.oneOf [])
 
@@ -722,7 +731,7 @@ operator isVisual isTemp =
         visualMotion =
             P.oneOf
                 [ textObject Select
-                , motion Move (gKey Move <| P.oneOf [])
+                , motion True Move (gKey Move <| P.oneOf [])
                 ]
     in
         P.oneOf
@@ -754,7 +763,7 @@ operator isVisual isTemp =
                 ]
               else
                 [ defineInsert "i" []
-                , motion Move (P.oneOf [])
+                , motion False Move (P.oneOf [])
                     |> dontRecord
                 , defineInsert "a"
                     [ motionOption ">)$-"

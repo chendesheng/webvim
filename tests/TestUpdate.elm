@@ -636,6 +636,19 @@ exModeCases =
                 }
         }
       )
+    , ( "v/ef<esc>"
+      , { exModeCasesBuf
+            | mode =
+                Visual
+                    { tipe = VisualChars
+                    , begin = ( 0, 0 )
+                    , end = ( 0, 0 )
+                    }
+            , last =
+                { emptyLast | ex = "ef" }
+            , continuation = "v"
+        }
+      )
     ]
 
 

@@ -754,6 +754,14 @@ cases =
         , "v"
         )
       )
+    , ( "v/<esc>"
+      , ( { initialMode
+            | modeName = ModeNameVisual VisualChars
+            , recordKeys = ""
+          }
+        , "v"
+        )
+      )
     , ( "r"
       , ( initialMode, "r" )
       )
@@ -781,11 +789,8 @@ suite =
                 test ("Parse `" ++ keys ++ "`") <|
                     \_ ->
                         Expect.equal mode (V.parse keys "")
-             --if keys == "i<c-o>vd" then
-             --else
-             --    test ("Parse `" ++ keys ++ "`") <|
-             --        \_ ->
-             --            Expect.equal 1 1
             )
-            cases
+            (cases
+             --|> List.filter (\( keys, _ ) -> keys == "v/<esc>")
+            )
         )
