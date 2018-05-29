@@ -566,6 +566,9 @@ runMotion count md mo buf =
                                             buf.syntax
                                         )
 
+                V.Paragraph ->
+                    Just ( findParagraph mo.forward (Tuple.first buf.cursor) buf.lines, 0 )
+
                 _ ->
                     let
                         findNext ( y, x ) =
@@ -580,6 +583,39 @@ runMotion count md mo buf =
                             (Maybe.withDefault 1 count)
                             findNext
                             buf.cursor
+
+
+findParagraph : Bool -> Int -> B.TextBuffer -> Int
+findParagraph forward start lines =
+    let
+        isLineEmpty =
+            (==) B.lineBreak
+
+        delta =
+            if forward then
+                1
+            else
+                -1
+
+        findParagraphHelper isLastLineEmpty y =
+            case B.getLine y lines of
+                Just line ->
+                    let
+                        isCurrentLineEmpty =
+                            isLineEmpty line
+                    in
+                        if isCurrentLineEmpty && not isLastLineEmpty then
+                            y
+                        else
+                            findParagraphHelper isCurrentLineEmpty (y + delta)
+
+                _ ->
+                    if forward then
+                        max (B.count lines - 2) 0
+                    else
+                        0
+    in
+        findParagraphHelper True start
 
 
 wordStringUnderCursor : Buffer -> Maybe ( Position, String )
@@ -655,6 +691,9 @@ saveCursorBeforeJump md cursorAfter buf =
                     True
 
                 V.MatchPair ->
+                    True
+
+                V.Paragraph ->
                     True
 
                 _ ->

@@ -272,8 +272,7 @@ type MotionData
     | LineFirst -- first non-space char of line
     | LineStart
     | LineEnd
-    | ParagraphStart
-    | ParagraphEnd
+    | Paragraph
     | CharStart
       -- f|t{char}
     | MatchChar String Bool
