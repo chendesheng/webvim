@@ -410,32 +410,66 @@ runOperator count register operator buf =
                     ( buf, Cmd.none )
 
         Scroll value ->
+            -- TODO: scroll in visual mode
             let
-                scrollTop =
-                    let
-                        y =
-                            Tuple.first buf.cursor
-                    in
-                        case value of
-                            V.ScrollBy n ->
-                                buf.view.scrollTop + n
-
-                            V.ScrollToTop ->
-                                y
-
-                            V.ScrollToBottom ->
-                                y - buf.view.size.height + 1
-
-                            V.ScrollToMiddle ->
-                                y - buf.view.size.height // 2
-
                 scope n =
                     n
                         |> max 0
                         |> min (B.count buf.lines - 1)
+
+                setCursor buf =
+                    case count of
+                        Just n ->
+                            let
+                                y =
+                                    scope (n - 1)
+
+                                x =
+                                    Tuple.second buf.cursor
+                            in
+                                case value of
+                                    V.ScrollToTop ->
+                                        Buf.setCursor ( y, x ) False buf
+
+                                    V.ScrollToBottom ->
+                                        Buf.setCursor ( y, x ) False buf
+
+                                    V.ScrollToMiddle ->
+                                        Buf.setCursor ( y, x ) False buf
+
+                                    _ ->
+                                        buf
+
+                        _ ->
+                            buf
+
+                scroll buf =
+                    let
+                        y =
+                            Tuple.first buf.cursor
+
+                        y1 =
+                            case value of
+                                V.ScrollBy n ->
+                                    count
+                                        |> Maybe.withDefault 1
+                                        |> ((*) n)
+                                        |> ((+) buf.view.scrollTop)
+
+                                V.ScrollToTop ->
+                                    y
+
+                                V.ScrollToBottom ->
+                                    y - buf.view.size.height + 1
+
+                                V.ScrollToMiddle ->
+                                    y - buf.view.size.height // 2
+                    in
+                        setScrollTop (scope y1) buf
             in
                 buf
-                    |> setScrollTop (scope scrollTop)
+                    |> setCursor
+                    |> scroll
                     |> cursorScope
                     |> cmdNone
 
