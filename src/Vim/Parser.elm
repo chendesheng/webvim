@@ -310,9 +310,9 @@ gKey map extra =
             (P.oneOf
                 [ P.oneOf
                     [ define "g" BufferTop gotoLineOption
-                    , define "j" (VLineDelta True) gotoLineOption
+                    , define "j" VLineDelta (motionOption ">]+=")
                         |> dontRecord
-                    , define "k" (VLineDelta False) gotoLineOption
+                    , define "k" VLineDelta (motionOption "<]+=")
                         |> dontRecord
                     , define "n" (MatchString LastSavedString) (motionOption ">]+-")
                         |> dontRecord
@@ -424,8 +424,8 @@ motion isVisual map gMotion =
              , define "e" WordEnd <| motionOption ">]+-"
              , define "E" WORDEnd <| motionOption ">]+-"
              , define "h" CharStart <| motionOption "<)$-"
-             , define "j" (LineDelta True) <| motionOption ">]+="
-             , define "k" (LineDelta False) <| motionOption "<]+="
+             , define "j" LineDelta <| motionOption ">]+="
+             , define "k" LineDelta <| motionOption "<]+="
              , define "l" CharStart <| motionOption ">)$-"
              , define "^" LineFirst <| motionOption "<)$-"
              , define "0" LineStart <| motionOption "<)$-"

@@ -426,8 +426,11 @@ runMotion count md mo buf =
                         _ ->
                             gotoLine (B.count buf.lines - 2) buf.lines
 
-                V.LineDelta forward ->
+                V.LineDelta ->
                     let
+                        forward =
+                            mo.forward
+
                         n =
                             if forward then
                                 Maybe.withDefault 1 count
@@ -618,10 +621,10 @@ wORDStringUnderCursor { cursor, lines } =
 isSaveColumn : V.MotionData -> Bool
 isSaveColumn md =
     case md of
-        V.VLineDelta _ ->
+        V.VLineDelta ->
             False
 
-        V.LineDelta _ ->
+        V.LineDelta ->
             False
 
         _ ->

@@ -281,8 +281,8 @@ type MotionData
     | ViewTop
     | ViewMiddle
     | ViewBottom
-    | VLineDelta Bool
-    | LineDelta Bool
+    | VLineDelta
+    | LineDelta
     | BufferTop
     | BufferBottom
     | MatchPair -- %

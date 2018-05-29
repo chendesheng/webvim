@@ -55,7 +55,7 @@ cases =
       , ( { initialMode
             | edit =
                 motionOption ">]+="
-                    |> Move (VLineDelta True)
+                    |> Move VLineDelta
                     |> Just
           }
         , ""
@@ -428,7 +428,7 @@ cases =
             , count = Just 8
             , edit =
                 motionOption ">]+="
-                    |> Move (LineDelta True)
+                    |> Move LineDelta
                     |> Just
           }
         , "10i"

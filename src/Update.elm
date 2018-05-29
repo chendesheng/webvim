@@ -175,7 +175,7 @@ isLineDeltaMotion op =
     case op of
         Move mo _ ->
             case mo of
-                V.LineDelta _ ->
+                V.LineDelta ->
                     True
 
                 _ ->
