@@ -9,6 +9,7 @@ import Json.Encode as Encode
 import Syntax exposing (Token, Syntax)
 import Vim.AST exposing (AST)
 import Jumps exposing (Location)
+import Internal.TextBuffer as B
 
 
 type alias File =
@@ -23,7 +24,7 @@ type alias BufferInfo =
     { path : String
     , cursor : Position
     , scrollTop : Int
-    , content : Maybe String
+    , content : Maybe ( B.TextBuffer, Syntax )
     }
 
 

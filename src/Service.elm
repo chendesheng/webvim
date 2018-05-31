@@ -22,18 +22,46 @@ import Char
 import Vim.AST exposing (AST)
 import Jumps exposing (Location)
 import Helper exposing (levenshtein, isSpace, notSpace)
+import Internal.TextBuffer as B
+import Task exposing (Task)
 
 
-sendEditBuffer : String -> BufferInfo -> Cmd Msg
-sendEditBuffer url info =
+sendEditBuffer : String -> String -> Int -> Int -> BufferInfo -> Cmd Msg
+sendEditBuffer url syntaxServiceUrl tokenizeLines tabSize info =
     url
         ++ "/edit?path="
         ++ info.path
         |> Http.getString
-        |> Http.send
+        |> Http.toTask
+        |> Task.andThen
+            (\s ->
+                let
+                    lines =
+                        B.fromStringExpandTabs tabSize 0 s
+                in
+                    sendTokenizeTask syntaxServiceUrl
+                        { path = info.path
+                        , version = 0
+                        , line = 0
+                        , lines =
+                            lines
+                                |> B.sliceLines 0 tokenizeLines
+                                |> B.toString
+                        }
+                        |> Task.map
+                            (\res ->
+                                case res of
+                                    TokenizeSuccess _ _ _ syntax ->
+                                        ( lines, syntax )
+
+                                    _ ->
+                                        ( lines, Array.empty )
+                            )
+            )
+        |> Task.attempt
             (Result.map
-                (\s ->
-                    { info | content = Just s }
+                (\res ->
+                    { info | content = Just res }
                 )
                 >> Read
             )
@@ -304,14 +332,14 @@ tokenizeResponseDecoder n =
             )
 
 
-sendTokenize : String -> TokenizeRequest -> Cmd Msg
-sendTokenize url { path, version, line, lines } =
+sendTokenizeTask : String -> TokenizeRequest -> Task Http.Error TokenizeResponse
+sendTokenizeTask url { path, version, line, lines } =
     let
         body =
             Http.stringBody "text/plain" lines
     in
         if path == "" then
-            Cmd.none
+            Task.succeed (TokenizeSuccess "" 0 0 Array.empty)
         else
             tokenizeResponseDecoder line
                 |> Http.post
@@ -324,7 +352,12 @@ sendTokenize url { path, version, line, lines } =
                         ++ (toString version)
                     )
                     body
-                |> Http.send Tokenized
+                |> Http.toTask
+
+
+sendTokenize : String -> TokenizeRequest -> Cmd Msg
+sendTokenize url req =
+    Task.attempt Tokenized (sendTokenizeTask url req)
 
 
 sendTokenizeLine : String -> TokenizeRequest -> Cmd Msg

@@ -5,21 +5,21 @@ const registry = theme.registry;
 //   theme: theme.raw,
 //   getFilePath: function (scopeName) {
 //     const dir = '/Applications/Visual Studio Code.app/Contents/Resources/app/extensions';
-// 		// Return here the path to the grammar file for `scopeName`
-// 		if (scopeName === 'source.js') {
-// 			return `${dir}/javascript/Syntaxes/JavaScript.tmLanguage.json`;
-// 		} else if (scopeName === 'source.jsx') {
-// 			return `${dir}/javascript/Syntaxes/JavaScriptReact.tmLanguage.json`;
-// 		} else if (scopeName === 'source.py') {
-// 			return `${dir}/python/Syntaxes/MagicPython.tmLanguage.json`;
-// 		} else if (scopeName === 'source.regex.py') {
-// 			return `${dir}/python/Syntaxes/MagicRegExp.tmLanguage.json`;
+//    // Return here the path to the grammar file for `scopeName`
+//    if (scopeName === 'source.js') {
+//      return `${dir}/javascript/Syntaxes/JavaScript.tmLanguage.json`;
+//    } else if (scopeName === 'source.jsx') {
+//      return `${dir}/javascript/Syntaxes/JavaScriptReact.tmLanguage.json`;
+//    } else if (scopeName === 'source.py') {
+//      return `${dir}/python/Syntaxes/MagicPython.tmLanguage.json`;
+//    } else if (scopeName === 'source.regex.py') {
+//      return `${dir}/python/Syntaxes/MagicRegExp.tmLanguage.json`;
 //     }
 // 
 //     const name = path.extname(scopeName).substr(1);
 //     console.log('load file:', `${dir}/${name}/syntaxes/${name}.tmLanguage.json`);
 //     return `${dir}/${name}/syntaxes/${name}.tmLanguage.json`;
-// 	}
+//  }
 // });
 const fs = require('fs');
 const path = require('path');
@@ -31,8 +31,8 @@ const Hapi=require('hapi');
 // var lineTokens = grammar.tokenizeLine('@a:1.2rem;');
 // console.log(lineTokens);
 // for (var i = 0; i < lineTokens.tokens.length; i++) {
-// 	var token = lineTokens.tokens[i];
-// 	console.log('Token from ' + token.startIndex + ' to ' + token.endIndex + ' with scopes ' + token.scopes);
+//  var token = lineTokens.tokens[i];
+//  console.log('Token from ' + token.startIndex + ' to ' + token.endIndex + ' with scopes ' + token.scopes);
 // }
 
 // var lines = fs.readFileSync('dist/elm.js', { encoding: 'utf-8' }).split('\n');
@@ -41,9 +41,9 @@ const Hapi=require('hapi');
 // 
 // var ruleStack = null;
 // for (var i = 0; i < lines.length; i++) { // lines.length
-// 	var r = grammar.tokenizeLine(lines[i], ruleStack);
+//  var r = grammar.tokenizeLine(lines[i], ruleStack);
 //   // console.log('Line: #' + i + ', tokens: ' + r.tokens);
-// 	ruleStack = r.ruleStack;
+//  ruleStack = r.ruleStack;
 // }
 // 
 // console.timeEnd("tokenize");
@@ -71,19 +71,19 @@ const server=Hapi.server({
 const allCaches = {}; // cache StackElement
 
 function walk(dir, callback) {
-	fs.readdir(dir, function(err, files) {
-		if (err) throw err;
-		files.forEach(function(file) {
-			var filepath = path.join(dir, file);
-			fs.stat(filepath, function(err,stats) {
-				if (stats.isDirectory()) {
-					walk(filepath, callback);
-				} else if (stats.isFile()) {
-					callback(filepath, stats);
-				}
-			});
-		});
-	});
+  fs.readdir(dir, function(err, files) {
+    if (err) throw err;
+    files.forEach(function(file) {
+      var filepath = path.join(dir, file);
+      fs.stat(filepath, function(err,stats) {
+        if (stats.isDirectory()) {
+          walk(filepath, callback);
+        } else if (stats.isFile()) {
+          callback(filepath, stats);
+        }
+      });
+    });
+  });
 }
 
 const allGrammars = {
@@ -181,6 +181,7 @@ server.route({
         const line = lines[i];
         const n = begin + i;
         if (cache.length <= n && n > 0) {
+          console.log('cache miss: n='+n+', cache.length='+cache.length);
           delete allCaches[request.query.path];
           return setCORSHeader(h
             .response({ type: 'error', payload: 'cacheMiss' })

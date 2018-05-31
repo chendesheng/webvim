@@ -199,7 +199,6 @@ type alias BufferConfig =
     , tabSize : Int
     , expandTab : Bool
     , lint : Bool
-    , tokenizeLinesAhead : Int
     , service : String
     , syntaxService : String
     }
@@ -211,7 +210,6 @@ defaultBufferConfig =
     , tabSize = 2
     , expandTab = True
     , lint = False
-    , tokenizeLinesAhead = 20
     , service = ""
     , syntaxService = ""
     }

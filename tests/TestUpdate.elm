@@ -1383,7 +1383,7 @@ editBufferCasesBuf =
             Dict.fromList
                 [ ( "src/test.elm"
                   , { path = "src/test.elm"
-                    , content = Just "123"
+                    , content = Just ( B.fromString "123", Array.empty )
                     , cursor = ( 0, 0 )
                     , scrollTop = 0
                     }
@@ -1411,7 +1411,7 @@ editBufferCases =
                 Dict.fromList
                     [ ( ""
                       , { path = ""
-                        , content = Just <| B.toString emptyBuffer.lines
+                        , content = Just ( emptyBuffer.lines, emptyBuffer.syntax )
                         , scrollTop = 0
                         , cursor = ( 0, 0 )
                         }

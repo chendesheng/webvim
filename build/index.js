@@ -43,6 +43,7 @@ const flags = {
   activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
   buffers: safeJsonParse(sessionStorage.getItem('buffers')) || [],
   registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
+  height: window.innerHeight,
 };
 // console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);

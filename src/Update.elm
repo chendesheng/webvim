@@ -811,7 +811,7 @@ runOperator count register operator buf =
                             P.succeed
                                 (\path ints ->
                                     ( path
-                                    , case (Debug.log "ints" ints) of
+                                    , case ints of
                                         y :: x :: _ ->
                                             ( y - 1, x - 1 )
 
@@ -1097,16 +1097,13 @@ newBuffer info buf =
         ( name, ext ) =
             filename path
 
-        --|> Debug.log "path"
         config =
             Buf.configs
                 |> Dict.get ext
                 |> Maybe.withDefault defaultBufferConfig
 
-        lines =
-            content
-                |> Maybe.withDefault (B.toString emptyBuffer.lines)
-                |> B.fromStringExpandTabs buf.config.tabSize 0
+        ( lines, syntax ) =
+            Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
     in
         { buf
             | lines = lines
@@ -1127,7 +1124,7 @@ newBuffer info buf =
             , path = path
             , name = name ++ ext
             , history = emptyBufferHistory
-            , syntax = Array.empty
+            , syntax = syntax
         }
             |> scrollToCursor
 
@@ -1245,6 +1242,58 @@ isModeNameVisual name =
             False
 
 
+tokenizeBuffer : Bool -> Int -> Buffer -> ( Buffer, Cmd Msg )
+tokenizeBuffer debounce minBottom buf =
+    ( buf, tokenizeBufferCmd debounce minBottom buf )
+
+
+tokenizeBufferCmd : Bool -> Int -> Buffer -> Cmd Msg
+tokenizeBufferCmd debounce minBottom buf =
+    if buf.path == "" then
+        Cmd.none
+    else
+        let
+            minBottom2 =
+                buf.view.scrollTop
+                    + buf.view.size.height
+                    * 2
+
+            bottom =
+                minBottom
+                    |> max minBottom2
+                    |> min (B.count buf.lines - 1)
+
+            syntaxBottom =
+                Array.length buf.syntax
+
+            tokenizeCmd lines =
+                if debounce then
+                    debounceTokenize
+                        100
+                        buf.path
+                        buf.history.version
+                        syntaxBottom
+                        lines
+                else
+                    sendTokenize
+                        buf.config.syntaxService
+                        { path = buf.path
+                        , version = buf.history.version
+                        , line = syntaxBottom
+                        , lines = lines
+                        }
+        in
+            if bottom <= syntaxBottom then
+                Cmd.none
+            else
+                buf.lines
+                    |> B.sliceLines
+                        syntaxBottom
+                        bottom
+                    |> B.toString
+                    |> tokenizeCmd
+
+
 jumpTo : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
 jumpTo isSaveJump info buf =
     let
@@ -1270,36 +1319,10 @@ jumpTo isSaveJump info buf =
                     n
     in
         if path == buf.path then
-            let
-                buf1 =
-                    { buf | jumps = jumps }
-                        |> Buf.setCursor cursor True
-                        |> setScrollTop scrollTop
-
-                bottom =
-                    buf1.view.scrollTop
-                        + buf1.view.size.height
-                        + buf1.config.tokenizeLinesAhead
-
-                syntaxBottom =
-                    Array.length buf.syntax
-            in
-                ( buf1
-                , if bottom <= syntaxBottom then
-                    Cmd.none
-                  else
-                    debounceTokenize
-                        100
-                        buf1.path
-                        buf1.history.version
-                        syntaxBottom
-                        (buf1.lines
-                            |> B.sliceLines
-                                syntaxBottom
-                                bottom
-                            |> B.toString
-                        )
-                )
+            { buf | jumps = jumps }
+                |> Buf.setCursor cursor True
+                |> setScrollTop scrollTop
+                |> tokenizeBuffer False 0
         else
             editBuffer
                 { info | scrollTop = scrollTop }
@@ -1544,82 +1567,49 @@ applyVimAST replaying key ast buf =
                 buf
 
         doTokenize oldBuf ( buf, cmds ) =
-            let
-                oldBottom =
-                    oldBuf.view.scrollTop + oldBuf.view.size.height
+            case buf.syntaxDirtyFrom of
+                Just y ->
+                    ( buf
+                    , sendTokenizeLine
+                        buf.config.syntaxService
+                        { version = buf.history.version
+                        , line = y
+                        , lines =
+                            (buf.lines
+                                |> B.sliceLines y (y + 1)
+                                |> B.toString
+                            )
+                        , path = buf.path
+                        }
+                        :: cmds
+                    )
 
-                newBottom =
+                _ ->
                     let
                         n =
-                            buf.view.scrollTop + buf.view.size.height
+                            buf.view.scrollTop + buf.view.size.height * 2
+
+                        newBottom =
+                            case buf.mode of
+                                Ex { prefix, visual } ->
+                                    case prefix of
+                                        ExSearch { match } ->
+                                            case match of
+                                                Just ( begin, _ ) ->
+                                                    Tuple.first begin
+                                                        + buf.view.size.height
+                                                        * 2
+
+                                                _ ->
+                                                    n
+
+                                        _ ->
+                                            n
+
+                                _ ->
+                                    n
                     in
-                        case buf.mode of
-                            Ex { prefix, visual } ->
-                                case prefix of
-                                    ExSearch { match } ->
-                                        case match of
-                                            Just ( begin, _ ) ->
-                                                Tuple.first begin
-                                                    + buf.view.size.height
-
-                                            _ ->
-                                                n
-
-                                    _ ->
-                                        n
-
-                            _ ->
-                                n
-            in
-                case buf.syntaxDirtyFrom of
-                    Just y ->
-                        --let
-                        --    _ =
-                        --        Debug.log "y" y
-                        --in
-                        ( buf
-                        , sendTokenizeLine
-                            buf.config.syntaxService
-                            { version = buf.history.version
-                            , line = y
-                            , lines =
-                                (buf.lines
-                                    |> B.sliceLines y (y + 1)
-                                    |> B.toString
-                                )
-                            , path = buf.path
-                            }
-                            :: cmds
-                        )
-
-                    --debounceTokenize 100
-                    --    y
-                    --    (buf.lines
-                    --        |> B.sliceLines y (newBottom + 1)
-                    --        |> B.toString
-                    --    )
-                    _ ->
-                        if oldBottom == newBottom then
-                            ( buf, cmds )
-                        else if newBottom >= Array.length buf.syntax then
-                            ( buf
-                            , debounceTokenize
-                                100
-                                buf.path
-                                buf.history.version
-                                (Array.length buf.syntax)
-                                (buf.lines
-                                    |> B.sliceLines
-                                        (Array.length buf.syntax)
-                                        (newBottom
-                                            + buf.config.tokenizeLinesAhead
-                                        )
-                                    |> B.toString
-                                )
-                                :: cmds
-                            )
-                        else
-                            ( buf, cmds )
+                        ( buf, tokenizeBufferCmd True newBottom buf :: cmds )
 
         doSetTitle oldBuf ( buf, cmds ) =
             if Buf.isDirty oldBuf /= Buf.isDirty buf then
@@ -1698,47 +1688,19 @@ onTokenized buf resp =
                     )
 
                 LineTokenizeSuccess path version begin tokens ->
-                    ( if
-                        (path == buf.path)
-                            && (version == buf.history.version)
-                      then
-                        { buf | syntax = Array.set begin tokens buf.syntax }
-                      else
-                        buf
-                    , debounceTokenize
-                        200
-                        buf.path
-                        buf.history.version
-                        (begin + 1)
-                        (buf.lines
-                            |> B.sliceLines
-                                (begin + 1)
-                                (buf.view.scrollTop
-                                    + buf.view.size.height
-                                    + 1
-                                )
-                            |> B.toString
+                    tokenizeBuffer False
+                        0
+                        (if
+                            (path == buf.path)
+                                && (version == buf.history.version)
+                         then
+                            { buf | syntax = Array.set begin tokens buf.syntax }
+                         else
+                            buf
                         )
-                    )
 
                 TokenizeCacheMiss ->
-                    ( buf
-                    , sendTokenize
-                        buf.config.syntaxService
-                        { path = buf.path
-                        , version = buf.history.version
-                        , line = 0
-                        , lines =
-                            buf.lines
-                                |> B.sliceLines
-                                    0
-                                    (buf.view.scrollTop
-                                        + buf.view.size.height
-                                        + buf.config.tokenizeLinesAhead
-                                    )
-                                |> B.toString
-                        }
-                    )
+                    tokenizeBuffer False 0 { buf | syntax = Array.empty }
 
         Err _ ->
             ( buf, Cmd.none )
@@ -1780,44 +1742,20 @@ update message buf =
                 |> Tuple.mapSecond (List.reverse >> Cmd.batch)
 
         Resize size ->
-            let
-                h =
-                    (size.height // buf.view.lineHeight)
-                        - buf.view.statusbarHeight
-
-                w =
-                    size.width
-
-                syntaxLines =
-                    Array.length buf.syntax
-            in
-                ( buf
-                    |> updateView
-                        (\view ->
-                            { view | size = { width = w, height = h } }
-                        )
-                    |> cursorScope
-                , if
-                    (syntaxLines > 0)
-                        && (buf.view.scrollTop + h > syntaxLines)
-                  then
-                    debounceTokenize
-                        200
-                        buf.path
-                        buf.history.version
-                        (Array.length buf.syntax)
-                        (buf.lines
-                            |> B.sliceLines
-                                (Array.length buf.syntax)
-                                (buf.view.scrollTop
-                                    + h
-                                    + buf.config.tokenizeLinesAhead
-                                )
-                            |> B.toString
-                        )
-                  else
-                    Cmd.none
-                )
+            buf
+                |> updateView
+                    (\view ->
+                        { view
+                            | size =
+                                { width = size.width
+                                , height =
+                                    (size.height // buf.view.lineHeight)
+                                        - buf.view.statusbarHeight
+                                }
+                        }
+                    )
+                |> cursorScope
+                |> tokenizeBuffer True 0
 
         ReadClipboard result ->
             case result of
@@ -1866,20 +1804,9 @@ update message buf =
                     in
                         ( buf1
                         , Cmd.batch
-                            [ sendTokenize
-                                buf1.config.syntaxService
-                                { path = buf1.path
-                                , version = buf1.history.version
-                                , line = 0
-                                , lines =
-                                    buf1.lines
-                                        |> B.sliceLines 0
-                                            (buf1.view.scrollTop
-                                                + buf1.view.size.height
-                                                + 1
-                                            )
-                                        |> B.toString
-                                }
+                            [ tokenizeBufferCmd True
+                                0
+                                { buf1 | syntax = Array.empty }
                             , Doc.setTitle buf1.name
                             , if buf1.config.lint then
                                 sendLintProject buf1.config.service buf1.path
@@ -1892,7 +1819,13 @@ update message buf =
                     ( buf, Cmd.none )
 
         Edit info ->
-            ( buf, sendEditBuffer buf.config.service info )
+            ( buf
+            , sendEditBuffer buf.config.service
+                buf.config.syntaxService
+                (buf.view.size.height * 2)
+                buf.config.tabSize
+                info
+            )
 
         SendLint ->
             if buf.config.lint then
@@ -1988,7 +1921,7 @@ update message buf =
                         { path = "[Find]"
                         , cursor = ( 0, 0 )
                         , scrollTop = 0
-                        , content = Just s
+                        , content = Just ( B.fromString s, Array.empty )
                         }
                         buf
 
@@ -2043,7 +1976,13 @@ update message buf =
 editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
 editBuffer info buf =
     if info.path /= "" && info.content == Nothing then
-        ( buf, sendEditBuffer buf.config.service info )
+        ( buf
+        , sendEditBuffer buf.config.service
+            buf.config.syntaxService
+            (info.scrollTop + buf.view.size.height * 2)
+            buf.config.tabSize
+            info
+        )
     else
         let
             view =
@@ -2059,7 +1998,7 @@ editBuffer info buf =
                                 |> Dict.remove info.path
                                 |> Dict.insert buf.path
                                     { path = buf.path
-                                    , content = buf.lines |> B.toString |> Just
+                                    , content = Just ( buf.lines, buf.syntax )
                                     , scrollTop = buf.view.scrollTop
                                     , cursor = buf.cursor
                                     }
@@ -2077,28 +2016,13 @@ editBuffer info buf =
         in
             ( newbuf
             , Cmd.batch
-                ((if newbuf.config.lint then
+                [ if newbuf.config.lint then
                     sendLintProject newbuf.config.service newbuf.path
                   else
                     Cmd.none
-                 )
-                    :: Doc.setTitle newbuf.name
-                    :: [ sendTokenize
-                            buf.config.syntaxService
-                            { path = newbuf.path
-                            , version = newbuf.history.version
-                            , line = 0
-                            , lines =
-                                newbuf.lines
-                                    |> B.sliceLines 0
-                                        (newbuf.view.scrollTop
-                                            + newbuf.view.size.height
-                                            + newbuf.config.tokenizeLinesAhead
-                                        )
-                                    |> B.toString
-                            }
-                       ]
-                )
+                , Doc.setTitle newbuf.name
+                , tokenizeBufferCmd False 0 newbuf
+                ]
             )
 
 
@@ -2109,13 +2033,14 @@ type alias Flags =
     , buffers : Encode.Value
     , activeBuffer : Encode.Value
     , registers : Encode.Value
+    , height : Int
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        { lineHeight, service, syntaxService, buffers, activeBuffer, registers } =
+        { lineHeight, service, syntaxService, buffers, activeBuffer, registers, height } =
             flags
 
         _ =
@@ -2141,7 +2066,16 @@ init flags =
             editBuffer
                 activeBuf
                 { emptyBuffer
-                    | view = { view | lineHeight = lineHeight }
+                    | view =
+                        { view
+                            | lineHeight = lineHeight
+                            , size =
+                                { width = 0
+                                , height =
+                                    (height // lineHeight)
+                                        - emptyBuffer.view.statusbarHeight
+                                }
+                        }
                     , jumps = jumps |> Debug.log "jumps"
                     , config =
                         { defaultBufferConfig
