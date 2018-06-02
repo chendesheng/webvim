@@ -10,70 +10,41 @@ import Vim.AST
         , motionOption
         )
 import Position exposing (Position)
-import PositionClass exposing (findPosition)
+import PositionClass exposing (findPosition, findLineFirst)
 
 
-expandTextObjectHelper :
+expandSingleLineTextObject :
     String
     -> TextObject
     -> Bool
     -> String
     -> Int
     -> Maybe ( Int, Int )
-expandTextObjectHelper wordChars textobj around line cursor =
-    if around then
-        case textobj of
-            Line ->
-                Just ( 0, String.length line )
+expandSingleLineTextObject wordChars textobj around line cursor =
+    case textobj of
+        Word ->
+            Maybe.map2 (,)
+                ((findPosition
+                    wordChars
+                    WordEdge
+                    (motionOption "<]$-")
+                    line
+                    cursor
+                 )
+                 --|> Debug.log "resulta"
+                )
+                ((findPosition
+                    wordChars
+                    WordEdge
+                    (motionOption ">]$-")
+                    line
+                    cursor
+                 )
+                 --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
+                )
 
-            _ ->
-                Nothing
-    else
-        case textobj of
-            Word ->
-                Maybe.map2 (,)
-                    ((findPosition
-                        wordChars
-                        WordEdge
-                        (motionOption "<]$-")
-                        line
-                        cursor
-                     )
-                     --|> Debug.log "resulta"
-                    )
-                    ((findPosition
-                        wordChars
-                        WordEdge
-                        (motionOption ">]$-")
-                        line
-                        cursor
-                     )
-                     --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
-                    )
-
-            Line ->
-                Just
-                    ( (findPosition
-                        wordChars
-                        LineFirst
-                        (motionOption "<]$-")
-                        line
-                        cursor
-                      )
-                        |> Maybe.withDefault 0
-                    , (findPosition
-                        wordChars
-                        LineEnd
-                        (motionOption ">)$-")
-                        line
-                        cursor
-                      )
-                        |> Maybe.map (\x -> x - 1)
-                        |> Maybe.withDefault 0
-                    )
-
-            _ ->
-                Nothing
+        _ ->
+            Nothing
 
 
 wordUnderCursor : String -> Position -> B.TextBuffer -> Maybe ( Position, Position )
@@ -142,25 +113,39 @@ expandTextObject :
     String
     -> TextObject
     -> Bool
-    -> Position
     -> B.TextBuffer
+    -> Position
     -> Maybe ( Position, Position )
-expandTextObject wordChars textobj around ( y, x ) lines =
-    B.getLine y lines
-        |> Maybe.andThen
-            (\line ->
-                (expandTextObjectHelper wordChars
-                    textobj
-                    around
-                    line
-                    x
-                )
-            )
-        |> Maybe.andThen
-            (\rg ->
-                let
-                    ( a, b ) =
-                        rg
-                in
-                    Just ( ( y, a ), ( y, b ) )
-            )
+expandTextObject wordChars textObject around lines ( y, x ) =
+    case textObject of
+        Line ->
+            if around then
+                Just ( ( y, 0 ), ( y + 1, 0 ) )
+            else
+                B.getLine y lines
+                    |> Maybe.map
+                        (\line ->
+                            ( ( y, findLineFirst line )
+                            , ( y + 1, 0 )
+                            )
+                        )
+
+        _ ->
+            B.getLine y lines
+                |> Maybe.andThen
+                    (\line ->
+                        (expandSingleLineTextObject wordChars
+                            textObject
+                            around
+                            line
+                            x
+                        )
+                    )
+                |> Maybe.andThen
+                    (\rg ->
+                        let
+                            ( a, b ) =
+                                rg
+                        in
+                            Just ( ( y, a ), ( y, b + 1 ) )
+                    )

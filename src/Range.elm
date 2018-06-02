@@ -30,8 +30,8 @@ isLinewise range mode =
                 _ ->
                     False
 
-        V.TextObject textobj around ->
-            textobj == V.Line && around
+        V.TextObject textObject around ->
+            textObject == V.Line && around
 
 
 operatorRanges : Maybe Int -> V.OperatorRange -> Buffer -> List ( Position, Position )
@@ -121,29 +121,16 @@ operatorRanges count range buf =
                 _ ->
                     []
 
-        V.TextObject textobj around ->
+        V.TextObject textObject around ->
             let
                 ( y, x ) =
                     buf.cursor
             in
-                (expandTextObject buf.config.wordChars
-                    textobj
-                    around
-                    buf.cursor
-                    buf.lines
-                )
-                    |> Maybe.map
-                        (\rg ->
-                            let
-                                ( a, b ) =
-                                    rg
-
-                                ( ya, xa ) =
-                                    a
-
-                                ( yb, xb ) =
-                                    b
-                            in
-                                [ ( ( ya, xa ), ( yb, xb + 1 ) ) ]
-                        )
+                buf.cursor
+                    |> expandTextObject
+                        buf.config.wordChars
+                        textObject
+                        around
+                        buf.lines
+                    |> Maybe.map List.singleton
                     |> Maybe.withDefault []

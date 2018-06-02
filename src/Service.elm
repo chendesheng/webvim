@@ -24,6 +24,7 @@ import Jumps exposing (Location)
 import Helper exposing (levenshtein, isSpace, notSpace)
 import Internal.TextBuffer as B
 import Task exposing (Task)
+import Regex as Re
 
 
 sendEditBuffer : String -> String -> Int -> Int -> BufferInfo -> Cmd Msg
@@ -142,27 +143,37 @@ syntaxErrorParser =
 parseLintResponse : Result a String -> Result String (List LintError)
 parseLintResponse resp =
     case Result.mapError toString resp of
-        Ok s ->
-            if String.isEmpty s then
-                Ok []
-            else if String.startsWith "[" s then
-                decodeString elmMakeResultDecoder s
-            else
-                case P.run syntaxErrorParser s of
-                    Ok item ->
-                        Ok [ item ]
+        Ok ss ->
+            case Re.split (Re.AtMost 1) (Re.regex "\n") ss of
+                [ dir, s ] ->
+                    if String.startsWith "[" s then
+                        s
+                            |> decodeString elmMakeResultDecoder
+                            |> Result.map
+                                (List.map
+                                    (\item ->
+                                        { item | file = dir ++ item.file }
+                                    )
+                                )
+                    else
+                        case P.run syntaxErrorParser s of
+                            Ok item ->
+                                Ok [ { item | file = dir ++ item.file } ]
 
-                    Err _ ->
-                        Ok
-                            [ { tipe = "error"
-                              , tag = ""
-                              , file = ""
-                              , overview = ""
-                              , details = s
-                              , region = ( ( 0, 0 ), ( 0, 0 ) )
-                              , subRegion = Nothing
-                              }
-                            ]
+                            Err _ ->
+                                Ok
+                                    [ { tipe = "error"
+                                      , tag = ""
+                                      , file = ""
+                                      , overview = ""
+                                      , details = s
+                                      , region = ( ( 0, 0 ), ( 0, 0 ) )
+                                      , subRegion = Nothing
+                                      }
+                                    ]
+
+                _ ->
+                    Ok []
 
         Err err ->
             Err err

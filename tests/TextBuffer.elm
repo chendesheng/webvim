@@ -374,6 +374,14 @@ suite =
                                 (Deletion ( 60, 13 ) ( 60, 15 ))
                                 ( 61, 13 )
                             )
+                , test "delete whole line" <|
+                    \_ ->
+                        Expect.equal
+                            ( 60, 13 )
+                            (B.shiftPositionByPatch
+                                (Deletion ( 60, 0 ) ( 61, 0 ))
+                                ( 61, 13 )
+                            )
                 , test "same line before" <|
                     \_ ->
                         Expect.equal

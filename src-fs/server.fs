@@ -71,16 +71,25 @@ let elmLint (dir: String) (file : String) =
         if p.ExitCode = 0 then
             p.WaitForExit()
             p.Close()
-            Some "[]"
+            Some ""
         else if result.Length = 0 then
             let errResult = p.StandardError.ReadToEnd()
+            trace errResult
             p.WaitForExit()
             p.Close()
-            Some errResult
+            Some ""
         else
             p.WaitForExit()
             p.Close()
-            Some result
+            Some (
+              (if dir.EndsWith("/")
+                then dir
+                else if dir.Length > 0 then dir + "/"
+                else dir
+              )
+              + "\n"
+              + result
+            )
     with :? Exception as e ->
         printfn "[elm-make] error: %s" e.Message
         None

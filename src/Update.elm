@@ -380,12 +380,11 @@ runOperator count register operator buf =
                 Visual { tipe, begin, end } ->
                     case tipe of
                         V.VisualChars ->
-                            (expandTextObject buf.config.wordChars
-                                textobj
-                                around
-                                end
-                                buf.lines
-                            )
+                            end
+                                |> expandTextObject buf.config.wordChars
+                                    textobj
+                                    around
+                                    buf.lines
                                 |> Maybe.map
                                     (\rg ->
                                         let
