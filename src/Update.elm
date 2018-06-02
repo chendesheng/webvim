@@ -1,5 +1,6 @@
 module Update exposing (update, init, Flags)
 
+import Http
 import Brackets exposing (pairBracket)
 import Char
 import Task
@@ -1300,7 +1301,7 @@ tokenizeBufferCmd debounce minBottom buf =
                         , lines = lines
                         }
         in
-            if bottom <= syntaxBottom then
+            if bottom < syntaxBottom then
                 Cmd.none
             else
                 buf.lines
@@ -1582,19 +1583,7 @@ applyVimAST replaying key ast buf =
                     || (oldBuf.lines /= buf.lines)
                     || (oldBuf.syntax /= buf.syntax)
             then
-                let
-                    view =
-                        buf.view
-
-                    matchedCursor =
-                        pairBracket
-                            buf.view.scrollTop
-                            (buf.view.scrollTop + buf.view.size.height)
-                            buf.lines
-                            buf.syntax
-                            buf.cursor
-                in
-                    { buf | view = { view | matchedCursor = matchedCursor } }
+                pairCursor buf
             else
                 buf
 
@@ -1678,17 +1667,8 @@ onTokenized buf resp =
                             { buf
                                 | syntax = syntax1
                                 , syntaxDirtyFrom = Array.length syntax1
-                                , view =
-                                    { view
-                                        | matchedCursor =
-                                            pairBracket
-                                                buf.view.scrollTop
-                                                (buf.view.scrollTop + buf.view.size.height)
-                                                buf.lines
-                                                syntax1
-                                                buf.cursor
-                                    }
                             }
+                                |> pairCursor
                       else
                         buf
                     , Cmd.none
@@ -1726,6 +1706,23 @@ lintErrorToLocationList items =
             }
         )
         items
+
+
+pairCursor : Buffer -> Buffer
+pairCursor buf =
+    updateView
+        (\view ->
+            { view
+                | matchedCursor =
+                    pairBracket
+                        buf.view.scrollTop
+                        (buf.view.scrollTop + buf.view.size.height)
+                        buf.lines
+                        buf.syntax
+                        buf.cursor
+            }
+        )
+        buf
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -1783,41 +1780,61 @@ update message buf =
                 Ok info ->
                     editBuffer info buf
 
-                Err s ->
+                Err (Http.BadStatus resp) ->
+                    case resp.status.code of
+                        404 ->
+                            jumpTo True
+                                { path = resp.body
+                                , cursor = ( 0, 0 )
+                                , scrollTop = 0
+                                , content =
+                                    Just
+                                        ( B.fromString B.lineBreak
+                                        , Array.empty
+                                        )
+                                }
+                                buf
+
+                        _ ->
+                            ( buf, Cmd.none )
+
+                _ ->
                     ( buf, Cmd.none )
 
         Write result ->
             case result of
                 Ok ( lines, syntax ) ->
                     let
-                        buf1 =
-                            if B.isEmpty lines then
-                                Buf.updateSavePoint buf
-                            else
-                                let
-                                    n =
-                                        B.count buf.lines
-
-                                    patches =
-                                        [ Deletion ( 0, 0 ) ( n, 0 )
-                                        , Insertion ( 0, 0 ) lines
-                                        ]
-                                in
-                                    buf
-                                        |> Buf.transaction patches
-                                        |> Buf.commit
-                                        |> Buf.updateSavePoint
-                                        |> Buf.setCursor buf.cursor True
-                                        |> cursorScope
+                        setSyntax buf =
+                            { buf
+                                | syntax = syntax
+                                , syntaxDirtyFrom = Array.length syntax
+                            }
                     in
-                        ( { buf1
-                            | syntax = syntax
-                            , syntaxDirtyFrom = Array.length syntax
-                          }
+                        ( if B.isEmpty lines then
+                            Buf.updateSavePoint buf
+                          else
+                            let
+                                n =
+                                    B.count buf.lines
+
+                                patches =
+                                    [ Deletion ( 0, 0 ) ( n, 0 )
+                                    , Insertion ( 0, 0 ) lines
+                                    ]
+                            in
+                                buf
+                                    |> Buf.transaction patches
+                                    |> Buf.commit
+                                    |> Buf.updateSavePoint
+                                    |> Buf.setCursor buf.cursor True
+                                    |> cursorScope
+                                    |> setSyntax
+                                    |> pairCursor
                         , Cmd.batch
-                            [ Doc.setTitle buf1.name
-                            , if buf1.config.lint then
-                                sendLintProject buf1.config.service buf1.path
+                            [ Doc.setTitle buf.name
+                            , if buf.config.lint then
+                                sendLintProject buf.config.service buf.path
                               else
                                 Cmd.none
                             ]

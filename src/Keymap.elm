@@ -14,6 +14,9 @@ normalKeyMap key =
         "<c-/>" ->
             ":f "
 
+        "<c-s>" ->
+            ":w<cr>"
+
         _ ->
             ""
     )

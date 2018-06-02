@@ -803,9 +803,11 @@ operator isVisual isTemp =
                         |> PushOperator
                     ]
                 , define "<c-^>" JumpLastBuffer
+                    |> dontRecord
                 , define "<c-a>" (IncreaseNumber True)
                 , define "<c-x>" (IncreaseNumber False)
                 , define "<c-]>" JumpToTag
+                    |> dontRecord
                 ]
              )
                 ++ [ countPrefix
