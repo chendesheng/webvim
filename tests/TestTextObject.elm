@@ -75,10 +75,16 @@ suite =
                                         range =
                                             case String.indexes "?" result of
                                                 [ a ] ->
-                                                    Just ( ( 0, a ), ( 0, a + 1 ) )
+                                                    Just
+                                                        ( ( 0, a )
+                                                        , ( 0, a + 1 )
+                                                        )
 
                                                 a :: b :: rest ->
-                                                    Just ( ( 0, a ), ( 0, b + 1 ) )
+                                                    Just
+                                                        ( ( 0, a )
+                                                        , ( 0, b + 1 )
+                                                        )
 
                                                 _ ->
                                                     Nothing

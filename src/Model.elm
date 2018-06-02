@@ -117,7 +117,7 @@ type alias BufferLint =
 type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
-    , syntaxDirtyFrom : Maybe Int
+    , syntaxDirtyFrom : Int
     , lint : BufferLint
     , cursor : Position
     , cursorColumn : Int
@@ -219,7 +219,7 @@ emptyBuffer : Buffer
 emptyBuffer =
     { lines = B.fromString B.lineBreak
     , syntax = Array.empty
-    , syntaxDirtyFrom = Nothing
+    , syntaxDirtyFrom = 0
     , lint = { items = [], count = 0 }
     , cursor = ( 0, 0 )
     , cursorColumn = 0

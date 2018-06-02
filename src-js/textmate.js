@@ -172,7 +172,7 @@ server.route({
       const result = [];
       const grammar = getGrammar(request.query.path);
       console.log('tokenize:', request.query.path)
-      console.log ('lines.length:', lines.length);
+      console.log('lines.length:', lines.length);
       console.log('cache.length:', cache.length);
       console.log('request.query.line:', request.query.line);
       console.log('request.query.version:', request.query.version);

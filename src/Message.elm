@@ -138,7 +138,7 @@ type Msg
     = PressKey Key -- buffer id, key
     | Resize Size
     | Read (Result Http.Error BufferInfo)
-    | Write (Result Http.Error String)
+    | Write (Result Http.Error ( B.TextBuffer, Syntax ))
     | ReadClipboard (Result Http.Error ( Bool, Key, AST, String ))
     | WriteClipboard (Result Http.Error ())
     | Edit BufferInfo

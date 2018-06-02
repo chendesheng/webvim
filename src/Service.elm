@@ -27,8 +27,8 @@ import Task exposing (Task)
 import Regex as Re
 
 
-sendEditBuffer : String -> String -> Int -> Int -> BufferInfo -> Cmd Msg
-sendEditBuffer url syntaxServiceUrl tokenizeLines tabSize info =
+sendReadBuffer : String -> String -> Int -> Int -> BufferInfo -> Cmd Msg
+sendReadBuffer url syntaxServiceUrl tokenizeLines tabSize info =
     url
         ++ "/edit?path="
         ++ info.path
@@ -81,8 +81,8 @@ post url body =
         }
 
 
-sendSaveBuffer : String -> String -> String -> Cmd Msg
-sendSaveBuffer url path buf =
+sendWriteBuffer : String -> String -> Int -> String -> String -> Cmd Msg
+sendWriteBuffer url syntaxServiceUrl tokenizeLines path buf =
     let
         body =
             Http.stringBody "text/plain" buf
@@ -91,7 +91,36 @@ sendSaveBuffer url path buf =
             (url ++ "/write?path=" ++ path)
             body
         )
-            |> Http.send Write
+            |> Http.toTask
+            |> Task.andThen
+                (\s ->
+                    if s == "" then
+                        Task.succeed ( B.empty, Array.empty )
+                    else
+                        let
+                            lines =
+                                B.fromString s
+                        in
+                            sendTokenizeTask syntaxServiceUrl
+                                { path = path
+                                , version = 0
+                                , line = 0
+                                , lines =
+                                    lines
+                                        |> B.sliceLines 0 tokenizeLines
+                                        |> B.toString
+                                }
+                                |> Task.map
+                                    (\res ->
+                                        case res of
+                                            TokenizeSuccess s _ _ syntax ->
+                                                ( lines, syntax )
+
+                                            _ ->
+                                                ( B.empty, Array.empty )
+                                    )
+                )
+            |> Task.attempt Write
 
 
 syntaxErrorParser : Parser LintError

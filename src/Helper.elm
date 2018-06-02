@@ -26,7 +26,7 @@ minMaybe a b =
     else if b == Nothing then
         a
     else
-        Maybe.map2 (\x y -> Basics.min x y) a b
+        Maybe.map2 Basics.min a b
 
 
 fromListBy : (v -> comparable) -> List v -> Dict comparable v

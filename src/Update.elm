@@ -1060,7 +1060,7 @@ scrollToCursor buf =
 cursorScope : Buffer -> Buffer
 cursorScope ({ view, cursor, lines } as buf) =
     let
-        ( y, _ ) =
+        ( y, x ) =
             cursor
 
         maxy =
@@ -1073,9 +1073,23 @@ cursorScope ({ view, cursor, lines } as buf) =
 
         y1 =
             y |> min maxy |> max miny
+
+        x1 =
+            lines
+                |> B.getLine y
+                |> Maybe.map
+                    (\line ->
+                        (String.length line - 2)
+                            |> min x
+                            |> max 0
+                    )
+                |> Maybe.withDefault 0
     in
         if y == y1 then
-            buf
+            if x == x1 then
+                buf
+            else
+                Buf.setCursor ( y1, x1 ) True buf
         else
             case gotoLine y1 lines of
                 Just cursor ->
@@ -1124,6 +1138,7 @@ newBuffer info buf =
             , name = name ++ ext
             , history = emptyBufferHistory
             , syntax = syntax
+            , syntaxDirtyFrom = Array.length syntax
         }
             |> scrollToCursor
 
@@ -1241,9 +1256,9 @@ isModeNameVisual name =
             False
 
 
-tokenizeBuffer : Bool -> Int -> Buffer -> ( Buffer, Cmd Msg )
-tokenizeBuffer debounce minBottom buf =
-    ( buf, tokenizeBufferCmd debounce minBottom buf )
+tokenizeBuffer : Buffer -> ( Buffer, Cmd Msg )
+tokenizeBuffer buf =
+    ( buf, tokenizeBufferCmd False 0 buf )
 
 
 tokenizeBufferCmd : Bool -> Int -> Buffer -> Cmd Msg
@@ -1252,33 +1267,36 @@ tokenizeBufferCmd debounce minBottom buf =
         Cmd.none
     else
         let
+            height =
+                buf.view.size.height
+
             minBottom2 =
-                buf.view.scrollTop
-                    + buf.view.size.height
-                    * 2
+                buf.view.scrollTop + 2 * height
 
             bottom =
                 minBottom
                     |> max minBottom2
                     |> min (B.count buf.lines - 1)
 
+            --|> Debug.log "bottom"
             syntaxBottom =
-                Array.length buf.syntax
+                buf.syntaxDirtyFrom
 
-            tokenizeCmd lines =
+            --|> Debug.log "syntaxBottom"
+            tokenizeCmd line lines =
                 if debounce then
                     debounceTokenize
                         100
                         buf.path
                         buf.history.version
-                        syntaxBottom
+                        line
                         lines
                 else
                     sendTokenize
                         buf.config.syntaxService
                         { path = buf.path
                         , version = buf.history.version
-                        , line = syntaxBottom
+                        , line = line
                         , lines = lines
                         }
         in
@@ -1288,9 +1306,14 @@ tokenizeBufferCmd debounce minBottom buf =
                 buf.lines
                     |> B.sliceLines
                         syntaxBottom
-                        bottom
+                        -- at least fetch one screen
+                        (if bottom - syntaxBottom < height then
+                            syntaxBottom + height
+                         else
+                            bottom
+                        )
                     |> B.toString
-                    |> tokenizeCmd
+                    |> tokenizeCmd syntaxBottom
 
 
 jumpTo : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
@@ -1321,7 +1344,7 @@ jumpTo isSaveJump info buf =
             { buf | jumps = jumps }
                 |> Buf.setCursor cursor True
                 |> setScrollTop scrollTop
-                |> tokenizeBuffer False 0
+                |> tokenizeBuffer
         else
             editBuffer
                 { info | scrollTop = scrollTop }
@@ -1347,13 +1370,23 @@ execute s buf =
 
         [ "w" ] ->
             ( buf
-            , sendSaveBuffer buf.config.service buf.path <|
+            , sendWriteBuffer
+                buf.config.service
+                buf.config.syntaxService
+                (buf.view.scrollTop + buf.view.size.height * 2)
+                buf.path
+              <|
                 B.toString buf.lines
             )
 
         [ "w", path ] ->
             ( buf
-            , sendSaveBuffer buf.config.service path <|
+            , sendWriteBuffer
+                buf.config.service
+                buf.config.syntaxService
+                (buf.view.scrollTop + buf.view.size.height * 2)
+                path
+              <|
                 B.toString buf.lines
             )
 
@@ -1566,49 +1599,27 @@ applyVimAST replaying key ast buf =
                 buf
 
         doTokenize oldBuf ( buf, cmds ) =
-            case buf.syntaxDirtyFrom of
-                Just y ->
-                    ( buf
-                    , sendTokenizeLine
-                        buf.config.syntaxService
-                        { version = buf.history.version
-                        , line = y
-                        , lines =
-                            (buf.lines
-                                |> B.sliceLines y (y + 1)
-                                |> B.toString
-                            )
-                        , path = buf.path
-                        }
-                        :: cmds
-                    )
-
-                _ ->
-                    let
-                        n =
-                            buf.view.scrollTop + buf.view.size.height * 2
-
-                        newBottom =
-                            case buf.mode of
-                                Ex { prefix, visual } ->
-                                    case prefix of
-                                        ExSearch { match } ->
-                                            case match of
-                                                Just ( begin, _ ) ->
-                                                    Tuple.first begin
-                                                        + buf.view.size.height
-                                                        * 2
-
-                                                _ ->
-                                                    n
+            let
+                newBottom =
+                    case buf.mode of
+                        Ex { prefix, visual } ->
+                            case prefix of
+                                ExSearch { match } ->
+                                    case match of
+                                        Just ( begin, _ ) ->
+                                            Tuple.first begin
+                                                + buf.view.size.height
 
                                         _ ->
-                                            n
+                                            0
 
                                 _ ->
-                                    n
-                    in
-                        ( buf, tokenizeBufferCmd True newBottom buf :: cmds )
+                                    0
+
+                        _ ->
+                            0
+            in
+                ( buf, tokenizeBufferCmd True newBottom buf :: cmds )
 
         doSetTitle oldBuf ( buf, cmds ) =
             if Buf.isDirty oldBuf /= Buf.isDirty buf then
@@ -1628,9 +1639,6 @@ applyVimAST replaying key ast buf =
                 ( buf, debounceLint 500 :: cmds )
             else
                 ( buf, cmds )
-
-        clearSyntaxDirtyFrom buf =
-            { buf | syntaxDirtyFrom = Nothing }
     in
         buf
             |> applyEdit count edit register
@@ -1645,7 +1653,6 @@ applyVimAST replaying key ast buf =
             |> doLint buf
             |> doSetTitle buf
             |> doTokenize buf
-            |> Tuple.mapFirst clearSyntaxDirtyFrom
             |> Tuple.mapSecond Cmd.batch
 
 
@@ -1670,6 +1677,7 @@ onTokenized buf resp =
                         in
                             { buf
                                 | syntax = syntax1
+                                , syntaxDirtyFrom = Array.length syntax1
                                 , view =
                                     { view
                                         | matchedCursor =
@@ -1687,19 +1695,20 @@ onTokenized buf resp =
                     )
 
                 LineTokenizeSuccess path version begin tokens ->
-                    tokenizeBuffer False
-                        0
-                        (if
-                            (path == buf.path)
-                                && (version == buf.history.version)
-                         then
-                            { buf | syntax = Array.set begin tokens buf.syntax }
-                         else
-                            buf
-                        )
+                    if
+                        (path == buf.path)
+                            && (version == buf.history.version)
+                    then
+                        tokenizeBuffer
+                            { buf
+                                | syntax = Array.set begin tokens buf.syntax
+                                , syntaxDirtyFrom = begin + 1
+                            }
+                    else
+                        ( buf, Cmd.none )
 
                 TokenizeCacheMiss ->
-                    tokenizeBuffer False 0 { buf | syntax = Array.empty }
+                    tokenizeBuffer { buf | syntaxDirtyFrom = 0 }
 
         Err _ ->
             ( buf, Cmd.none )
@@ -1754,7 +1763,7 @@ update message buf =
                         }
                     )
                 |> cursorScope
-                |> tokenizeBuffer True 0
+                |> tokenizeBuffer
 
         ReadClipboard result ->
             case result of
@@ -1779,10 +1788,10 @@ update message buf =
 
         Write result ->
             case result of
-                Ok s ->
+                Ok ( lines, syntax ) ->
                     let
                         buf1 =
-                            if s == "" then
+                            if B.isEmpty lines then
                                 Buf.updateSavePoint buf
                             else
                                 let
@@ -1791,7 +1800,7 @@ update message buf =
 
                                     patches =
                                         [ Deletion ( 0, 0 ) ( n, 0 )
-                                        , Insertion ( 0, 0 ) (B.fromString s)
+                                        , Insertion ( 0, 0 ) lines
                                         ]
                                 in
                                     buf
@@ -1801,12 +1810,12 @@ update message buf =
                                         |> Buf.setCursor buf.cursor True
                                         |> cursorScope
                     in
-                        ( buf1
+                        ( { buf1
+                            | syntax = syntax
+                            , syntaxDirtyFrom = Array.length syntax
+                          }
                         , Cmd.batch
-                            [ tokenizeBufferCmd True
-                                0
-                                { buf1 | syntax = Array.empty }
-                            , Doc.setTitle buf1.name
+                            [ Doc.setTitle buf1.name
                             , if buf1.config.lint then
                                 sendLintProject buf1.config.service buf1.path
                               else
@@ -1819,7 +1828,7 @@ update message buf =
 
         Edit info ->
             ( buf
-            , sendEditBuffer buf.config.service
+            , sendReadBuffer buf.config.service
                 buf.config.syntaxService
                 (buf.view.size.height * 2)
                 buf.config.tabSize
@@ -1976,7 +1985,7 @@ editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
 editBuffer info buf =
     if info.path /= "" && info.content == Nothing then
         ( buf
-        , sendEditBuffer buf.config.service
+        , sendReadBuffer buf.config.service
             buf.config.syntaxService
             (info.scrollTop + buf.view.size.height * 2)
             buf.config.tabSize

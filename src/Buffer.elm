@@ -139,9 +139,9 @@ arrayLast arr =
 transaction : List Patch -> Buffer -> Buffer
 transaction patches buf =
     let
-        ( buf1, undo, miny ) =
+        ( buf1, undo ) =
             List.foldl
-                (\patch ( buf, undo, miny ) ->
+                (\patch ( buf, undo ) ->
                     let
                         ( patch1, lines ) =
                             applyPatch patch buf.lines
@@ -149,23 +149,25 @@ transaction patches buf =
                         cursor =
                             updateCursor patch patch1 buf.cursor
 
-                        ( syntax, dirtyFrom ) =
+                        ( syntax, _ ) =
                             applyPatchToSyntax patch buf.syntax
+
+                        ( y, _ ) =
+                            cursor
                     in
                         ( { buf
                             | lines = lines
                             , cursor = cursor
                             , syntax = syntax
                             , syntaxDirtyFrom =
-                                minMaybe
+                                min
                                     buf.syntaxDirtyFrom
-                                    dirtyFrom
+                                    y
                           }
                         , patch1 :: undo
-                        , min miny (minLine patch)
                         )
                 )
-                ( buf, [], 0x000000FFFFFFFFFF )
+                ( buf, [] )
                 patches
 
         --_ =
@@ -324,13 +326,16 @@ undo buf =
                             |> List.map B.patchCursor
                             |> List.minimum
                             |> Maybe.withDefault buf.cursor
+
+                    ( y, x ) =
+                        cursor
                 in
                     { buf
                         | lines = lines1
                         , cursor = cursor
-                        , cursorColumn = Tuple.second cursor
+                        , cursorColumn = x
                         , syntax = syntax
-                        , syntaxDirtyFrom = minMaybe buf.syntaxDirtyFrom n
+                        , syntaxDirtyFrom = y
                         , history = undoHistory buf.history
                         , jumps = jumps
                         , lint =
@@ -381,13 +386,16 @@ redo buf =
                             |> List.map B.patchCursor
                             |> List.minimum
                             |> Maybe.withDefault buf.cursor
+
+                    ( y, x ) =
+                        cursor
                 in
                     { buf
                         | lines = lines1
                         , cursor = cursor
-                        , cursorColumn = Tuple.second cursor
+                        , cursorColumn = x
                         , syntax = syntax
-                        , syntaxDirtyFrom = minMaybe buf.syntaxDirtyFrom n
+                        , syntaxDirtyFrom = y
                         , history = redoHistory buf.history
                         , jumps = jumps
                         , lint =

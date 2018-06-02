@@ -1439,13 +1439,13 @@ allCases =
                 { buf
                     | dotRegister = ""
                     , history = { history | version = 0 }
-                    , syntaxDirtyFrom = Nothing
+                    , syntaxDirtyFrom = 0
                     , syntax = Array.empty
                 }
 
         clearSyntax buf =
             { buf
-                | syntaxDirtyFrom = Nothing
+                | syntaxDirtyFrom = 0
                 , syntax = Array.empty
             }
 
