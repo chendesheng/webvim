@@ -576,6 +576,23 @@ cases =
     , ( "2"
       , ( { initialMode | count = Just 2 }, "2" )
       )
+    , ( "2w"
+      , ( { initialMode
+            | count = Just 2
+            , edit = Just (Move WordStart (motionOption ">)+-"))
+          }
+        , ""
+        )
+      )
+    , ( "2x"
+      , ( { initialMode
+            | count = Just 2
+            , edit = Just (Delete (MotionRange CharStart (motionOption ">)$-")))
+            , recordKeys = "2x"
+          }
+        , ""
+        )
+      )
     , ( "23"
       , ( { initialMode | count = Just 23 }, "23" )
       )

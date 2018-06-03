@@ -4,6 +4,7 @@ import Vim.AST exposing (..)
 import Vim.Helper exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Register exposing (..)
+import Regex as Re exposing (regex)
 
 
 -- This parser is crazy, too much edge cases,
@@ -1000,6 +1001,12 @@ macro isVisual =
         )
 
 
+containsOnlyDigits : String -> Bool
+containsOnlyDigits =
+    Re.find (Re.AtMost 1) (regex "[^\\d]")
+        >> List.isEmpty
+
+
 parse : String -> Key -> ( AST, String )
 parse lastKeys key =
     if key == "<c-c>" then
@@ -1026,7 +1033,14 @@ parse lastKeys key =
               , recordMacro = aggregateRecordingMacro modeDelta
               , recordKeys =
                     if String.isEmpty continuation then
-                        aggregateRecordKeys modeDelta
+                        let
+                            keys =
+                                aggregateRecordKeys modeDelta
+                        in
+                            if containsOnlyDigits keys then
+                                ""
+                            else
+                                keys
                         --|> Debug.log "recordKeys"
                     else
                         ""
