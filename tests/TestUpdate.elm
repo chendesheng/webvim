@@ -4,16 +4,16 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import Update exposing (update)
 import Model exposing (..)
-import Buffer as Buf
+import Update.Buffer as Buf
 import Internal.TextBuffer as B exposing (Patch(..))
-import Message exposing (Msg(..), Key)
+import Update.Message exposing (Msg(..), Key)
 import Parser as P exposing ((|.), (|=), Parser)
 import Dict
 import Maybe
 import Vim.Helper exposing (keyParser)
 import Vim.AST exposing (VisualType(..))
 import Elm.Array as Array
-import Jumps exposing (Location)
+import Internal.Jumps exposing (Location)
 
 
 handleKeys : List Key -> Model -> Model

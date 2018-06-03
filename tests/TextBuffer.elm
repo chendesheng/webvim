@@ -4,7 +4,7 @@ import Fuzz
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
-import Position exposing (..)
+import Internal.Position exposing (..)
 import Elm.Array as Array
 import String
 

@@ -1,15 +1,14 @@
 port module Main exposing (..)
 
 import Model exposing (..)
-import Message exposing (..)
+import Update.Message exposing (..)
 import Platform as P
 import Update exposing (..)
 import Html
 import View exposing (..)
-import KeySub exposing (downs)
+import Helper.KeySub exposing (downs)
 import Window exposing (resizes)
-import Message exposing (..)
-import Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
+import Helper.Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
 import Json.Decode as Decode exposing (decodeValue)
 import List
 

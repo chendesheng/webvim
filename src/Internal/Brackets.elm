@@ -1,17 +1,17 @@
-module Brackets exposing (..)
+module Internal.Brackets exposing (..)
 
 import Regex as Re exposing (Regex, regex)
-import Syntax
+import Internal.Syntax
     exposing
         ( Syntax
         , Token
         , splitTokens
         , getToken
         , TokenType(..)
+        , iterateTokens
         )
 import Internal.TextBuffer as B exposing (TextBuffer)
-import Buffer exposing (iterateTokens)
-import Position exposing (Position)
+import Internal.Position exposing (Position)
 import Parser as P exposing ((|.), (|=), Parser)
 
 

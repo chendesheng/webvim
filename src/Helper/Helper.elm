@@ -1,4 +1,4 @@
-module Helper exposing (..)
+module Helper.Helper exposing (..)
 
 import Dict exposing (Dict)
 import Regex as Re exposing (Regex)

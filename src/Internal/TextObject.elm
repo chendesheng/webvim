@@ -1,4 +1,4 @@
-module TextObject exposing (..)
+module Internal.TextObject exposing (..)
 
 import Internal.TextBuffer as B
 import Vim.AST
@@ -9,8 +9,8 @@ import Vim.AST
         , TextObject(..)
         , motionOption
         )
-import Position exposing (Position)
-import PositionClass exposing (findPosition, findLineFirst)
+import Internal.Position exposing (Position)
+import Internal.PositionClass exposing (findPosition, findLineFirst)
 
 
 expandSingleLineTextObject :

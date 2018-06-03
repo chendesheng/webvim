@@ -3,13 +3,13 @@ module BufferTest exposing (..)
 import Fuzz
 import Expect exposing (Expectation)
 import Test exposing (..)
-import Buffer exposing (..)
+import Update.Buffer exposing (..)
 import Model exposing (Buffer, emptyBuffer, BufferHistory, emptyBufferHistory)
 import Internal.TextBuffer as B exposing (Patch(..))
 import TextBuffer exposing (..)
-import Syntax exposing (TokenType(..))
+import Internal.Syntax exposing (TokenType(..), iterateTokens)
 import Elm.Array as Array
-import Brackets exposing (pairBracket)
+import Internal.Brackets exposing (pairBracket)
 
 
 repeat : Int -> (a -> a) -> (a -> a)

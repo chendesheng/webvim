@@ -2,10 +2,10 @@ module TestSyntax exposing (..)
 
 import Expect exposing (Expectation)
 import Test exposing (..)
-import Syntax exposing (..)
+import Internal.Syntax exposing (..)
 import Elm.Array as Array exposing (Array)
 import Internal.TextBuffer as B exposing (Patch(..))
-import Helper exposing (..)
+import Helper.Helper exposing (..)
 
 
 testSyntax : Syntax

@@ -1,4 +1,4 @@
-module Position exposing (..)
+module Internal.Position exposing (..)
 
 {-| ( row, col )
 -}

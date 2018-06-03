@@ -1,4 +1,4 @@
-module PositionClass
+module Internal.PositionClass
     exposing
         ( findPosition
         , findLineFirst
@@ -17,7 +17,7 @@ import Vim.AST
         , motionOption
         )
 import Maybe
-import Helper exposing (isSpace, notSpace)
+import Helper.Helper exposing (isSpace, notSpace)
 
 
 isBetween : Char -> Char -> Char -> Bool

@@ -1,13 +1,13 @@
-module Insert exposing (insert, openNewLine, autoIndent)
+module Update.Insert exposing (insert, openNewLine, autoIndent)
 
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
-import Buffer as Buf
+import Update.Buffer as Buf
 import Tuple
-import PositionClass exposing (findPosition, findLineFirst)
+import Internal.PositionClass exposing (findPosition, findLineFirst)
 import String
-import Motion exposing (wordStringUnderCursor)
+import Update.Motion exposing (wordStringUnderCursor)
 
 
 getString : Buffer -> V.StringType -> String

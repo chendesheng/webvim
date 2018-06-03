@@ -1,10 +1,10 @@
-module Range exposing (..)
+module Update.Range exposing (..)
 
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
-import Position exposing (Position, positionMin)
-import TextObject exposing (expandTextObject)
-import Motion exposing (..)
+import Internal.Position exposing (Position, positionMin)
+import Internal.TextObject exposing (expandTextObject)
+import Update.Motion exposing (..)
 
 
 isLinewise : V.OperatorRange -> Mode -> Bool

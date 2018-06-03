@@ -3,7 +3,7 @@ module TestTextObject exposing (..)
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Internal.TextBuffer as B
-import TextObject exposing (expandTextObject)
+import Internal.TextObject exposing (expandTextObject)
 import Vim.AST
     exposing
         ( MotionData(..)

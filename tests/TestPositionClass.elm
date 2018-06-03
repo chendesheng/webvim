@@ -2,7 +2,7 @@ module TestPositionClass exposing (..)
 
 import Expect exposing (Expectation)
 import Test exposing (..)
-import PositionClass exposing (..)
+import Internal.PositionClass exposing (..)
 import Vim.AST
     exposing
         ( MotionData(..)

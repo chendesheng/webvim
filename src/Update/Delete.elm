@@ -1,18 +1,18 @@
-module Delete
+module Update.Delete
     exposing
         ( delete
         , join
         , toRegisterText
         )
 
-import Range exposing (operatorRanges, isLinewise)
+import Update.Range exposing (operatorRanges, isLinewise)
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
-import Buffer as Buf
-import Position exposing (Position, positionMin)
-import Motion exposing (..)
-import PositionClass exposing (findLineFirst)
+import Update.Buffer as Buf
+import Internal.Position exposing (Position, positionMin)
+import Update.Motion exposing (..)
+import Internal.PositionClass exposing (findLineFirst)
 import List
 
 

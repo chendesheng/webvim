@@ -5,7 +5,7 @@ import Char
 import String
 import List
 import Result
-import Helper exposing (getLast)
+import Helper.Helper exposing (getLast)
 import Vim.AST
     exposing
         ( ModeDelta

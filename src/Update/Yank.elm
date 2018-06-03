@@ -1,13 +1,13 @@
-module Yank exposing (..)
+module Update.Yank exposing (..)
 
 import Model exposing (RegisterText(..), Buffer, Mode(..))
 import Vim.AST as V exposing (Operator(..))
-import Range exposing (operatorRanges, isLinewise)
-import Buffer exposing (setRegister)
+import Update.Range exposing (operatorRanges, isLinewise)
+import Update.Buffer exposing (setRegister)
 import Internal.TextBuffer as B
 import String
-import Message exposing (..)
-import Service exposing (sendWriteClipboard)
+import Update.Message exposing (..)
+import Update.Service exposing (sendWriteClipboard)
 
 
 yank : Maybe Int -> String -> V.OperatorRange -> Buffer -> ( Buffer, Cmd Msg )

@@ -24,7 +24,7 @@ module Internal.TextBuffer
         , shiftPositionByPatch
         )
 
-import Position exposing (..)
+import Internal.Position exposing (..)
 import Elm.Array as Array exposing (Array)
 import String
 import List

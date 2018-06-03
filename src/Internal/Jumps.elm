@@ -1,4 +1,4 @@
-module Jumps
+module Internal.Jumps
     exposing
         ( saveJump
         , Location
@@ -11,7 +11,7 @@ module Jumps
         , applyPatchesToLocations
         )
 
-import Position exposing (Position)
+import Internal.Position exposing (Position)
 import Internal.TextBuffer
     exposing
         ( Patch

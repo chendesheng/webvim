@@ -1,4 +1,4 @@
-module Buffer
+module Update.Buffer
     exposing
         ( transaction
         , insert
@@ -17,11 +17,10 @@ module Buffer
         , isDirty
         , isEditing
         , configs
-        , iterateTokens
         )
 
-import Position exposing (..)
-import PositionClass exposing (findLineFirst)
+import Internal.Position exposing (..)
+import Internal.PositionClass exposing (findLineFirst)
 import Model
     exposing
         ( Buffer
@@ -57,7 +56,7 @@ import Vim.AST
 import String
 import Maybe
 import Dict exposing (Dict)
-import Syntax
+import Internal.Syntax
     exposing
         ( Syntax
         , Token
@@ -66,8 +65,8 @@ import Syntax
         , splitTokens
         )
 import Elm.Array as Array exposing (Array)
-import Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
-import Message exposing (LintError)
+import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
+import Update.Message exposing (LintError)
 
 
 applyPatchToLintError : Patch -> LintError -> LintError
@@ -590,103 +589,3 @@ isEditing : Buffer -> Buffer -> Bool
 isEditing buf1 buf2 =
     buf1.history.version
         /= buf2.history.version
-
-
-iterateTokens :
-    Bool
-    -> (Position -> String -> Token -> a -> ( a, Bool ))
-    -> B.TextBuffer
-    -> Syntax
-    -> Position
-    -> Int
-    -> a
-    -> a
-iterateTokens forward fn lines syntax ( y, x ) lineLimit init =
-    let
-        iterateTokensHelper :
-            (Position -> String -> Token -> a -> ( a, Bool ))
-            -> a
-            -> Position
-            -> String
-            -> List Token
-            -> ( a, Bool )
-        iterateTokensHelper fn init ( y, x1 ) line tokens =
-            case tokens of
-                token :: restTokens ->
-                    let
-                        x =
-                            if x1 == -1 then
-                                String.length line
-                            else
-                                x1
-
-                        res =
-                            fn
-                                ( y, x )
-                                line
-                                token
-                                init
-
-                        ( next, stop ) =
-                            res
-                    in
-                        if stop then
-                            res
-                        else
-                            iterateTokensHelper
-                                fn
-                                next
-                                ( y
-                                , if forward then
-                                    x + token.length
-                                  else
-                                    x - token.length
-                                )
-                                line
-                                restTokens
-
-                _ ->
-                    ( init, False )
-
-        result =
-            Maybe.map2
-                (iterateTokensHelper fn init ( y, x ))
-                (B.getLine y lines)
-                (syntax
-                    |> Array.get y
-                    |> Maybe.map
-                        (if x == -1 then
-                            List.reverse
-                         else
-                            splitTokens x
-                                >> (if forward then
-                                        Tuple.second
-                                    else
-                                        Tuple.first
-                                   )
-                        )
-                )
-    in
-        case result of
-            Just ( next, stop ) ->
-                if stop then
-                    next
-                else if forward && y >= lineLimit then
-                    init
-                else if not forward && y < lineLimit then
-                    init
-                else
-                    iterateTokens forward
-                        fn
-                        lines
-                        syntax
-                        (if forward then
-                            ( y + 1, 0 )
-                         else
-                            ( y - 1, -1 )
-                        )
-                        lineLimit
-                        next
-
-            _ ->
-                init

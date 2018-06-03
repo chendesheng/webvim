@@ -1,8 +1,8 @@
-module Fuzzy exposing (..)
+module Helper.Fuzzy exposing (..)
 
 import List
 import String
-import Helper exposing (getLast)
+import Helper.Helper exposing (getLast)
 
 
 type alias FuzzyMatchItem =

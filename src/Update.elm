@@ -1,43 +1,42 @@
 module Update exposing (update, init, Flags)
 
 import Http
-import Brackets exposing (pairBracket)
+import Internal.Brackets exposing (pairBracket)
 import Char
 import Task
-import Keymap exposing (keymap)
+import Update.Keymap exposing (keymap)
 import Window as Win exposing (Size)
 import Json.Encode as Encode
 import Json.Decode as Decode
 import Model exposing (..)
-import Message exposing (..)
+import Update.Message exposing (..)
 import Vim.Helper exposing (parseKeys, escapeKey)
 import Vim.AST exposing (AST)
-import Helper exposing (fromListBy, filename, safeRegex, isSpace, notSpace)
+import Helper.Helper exposing (fromListBy, filename, safeRegex, isSpace, notSpace)
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
-import Buffer as Buf
+import Update.Buffer as Buf
 import Dict exposing (Dict)
 import Parser as P exposing ((|.), (|=), Parser)
-import Motion exposing (..)
-import Delete exposing (..)
-import Insert exposing (..)
-import Position exposing (Position)
-import PositionClass exposing (findLineFirst)
+import Update.Motion exposing (..)
+import Update.Delete exposing (..)
+import Update.Insert exposing (..)
+import Internal.Position exposing (Position)
+import Internal.PositionClass exposing (findLineFirst)
 import Regex as Re
-import TextObject exposing (expandTextObject)
+import Internal.TextObject exposing (expandTextObject)
 import Result
 import List
 import Tuple
 import String
-import Service exposing (..)
-import Yank exposing (yank)
-import Debounce exposing (debounceLint, debounceTokenize)
-import Service exposing (sendTokenize)
+import Update.Service exposing (..)
+import Update.Yank exposing (yank)
+import Helper.Debounce exposing (debounceLint, debounceTokenize)
 import Elm.Array as Array
-import Document as Doc
-import Fuzzy exposing (..)
-import Jumps
+import Helper.Document as Doc
+import Helper.Fuzzy exposing (..)
+import Internal.Jumps
     exposing
         ( saveJump
         , jumpForward
@@ -46,7 +45,7 @@ import Jumps
         , Location
         , currentLocation
         )
-import Range exposing (operatorRanges)
+import Update.Range exposing (operatorRanges)
 
 
 stringToPrefix : String -> ExPrefix

@@ -1,6 +1,6 @@
-module Keymap exposing (keymap)
+module Update.Keymap exposing (keymap)
 
-import Message exposing (Key)
+import Update.Message exposing (Key)
 import Vim.Helper exposing (parseKeys)
 import Model exposing (Mode(..))
 

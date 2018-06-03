@@ -7,10 +7,10 @@ import Internal.TextBuffer as B
 import Elm.Array as Array
 import List
 import Html.Attributes exposing (..)
-import Position exposing (Position)
+import Internal.Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
-import Syntax exposing (Syntax, Token)
-import Message
+import Internal.Syntax exposing (Syntax, Token)
+import Update.Message
     exposing
         ( LintError
         , BufferInfo
@@ -19,7 +19,7 @@ import Message
         )
 import String
 import Elm.Array exposing (Array)
-import Buffer as Buf
+import Update.Buffer as Buf
 import Dict exposing (Dict)
 
 

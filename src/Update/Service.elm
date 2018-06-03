@@ -1,7 +1,7 @@
-module Service exposing (..)
+module Update.Service exposing (..)
 
 import Http
-import Message
+import Update.Message
     exposing
         ( Msg(..)
         , BufferInfo
@@ -15,13 +15,13 @@ import Message
 import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
 import Bitwise as Bit
-import Syntax exposing (Token, TokenType(..))
+import Internal.Syntax exposing (Token, TokenType(..))
 import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
 import Vim.AST exposing (AST)
-import Jumps exposing (Location)
-import Helper exposing (levenshtein, isSpace, notSpace)
+import Internal.Jumps exposing (Location)
+import Helper.Helper exposing (levenshtein, isSpace, notSpace)
 import Internal.TextBuffer as B
 import Task exposing (Task)
 import Regex as Re

@@ -1,4 +1,4 @@
-module KeyEvent exposing (decodeKeyboardEvent)
+module Helper.KeyEvent exposing (decodeKeyboardEvent)
 
 import Json.Decode exposing (Decoder, map, map7, int, field, oneOf, andThen, maybe, succeed, fail, bool, string)
 import String

@@ -1,6 +1,6 @@
-effect module KeySub where { subscription = MySub } exposing (..)
+effect module Helper.KeySub where { subscription = MySub } exposing (..)
 
-import KeyEvent exposing (decodeKeyboardEvent)
+import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Dict
 import Process
 import Task exposing (Task)

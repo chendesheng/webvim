@@ -1,10 +1,10 @@
-module Syntax exposing (..)
+module Internal.Syntax exposing (..)
 
 import Elm.Array as Array exposing (Array)
 import Internal.TextBuffer as B exposing (Patch(..))
-import Helper exposing (..)
+import Helper.Helper exposing (..)
 import List
-import Position exposing (Position)
+import Internal.Position exposing (Position)
 
 
 type TokenType
@@ -257,3 +257,103 @@ getToken ( y, x ) syntax =
 
         _ ->
             Nothing
+
+
+iterateTokens :
+    Bool
+    -> (Position -> String -> Token -> a -> ( a, Bool ))
+    -> B.TextBuffer
+    -> Syntax
+    -> Position
+    -> Int
+    -> a
+    -> a
+iterateTokens forward fn lines syntax ( y, x ) lineLimit init =
+    let
+        iterateTokensHelper :
+            (Position -> String -> Token -> a -> ( a, Bool ))
+            -> a
+            -> Position
+            -> String
+            -> List Token
+            -> ( a, Bool )
+        iterateTokensHelper fn init ( y, x1 ) line tokens =
+            case tokens of
+                token :: restTokens ->
+                    let
+                        x =
+                            if x1 == -1 then
+                                String.length line
+                            else
+                                x1
+
+                        res =
+                            fn
+                                ( y, x )
+                                line
+                                token
+                                init
+
+                        ( next, stop ) =
+                            res
+                    in
+                        if stop then
+                            res
+                        else
+                            iterateTokensHelper
+                                fn
+                                next
+                                ( y
+                                , if forward then
+                                    x + token.length
+                                  else
+                                    x - token.length
+                                )
+                                line
+                                restTokens
+
+                _ ->
+                    ( init, False )
+
+        result =
+            Maybe.map2
+                (iterateTokensHelper fn init ( y, x ))
+                (B.getLine y lines)
+                (syntax
+                    |> Array.get y
+                    |> Maybe.map
+                        (if x == -1 then
+                            List.reverse
+                         else
+                            splitTokens x
+                                >> (if forward then
+                                        Tuple.second
+                                    else
+                                        Tuple.first
+                                   )
+                        )
+                )
+    in
+        case result of
+            Just ( next, stop ) ->
+                if stop then
+                    next
+                else if forward && y >= lineLimit then
+                    init
+                else if not forward && y < lineLimit then
+                    init
+                else
+                    iterateTokens forward
+                        fn
+                        lines
+                        syntax
+                        (if forward then
+                            ( y + 1, 0 )
+                         else
+                            ( y - 1, -1 )
+                        )
+                        lineLimit
+                        next
+
+            _ ->
+                init

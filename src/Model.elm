@@ -1,17 +1,17 @@
 module Model exposing (..)
 
-import Message exposing (Msg(..), BufferInfo, LintError, bufferInfoDecoder)
-import Position exposing (..)
+import Update.Message exposing (Msg(..), BufferInfo, LintError, bufferInfoDecoder)
+import Internal.Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
 import Dict exposing (Dict)
 import Vim.AST as V exposing (VisualType(..))
-import Syntax exposing (..)
+import Internal.Syntax exposing (..)
 import Elm.Array as Array
 import Json.Encode as Encode
-import Fuzzy exposing (FuzzyMatchItem)
+import Helper.Fuzzy exposing (FuzzyMatchItem)
 import Elm.Array exposing (Array)
-import Jumps exposing (..)
+import Internal.Jumps exposing (..)
 import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode

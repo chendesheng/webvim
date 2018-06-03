@@ -3,7 +3,7 @@ module TestLint exposing (..)
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Parser as P
-import Service exposing (syntaxErrorParser)
+import Update.Service exposing (syntaxErrorParser)
 
 
 suite : Test

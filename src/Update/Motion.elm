@@ -1,4 +1,4 @@
-module Motion
+module Update.Motion
     exposing
         ( saveMotion
         , gotoLine
@@ -14,16 +14,16 @@ module Motion
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
-import Buffer as Buf
-import Position exposing (Position, positionMin)
+import Update.Buffer as Buf
+import Internal.Position exposing (Position, positionMin)
 import String
-import PositionClass exposing (..)
+import Internal.PositionClass exposing (..)
 import Regex as Re exposing (regex)
-import Jumps exposing (saveJump)
-import Message exposing (Msg(..))
-import TextObject exposing (wordUnderCursor, wORDUnderCursor)
-import Helper exposing (repeatfn)
-import Brackets exposing (pairBracket, bracketsParser)
+import Internal.Jumps exposing (saveJump)
+import Update.Message exposing (Msg(..))
+import Internal.TextObject exposing (wordUnderCursor, wORDUnderCursor)
+import Helper.Helper exposing (repeatfn)
+import Internal.Brackets exposing (pairBracket, bracketsParser)
 import Parser as P
 import Elm.Array as Array
 

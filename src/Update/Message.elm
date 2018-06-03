@@ -1,14 +1,14 @@
-module Message exposing (..)
+module Update.Message exposing (..)
 
 import Window exposing (Size)
 import Result
 import Http
-import Position exposing (Position)
+import Internal.Position exposing (Position)
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Syntax exposing (Token, Syntax)
+import Internal.Syntax exposing (Token, Syntax)
 import Vim.AST exposing (AST)
-import Jumps exposing (Location)
+import Internal.Jumps exposing (Location)
 import Internal.TextBuffer as B
 
 
