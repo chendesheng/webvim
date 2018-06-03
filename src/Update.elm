@@ -1057,7 +1057,7 @@ cursorScope ({ view, cursor, lines } as buf) =
         maxy =
             min
                 (view.scrollTop + view.size.height - 1)
-                (B.count lines - 1)
+                (max 0 (B.count lines - 2))
 
         miny =
             min view.scrollTop maxy

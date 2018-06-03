@@ -21,7 +21,6 @@
 
 @statusbar-height: 1.2rem;
 @statusbar-background: #166163;
-@statusbar-dirty-background: #6f0c0c;
 @gutter-lines-spacing: 0ch;
 @font-family: "iosevka";
 @line-height: 23px;
@@ -183,7 +182,7 @@ html, body {
 }
 
 .status.dirty {
-  background: linear-gradient(0deg, @statusbar-dirty-background, lighten(@statusbar-dirty-background, 2%));
+  opacity: 0.8;
 }
 
 .status > div:first-child {

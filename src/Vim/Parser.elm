@@ -308,21 +308,20 @@ gKey map extra =
         readKeyAndThen "g"
             [ PushKey "g" ]
             (P.oneOf
-                [ P.oneOf
-                    [ define "g" BufferTop gotoLineOption
-                    , define "j" VLineDelta (motionOption ">]+=")
-                        |> dontRecord
-                    , define "k" VLineDelta (motionOption "<]+=")
-                        |> dontRecord
-                    , define "n" (MatchString LastSavedString) (motionOption ">]+-")
-                        |> dontRecord
-                    , define "N" (MatchString LastSavedString) (motionOption "<]+-")
-                        |> dontRecord
-                    , define "e" WordEnd backwardWordEndOption
-                        |> dontRecord
-                    , define "E" WORDEnd backwardWordEndOption
-                        |> dontRecord
-                    ]
+                [ define "g" BufferTop gotoLineOption
+                    |> dontRecord
+                , define "j" VLineDelta (motionOption ">]+=")
+                    |> dontRecord
+                , define "k" VLineDelta (motionOption "<]+=")
+                    |> dontRecord
+                , define "n" (MatchString LastSavedString) (motionOption ">]+-")
+                    |> dontRecord
+                , define "N" (MatchString LastSavedString) (motionOption "<]+-")
+                    |> dontRecord
+                , define "e" WordEnd backwardWordEndOption
+                    |> dontRecord
+                , define "E" WORDEnd backwardWordEndOption
+                    |> dontRecord
                 , extra
                 , P.succeed (makePushKeys "g" >> pushComplete)
                     |= keyParser

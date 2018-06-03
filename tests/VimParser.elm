@@ -43,7 +43,6 @@ cases =
                 motionOption ">]+="
                     |> Move BufferTop
                     |> Just
-            , recordKeys = "gg"
           }
         , ""
         )
