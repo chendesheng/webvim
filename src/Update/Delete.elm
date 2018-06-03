@@ -147,9 +147,18 @@ delete count register rg buf =
             _ ->
                 deleteAnd
                     (saveLastDeleted linewise register
+                        >> indentCursor linewise
                         >> updateCursorColumn
                     )
                     buf
+
+
+indentCursor : Bool -> Buffer -> Buffer
+indentCursor linewise buf =
+    if linewise then
+        Buf.indentCursorToLineFirst buf
+    else
+        buf
 
 
 toRegisterText : Bool -> String -> RegisterText

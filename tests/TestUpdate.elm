@@ -726,6 +726,15 @@ deleteCases =
                 }
         }
       )
+    , ( "ji  <esc>kdd"
+      , { deleteCasesBuf
+            | lines = B.fromString "  456\n"
+            , registers = Dict.fromList [ ( "\"", Lines " 123\n" ) ]
+            , cursor = ( 0, 2 )
+            , cursorColumn = 2
+            , last = { emptyLast | inserts = "  " }
+        }
+      )
     ]
 
 

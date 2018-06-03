@@ -522,11 +522,13 @@ runOperator count register operator buf =
         Undo ->
             buf
                 |> Buf.undo
+                |> Buf.indentCursorToLineFirst
                 |> cmdNone
 
         Redo ->
             buf
                 |> Buf.redo
+                |> Buf.indentCursorToLineFirst
                 |> cmdNone
 
         OpenNewLine forward ->

@@ -17,6 +17,7 @@ module Update.Buffer
         , isDirty
         , isEditing
         , configs
+        , indentCursorToLineFirst
         )
 
 import Internal.Position exposing (..)
@@ -589,3 +590,23 @@ isEditing : Buffer -> Buffer -> Bool
 isEditing buf1 buf2 =
     buf1.history.version
         /= buf2.history.version
+
+
+indentCursorToLineFirst : Buffer -> Buffer
+indentCursorToLineFirst buf =
+    let
+        ( y, x ) =
+            buf.cursor
+    in
+        if x == 0 then
+            setCursor
+                ( y
+                , buf.lines
+                    |> B.getLine y
+                    |> Maybe.map findLineFirst
+                    |> Maybe.withDefault 0
+                )
+                True
+                buf
+        else
+            buf
