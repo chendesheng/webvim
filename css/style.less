@@ -1,3 +1,23 @@
+@import '../node_modules/@fortawesome/fontawesome-free-webfonts/less/fontawesome';
+
+@fa-font-path: '../node_modules/@fortawesome/fontawesome-free-webfonts/webfonts';
+
+@font-face {
+  font-family: 'Font Awesome 5 Free';
+  font-style: normal;
+  font-weight: 400;
+  src: url('@{fa-font-path}/fa-regular-400.eot');
+  src: url('@{fa-font-path}/fa-regular-400.eot?#iefix') format('embedded-opentype'),
+    url('@{fa-font-path}/fa-regular-400.woff2') format('woff2'),
+    url('@{fa-font-path}/fa-regular-400.woff') format('woff'),
+    url('@{fa-font-path}/fa-regular-400.ttf') format('truetype'),
+    url('@{fa-font-path}/fa-regular-400.svg#fontawesome') format('svg');
+}
+
+.far {
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 400;
+}
 
 @statusbar-height: 1.2rem;
 @statusbar-background: #166163;
@@ -6,6 +26,8 @@
 @font-family: "iosevka";
 @line-height: 23px;
 @font-size: 17px;
+
+
 
 // solarized light
 // @body-background: #FDF6E3;

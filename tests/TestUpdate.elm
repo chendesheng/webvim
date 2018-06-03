@@ -13,6 +13,7 @@ import Maybe
 import Vim.Helper exposing (keyParser)
 import Vim.AST exposing (VisualType(..))
 import Elm.Array as Array
+import Jumps exposing (Location)
 
 
 handleKeys : List Key -> Model -> Model
@@ -934,6 +935,7 @@ emptyLast :
     , visual : String
     , ex : String
     , indent : Int
+    , jumpToTag : Maybe Location
     }
 emptyLast =
     { matchChar = Nothing
@@ -942,6 +944,7 @@ emptyLast =
     , visual = ""
     , ex = ""
     , indent = 0
+    , jumpToTag = Nothing
     }
 
 

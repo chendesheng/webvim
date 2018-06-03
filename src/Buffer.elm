@@ -66,7 +66,6 @@ import Syntax
         , splitTokens
         )
 import Elm.Array as Array exposing (Array)
-import Helper exposing (minMaybe)
 import Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
 import Message exposing (LintError)
 

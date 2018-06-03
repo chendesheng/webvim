@@ -142,6 +142,7 @@ type alias Buffer =
         , visual : String
         , ex : String
         , indent : Int
+        , jumpToTag : Maybe Location
         }
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
     , jumps : Jumps
@@ -239,6 +240,7 @@ emptyBuffer =
         , visual = ""
         , ex = ""
         , indent = 0
+        , jumpToTag = Nothing
         }
     , vimASTCache = Dict.empty
     , jumps =

@@ -808,6 +808,8 @@ operator isVisual isTemp =
                 , define "<c-x>" (IncreaseNumber False)
                 , define "<c-]>" JumpToTag
                     |> dontRecord
+                , define "<c-t>" JumpBackFromTag
+                    |> dontRecord
                 ]
              )
                 ++ [ countPrefix

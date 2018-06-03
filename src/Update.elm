@@ -751,17 +751,9 @@ runOperator count register operator buf =
                             buf.jumps
             in
                 case currentLocation jumps of
-                    Just { path, cursor } ->
-                        jumpTo False
-                            (buf.buffers
-                                |> Dict.get path
-                                |> Maybe.withDefault
-                                    { path = path
-                                    , cursor = cursor
-                                    , scrollTop = 0
-                                    , content = Nothing
-                                    }
-                            )
+                    Just loc ->
+                        jumpToLocation False
+                            loc
                             { buf | jumps = jumps }
 
                     _ ->
@@ -803,6 +795,14 @@ runOperator count register operator buf =
                 _ ->
                     ( buf, Cmd.none )
 
+        JumpBackFromTag ->
+            case buf.last.jumpToTag of
+                Just loc ->
+                    jumpToLocation True loc buf
+
+                _ ->
+                    ( buf, Cmd.none )
+
         JumpToFile ->
             case wORDStringUnderCursor buf of
                 Just ( _, s ) ->
@@ -835,18 +835,9 @@ runOperator count register operator buf =
                     in
                         case P.run locationParser s of
                             Ok ( path, cursor ) ->
-                                let
-                                    info =
-                                        buf.buffers
-                                            |> Dict.get path
-                                            |> Maybe.withDefault
-                                                { path = path
-                                                , cursor = cursor
-                                                , scrollTop = 0
-                                                , content = Nothing
-                                                }
-                                in
-                                    jumpTo True { info | cursor = cursor } buf
+                                jumpToLocation True
+                                    { path = path, cursor = cursor }
+                                    buf
 
                             _ ->
                                 ( buf, Cmd.none )
@@ -1352,6 +1343,22 @@ jumpTo isSaveJump info buf =
                 { buf | jumps = jumps }
 
 
+jumpToLocation : Bool -> Location -> Buffer -> ( Buffer, Cmd Msg )
+jumpToLocation isSaveJump { path, cursor } buf =
+    let
+        info =
+            buf.buffers
+                |> Dict.get path
+                |> Maybe.withDefault
+                    { path = path
+                    , cursor = cursor
+                    , scrollTop = 0
+                    , content = Nothing
+                    }
+    in
+        jumpTo isSaveJump { info | cursor = cursor } buf
+
+
 execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
@@ -1476,7 +1483,7 @@ exAutoComplete service ex =
                     in
                         ( ex, sendListFiles service )
         else
-            ( ex, Cmd.none )
+            ( { ex | autoComplete = Nothing }, Cmd.none )
 
 
 autoCompleteTarget : Buffer -> String
@@ -1928,13 +1935,30 @@ update message buf =
         ReadTags result ->
             case result of
                 Ok loc ->
-                    jumpTo True
-                        { path = loc.path
-                        , cursor = loc.cursor
-                        , scrollTop = 0
-                        , content = Nothing
-                        }
+                    let
+                        last =
+                            buf.last
+
+                        saveLastJumpToTag buf =
+                            { buf
+                                | last =
+                                    { last
+                                        | jumpToTag =
+                                            Just
+                                                { path = buf.path
+                                                , cursor = buf.cursor
+                                                }
+                                    }
+                            }
+                    in
                         buf
+                            |> saveLastJumpToTag
+                            |> jumpTo True
+                                { path = loc.path
+                                , cursor = loc.cursor
+                                , scrollTop = 0
+                                , content = Nothing
+                                }
 
                 _ ->
                     ( buf, Cmd.none )

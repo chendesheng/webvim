@@ -94,7 +94,7 @@ runTaskList([jsTask, cssTask, ctagsTask, htmlTask,
 watch('src/**/*.elm', [jsTask, ctagsTask, reloadTask]);
 watch('src/Native/*.js', [jsTask, reloadTask]);
 watch([
-  'build/default.html',
+  'build/template.html',
   'build/index.js',
   'build/html.config.js'
 ], [htmlTask, reloadTask]);
