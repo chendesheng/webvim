@@ -369,6 +369,35 @@ cmdNone buf =
     ( buf, Cmd.none )
 
 
+correctLines : Buffer -> Buffer
+correctLines buf =
+    if B.isEmpty buf.lines then
+        Buf.transaction
+            [ Insertion buf.cursor <|
+                B.fromString B.lineBreak
+            ]
+            buf
+    else
+        buf
+
+
+correctCursor : Buffer -> Buffer
+correctCursor buf =
+    let
+        ( y, x ) =
+            buf.cursor
+
+        y1 =
+            0
+                |> max (B.count buf.lines - 2)
+                |> min y
+    in
+        if y1 == y then
+            buf
+        else
+            { buf | cursor = ( y1, x ) }
+
+
 runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator count register operator buf =
     case operator of
@@ -485,7 +514,6 @@ runOperator count register operator buf =
         Delete rg ->
             buf
                 |> delete count register rg
-                |> scrollToCursor
                 |> cmdNone
 
         Yank rg ->
@@ -1155,7 +1183,8 @@ applyEdit count edit register buf =
                 Ex ex ->
                     let
                         ( buf1, cmd ) =
-                            runOperator count register operator buf
+                            buf
+                                |> runOperator count register operator
                     in
                         case buf1.mode of
                             Ex newex ->
@@ -1176,7 +1205,8 @@ applyEdit count edit register buf =
                                 ( buf1, cmd )
 
                 _ ->
-                    runOperator count register operator buf
+                    buf
+                        |> runOperator count register operator
 
         Nothing ->
             ( buf, Cmd.none )
@@ -1639,7 +1669,9 @@ applyVimAST replaying key ast buf =
             |> applyEdit count edit register
             |> Tuple.mapFirst
                 (updateMode modeName
+                    >> correctLines
                     >> modeChanged replaying key oldModeName lineDeltaMotion
+                    >> correctCursor
                     >> scrollToCursor
                     >> saveDotRegister replaying
                     >> setMatchedCursor buf

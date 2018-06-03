@@ -454,7 +454,7 @@ motionCases =
       )
     , ( "VGdiaa<esc>"
       , { motionCasesBuf
-            | lines = B.fromString "aa"
+            | lines = B.fromString "aa\n"
             , cursor = ( 0, 1 )
             , cursorColumn = 1
             , last =
@@ -692,7 +692,7 @@ deleteCases =
       )
     , ( "Vjd"
       , { deleteCasesBuf
-            | lines = B.empty
+            | lines = B.fromString B.lineBreak
             , registers = Dict.fromList [ ( "\"", Lines " 123\n456\n" ) ]
             , last = { emptyLast | visual = "j" }
         }
@@ -701,7 +701,7 @@ deleteCases =
       , { deleteCasesBuf
             | lines = B.fromString " 123\n"
             , registers = Dict.fromList [ ( "\"", Lines "456\n" ) ]
-            , cursor = ( 1, 0 )
+            , cursor = ( 0, 0 )
         }
       )
     , ( "d/456<cr>"
