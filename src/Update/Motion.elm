@@ -722,13 +722,36 @@ motion :
 motion count md mo buf =
     case runMotion count md mo buf of
         Just cursor ->
-            ( buf
-                |> saveCursorBeforeJump md cursor
-                |> Buf.setCursor cursor (isSaveColumn md)
-                |> setVisualEnd cursor
-                |> saveMotion md mo buf
-            , Cmd.none
-            )
+            let
+                centerScrollTop =
+                    Buf.bestScrollTop
+                        (Tuple.first cursor)
+                        buf.view.size.height
+                        buf.lines
+                        buf.view.scrollTop
+
+                scrollTop =
+                    case md of
+                        V.MatchString _ ->
+                            centerScrollTop
+
+                        V.BufferTop ->
+                            centerScrollTop
+
+                        V.BufferBottom ->
+                            centerScrollTop
+
+                        _ ->
+                            buf.view.scrollTop
+            in
+                ( buf
+                    |> saveCursorBeforeJump md cursor
+                    |> Buf.setCursor cursor (isSaveColumn md)
+                    |> Buf.setScrollTop scrollTop
+                    |> setVisualEnd cursor
+                    |> saveMotion md mo buf
+                , Cmd.none
+                )
 
         Nothing ->
             ( saveMotion md mo buf buf, Cmd.none )

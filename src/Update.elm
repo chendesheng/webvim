@@ -12,7 +12,14 @@ import Model exposing (..)
 import Update.Message exposing (..)
 import Vim.Helper exposing (parseKeys, escapeKey)
 import Vim.AST exposing (AST)
-import Helper.Helper exposing (fromListBy, filename, safeRegex, isSpace, notSpace)
+import Helper.Helper
+    exposing
+        ( fromListBy
+        , filename
+        , safeRegex
+        , isSpace
+        , notSpace
+        )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
@@ -22,7 +29,6 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Update.Motion exposing (..)
 import Update.Delete exposing (..)
 import Update.Insert exposing (..)
-import Internal.Position exposing (Position)
 import Internal.PositionClass exposing (findLineFirst)
 import Regex as Re
 import Internal.TextObject exposing (expandTextObject)
@@ -338,11 +344,6 @@ setContinuation s buf =
     { buf | continuation = s }
 
 
-setScrollTop : Int -> Buffer -> Buffer
-setScrollTop n buf =
-    updateView (\v -> { v | scrollTop = n }) buf
-
-
 ceilingFromZero : Float -> Int
 ceilingFromZero n =
     if n < 0 then
@@ -493,7 +494,7 @@ runOperator count register operator buf =
                                 V.ScrollToMiddle ->
                                     y - buf.view.size.height // 2
                     in
-                        setScrollTop (scope y1) buf
+                        Buf.setScrollTop (scope y1) buf
             in
                 buf
                     |> setCursor
@@ -583,7 +584,7 @@ runOperator count register operator buf =
                         buf
                             |> Buf.setCursor cursor True
                             |> setVisualEnd cursor
-                            |> setScrollTop scrollTop
+                            |> Buf.setScrollTop scrollTop
                             |> cmdNone
 
                     Nothing ->
@@ -1048,12 +1049,9 @@ runOperator count register operator buf =
 
 {-| scroll to ensure pos it is insdie viewport
 -}
-scrollTo : Position -> Buffer -> Buffer
-scrollTo pos ({ view, lines } as buf) =
+scrollTo : Int -> Buffer -> Buffer
+scrollTo y ({ view, lines } as buf) =
     let
-        ( y, _ ) =
-            pos
-
         miny =
             view.scrollTop
 
@@ -1068,12 +1066,12 @@ scrollTo pos ({ view, lines } as buf) =
             else
                 buf.view.scrollTop
     in
-        setScrollTop scrollTop buf
+        Buf.setScrollTop scrollTop buf
 
 
 scrollToCursor : Buffer -> Buffer
 scrollToCursor buf =
-    scrollTo buf.cursor buf
+    scrollTo (Tuple.first buf.cursor) buf
 
 
 {-| move cursor ensure cursor is insdie viewport
@@ -1350,27 +1348,20 @@ jumpTo isSaveJump info buf =
                 saveJump { path = buf.path, cursor = buf.cursor } buf.jumps
             else
                 buf.jumps
-
-        scrollTop =
-            let
-                n =
-                    Tuple.first cursor
-                        - (Tuple.first buf.cursor - buf.view.scrollTop)
-                        |> max 0
-            in
-                if n < buf.view.size.height then
-                    0
-                else
-                    n
     in
         if path == buf.path then
             { buf | jumps = jumps }
                 |> Buf.setCursor cursor True
-                |> setScrollTop scrollTop
+                |> Buf.setScrollTop
+                    (Buf.bestScrollTop (Tuple.first cursor)
+                        buf.view.size.height
+                        buf.lines
+                        buf.view.scrollTop
+                    )
                 |> tokenizeBuffer
         else
             editBuffer
-                { info | scrollTop = scrollTop }
+                info
                 { buf | jumps = jumps }
 
 
@@ -1750,7 +1741,7 @@ lintErrorToLocationList items =
 
 pairCursor : Buffer -> Buffer
 pairCursor buf =
-    updateView
+    Buf.updateView
         (\view ->
             { view
                 | matchedCursor =
@@ -1788,7 +1779,7 @@ update message buf =
 
         Resize size ->
             buf
-                |> updateView
+                |> Buf.updateView
                     (\view ->
                         { view
                             | size =

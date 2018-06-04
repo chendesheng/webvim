@@ -69,14 +69,18 @@ const runTaskList = debounce((tasks) => {
     }
   });
 
-  try {
-    todo.reverse().forEach(f => f());
-  } catch(err) {
-    // console.log(`run task ${todo.map(f=>f.name)} error.`);
-    console.log(err);
-  } finally {
-    taskList = [];
-  }
+  todo
+    .reverse()
+    .forEach(
+      f => {
+        try {
+          f();
+        } catch(err) {
+          // console.log(`run task ${todo.map(f=>f.name)} error.`);
+          console.log(err);
+        }
+      });
+  taskList = [];
 
 }, 1000);
 

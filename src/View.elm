@@ -214,12 +214,7 @@ incrementSearch scrollTop height mode lines =
                                       , begin = begin
                                       , end = end
                                       }
-                                    , if by < scrollTop then
-                                        by
-                                      else if by > scrollTop + height - 1 then
-                                        by - height + 1
-                                      else
-                                        scrollTop
+                                    , Buf.bestScrollTop by height lines scrollTop
                                     )
 
                         _ ->

@@ -18,6 +18,9 @@ module Update.Buffer
         , isEditing
         , configs
         , indentCursorToLineFirst
+        , setScrollTop
+        , updateView
+        , bestScrollTop
         )
 
 import Internal.Position exposing (..)
@@ -610,3 +613,33 @@ indentCursorToLineFirst buf =
                 buf
         else
             buf
+
+
+updateView : (View -> View) -> Buffer -> Buffer
+updateView f buf =
+    let
+        view =
+            buf.view
+    in
+        { buf | view = f buf.view }
+
+
+setScrollTop : Int -> Buffer -> Buffer
+setScrollTop n buf =
+    updateView (\v -> { v | scrollTop = n }) buf
+
+
+bestScrollTop : Int -> Int -> B.TextBuffer -> Int -> Int
+bestScrollTop y height lines scrollTop =
+    let
+        maxLine =
+            B.count lines - 1
+    in
+        if scrollTop <= y && y < scrollTop + height then
+            scrollTop
+        else if y >= maxLine - height then
+            maxLine - height
+        else
+            y
+                - (height // 2)
+                |> max 0

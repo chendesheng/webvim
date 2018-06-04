@@ -252,15 +252,6 @@ emptyBuffer =
     }
 
 
-updateView : (View -> View) -> Buffer -> Buffer
-updateView f buf =
-    let
-        view =
-            buf.view
-    in
-        { buf | view = f buf.view }
-
-
 registerString : RegisterText -> String
 registerString reg =
     case reg of
