@@ -40,8 +40,8 @@ type alias ModeDelta =
 
 type TextObject
     = Word
-    | Line
     | WORD
+    | Line
     | Pair Char -- '', "", <>, (), {}, [], <tag></tag>
 
 

@@ -11,6 +11,8 @@ import Vim.AST
         )
 import Internal.Position exposing (Position)
 import Internal.PositionClass exposing (findPosition, findLineFirst)
+import Internal.Brackets as Bracket exposing (bracket, pairBracket)
+import Internal.Syntax as Syntax exposing (Syntax)
 
 
 expandSingleLineTextObject :
@@ -36,6 +38,27 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                 ((findPosition
                     wordChars
                     WordEdge
+                    (motionOption ">]$-")
+                    line
+                    cursor
+                 )
+                 --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
+                )
+
+        WORD ->
+            Maybe.map2 (,)
+                ((findPosition
+                    wordChars
+                    WORDEdge
+                    (motionOption "<]$-")
+                    line
+                    cursor
+                 )
+                 --|> Debug.log "resulta"
+                )
+                ((findPosition
+                    wordChars
+                    WORDEdge
                     (motionOption ">]$-")
                     line
                     cursor
@@ -109,14 +132,85 @@ wORDUnderCursor cursor lines =
                 )
 
 
+findPair :
+    Int
+    -> Int
+    -> Syntax
+    -> String
+    -> String
+    -> Bool
+    -> B.TextBuffer
+    -> Position
+    -> Maybe ( Position, Position )
+findPair scrollTop height syntax openChar closeChar around lines (( y, x ) as cursor) =
+    let
+        c =
+            lines
+                |> B.getLine y
+                |> Maybe.map (String.slice x (x + 1))
+
+        pairChar c =
+            pairBracket
+                scrollTop
+                (scrollTop + height)
+                lines
+                syntax
+                cursor
+                c
+
+        genRegion p1 p2 =
+            let
+                ( y1, x1 ) =
+                    Basics.min p1 p2
+
+                ( y2, x2 ) =
+                    Basics.max p1 p2
+            in
+                if around then
+                    ( ( y1, x1 ), ( y2, x2 + 1 ) )
+                else
+                    ( ( y1, x1 + 1 ), ( y2, x2 ) )
+    in
+        if c == Just openChar then
+            openChar
+                |> pairChar
+                |> Maybe.map (genRegion cursor)
+        else if c == Just closeChar then
+            closeChar
+                |> pairChar
+                |> Maybe.map (genRegion cursor)
+        else
+            Maybe.map2
+                genRegion
+                (pairBracket
+                    scrollTop
+                    (scrollTop + height)
+                    lines
+                    syntax
+                    cursor
+                    closeChar
+                )
+                (pairBracket
+                    scrollTop
+                    (scrollTop + height)
+                    lines
+                    syntax
+                    cursor
+                    openChar
+                )
+
+
 expandTextObject :
     String
+    -> Int
+    -> Int
+    -> Syntax
     -> TextObject
     -> Bool
     -> B.TextBuffer
     -> Position
     -> Maybe ( Position, Position )
-expandTextObject wordChars textObject around lines ( y, x ) =
+expandTextObject wordChars scrollTop height syntax textObject around lines (( y, x ) as cursor) =
     case textObject of
         Line ->
             if around then
@@ -129,6 +223,20 @@ expandTextObject wordChars textObject around lines ( y, x ) =
                             , ( y + 1, 0 )
                             )
                         )
+
+        Pair c ->
+            case c of
+                '(' ->
+                    findPair scrollTop height syntax "(" ")" around lines cursor
+
+                '[' ->
+                    findPair scrollTop height syntax "[" "]" around lines cursor
+
+                '{' ->
+                    findPair scrollTop height syntax "{" "}" around lines cursor
+
+                _ ->
+                    Nothing
 
         _ ->
             B.getLine y lines

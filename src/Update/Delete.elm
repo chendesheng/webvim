@@ -62,23 +62,32 @@ deleteOperator count range buf =
                             in
                                 Just ( begin1, True )
 
-                        --Ex { visual } ->
-                        --    case visual of
-                        --        Just v ->
-                        --            let
-                        --                { begin, end } =
-                        --                    v
-                        --                begin1 =
-                        --                    min begin end
-                        --            in
-                        --                Just ( begin1, True )
-                        --        _ ->
-                        --            Nothing
                         _ ->
                             Nothing
 
-                _ ->
-                    Nothing
+                V.TextObject _ _ ->
+                    Just
+                        ( ranges
+                            |> List.foldl min
+                                ( ( 0x0FFFFFFF, 0x0FFFFFFF )
+                                , ( 0x0FFFFFFF, 0x0FFFFFFF )
+                                )
+                            |> Tuple.first
+                        , True
+                        )
+
+        --Ex { visual } ->
+        --    case visual of
+        --        Just v ->
+        --            let
+        --                { begin, end } =
+        --                    v
+        --                begin1 =
+        --                    min begin end
+        --            in
+        --                Just ( begin1, True )
+        --        _ ->
+        --            Nothing
     in
         if List.isEmpty ranges then
             Nothing

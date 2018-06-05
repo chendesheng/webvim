@@ -129,8 +129,16 @@ operatorRanges count range buf =
                 buf.cursor
                     |> expandTextObject
                         buf.config.wordChars
+                        buf.view.scrollTop
+                        buf.view.size.height
+                        buf.syntax
                         textObject
                         around
                         buf.lines
                     |> Maybe.map List.singleton
                     |> Maybe.withDefault []
+
+
+shrinkRight : ( Position, Position ) -> ( Position, Position )
+shrinkRight ( p1, ( y, x ) ) =
+    ( p1, ( y, max 0 (x - 1) ) )

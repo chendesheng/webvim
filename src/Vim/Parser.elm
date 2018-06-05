@@ -232,57 +232,45 @@ linebuffer prefix map =
 textObject : (TextObject -> Bool -> Operator) -> Parser ModeDelta
 textObject map =
     let
-        define pair obj =
-            P.succeed identity
-                |= P.oneOf
-                    [ readKeyAndThen "i"
-                        [ PushKey "i" ]
-                        (P.succeed
-                            [ map obj False |> PushOperator
-                            , PushKey ("i" ++ pair)
-                            , PushComplete
-                            ]
-                            |. P.symbol pair
-                        )
-                    , readKeyAndThen "a"
-                        [ PushKey "a" ]
-                        (P.succeed
-                            [ map obj True |> PushOperator
-                            , PushKey ("a" ++ pair)
-                            , PushComplete
-                            ]
-                            |. P.symbol pair
-                        )
-                    ]
+        define pair obj around =
+            P.succeed
+                [ map obj around |> PushOperator
+                , PushKey
+                    (if around then
+                        "a" ++ pair
+                     else
+                        "i" ++ pair
+                    )
+                , PushComplete
+                ]
+                |. P.symbol pair
+
+        objects around =
+            P.oneOf
+                [ define "(" (Pair '(') around
+                , define ")" (Pair '(') around
+                , define "w" Word around
+                , define "W" WORD around
+                , define "{" (Pair '{') around
+                , define "}" (Pair '{') around
+                , define "[" (Pair '[') around
+                , define "]" (Pair '[') around
+                , define "b" (Pair '(') around
+                , define "B" (Pair '{') around
+                , define "\\<" (Pair '<') around
+                , define ">" (Pair '<') around
+                , define "t" (Pair 't') around
+                ]
     in
-        P.oneOf
-            [ define "w" Word
-            , define "W" WORD
-            , define "(" (Pair '(')
-            , define ")" (Pair ')')
-            , define "{" (Pair '{')
-            , define "}" (Pair '}')
-            , define "[" (Pair '[')
-            , define "]" (Pair ']')
-            , define "b" (Pair '(')
-            , define "B" (Pair '{')
-            , define "\\<" (Pair '<')
-            , define ">" (Pair '>')
-            , define "t" (Pair 't')
-            , define "w" Word
-            , define "W" WORD
-            , define "(" (Pair '(')
-            , define ")" (Pair ')')
-            , define "{" (Pair '{')
-            , define "}" (Pair '}')
-            , define "[" (Pair '[')
-            , define "]" (Pair ']')
-            , define "b" (Pair '(')
-            , define "B" (Pair '{')
-            , define "\\<" (Pair '<')
-            , define ">" (Pair '>')
-            , define "t" (Pair 't')
-            ]
+        P.succeed identity
+            |= P.oneOf
+                [ readKeyAndThen "i"
+                    [ PushKey "i" ]
+                    (objects False)
+                , readKeyAndThen "a"
+                    [ PushKey "a" ]
+                    (objects True)
+                ]
 
 
 gKey :

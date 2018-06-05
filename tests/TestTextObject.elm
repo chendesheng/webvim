@@ -12,6 +12,7 @@ import Vim.AST
         , Direction(..)
         , TextObject(..)
         )
+import Elm.Array as Array exposing (Array)
 
 
 type TestCase
@@ -98,6 +99,9 @@ suite =
                                             range
                                             (expandTextObject
                                                 ""
+                                                0
+                                                10
+                                                Array.empty
                                                 textobj
                                                 around
                                                 (B.fromString line)

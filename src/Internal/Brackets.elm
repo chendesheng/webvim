@@ -53,14 +53,17 @@ bracket s =
             Nothing
 
 
-pairBracket : Int -> Int -> TextBuffer -> Syntax -> Position -> Maybe Position
-pairBracket top bottom lines syntax ( y, x ) =
-    case
-        lines
-            |> B.getLine y
-            |> Maybe.andThen (String.slice x (x + 1) >> bracket)
-        --|> Debug.log "pairBracket"
-    of
+pairBracketAt : Int -> Int -> TextBuffer -> Syntax -> Position -> Maybe Position
+pairBracketAt top bottom lines syntax ( y, x ) =
+    lines
+        |> B.getLine y
+        |> Maybe.map (String.slice x (x + 1))
+        |> Maybe.andThen (pairBracket top bottom lines syntax ( y, x ))
+
+
+pairBracket : Int -> Int -> TextBuffer -> Syntax -> Position -> String -> Maybe Position
+pairBracket top bottom lines syntax ( y, x ) c =
+    case bracket c of
         Just ( toMatch, regexBrackets, forward ) ->
             let
                 tokenType =

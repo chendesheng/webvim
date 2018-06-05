@@ -23,7 +23,7 @@ import Internal.Jumps exposing (saveJump)
 import Update.Message exposing (Msg(..))
 import Internal.TextObject exposing (wordUnderCursor, wORDUnderCursor)
 import Helper.Helper exposing (repeatfn)
-import Internal.Brackets exposing (pairBracket, bracketsParser)
+import Internal.Brackets exposing (pairBracketAt, bracketsParser)
 import Parser as P
 import Elm.Array as Array
 
@@ -559,7 +559,7 @@ runMotion count md mo buf =
                                             >> Maybe.map (\dx -> ( y, x + dx ))
                                         )
                                     |> Maybe.andThen
-                                        (pairBracket
+                                        (pairBracketAt
                                             0
                                             (Array.length buf.syntax)
                                             buf.lines

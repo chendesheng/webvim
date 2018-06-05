@@ -1,7 +1,7 @@
 module Update exposing (update, init, Flags)
 
 import Http
-import Internal.Brackets exposing (pairBracket)
+import Internal.Brackets exposing (pairBracket, pairBracketAt)
 import Char
 import Task
 import Update.Keymap exposing (keymap)
@@ -51,7 +51,7 @@ import Internal.Jumps
         , Location
         , currentLocation
         )
-import Update.Range exposing (operatorRanges)
+import Update.Range exposing (operatorRanges, shrinkRight)
 
 
 stringToPrefix : String -> ExPrefix
@@ -410,8 +410,17 @@ runOperator count register operator buf =
                 Visual { tipe, begin, end } ->
                     case tipe of
                         V.VisualChars ->
-                            end
+                            (if begin == end then
+                                begin
+                             else if buf.cursor == max begin end then
+                                Tuple.mapSecond ((+) 1) (max begin end)
+                             else
+                                Tuple.mapSecond (flip (-) 1) (min begin end)
+                            )
                                 |> expandTextObject buf.config.wordChars
+                                    buf.view.scrollTop
+                                    buf.view.size.height
+                                    buf.syntax
                                     textobj
                                     around
                                     buf.lines
@@ -419,15 +428,39 @@ runOperator count register operator buf =
                                     (\rg ->
                                         let
                                             ( a, b ) =
-                                                rg
+                                                shrinkRight rg
 
-                                            ( begin1, end1 ) =
-                                                expandVisual begin end a b
+                                            begin1 =
+                                                if begin == end then
+                                                    min a b
+                                                else
+                                                    a
+                                                        |> min b
+                                                        |> min begin
+                                                        |> min end
+
+                                            end1 =
+                                                if begin == end then
+                                                    max a b
+                                                else
+                                                    a
+                                                        |> max b
+                                                        |> max begin
+                                                        |> max end
                                         in
-                                            buf
-                                                |> Buf.setCursor end1 True
-                                                |> setVisualEnd end1
-                                                |> setVisualBegin begin1
+                                            if
+                                                (buf.cursor == min begin end)
+                                                    && (begin /= end)
+                                            then
+                                                buf
+                                                    |> Buf.setCursor begin1 True
+                                                    |> setVisualEnd begin1
+                                                    |> setVisualBegin end1
+                                            else
+                                                buf
+                                                    |> Buf.setCursor end1 True
+                                                    |> setVisualEnd end1
+                                                    |> setVisualBegin begin1
                                     )
                                 |> Maybe.withDefault buf
                                 |> cmdNone
@@ -1151,7 +1184,7 @@ newBuffer info buf =
                     , scrollTop = min (B.count lines - 1) scrollTop
                 }
             , cursor = cursor
-            , lint = { items = [], count = buf.lint.count }
+            , lint = { items = [], count = 0 }
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
@@ -1745,7 +1778,7 @@ pairCursor buf =
         (\view ->
             { view
                 | matchedCursor =
-                    pairBracket
+                    pairBracketAt
                         buf.view.scrollTop
                         (buf.view.scrollTop + buf.view.size.height)
                         buf.lines

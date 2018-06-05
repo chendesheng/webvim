@@ -9,7 +9,7 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import TextBuffer exposing (..)
 import Internal.Syntax exposing (TokenType(..), iterateTokens)
 import Elm.Array as Array
-import Internal.Brackets exposing (pairBracket)
+import Internal.Brackets exposing (pairBracketAt)
 
 
 repeat : Int -> (a -> a) -> (a -> a)
@@ -660,19 +660,19 @@ suite =
                 , test "pair brackets in the same line success" <|
                     \_ ->
                         Expect.equal (Just ( 0, 10 ))
-                            (pairBracket 0 10 lines syntax ( 0, 9 ))
+                            (pairBracketAt 0 10 lines syntax ( 0, 9 ))
                 , test "pair brackets backward in the same line success" <|
                     \_ ->
                         Expect.equal (Just ( 1, 14 ))
-                            (pairBracket 0 10 lines syntax ( 1, 28 ))
+                            (pairBracketAt 0 10 lines syntax ( 1, 28 ))
                 , test "pair brackets success" <|
                     \_ ->
                         Expect.equal (Just ( 2, 4 ))
-                            (pairBracket 0 10 lines syntax ( 0, 12 ))
+                            (pairBracketAt 0 10 lines syntax ( 0, 12 ))
                 , test "pair brackets backward success" <|
                     \_ ->
                         Expect.equal (Just ( 0, 12 ))
-                            (pairBracket 0 10 lines syntax ( 2, 4 ))
+                            (pairBracketAt 0 10 lines syntax ( 2, 4 ))
                 ]
             )
         ]

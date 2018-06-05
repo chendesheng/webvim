@@ -790,6 +790,32 @@ cases =
         )
       )
 
+    -- text object
+    , ( "diw"
+      , ( { initialMode
+            | edit = Just (Delete <| TextObject Word False)
+            , recordKeys = "diw"
+          }
+        , ""
+        )
+      )
+    , ( "di("
+      , ( { initialMode
+            | edit = Just (Delete <| TextObject (Pair '(') False)
+            , recordKeys = "di("
+          }
+        , ""
+        )
+      )
+    , ( "da}"
+      , ( { initialMode
+            | edit = Just (Delete <| TextObject (Pair '{') True)
+            , recordKeys = "da}"
+          }
+        , ""
+        )
+      )
+
     -- template
     , ( ""
       , ( initialMode, "" )
