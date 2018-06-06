@@ -94,6 +94,19 @@ view buf =
         matchedCursor =
             buf.view.matchedCursor
                 |> Maybe.map (Tuple.mapFirst (\y -> y - scrollTop))
+
+        matchedCursor2 =
+            case buf.mode of
+                Insert ->
+                    Maybe.map2
+                        (\( y, x ) _ ->
+                            ( y, Basics.max 0 (x - 1) )
+                        )
+                        maybeCursor
+                        matchedCursor
+
+                _ ->
+                    Nothing
     in
         div [ class "editor" ]
             ([ div [ class "buffer" ]
@@ -123,6 +136,7 @@ view buf =
                             syntax
                         :: renderCursor "" maybeCursor
                         :: lazy2 renderCursor "matched-cursor" matchedCursor
+                        :: lazy2 renderCursor "matched-cursor" matchedCursor2
                         :: renderTip scrollTop1
                             buf.lint.items
                             (Maybe.map

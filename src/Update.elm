@@ -1774,19 +1774,35 @@ lintErrorToLocationList items =
 
 pairCursor : Buffer -> Buffer
 pairCursor buf =
-    Buf.updateView
-        (\view ->
-            { view
-                | matchedCursor =
-                    pairBracketAt
-                        buf.view.scrollTop
-                        (buf.view.scrollTop + buf.view.size.height)
-                        buf.lines
-                        buf.syntax
-                        buf.cursor
-            }
-        )
-        buf
+    let
+        cursor =
+            case buf.mode of
+                Insert ->
+                    buf.cursor
+                        |> Tuple.mapSecond
+                            (\x ->
+                                if x > 0 then
+                                    x - 1
+                                else
+                                    0
+                            )
+
+                _ ->
+                    buf.cursor
+    in
+        Buf.updateView
+            (\view ->
+                { view
+                    | matchedCursor =
+                        pairBracketAt
+                            buf.view.scrollTop
+                            (buf.view.scrollTop + buf.view.size.height)
+                            buf.lines
+                            buf.syntax
+                            cursor
+                }
+            )
+            buf
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
