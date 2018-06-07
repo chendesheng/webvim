@@ -4,6 +4,7 @@ import Dict exposing (Dict)
 import Regex as Re exposing (Regex)
 import Native.Doc
 import Char
+import Parser as P exposing ((|.), (|=))
 
 
 getLast : List a -> Maybe a
@@ -94,3 +95,37 @@ isSpace c =
 
 notSpace =
     isSpace >> not
+
+
+isBetween : Char -> Char -> Char -> Bool
+isBetween low high char =
+    let
+        code =
+            Char.toCode char
+    in
+        (code >= Char.toCode low) && (code <= Char.toCode high)
+
+
+word : String -> Char -> Bool
+word wordChars char =
+    isBetween 'a' 'z' char
+        || isBetween 'A' 'Z' char
+        || isBetween '0' '9' char
+        || String.any ((==) char) wordChars
+
+
+parseWords : String -> String -> List String
+parseWords wordChars s =
+    s
+        |> P.run
+            (P.oneOf
+                [ P.keep P.oneOrMore
+                    (word wordChars)
+                , P.keep P.oneOrMore
+                    (word wordChars >> not)
+                    |> P.map (always "")
+                ]
+                |> P.repeat P.oneOrMore
+            )
+        |> Result.withDefault []
+        |> List.filter (\s -> String.length s >= 2)

@@ -33,11 +33,16 @@ keysParser =
     P.repeat P.zeroOrMore keyParser
 
 
+emptyInsertMode : Mode
+emptyInsertMode =
+    Insert { autoComplete = Nothing }
+
+
 insertCases : List ( String, Buffer )
 insertCases =
     [ ( "i"
       , { emptyBuffer
-            | mode = Insert
+            | mode = emptyInsertMode
             , continuation = "i"
         }
       )
@@ -45,7 +50,7 @@ insertCases =
       , { emptyBuffer
             | cursor = ( 0, 2 )
             , lines = B.fromString "12\n"
-            , mode = Insert
+            , mode = emptyInsertMode
             , continuation = "i"
             , history =
                 { emptyBufferHistory
@@ -101,7 +106,7 @@ insertCases =
     , ( "i1<backspace>"
       , { emptyBuffer
             | cursor = ( 0, 0 )
-            , mode = Insert
+            , mode = emptyInsertMode
             , continuation = "i"
             , history =
                 { emptyBufferHistory
@@ -117,7 +122,7 @@ insertCases =
       , { emptyBuffer
             | cursor = ( 0, 1 )
             , lines = B.fromString "1\n"
-            , mode = Insert
+            , mode = emptyInsertMode
             , continuation = "i"
             , history =
                 { emptyBufferHistory
@@ -171,7 +176,7 @@ insertCases =
                         emptyBuffer.view
                 in
                     { view | scrollTop = 1 }
-            , mode = Insert
+            , mode = emptyInsertMode
             , continuation = "o"
             , last = { emptyLast | inserts = "1" }
         }
@@ -190,7 +195,7 @@ insertCases =
                         , Deletion ( 0, 0 ) ( 1, 0 )
                         ]
                 }
-            , mode = Insert
+            , mode = emptyInsertMode
             , continuation = "O"
             , last = { emptyLast | inserts = "2" }
         }
@@ -211,7 +216,7 @@ insertCases =
     , ( "i123<cr><esc>kC"
       , { emptyBuffer
             | lines = B.fromString "\n\n"
-            , mode = Insert
+            , mode = emptyInsertMode
             , continuation = "C"
             , registers = Dict.fromList [ ( "\"", Text "123" ) ]
             , history =
@@ -491,7 +496,6 @@ exModeCases =
                             , cursor = ( 0, 3 )
                         }
                     , visual = Nothing
-                    , autoComplete = Nothing
                     }
             , continuation = ":"
             , last = { emptyLast | ex = "11" }
@@ -508,7 +512,6 @@ exModeCases =
                             , cursor = ( 0, 2 )
                         }
                     , visual = Nothing
-                    , autoComplete = Nothing
                     }
             , continuation = ":"
             , last = { emptyLast | ex = "11<backspace>" }
@@ -594,7 +597,6 @@ exModeCases =
                             { match = Nothing
                             , forward = True
                             }
-                    , autoComplete = Nothing
                     }
             , continuation = "/"
         }
@@ -614,7 +616,6 @@ exModeCases =
                             { match = Nothing
                             , forward = False
                             }
-                    , autoComplete = Nothing
                     }
             , continuation = "?"
         }
@@ -754,21 +755,21 @@ changeCases =
     [ ( "ce"
       , { changeCasesBuf
             | lines = B.fromString "\n456\ndef\ndef\n"
-            , mode = Insert
+            , mode = emptyInsertMode
             , registers = Dict.fromList [ ( "\"", Text " 123" ) ]
             , continuation = "ce"
         }
       )
     , ( "cfa"
       , { changeCasesBuf
-            | mode = Insert
+            | mode = emptyInsertMode
             , continuation = "cfa"
         }
       )
     , ( "cw"
       , { changeCasesBuf
             | lines = B.fromString "123\n456\ndef\ndef\n"
-            , mode = Insert
+            , mode = emptyInsertMode
             , registers = Dict.fromList [ ( "\"", Text " " ) ]
             , continuation = "cw"
         }
@@ -776,14 +777,14 @@ changeCases =
     , ( "cvw"
       , { changeCasesBuf
             | lines = B.fromString " 123\n456\ndef\ndef\n"
-            , mode = Insert
+            , mode = emptyInsertMode
             , registers = Dict.fromList [ ( "\"", Text "" ) ]
             , continuation = "cvw"
         }
       )
     , ( "c/ef<cr>"
       , { changeCasesBuf
-            | mode = Insert
+            | mode = emptyInsertMode
             , lines = B.fromString "ef\ndef\n"
             , continuation = "c/<cr>"
             , history =
@@ -911,7 +912,7 @@ putCases =
             | cursor = ( 0, 3 )
             , cursorColumn = 3
             , lines = B.fromString "abc123\n456\n"
-            , mode = Insert
+            , mode = emptyInsertMode
             , last = { emptyLast | inserts = "<c-r>\"" }
         }
       )
@@ -925,7 +926,7 @@ putCases =
                     [ ( "\"", Text "123" )
                     , ( "a", Lines "newline\n" )
                     ]
-            , mode = Insert
+            , mode = emptyInsertMode
             , last = { emptyLast | inserts = "<c-r>\"" }
         }
       )
@@ -1135,7 +1136,7 @@ visualModeCases =
       )
     , ( "vc"
       , { visualModeCasesBuf
-            | mode = Insert
+            | mode = emptyInsertMode
             , lines = B.fromString "23\n456\n"
             , registers = Dict.fromList [ ( "\"", Text "1" ) ]
             , continuation = "vc"
@@ -1143,7 +1144,7 @@ visualModeCases =
       )
     , ( "vlc"
       , { visualModeCasesBuf
-            | mode = Insert
+            | mode = emptyInsertMode
             , lines = B.fromString "3\n456\n"
             , last = { emptyLast | visual = "l" }
             , registers = Dict.fromList [ ( "\"", Text "12" ) ]

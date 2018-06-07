@@ -150,7 +150,7 @@ delete count register rg buf =
                             (Ex { ex | exbuf = deleteAnd identity exbuf })
                             buf
 
-            Insert ->
+            Insert _ ->
                 deleteAnd identity buf
 
             _ ->

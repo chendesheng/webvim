@@ -91,7 +91,7 @@ type Operator
     | JumpToFile
     | CenterView
     | Scroll ScrollPosition
-    | CompleteWord Direction
+    | CompleteWord Bool
     | Undo
     | Redo
     | ReplayMacro Register
@@ -103,7 +103,7 @@ type Operator
     | Execute -- execute ex command
     | Replace String
     | ToggleTip
-    | SelectAutoComplete Direction
+    | SelectAutoComplete Bool
     | IncreaseNumber Bool
 
 

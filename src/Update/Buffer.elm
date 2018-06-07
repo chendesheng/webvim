@@ -21,6 +21,7 @@ module Update.Buffer
         , setScrollTop
         , updateView
         , bestScrollTop
+        , toWords
         )
 
 import Internal.Position exposing (..)
@@ -71,6 +72,7 @@ import Internal.Syntax
 import Elm.Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
 import Update.Message exposing (LintError)
+import Helper.Helper exposing (parseWords)
 
 
 applyPatchToLintError : Patch -> LintError -> LintError
@@ -513,15 +515,16 @@ putString forward text buf =
                                 , Just ( y + 1, findLineFirst s + 1 )
                                 )
                         else
-                            (if buf.mode == Model.Insert then
-                                ( Insertion ( y, x ) <| fromString s
-                                , Nothing
-                                )
-                             else
-                                ( Insertion ( y, 0 ) <| fromString s
-                                , Just ( y, findLineFirst s + 1 )
-                                )
-                            )
+                            case buf.mode of
+                                Model.Insert _ ->
+                                    ( Insertion ( y, x ) <| fromString s
+                                    , Nothing
+                                    )
+
+                                _ ->
+                                    ( Insertion ( y, 0 ) <| fromString s
+                                    , Just ( y, findLineFirst s + 1 )
+                                    )
 
         getLastDeletedTo buf =
             case getLastPatch buf of
@@ -643,3 +646,55 @@ bestScrollTop y height lines scrollTop =
             y
                 - (height // 2)
                 |> max 0
+
+
+toWords : String -> Buffer -> List String
+toWords exclude { config, lines } =
+    lines
+        |> B.mapLines (parseWords config.wordChars)
+        |> Array.toList
+        |> List.concat
+        |> List.foldl
+            (\word ->
+                Dict.update word
+                    (\cnt ->
+                        cnt
+                            |> Maybe.map ((+) 1)
+                            |> Maybe.withDefault 1
+                            |> Just
+                    )
+            )
+            Dict.empty
+        |> Dict.update
+            exclude
+            (Maybe.andThen
+                (\n ->
+                    if n > 1 then
+                        Just (n - 1)
+                    else
+                        Nothing
+                )
+            )
+        |> Dict.toList
+        |> List.sortWith
+            (\( ka, va ) ( kb, vb ) ->
+                if va > vb then
+                    LT
+                else if va < vb then
+                    GT
+                else
+                    let
+                        la =
+                            String.length ka
+
+                        lb =
+                            String.length kb
+                    in
+                        if la > lb then
+                            GT
+                        else if la < lb then
+                            LT
+                        else
+                            EQ
+            )
+        |> List.map Tuple.first

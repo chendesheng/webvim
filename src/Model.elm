@@ -46,13 +46,14 @@ type alias AutoComplete =
     , matches : Array FuzzyMatchItem
     , select : Int
     , scrollTop : Int
+    , pos : Position
     }
 
 
 type Mode
     = Normal
     | Visual VisualMode
-    | Insert
+    | Insert { autoComplete : Maybe AutoComplete }
     | TempNormal
     | Ex ExMode
 
@@ -61,7 +62,6 @@ type alias ExMode =
     { prefix : ExPrefix
     , exbuf : Buffer
     , visual : Maybe VisualMode
-    , autoComplete : Maybe AutoComplete
     }
 
 
@@ -158,7 +158,10 @@ cacheVimAST k v buf =
 
 emptyExBuffer : Buffer
 emptyExBuffer =
-    { emptyBuffer | mode = Insert, lines = B.empty }
+    { emptyBuffer
+        | mode = Insert { autoComplete = Nothing }
+        , lines = B.empty
+    }
 
 
 emptyView : View

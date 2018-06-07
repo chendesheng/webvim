@@ -59,8 +59,8 @@ insertCommands =
             , define "<c-w>" deleteWordBackward
             , define "<c-e>" <| InsertString CharBelowCursor
             , define "<c-y>" <| InsertString CharAbroveCursor
-            , define "<c-p>" (CompleteWord Backward)
-            , define "<c-n>" (CompleteWord Forward)
+            , define "<c-p>" (SelectAutoComplete False)
+            , define "<c-n>" (SelectAutoComplete True)
             , P.succeed
                 [ PopMode
                 , PushComplete
@@ -196,10 +196,10 @@ linebuffer prefix map =
                     )
                     |= P.oneOf
                         [ P.succeed
-                            [ PushOperator <| SelectAutoComplete Forward ]
+                            [ PushOperator <| SelectAutoComplete True ]
                             |. P.symbol "<tab>"
                         , P.succeed
-                            [ PushOperator <| SelectAutoComplete Backward ]
+                            [ PushOperator <| SelectAutoComplete False ]
                             |. P.symbol "<s-tab>"
                         , readKeyAndThen "<c-r>"
                             [ PushKey "<c-r>" ]
@@ -335,6 +335,7 @@ gOperator =
                     (PushOperator <| Join False)
                 , define "h"
                     (PushOperator ToggleTip)
+                    |> dontRecord
                 , define "f"
                     (PushOperator JumpToFile)
                 ]

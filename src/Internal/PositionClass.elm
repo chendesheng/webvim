@@ -17,24 +17,7 @@ import Vim.AST
         , motionOption
         )
 import Maybe
-import Helper.Helper exposing (isSpace, notSpace)
-
-
-isBetween : Char -> Char -> Char -> Bool
-isBetween low high char =
-    let
-        code =
-            Char.toCode char
-    in
-        (code >= Char.toCode low) && (code <= Char.toCode high)
-
-
-word : String -> Char -> Bool
-word wordChars char =
-    isBetween 'a' 'z' char
-        || isBetween 'A' 'Z' char
-        || isBetween '0' '9' char
-        || String.any ((==) char) wordChars
+import Helper.Helper exposing (isSpace, notSpace, isBetween, word)
 
 
 punctuation : String -> Char -> Bool

@@ -41,7 +41,6 @@ import Update.Yank exposing (yank)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
 import Elm.Array as Array
 import Helper.Document as Doc
-import Helper.Fuzzy exposing (..)
 import Internal.Jumps
     exposing
         ( saveJump
@@ -52,6 +51,7 @@ import Internal.Jumps
         , currentLocation
         )
 import Update.Range exposing (operatorRanges, shrinkRight)
+import Update.AutoComplete exposing (..)
 
 
 stringToPrefix : String -> ExPrefix
@@ -96,7 +96,7 @@ initMode { cursor, mode } modeName =
             TempNormal
 
         V.ModeNameInsert ->
-            Insert
+            Insert { autoComplete = Nothing }
 
         V.ModeNameEx prefix ->
             Ex
@@ -114,7 +114,6 @@ initMode { cursor, mode } modeName =
 
                         _ ->
                             Nothing
-                , autoComplete = Nothing
                 }
 
         V.ModeNameVisual tipe ->
@@ -148,7 +147,7 @@ getModeName mode =
         Normal ->
             V.ModeNameNormal
 
-        Insert ->
+        Insert _ ->
             V.ModeNameInsert
 
         TempNormal ->
@@ -302,7 +301,7 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                         (Ex { ex | prefix = prefix1 })
                         buf1
 
-        Insert ->
+        Insert _ ->
             let
                 last =
                     buf.last
@@ -543,11 +542,13 @@ runOperator count register operator buf =
                 _ ->
                     buf
                         |> insert s
+                        |> filterAutoComplete
                         |> cmdNone
 
         Delete rg ->
             buf
                 |> delete count register rg
+                |> filterAutoComplete
                 |> cmdNone
 
         Yank rg ->
@@ -683,11 +684,20 @@ runOperator count register operator buf =
         Execute ->
             case buf.mode of
                 Ex ex ->
-                    ex.exbuf.lines
-                        |> B.toString
-                        |> String.dropLeft 1
-                        |> flip execute
-                            { buf | mode = Ex { ex | autoComplete = Nothing } }
+                    let
+                        exbuf =
+                            ex.exbuf
+
+                        exbuf1 =
+                            { exbuf
+                                | mode = Insert { autoComplete = Nothing }
+                            }
+                    in
+                        ex.exbuf.lines
+                            |> B.toString
+                            |> String.dropLeft 1
+                            |> flip execute
+                                { buf | mode = Ex { ex | exbuf = exbuf1 } }
 
                 _ ->
                     ( buf, Cmd.none )
@@ -725,78 +735,41 @@ runOperator count register operator buf =
                 |> Buf.setShowTip (not buf.view.showTip)
                 |> cmdNone
 
-        SelectAutoComplete dir ->
+        SelectAutoComplete forward ->
             case buf.mode of
                 Ex ex ->
-                    case ex.autoComplete of
-                        Just auto ->
-                            let
-                                { matches, select } =
-                                    auto
-
-                                s =
-                                    B.toString ex.exbuf.lines
-
-                                newSelect =
-                                    (select
-                                        + if dir == V.Forward then
-                                            1
-                                          else
-                                            -1
-                                    )
-                                        % Array.length matches
-
-                                targetSelected =
-                                    newSelect == Array.length matches - 1
-
-                                scrollTop =
-                                    if targetSelected then
-                                        auto.scrollTop
-                                    else if newSelect < auto.scrollTop then
-                                        newSelect
-                                    else if newSelect >= auto.scrollTop + 15 then
-                                        newSelect - 15 + 1
-                                    else
-                                        auto.scrollTop
-
-                                txt =
-                                    case Array.get newSelect matches of
-                                        Just m ->
-                                            m.text
-
-                                        _ ->
-                                            ""
-
-                                exbuf =
-                                    if String.startsWith ":e " s then
-                                        Buf.transaction
-                                            [ Deletion ( 0, 3 ) ( 1, 0 )
-                                            , Insertion ( 0, 3 ) <|
-                                                B.fromString txt
-                                            ]
+                    ( { buf
+                        | mode =
+                            Ex
+                                { ex
+                                    | exbuf =
+                                        selectAutoComplete
+                                            forward
                                             ex.exbuf
-                                    else
-                                        ex.exbuf
-                            in
-                                ( { buf
-                                    | mode =
-                                        Ex
-                                            { ex
-                                                | exbuf = exbuf
-                                                , autoComplete =
-                                                    Just
-                                                        { auto
-                                                            | select = newSelect
-                                                            , scrollTop =
-                                                                scrollTop
-                                                        }
-                                            }
-                                  }
-                                , Cmd.none
-                                )
+                                }
+                      }
+                    , Cmd.none
+                    )
+
+                Insert { autoComplete } ->
+                    case autoComplete of
+                        Just _ ->
+                            ( selectAutoComplete forward buf
+                            , Cmd.none
+                            )
 
                         _ ->
-                            ( buf, Cmd.none )
+                            ( case autoCompleteTarget buf of
+                                Just ( pos, word ) ->
+                                    startAutoComplete (Buf.toWords word buf)
+                                        pos
+                                        word
+                                        buf
+
+                                _ ->
+                                    buf
+                            , Cmd.none
+                            )
 
                 _ ->
                     ( buf, Cmd.none )
@@ -846,7 +819,12 @@ runOperator count register operator buf =
                     ( buf, Cmd.none )
 
         JumpToTag ->
-            case wordStringUnderCursor buf of
+            case
+                wordStringUnderCursor
+                    buf.config.wordChars
+                    buf.lines
+                    buf.cursor
+            of
                 Just ( _, s ) ->
                     ( buf
                     , sendReadTags buf.config.service
@@ -1208,6 +1186,18 @@ isExEditing op =
             False
 
 
+triggerExAutoComplete : Buffer -> Bool
+triggerExAutoComplete buf =
+    buf.lines
+        |> B.toString
+        |> String.startsWith ":e "
+
+
+setExbuf : Buffer -> ExMode -> Buffer -> Buffer
+setExbuf buf ex exbuf =
+    { buf | mode = Ex { ex | exbuf = exbuf } }
+
+
 applyEdit : Maybe Int -> Maybe Operator -> String -> Buffer -> ( Buffer, Cmd Msg )
 applyEdit count edit register buf =
     case edit of
@@ -1220,19 +1210,37 @@ applyEdit count edit register buf =
                                 |> runOperator count register operator
                     in
                         case buf1.mode of
-                            Ex newex ->
-                                if isExEditing operator then
-                                    let
-                                        ( newex1, cmd1 ) =
-                                            exAutoComplete
-                                                buf1.config.service
-                                                newex
-                                    in
-                                        ( { buf1 | mode = Ex newex1 }
-                                        , Cmd.batch [ cmd, cmd1 ]
-                                        )
+                            Ex ({ exbuf } as newex) ->
+                                if triggerExAutoComplete exbuf then
+                                    if isExEditing operator then
+                                        if isAutoCompleteStarted exbuf then
+                                            ( exbuf
+                                                |> filterAutoComplete
+                                                |> setExbuf buf1 newex
+                                            , cmd
+                                            )
+                                        else
+                                            ( buf1
+                                            , Cmd.batch
+                                                [ cmd
+                                                , sendListFiles
+                                                    buf.config.service
+                                                ]
+                                            )
+                                    else
+                                        ( buf1, cmd )
                                 else
-                                    ( buf1, cmd )
+                                    ( setExbuf buf1
+                                        newex
+                                        { exbuf
+                                            | mode =
+                                                Insert
+                                                    { autoComplete =
+                                                        Nothing
+                                                    }
+                                        }
+                                    , cmd
+                                    )
 
                             _ ->
                                 ( buf1, cmd )
@@ -1484,78 +1492,6 @@ execute s buf =
             ( buf, Cmd.none )
 
 
-exAutoComplete : String -> ExMode -> ( ExMode, Cmd Msg )
-exAutoComplete service ex =
-    let
-        { exbuf, autoComplete } =
-            ex
-
-        s =
-            B.toString exbuf.lines
-    in
-        if String.startsWith ":e " s then
-            case autoComplete of
-                Just auto ->
-                    let
-                        { source } =
-                            auto
-
-                        target =
-                            exbuf
-                                |> autoCompleteTarget
-
-                        matches =
-                            target
-                                |> fuzzyMatch source
-                                |> Array.fromList
-                    in
-                        ( { ex
-                            | autoComplete =
-                                Just
-                                    { auto
-                                        | matches =
-                                            Array.push
-                                                { text = target, matches = [] }
-                                                matches
-                                    }
-                          }
-                        , Cmd.none
-                        )
-
-                _ ->
-                    let
-                        newex =
-                            Ex
-                                { ex
-                                    | autoComplete =
-                                        Just
-                                            { source = []
-                                            , matches = Array.empty
-                                            , select = -1
-                                            , scrollTop = 0
-                                            }
-                                }
-                    in
-                        ( ex, sendListFiles service )
-        else
-            ( { ex | autoComplete = Nothing }, Cmd.none )
-
-
-autoCompleteTarget : Buffer -> String
-autoCompleteTarget exbuf =
-    exbuf.lines
-        |> B.getLine 0
-        |> Maybe.andThen
-            (String.split " "
-                >> List.tail
-            )
-        |> Maybe.andThen
-            (List.filter (String.isEmpty >> not)
-                >> List.head
-            )
-        |> Maybe.withDefault ""
-
-
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
 handleKeypress replaying key buf =
     let
@@ -1777,7 +1713,7 @@ pairCursor buf =
     let
         cursor =
             case buf.mode of
-                Insert ->
+                Insert _ ->
                     buf.cursor
                         |> Tuple.mapSecond
                             (\x ->
@@ -2054,36 +1990,21 @@ update message buf =
             case resp of
                 Ok files ->
                     case buf.mode of
-                        Ex ex ->
-                            let
-                                autoComplete =
-                                    Just
-                                        { source = files
-                                        , matches =
-                                            ex.exbuf
-                                                |> autoCompleteTarget
-                                                |> fuzzyMatch files
-                                                |> Array.fromList
-                                                |> Array.push
-                                                    { text =
-                                                        autoCompleteTarget
-                                                            ex.exbuf
-                                                    , matches = []
-                                                    }
-                                        , select = -1
-                                        , scrollTop = 0
-                                        }
-                            in
-                                ( { buf
-                                    | mode =
-                                        Ex
-                                            { ex
-                                                | autoComplete =
-                                                    autoComplete
-                                            }
-                                  }
-                                , Cmd.none
+                        Ex ({ exbuf } as ex) ->
+                            ( setExbuf buf
+                                ex
+                                (case autoCompleteTarget exbuf of
+                                    Just ( pos, word ) ->
+                                        startAutoComplete files
+                                            pos
+                                            word
+                                            exbuf
+
+                                    _ ->
+                                        exbuf
                                 )
+                            , Cmd.none
+                            )
 
                         _ ->
                             ( buf, Cmd.none )

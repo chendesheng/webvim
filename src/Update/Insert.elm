@@ -17,8 +17,10 @@ getString buf ins =
             s
 
         V.WordUnderCursor ->
-            buf
-                |> wordStringUnderCursor
+            wordStringUnderCursor
+                buf.config.wordChars
+                buf.lines
+                buf.cursor
                 |> Maybe.map Tuple.second
                 |> Maybe.withDefault ""
 

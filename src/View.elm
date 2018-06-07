@@ -77,14 +77,6 @@ view buf =
                 Nothing ->
                     ( Nothing, scrollTop )
 
-        exAutoComplete =
-            case buf.mode of
-                Ex ex ->
-                    ex.autoComplete
-
-                _ ->
-                    Nothing
-
         relativeNumberLine =
             searchRange
                 |> Maybe.map .begin
@@ -97,7 +89,7 @@ view buf =
 
         matchedCursor2 =
             case buf.mode of
-                Insert ->
+                Insert _ ->
                     Maybe.map2
                         (\( y, x ) _ ->
                             ( y, Basics.max 0 (x - 1) )
@@ -107,13 +99,19 @@ view buf =
 
                 _ ->
                     Nothing
+
+        gutterWidth =
+            totalLines |> toString |> String.length
+
+        relativeGutterWidth =
+            4
     in
         div [ class "editor" ]
             ([ div [ class "buffer" ]
                 [ lazy3 renderGutter
                     (scrollTop1 + 1)
                     (Basics.min (scrollTop1 + height + 1) totalLines)
-                    totalLines
+                    gutterWidth
                 , lazy2 renderRelativeGutter
                     (relativeNumberLine - scrollTop1)
                     (Basics.min (scrollTop1 + height + 1) (totalLines - 1)
@@ -169,14 +167,41 @@ view buf =
                         [ lazy3 saveActiveBuffer
                             buf.path
                             cursor
-                            buf.view.scrollTop
+                            scrollTop
                         ]
                 )
              ]
-                ++ (exAutoComplete
-                        |> Maybe.map
-                            (lazy2 renderAutoCompleteMenu "ex-mode")
-                        |> maybeToList
+                ++ (case buf.mode of
+                        Ex ex ->
+                            case ex.exbuf.mode of
+                                Insert { autoComplete } ->
+                                    autoComplete
+                                        |> Maybe.map
+                                            (renderAutoCompleteMenu
+                                                True
+                                                scrollTop
+                                                (gutterWidth + relativeGutterWidth)
+                                            )
+                                        |> maybeToList
+
+                                _ ->
+                                    []
+
+                        Insert { autoComplete } ->
+                            case autoComplete of
+                                Just auto ->
+                                    [ renderAutoCompleteMenu
+                                        False
+                                        scrollTop
+                                        (gutterWidth + relativeGutterWidth)
+                                        auto
+                                    ]
+
+                                _ ->
+                                    []
+
+                        _ ->
+                            []
                    )
             )
 
@@ -374,7 +399,7 @@ getStatusBar mode =
             , cursor = Nothing
             }
 
-        Insert ->
+        Insert _ ->
             { text = "-- Insert --"
             , cursor = Nothing
             }
@@ -562,12 +587,12 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
 
 
 renderGutter : Int -> Int -> Int -> Html msg
-renderGutter begin end total =
+renderGutter begin end totalWidth =
     div [ class "gutter-container" ]
         [ div
             [ class "gutter"
             , class "absolute-gutter"
-            , style [ ( "width", total |> toString |> String.length |> ch ) ]
+            , style [ ( "width", ch totalWidth ) ]
             ]
             (List.range begin end
                 |> List.map
@@ -657,8 +682,8 @@ renderLines scrollTop height lines syntax =
         )
 
 
-renderAutoCompleteMenu : String -> AutoComplete -> Html msg
-renderAutoCompleteMenu classname { matches, select, scrollTop } =
+renderAutoCompleteMenu : Bool -> Int -> Int -> AutoComplete -> Html msg
+renderAutoCompleteMenu isEx viewScrollTop gutterWidth { matches, select, scrollTop, pos } =
     let
         index =
             select - scrollTop
@@ -698,8 +723,23 @@ renderAutoCompleteMenu classname { matches, select, scrollTop } =
                                 [ render i len False ]
                             else
                                 []
+
+        ( y, x ) =
+            pos
     in
-        div [ class "auto-complete" ]
+        div
+            ([ class "auto-complete"
+             ]
+                ++ (if isEx then
+                        [ class "auto-complete-ex" ]
+                    else
+                        [ style
+                            [ ( "left", ch (x + gutterWidth) )
+                            , ( "top", rem (y + 1 - viewScrollTop) )
+                            ]
+                        ]
+                   )
+            )
             (List.indexedMap
                 (\i m ->
                     div

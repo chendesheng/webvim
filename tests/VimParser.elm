@@ -260,7 +260,7 @@ cases =
     , ( ":<tab>"
       , ( { initialMode
             | modeName = ModeNameEx ":"
-            , edit = SelectAutoComplete Forward |> Just
+            , edit = SelectAutoComplete True |> Just
           }
         , ":"
         )

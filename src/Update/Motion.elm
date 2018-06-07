@@ -123,8 +123,10 @@ saveMotion md mo oldbuf buf =
                         V.WordUnderCursor ->
                             let
                                 s =
-                                    oldbuf
-                                        |> wordStringUnderCursor
+                                    wordStringUnderCursor
+                                        oldbuf.config.wordChars
+                                        oldbuf.lines
+                                        oldbuf.cursor
                                         |> Maybe.map (Tuple.second >> wholeWord)
                             in
                                 case s of
@@ -498,8 +500,10 @@ runMotion count md mo buf =
                             gotoMatchedString count mo buf
 
                         V.WordUnderCursor ->
-                            buf
-                                |> wordStringUnderCursor
+                            wordStringUnderCursor
+                                buf.config.wordChars
+                                buf.lines
+                                buf.cursor
                                 --|> Debug.log "word under cursor"
                                 |> Maybe.andThen
                                     (\res ->
@@ -618,10 +622,10 @@ findParagraph forward start lines =
         findParagraphHelper True start
 
 
-wordStringUnderCursor : Buffer -> Maybe ( Position, String )
-wordStringUnderCursor { cursor, lines, config } =
+wordStringUnderCursor : String -> B.TextBuffer -> Position -> Maybe ( Position, String )
+wordStringUnderCursor wordChars lines cursor =
     lines
-        |> wordUnderCursor config.wordChars cursor
+        |> wordUnderCursor wordChars cursor
         |> Maybe.map
             (\rg ->
                 let
