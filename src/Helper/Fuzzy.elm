@@ -3,6 +3,7 @@ module Helper.Fuzzy exposing (..)
 import List
 import String
 import Helper.Helper exposing (getLast)
+import Char
 
 
 type alias FuzzyMatchItem =
@@ -14,6 +15,12 @@ type alias FuzzyMatchItem =
 fuzzyMatchInner : String -> String -> List Int
 fuzzyMatchInner s t =
     let
+        smartCaseEqual a b =
+            if String.toLower b == b then
+                String.toLower a == b
+            else
+                a == b
+
         lenS =
             String.length s
 
@@ -22,13 +29,11 @@ fuzzyMatchInner s t =
 
         charAt i =
             String.slice i (i + 1)
-                >> String.uncons
-                >> Maybe.map Tuple.first
 
         match delta i j result =
             if i < 0 || j < 0 || i >= lenS || j >= lenT then
                 result
-            else if charAt i s == charAt j t then
+            else if smartCaseEqual (charAt i s) (charAt j t) then
                 match delta (i + delta) (j + delta) (i :: result)
             else
                 match delta (i + delta) j result
@@ -71,8 +76,7 @@ fuzzyMatch src target =
             |> List.filterMap
                 (\s ->
                     target
-                        |> String.toLower
-                        |> fuzzyMatchInner (String.toLower s)
+                        |> fuzzyMatchInner s
                         |> (\matches ->
                                 case matches of
                                     [] ->

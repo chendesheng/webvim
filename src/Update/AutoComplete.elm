@@ -148,9 +148,13 @@ filterAutoComplete buf =
                                                     pos
                                                     buf.cursor
                                                 |> B.toString
+                                                |> String.trim
 
                                         matches =
-                                            fuzzyMatch source target
+                                            if String.length target > 0 then
+                                                fuzzyMatch source target
+                                            else
+                                                []
                                     in
                                         if List.isEmpty matches then
                                             Nothing

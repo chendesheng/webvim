@@ -738,16 +738,9 @@ runOperator count register operator buf =
         SelectAutoComplete forward ->
             case buf.mode of
                 Ex ex ->
-                    ( { buf
-                        | mode =
-                            Ex
-                                { ex
-                                    | exbuf =
-                                        selectAutoComplete
-                                            forward
-                                            ex.exbuf
-                                }
-                      }
+                    ( ex.exbuf
+                        |> selectAutoComplete forward
+                        |> setExbuf buf ex
                     , Cmd.none
                     )
 
@@ -761,10 +754,12 @@ runOperator count register operator buf =
                         _ ->
                             ( case autoCompleteTarget buf of
                                 Just ( pos, word ) ->
-                                    startAutoComplete (Buf.toWords word buf)
-                                        pos
-                                        word
-                                        buf
+                                    buf
+                                        |> startAutoComplete
+                                            (Buf.toWords word buf)
+                                            pos
+                                            word
+                                        |> selectAutoComplete forward
 
                                 _ ->
                                     buf
