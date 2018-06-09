@@ -4,14 +4,19 @@ class SessionStorageItem extends HTMLElement {
   }
 
   connectedCallback() {
-    sessionStorage.setItem(this.getAttribute('key'), this.getAttribute('value'));
+    sessionStorage.setItem(
+      this.getAttribute('key'),
+      this.getAttribute('value')
+    );
   }
 
   disconnectedCallback() {
     sessionStorage.removeItem(this.getAttribute('key'));
   }
 
-  static get observedAttributes() { return ['key', 'value']; }
+  static get observedAttributes() {
+    return ['key', 'value'];
+  }
 
   attributeChangedCallback(name, oldValue, newValue) {
     // console.log('attributeChangedCallback');
@@ -19,7 +24,10 @@ class SessionStorageItem extends HTMLElement {
     if (name == 'key') {
       sessionStorage.removeItem(this.getAttribute('key'));
     }
-    sessionStorage.setItem(this.getAttribute('key'), this.getAttribute('value'));
+    sessionStorage.setItem(
+      this.getAttribute('key'),
+      this.getAttribute('value')
+    );
   }
 }
 customElements.define('session-storage-item', SessionStorageItem);
@@ -31,7 +39,7 @@ if (!location.hostname) {
   scheme = 'http:';
 }
 
-const safeJsonParse = s => {
+const safeJsonParse = (s) => {
   if (s) return JSON.parse(s);
   else return null;
 };
@@ -48,23 +56,22 @@ const flags = {
 // console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);
 
-const applyCss = url => {
+const applyCss = (url) => {
   const link = document.createElement('link');
-  link.rel = "stylesheet";
+  link.rel = 'stylesheet';
   link.href = url;
   document.head.appendChild(link);
 };
 
 applyCss(`${flags.syntaxService}/css`);
 
-app.ports.setTitle.subscribe(title => {
-  document.title = title || "no name";
+app.ports.setTitle.subscribe((title) => {
+  document.title = title || 'no name';
 });
 
 let debouncers = {};
-app.ports.debounce.subscribe(({ action, time, payload }) => {
+app.ports.debounce.subscribe(({action, time, payload}) => {
   const data = debouncers[action] || {};
-  
   // console.log('debounce', action);
   if (payload !== undefined) {
     const payloads = data.payloads || [];

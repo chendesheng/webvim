@@ -20,11 +20,11 @@
 }
 
 @statusbar-height: 1.2rem;
-@statusbar-background: #166163;
+@statusbar-background: lighten(#1b1d1e, 15%);
 @gutter-lines-spacing: 0ch;
 @font-family: "iosevka";
-@line-height: 23px;
-@font-size: 17px;
+@line-height: 25px;
+@font-size: 18px;
 
 
 
@@ -36,7 +36,7 @@
 // @cursor-color: #657B83;
 
 // solarized dark
-@body-background: #002B36;
+@body-background: #1b1d1e;
 @body-color: darken(contrast(@body-background), 20%);
 @gutter-color: #949494;
 @ruler: 80ch;
@@ -55,7 +55,7 @@ html, body {
   color: @body-color;
   background: @body-background;
   font-variant-ligatures: common-ligatures;
-  font-weight: 200;
+  font-weight: 400;
 }
 
 .editor {
@@ -182,7 +182,8 @@ html, body {
 }
 
 .status.dirty {
-  opacity: 0.8;
+  opacity: 0.7;
+  background: linear-gradient(0deg, lighten(@statusbar-background, 10%), lighten(@statusbar-background, 12%));
 }
 
 .status > div:first-child {
@@ -274,6 +275,7 @@ html, body {
 
 .auto-complete .matched {
   font-weight: 700;
+  color: lighten(@statusbar-background, 10%);
 }
 
 .auto-complete-ex {

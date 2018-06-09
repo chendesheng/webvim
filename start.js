@@ -1,12 +1,44 @@
 const chokidar = require('chokidar');
-const execa = require('execa');
 const browserSync = require('browser-sync').create();
-const debounce = require('debounce');
+// const debounce = require('debounce');
 const http = require('http');
+const {spawn} = require('child_process');
+const fs = require('fs');
+const {deepEqual} = require('assert');
+
+const executor = (() => {
+  const executing = {};
+  const run = (cmd, onsuccess) => {
+    if (executing[cmd]) {
+      console.log('kill ' + cmd);
+      executing[cmd].kill();
+      executing[cmd].removeAllListeners();
+      executing[cmd] = null;
+    }
+    const args = cmd.split(/\s+/);
+    const child = spawn(args[0], args.slice(1), {stdio: 'inherit'});
+    child.once('exit', () => {
+      const exitCode = executing[cmd].exitCode;
+      console.log('exit ' + cmd);
+      console.log('exitCode ' + exitCode);
+      if (exitCode === 0) {
+        executing[cmd] = null;
+        if (onsuccess) onsuccess();
+      }
+    });
+    child.on('error', (err) => {
+      console.error(`exec error: ${err}`);
+    });
+    executing[cmd] = child;
+  };
+  return {
+    run,
+  };
+})();
 
 browserSync.init({
   server: {
-    baseDir: "./",
+    baseDir: './',
   },
   watchOptions: {
     ignoreInitial: true,
@@ -14,21 +46,19 @@ browserSync.init({
   },
 });
 
-const shell = (sh) => {
+const shell = (sh, onsuccess) => {
   console.log(sh);
-  return execa.shellSync(sh, { stdio: 'inherit' });
+  return executor.run(sh, onsuccess);
 };
 
-const asyncCommands = {};
-const shellAsync = (sh) => {
-  console.log(sh);
-  return execa.shell(sh, { stdio: 'inherit' });
-};
+const shellAndReload = (cmd, file) => shell(cmd, () => {
+  console.log('reload', file);
+  if (file) browserSync.reload(file);
+  else browserSync.reload();
+});
 
-const jsTask = () => shell('npm run js --silent');
-const cssTask = () => shell('npm run css');
-const reloadTask = () => browserSync.reload();
-const reloadCSSTask = () => browserSync.reload('dist/style.min.css');
+const jsTask = () => shellAndReload('npm run js --silent');
+const cssTask = () => shellAndReload('npm run css', 'dist/style.min.css');
 const ctagsTask = () => shell([
   'ctags -R --fields=+n',
   '--exclude="tests/elm-stuff"',
@@ -40,28 +70,56 @@ const ctagsTask = () => shell([
   'src',
   'tests',
   'elm-stuff/packages',
-  'tests/elm-stuff/packages/elm-community/elm-test'
+  'tests/elm-stuff/packages/elm-community/elm-test',
   ].join(' '));
-const exitTask = () => process.exit(0);
-const htmlTask = () => shell('npm run html');
-const fontTask = () => shell('npm run font');
-const serverTask = (port) => () =>
-    http.get(`http://localhost:${port}/kill`)
-      .on('error', () => shellAsync('./start'));
 
-const syntaxServerTask = (port) => () =>
-    http.get(`http://localhost:${port}/kill`)
-      .on('error', () => shellAsync('npm run syntaxserver'));
+const exitTask = () => {
+  // check current file syntax before restart!!
+  const child = spawn('node', ['-c', __filename], {stdio: 'inherit'});
+  child.on('exit', () => {
+    if (child.exitCode === 0) {
+      process.exit(0);
+    }
+  });
+};
+const htmlTask = () => shellAndReload('npm run html');
+const fontTask = () => shellAndReload('npm run font');
+const serverTask = (port) => () => {
+  http.get(`http://localhost:${port}/kill`)
+    .once('error', () => shell('./start'));
+};
+
+const syntaxServerTask = (port) => () => {
+  http.get(`http://localhost:${port}/kill`)
+    .once('error', () => shell('npm run syntaxserver'));
+};
+
+const npmInstall = (() => {
+  const readPackageJson = () =>
+    JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'}));
+  let lastPackageJson = readPackageJson();
+  return () => {
+    const obj = readPackageJson();
+    try {
+      deepEqual(obj.dependencies, lastPackageJson.dependencies);
+      deepEqual(obj.devDependencies, lastPackageJson.devDependencies);
+    } catch (e) {
+      shell('npm install');
+    } finally {
+      lastPackageJson = obj;
+    }
+  };
+})();
 
 // const testTask = () => shell('elm test');
 
 const withColor = (number, str) => `\x1b[${number}m${str}\x1b[0m`;
 const green = 32;
 
-const runTaskList = debounce((tasks) => {
+const runTaskList = (tasks) => {
   console.log(withColor(green, `${new Date}`));
   const todo = [];
-  // remove duplicate tasks 
+  // remove duplicate tasks
   // use reverse to leave most recent one
   tasks.slice().reverse().forEach((task) => {
     if (todo.indexOf(task) === -1) {
@@ -71,18 +129,9 @@ const runTaskList = debounce((tasks) => {
 
   todo
     .reverse()
-    .forEach(
-      f => {
-        try {
-          f();
-        } catch(err) {
-          // console.log(`run task ${todo.map(f=>f.name)} error.`);
-          console.log(err);
-        }
-      });
+    .forEach((f) => f());
   taskList = [];
-
-}, 1000);
+};
 
 let taskList = [];
 const watch = (path, tasks) => {
@@ -92,20 +141,21 @@ const watch = (path, tasks) => {
   });
 };
 
-runTaskList([jsTask, cssTask, ctagsTask, htmlTask,
-  reloadTask, serverTask(8080), syntaxServerTask(8765)]);
+runTaskList([serverTask(8080), syntaxServerTask(8765),
+  jsTask, cssTask, htmlTask, ctagsTask]);
 
-watch('src/**/*.elm', [jsTask, ctagsTask, reloadTask]);
-watch('src/Native/*.js', [jsTask, reloadTask]);
+watch('src/**/*.elm', [ctagsTask, jsTask]);
+watch('src/Native/*.js', [jsTask]);
 watch([
   'build/template.html',
   'build/index.js',
-  'build/html.config.js'
-], [htmlTask, reloadTask]);
-watch(['css/**/*.less'], [cssTask, reloadCSSTask]);
+  'build/html.config.js',
+], [htmlTask]);
+watch(['css/**/*.less'], [cssTask]);
 watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
 watch(['tests/**/*.elm'], [ctagsTask]);
-watch(['src-fs/**/*.fs'], [serverTask(8080) ]);
-watch(['src-js/**/*.js'], [syntaxServerTask(8765)]);
+watch(['src-fs/**/*.fs'], [serverTask(8080)]);
+watch(['src-js/**/*.js', 'src-js/theme.json'], [syntaxServerTask(8765)]);
+watch('package.json', [npmInstall]);
 

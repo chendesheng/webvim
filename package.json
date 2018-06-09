@@ -1,6 +1,6 @@
 {
   "name": "webvim",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "description": "",
   "main": "dist/elm.js",
   "scripts": {
@@ -9,16 +9,20 @@
     "js": "elm make src/Main.elm --output dist/elm.js --debug --warn",
     "release": "npm run css && node ./build/release.js",
     "html": "node ./build/html.config.js",
-    "syntaxserver": "node ./src-js/textmate.js"
+    "syntaxserver": "node ./src-js/textmate.js",
+    "eslint": "eslint start.js build/*.js src-js/**/*.js --fix"
   },
   "author": "chendesheng",
   "license": "MIT",
   "devDependencies": {
+    "ajv": "^5.0.0",
     "browser-sync": "^2.24.4",
     "chokidar": "^2.0.3",
     "clean-css": "^4.1.11",
     "debounce": "^1.1.0",
-    "execa": "^0.8.0",
+    "eslint": "^4.19.1",
+    "eslint-config-google": "^0.9.1",
+    "execa": "^0.10.0",
     "google-closure-compiler-js": "^20180402.0.0",
     "hasha": "^3.0.0",
     "husky": "^0.15.0-rc.13",
@@ -35,7 +39,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "elm format src/ --yes && elm format tests/ --yes && elm test && npm run release && ./fake"
+      "pre-commit": "npm run eslint && elm format src/ --yes && elm format tests/ --yes && elm test && npm run release && ./fake"
     }
   }
 }
