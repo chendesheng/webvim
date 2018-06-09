@@ -1500,16 +1500,18 @@ handleKeypress replaying key buf =
 
                 _ ->
                     parse buf.continuation key
+
+        buf1 =
+            buf
+                |> cacheVimAST cacheKey cacheVal
+                |> setContinuation continuation
     in
-        case serviceBeforeApplyVimAST replaying key ast buf of
+        case serviceBeforeApplyVimAST replaying key ast buf1 of
             Just cmd ->
-                ( buf, cmd )
+                ( buf1, cmd )
 
             _ ->
-                buf
-                    |> cacheVimAST cacheKey cacheVal
-                    |> setContinuation continuation
-                    |> applyVimAST replaying key ast
+                applyVimAST replaying key ast buf1
 
 
 serviceBeforeApplyVimAST : Bool -> Key -> AST -> Buffer -> Maybe (Cmd Msg)
