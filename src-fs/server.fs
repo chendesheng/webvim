@@ -67,19 +67,18 @@ let elmLint (dir: String) (file : String) =
 
         p.Start()
         let result = p.StandardOutput.ReadToEnd() |> trace
-        trace <| sprintf "%d %d" p.ExitCode result.Length
+        p.WaitForExit()
+        sprintf "exitCode=%d result.length=%d" p.ExitCode result.Length
+            |> trace
         if p.ExitCode = 0 then
-            p.WaitForExit()
             p.Close()
             Some ""
         else if result.Length = 0 then
             let errResult = p.StandardError.ReadToEnd()
             trace errResult
-            p.WaitForExit()
             p.Close()
-            Some ""
+            Some errResult
         else
-            p.WaitForExit()
             p.Close()
             Some (
               (if dir.EndsWith("/")

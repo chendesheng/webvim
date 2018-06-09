@@ -796,19 +796,10 @@ runOperator count register operator buf =
                     let
                         path =
                             registerString reg
-
-                        --|> Debug.log "JumpLastBuffer"
-                        info =
-                            buf.buffers
-                                |> Dict.get path
-                                |> Maybe.withDefault
-                                    { path = path
-                                    , cursor = ( 0, 0 )
-                                    , scrollTop = 0
-                                    , content = Nothing
-                                    }
                     in
-                        jumpTo True info buf
+                        jumpToLocation True
+                            { path = path, cursor = ( 0, 0 ) }
+                            buf
 
                 _ ->
                     ( buf, Cmd.none )
@@ -1404,13 +1395,19 @@ jumpTo isSaveJump info buf =
 jumpToLocation : Bool -> Location -> Buffer -> ( Buffer, Cmd Msg )
 jumpToLocation isSaveJump { path, cursor } buf =
     let
+        ( y, _ ) =
+            cursor
+
         info =
             buf.buffers
                 |> Dict.get path
                 |> Maybe.withDefault
                     { path = path
                     , cursor = cursor
-                    , scrollTop = 0
+                    , scrollTop =
+                        y
+                            - (buf.view.size.height // 2)
+                            |> max 0
                     , content = Nothing
                     }
     in
@@ -1421,18 +1418,7 @@ execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            let
-                info =
-                    buf.buffers
-                        |> Dict.get path
-                        |> Maybe.withDefault
-                            { path = path
-                            , cursor = ( 0, 0 )
-                            , scrollTop = 0
-                            , content = Nothing
-                            }
-            in
-                jumpTo True info buf
+            jumpToLocation True { path = path, cursor = ( 0, 0 ) } buf
 
         [ "w" ] ->
             ( buf
@@ -1459,23 +1445,7 @@ execute s buf =
         [ "ll" ] ->
             case List.head buf.locationList of
                 Just loc ->
-                    let
-                        { path, cursor } =
-                            loc
-
-                        info =
-                            buf.buffers
-                                |> Dict.get path
-                                |> Maybe.map
-                                    (\info1 -> { info1 | cursor = cursor })
-                                |> Maybe.withDefault
-                                    { path = path
-                                    , cursor = cursor
-                                    , scrollTop = 0
-                                    , content = Nothing
-                                    }
-                    in
-                        jumpTo True info buf
+                    jumpToLocation True loc buf
 
                 _ ->
                     ( buf, Cmd.none )
@@ -1903,11 +1873,17 @@ update message buf =
                 Ok items ->
                     let
                         items1 =
-                            List.filter
+                            List.filterMap
                                 (\item ->
-                                    String.endsWith
-                                        (String.toLower buf.path)
-                                        (String.toLower item.file)
+                                    if
+                                        String.isEmpty item.file
+                                            || String.endsWith
+                                                (String.toLower buf.path)
+                                                (String.toLower item.file)
+                                    then
+                                        Just { item | file = buf.path }
+                                    else
+                                        Nothing
                                 )
                                 items
 
@@ -1917,10 +1893,10 @@ update message buf =
                         ( { buf
                             | lint =
                                 { items = items1
-                                , count = List.length items
+                                , count = List.length items1
                                 }
                             , locationList =
-                                lintErrorToLocationList items
+                                lintErrorToLocationList items1
                           }
                         , Cmd.none
                         )
@@ -1959,12 +1935,7 @@ update message buf =
                     in
                         buf
                             |> saveLastJumpToTag
-                            |> jumpTo True
-                                { path = loc.path
-                                , cursor = loc.cursor
-                                , scrollTop = 0
-                                , content = Nothing
-                                }
+                            |> jumpToLocation True loc
 
                 _ ->
                     ( buf, Cmd.none )
@@ -2083,9 +2054,6 @@ init flags =
         { lineHeight, service, syntaxService, buffers, activeBuffer, registers, height } =
             flags
 
-        _ =
-            Debug.log "flags" flags
-
         view =
             emptyBuffer.view
 
@@ -2116,7 +2084,7 @@ init flags =
                                         - emptyBuffer.view.statusbarHeight
                                 }
                         }
-                    , jumps = jumps |> Debug.log "jumps"
+                    , jumps = jumps
                     , config =
                         { defaultBufferConfig
                             | service = service

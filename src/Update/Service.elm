@@ -185,7 +185,9 @@ parseLintResponse resp =
                                     )
                                 )
                     else
-                        case P.run syntaxErrorParser s of
+                        case
+                            P.run syntaxErrorParser ss
+                        of
                             Ok item ->
                                 Ok [ { item | file = dir ++ item.file } ]
 
@@ -195,7 +197,7 @@ parseLintResponse resp =
                                       , tag = ""
                                       , file = ""
                                       , overview = ""
-                                      , details = s
+                                      , details = ss
                                       , region = ( ( 0, 0 ), ( 0, 0 ) )
                                       , subRegion = Nothing
                                       }

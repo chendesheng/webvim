@@ -129,3 +129,12 @@ parseWords wordChars s =
             )
         |> Result.withDefault []
         |> List.filter (\s -> String.length s >= 2)
+
+
+maybeAndThen2 : (a -> b -> Maybe c) -> Maybe a -> Maybe b -> Maybe c
+maybeAndThen2 f ma mb =
+    Maybe.andThen
+        (\a ->
+            Maybe.andThen (f a) mb
+        )
+        ma

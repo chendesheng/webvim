@@ -21,6 +21,7 @@ import String
 import Elm.Array exposing (Array)
 import Update.Buffer as Buf
 import Dict exposing (Dict)
+import Helper.Helper exposing (maybeAndThen2)
 
 
 --import Regex exposing (regex)
@@ -90,9 +91,14 @@ view buf =
         matchedCursor2 =
             case buf.mode of
                 Insert _ ->
-                    Maybe.map2
-                        (\( y, x ) _ ->
-                            ( y, Basics.max 0 (x - 1) )
+                    maybeAndThen2
+                        (\cursor matchedCursor ->
+                            if cursor > matchedCursor then
+                                case cursor of
+                                    ( y, x ) ->
+                                        Just ( y, Basics.max 0 (x - 1) )
+                            else
+                                Nothing
                         )
                         maybeCursor
                         matchedCursor
@@ -683,8 +689,11 @@ renderLines scrollTop height lines syntax =
 
 
 renderAutoCompleteMenu : Bool -> Int -> Int -> AutoComplete -> Html msg
-renderAutoCompleteMenu isEx viewScrollTop gutterWidth { matches, select, scrollTop, pos } =
+renderAutoCompleteMenu isEx viewScrollTop gutterWidth auto =
     let
+        { matches, select, scrollTop, pos } =
+            auto
+
         index =
             select - scrollTop
 
