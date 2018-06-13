@@ -204,7 +204,6 @@ type alias BufferConfig =
     , expandTab : Bool
     , lint : Bool
     , service : String
-    , syntaxService : String
     }
 
 
@@ -215,7 +214,6 @@ defaultBufferConfig =
     , expandTab = True
     , lint = False
     , service = ""
-    , syntaxService = ""
     }
 
 

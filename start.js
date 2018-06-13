@@ -84,16 +84,6 @@ const exitTask = () => {
 };
 const htmlTask = () => shellAndReload('npm run html');
 const fontTask = () => shellAndReload('npm run font');
-const serverTask = (port) => () => {
-  http.get(`http://localhost:${port}/kill`)
-    .once('error', () => shell('./start'));
-};
-
-const syntaxServerTask = (port) => () => {
-  http.get(`http://localhost:${port}/kill`)
-    .once('error', () => shell('npm run syntaxserver'));
-};
-
 const npmInstall = (() => {
   const readPackageJson = () =>
     JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'}));
@@ -141,8 +131,7 @@ const watch = (path, tasks) => {
   });
 };
 
-runTaskList([serverTask(8080), syntaxServerTask(8765),
-  jsTask, cssTask, htmlTask, ctagsTask]);
+runTaskList([jsTask, cssTask, htmlTask, ctagsTask]);
 
 watch('src/**/*.elm', [ctagsTask, jsTask]);
 watch('src/Native/*.js', [jsTask]);
@@ -155,7 +144,13 @@ watch(['css/**/*.less'], [cssTask]);
 watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
 watch(['tests/**/*.elm'], [ctagsTask]);
-watch(['src-fs/**/*.fs'], [serverTask(8080)]);
-watch(['src-js/**/*.js', 'src-js/theme.json'], [syntaxServerTask(8765)]);
 watch('package.json', [npmInstall]);
+
+const startBackend = (port) => {
+  http.get(`http://localhost:${port}/kill`)
+    .once('error',
+      () => spawn('npm', ['run', 'purs:watch'], {stdio: 'inherit'})
+    );
+};
+startBackend(8899);
 

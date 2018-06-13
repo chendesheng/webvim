@@ -1137,10 +1137,7 @@ newBuffer info buf =
         { buf
             | lines = lines
             , config =
-                { config
-                    | service = buf.config.service
-                    , syntaxService = buf.config.syntaxService
-                }
+                { config | service = buf.config.service }
             , view =
                 { emptyView
                     | size = buf.view.size
@@ -1341,7 +1338,7 @@ tokenizeBufferCmd debounce minBottom buf =
                         lines
                 else
                     sendTokenize
-                        buf.config.syntaxService
+                        buf.config.service
                         { path = buf.path
                         , version = buf.history.version
                         , line = line
@@ -1424,7 +1421,6 @@ execute s buf =
             ( buf
             , sendWriteBuffer
                 buf.config.service
-                buf.config.syntaxService
                 (buf.view.scrollTop + buf.view.size.height * 2)
                 buf.path
               <|
@@ -1435,7 +1431,6 @@ execute s buf =
             ( buf
             , sendWriteBuffer
                 buf.config.service
-                buf.config.syntaxService
                 (buf.view.scrollTop + buf.view.size.height * 2)
                 path
               <|
@@ -1451,7 +1446,7 @@ execute s buf =
                     ( buf, Cmd.none )
 
         [ "f", s ] ->
-            ( buf, sendFind buf.config.service s )
+            ( buf, sendSearch buf.config.service s )
 
         _ ->
             ( buf, Cmd.none )
@@ -1781,6 +1776,9 @@ update message buf =
                         _ ->
                             ( buf, Cmd.none )
 
+                Err Http.NetworkError ->
+                    ( buf, Cmd.none )
+
                 _ ->
                     ( buf, Cmd.none )
 
@@ -1829,7 +1827,6 @@ update message buf =
         Edit info ->
             ( buf
             , sendReadBuffer buf.config.service
-                buf.config.syntaxService
                 (buf.view.size.height * 2)
                 buf.config.tabSize
                 info
@@ -1910,7 +1907,7 @@ update message buf =
         SendTokenize req ->
             ( buf
             , sendTokenize
-                buf.config.syntaxService
+                buf.config.service
                 req
             )
 
@@ -1940,7 +1937,7 @@ update message buf =
                 _ ->
                     ( buf, Cmd.none )
 
-        FindResult result ->
+        SearchResult result ->
             case result of
                 Ok s ->
                     jumpTo True
@@ -1989,7 +1986,6 @@ editBuffer info buf =
     if info.path /= "" && info.content == Nothing then
         ( buf
         , sendReadBuffer buf.config.service
-            buf.config.syntaxService
             (info.scrollTop + buf.view.size.height * 2)
             buf.config.tabSize
             info
@@ -2040,7 +2036,6 @@ editBuffer info buf =
 type alias Flags =
     { lineHeight : Int
     , service : String
-    , syntaxService : String
     , buffers : Encode.Value
     , activeBuffer : Encode.Value
     , registers : Encode.Value
@@ -2051,7 +2046,7 @@ type alias Flags =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        { lineHeight, service, syntaxService, buffers, activeBuffer, registers, height } =
+        { lineHeight, service, buffers, activeBuffer, registers, height } =
             flags
 
         view =
@@ -2086,10 +2081,7 @@ init flags =
                         }
                     , jumps = jumps
                     , config =
-                        { defaultBufferConfig
-                            | service = service
-                            , syntaxService = syntaxService
-                        }
+                        { defaultBufferConfig | service = service }
                     , registers =
                         Decode.decodeValue registersDecoder registers
                             |> Result.withDefault Dict.empty

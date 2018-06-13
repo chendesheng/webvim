@@ -1,5 +1,0 @@
-#!/bin/bash
-
-./fake
-mono dist/server.exe $@
-

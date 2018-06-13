@@ -149,5 +149,5 @@ type Msg
     | Tokenized (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List File))
     | ReadTags (Result String Location)
-    | FindResult (Result Http.Error String)
+    | SearchResult (Result Http.Error String)
     | NoneMessage

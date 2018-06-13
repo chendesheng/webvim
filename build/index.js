@@ -46,8 +46,7 @@ const safeJsonParse = (s) => {
 
 const flags = {
   lineHeight,
-  service: `${scheme}//${host}:8080`,
-  syntaxService: `${scheme}//${host}:8765`,
+  service: `${scheme}//${host}:8899`,
   activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
   buffers: safeJsonParse(sessionStorage.getItem('buffers')) || [],
   registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
@@ -55,15 +54,6 @@ const flags = {
 };
 // console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);
-
-const applyCss = (url) => {
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = url;
-  document.head.appendChild(link);
-};
-
-applyCss(`${flags.syntaxService}/css`);
 
 app.ports.setTitle.subscribe((title) => {
   document.title = title || 'no name';

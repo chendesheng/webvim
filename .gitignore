@@ -1,4 +1,4 @@
-node_modules/**
+node_modules
 elm-stuff/**
 dist/**
 tags
@@ -11,4 +11,5 @@ tests/elm-stuff/
 packages/
 .fake/
 highlightjs/
+bower_components
 

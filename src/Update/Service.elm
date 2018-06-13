@@ -27,10 +27,10 @@ import Task exposing (Task)
 import Regex as Re
 
 
-sendReadBuffer : String -> String -> Int -> Int -> BufferInfo -> Cmd Msg
-sendReadBuffer url syntaxServiceUrl tokenizeLines tabSize info =
+sendReadBuffer : String -> Int -> Int -> BufferInfo -> Cmd Msg
+sendReadBuffer url tokenizeLines tabSize info =
     url
-        ++ "/edit?path="
+        ++ "/read?path="
         ++ info.path
         |> Http.getString
         |> Http.toTask
@@ -40,7 +40,7 @@ sendReadBuffer url syntaxServiceUrl tokenizeLines tabSize info =
                     lines =
                         B.fromStringExpandTabs tabSize 0 s
                 in
-                    sendTokenizeTask syntaxServiceUrl
+                    sendTokenizeTask url
                         { path = info.path
                         , version = 0
                         , line = 0
@@ -57,6 +57,10 @@ sendReadBuffer url syntaxServiceUrl tokenizeLines tabSize info =
 
                                     _ ->
                                         ( lines, Array.empty )
+                            )
+                        |> Task.onError
+                            (\_ ->
+                                Task.succeed ( lines, Array.empty )
                             )
             )
         |> Task.attempt
@@ -81,8 +85,8 @@ post url body =
         }
 
 
-sendWriteBuffer : String -> String -> Int -> String -> String -> Cmd Msg
-sendWriteBuffer url syntaxServiceUrl tokenizeLines path buf =
+sendWriteBuffer : String -> Int -> String -> String -> Cmd Msg
+sendWriteBuffer url tokenizeLines path buf =
     let
         body =
             Http.stringBody "text/plain" buf
@@ -101,7 +105,7 @@ sendWriteBuffer url syntaxServiceUrl tokenizeLines path buf =
                             lines =
                                 B.fromString s
                         in
-                            sendTokenizeTask syntaxServiceUrl
+                            sendTokenizeTask url
                                 { path = path
                                 , version = 0
                                 , line = 0
@@ -117,7 +121,11 @@ sendWriteBuffer url syntaxServiceUrl tokenizeLines path buf =
                                                 ( lines, syntax )
 
                                             _ ->
-                                                ( B.empty, Array.empty )
+                                                ( lines, Array.empty )
+                                    )
+                                |> Task.onError
+                                    (\_ ->
+                                        Task.succeed ( lines, Array.empty )
                                     )
                 )
             |> Task.attempt Write
@@ -175,7 +183,9 @@ parseLintResponse resp =
         Ok ss ->
             case Re.split (Re.AtMost 1) (Re.regex "\n") ss of
                 [ dir, s ] ->
-                    if String.startsWith "[" s then
+                    if String.trim s == "Successfully generated /dev/null" then
+                        Ok []
+                    else if String.startsWith "[" s then
                         s
                             |> decodeString elmMakeResultDecoder
                             |> Result.map
@@ -186,7 +196,7 @@ parseLintResponse resp =
                                 )
                     else
                         case
-                            P.run syntaxErrorParser ss
+                            P.run syntaxErrorParser s
                         of
                             Ok item ->
                                 Ok [ { item | file = dir ++ item.file } ]
@@ -197,7 +207,7 @@ parseLintResponse resp =
                                       , tag = ""
                                       , file = ""
                                       , overview = ""
-                                      , details = ss
+                                      , details = s
                                       , region = ( ( 0, 0 ), ( 0, 0 ) )
                                       , subRegion = Nothing
                                       }
@@ -535,7 +545,7 @@ sendReadTags url path index name =
             )
 
 
-sendFind : String -> String -> Cmd Msg
-sendFind url s =
-    Http.getString (url ++ "/find?s=" ++ s)
-        |> Http.send FindResult
+sendSearch : String -> String -> Cmd Msg
+sendSearch url s =
+    Http.getString (url ++ "/search?s=" ++ s)
+        |> Http.send SearchResult
