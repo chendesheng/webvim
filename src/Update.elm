@@ -52,6 +52,7 @@ import Internal.Jumps
         )
 import Update.Range exposing (operatorRanges, shrinkRight)
 import Update.AutoComplete exposing (..)
+import Internal.Position exposing (Position)
 
 
 stringToPrefix : String -> ExPrefix
@@ -793,13 +794,7 @@ runOperator count register operator buf =
         JumpLastBuffer ->
             case Dict.get "#" buf.registers of
                 Just reg ->
-                    let
-                        path =
-                            registerString reg
-                    in
-                        jumpToLocation True
-                            { path = path, cursor = ( 0, 0 ) }
-                            buf
+                    jumpToPath True (registerString reg) Nothing buf
 
                 _ ->
                     ( buf, Cmd.none )
@@ -862,9 +857,7 @@ runOperator count register operator buf =
                     in
                         case P.run locationParser s of
                             Ok ( path, cursor ) ->
-                                jumpToLocation True
-                                    { path = path, cursor = cursor }
-                                    buf
+                                jumpToPath True path (Just cursor) buf
 
                             _ ->
                                 ( buf, Cmd.none )
@@ -1323,11 +1316,9 @@ tokenizeBufferCmd debounce minBottom buf =
                     |> max minBottom2
                     |> min (B.count buf.lines - 1)
 
-            --|> Debug.log "bottom"
             syntaxBottom =
                 buf.syntaxDirtyFrom
 
-            --|> Debug.log "syntaxBottom"
             tokenizeCmd line lines =
                 if debounce then
                     debounceTokenize
@@ -1345,7 +1336,7 @@ tokenizeBufferCmd debounce minBottom buf =
                         , lines = lines
                         }
         in
-            if bottom < syntaxBottom then
+            if bottom <= syntaxBottom then
                 Cmd.none
             else
                 buf.lines
@@ -1391,31 +1382,43 @@ jumpTo isSaveJump info buf =
 
 jumpToLocation : Bool -> Location -> Buffer -> ( Buffer, Cmd Msg )
 jumpToLocation isSaveJump { path, cursor } buf =
-    let
-        ( y, _ ) =
-            cursor
+    jumpToPath isSaveJump path (Just cursor) buf
 
+
+jumpToPath : Bool -> String -> Maybe Position -> Buffer -> ( Buffer, Cmd Msg )
+jumpToPath isSaveJump path maybeCursor buf =
+    let
         info =
             buf.buffers
                 |> Dict.get path
+                |> Maybe.map
+                    (\info ->
+                        { info
+                            | cursor =
+                                Maybe.withDefault info.cursor maybeCursor
+                        }
+                    )
                 |> Maybe.withDefault
                     { path = path
-                    , cursor = cursor
+                    , cursor = Maybe.withDefault ( 0, 0 ) maybeCursor
                     , scrollTop =
-                        y
+                        (maybeCursor
+                            |> Maybe.map Tuple.first
+                            |> Maybe.withDefault 0
+                        )
                             - (buf.view.size.height // 2)
                             |> max 0
                     , content = Nothing
                     }
     in
-        jumpTo isSaveJump { info | cursor = cursor } buf
+        jumpTo isSaveJump info buf
 
 
 execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            jumpToLocation True { path = path, cursor = ( 0, 0 ) } buf
+            jumpToPath True path Nothing buf
 
         [ "w" ] ->
             ( buf
@@ -1815,7 +1818,9 @@ update message buf =
                         , Cmd.batch
                             [ Doc.setTitle buf.name
                             , if buf.config.lint then
-                                sendLintProject buf.config.service buf.path
+                                sendLintProject buf.config.service
+                                    buf.path
+                                    buf.history.version
                               else
                                 Cmd.none
                             ]
@@ -1838,65 +1843,72 @@ update message buf =
                 , sendLintOnTheFly
                     buf.config.service
                     buf.path
+                    buf.history.version
                     (B.toString buf.lines)
                 )
             else
                 ( buf, Cmd.none )
 
-        LintOnTheFly resp ->
+        LintOnTheFly version resp ->
             case resp of
                 Ok errors ->
-                    let
-                        items =
-                            List.map (\item -> { item | file = buf.path })
-                                errors
-                    in
-                        ( { buf
-                            | lint =
-                                { items = items
-                                , count = List.length items
-                                }
-                            , locationList =
-                                lintErrorToLocationList items
-                          }
-                        , Cmd.none
-                        )
+                    if version == buf.history.version then
+                        let
+                            items =
+                                List.map (\item -> { item | file = buf.path })
+                                    errors
+                        in
+                            ( { buf
+                                | lint =
+                                    { items = items
+                                    , count = List.length items
+                                    }
+                                , locationList =
+                                    lintErrorToLocationList items
+                              }
+                            , Cmd.none
+                            )
+                    else
+                        ( buf, Cmd.none )
 
                 Err _ ->
                     ( buf, Cmd.none )
 
-        Lint resp ->
+        Lint version resp ->
             case resp of
                 Ok items ->
-                    let
-                        items1 =
-                            List.filterMap
-                                (\item ->
-                                    if
-                                        String.isEmpty item.file
-                                            || String.endsWith
-                                                (String.toLower buf.path)
-                                                (String.toLower item.file)
-                                    then
-                                        Just { item | file = buf.path }
-                                    else
-                                        Nothing
-                                )
-                                items
+                    if version == buf.history.version then
+                        let
+                            items1 =
+                                List.filterMap
+                                    (\item ->
+                                        if
+                                            String.isEmpty item.file
+                                                || String.endsWith
+                                                    (String.toLower buf.path)
+                                                    (String.toLower item.file)
+                                        then
+                                            Just { item | file = buf.path }
+                                        else
+                                            Nothing
+                                    )
+                                    items
 
-                        showTip =
-                            not (List.isEmpty items1)
-                    in
-                        ( { buf
-                            | lint =
-                                { items = items1
-                                , count = List.length items1
-                                }
-                            , locationList =
-                                lintErrorToLocationList items1
-                          }
-                        , Cmd.none
-                        )
+                            showTip =
+                                not (List.isEmpty items1)
+                        in
+                            ( { buf
+                                | lint =
+                                    { items = items1
+                                    , count = List.length items1
+                                    }
+                                , locationList =
+                                    lintErrorToLocationList items1
+                              }
+                            , Cmd.none
+                            )
+                    else
+                        ( buf, Cmd.none )
 
                 Err _ ->
                     ( buf, Cmd.none )
@@ -1929,6 +1941,9 @@ update message buf =
                                                 }
                                     }
                             }
+
+                        _ =
+                            Debug.log "loc" loc
                     in
                         buf
                             |> saveLastJumpToTag
@@ -2024,7 +2039,9 @@ editBuffer info buf =
             ( newbuf
             , Cmd.batch
                 [ if newbuf.config.lint then
-                    sendLintProject newbuf.config.service newbuf.path
+                    sendLintProject newbuf.config.service
+                        newbuf.path
+                        newbuf.history.version
                   else
                     Cmd.none
                 , Doc.setTitle newbuf.name

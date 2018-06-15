@@ -144,8 +144,8 @@ type Msg
     | Edit BufferInfo
     | SendLint
     | SendTokenize TokenizeRequest
-    | Lint (Result String (List LintError))
-    | LintOnTheFly (Result String (List LintError))
+    | Lint Int (Result String (List LintError))
+    | LintOnTheFly Int (Result String (List LintError))
     | Tokenized (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List File))
     | ReadTags (Result String Location)

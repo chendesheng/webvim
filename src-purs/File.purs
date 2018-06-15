@@ -57,6 +57,8 @@ writeFile req resp path = do
       --affLog (show result.error)
       case result.error of
         Just err -> do
+          -- FIXME: when input stream is interruptted in the middle of writing,
+          -- we might end up saving only part of the file
           affPipe inputStream fileStream
           affEnd outputStream
         _ -> do
@@ -90,7 +92,7 @@ readTags :: Response -> String -> Aff Unit
 readTags resp name = do
   affLog ("readTags: " <> name)
   let outputStream = responseAsStream resp
-  result <- execAsync Nothing ("readTags " <> name) Nothing
+  result <- execAsync Nothing ("readtags -en " <> name) Nothing
   writeStdout outputStream result
 
 

@@ -220,20 +220,20 @@ parseLintResponse resp =
             Err err
 
 
-sendLintProject : String -> String -> Cmd Msg
-sendLintProject url path =
+sendLintProject : String -> String -> Int -> Cmd Msg
+sendLintProject url path version =
     Http.getString (url ++ "/lint?path=" ++ path)
-        |> Http.send (parseLintResponse >> Lint)
+        |> Http.send (parseLintResponse >> Lint version)
 
 
-sendLintOnTheFly : String -> String -> String -> Cmd Msg
-sendLintOnTheFly url path buf =
+sendLintOnTheFly : String -> String -> Int -> String -> Cmd Msg
+sendLintOnTheFly url path version buf =
     let
         body =
             Http.stringBody "text/plain" buf
     in
         post (url ++ "/lint?path=" ++ path) body
-            |> Http.send (parseLintResponse >> LintOnTheFly)
+            |> Http.send (parseLintResponse >> LintOnTheFly version)
 
 
 unpackClass : Int -> Int -> Int -> Token
@@ -493,7 +493,6 @@ ctagsParser =
         (\path x y ->
             { cursor = ( y - 1, x ), path = path }
         )
-        |. P.ignore P.zeroOrMore isSpace
         |. P.ignore P.oneOrMore notSpace
         |. P.ignore P.oneOrMore isSpace
         |= P.keep P.oneOrMore notSpace
@@ -507,6 +506,7 @@ ctagsParser =
         |. P.ignoreUntil "line:"
         |= P.int
         |. P.ignoreUntil "\n"
+        |. P.ignore P.zeroOrMore isSpace
         |> P.repeat P.oneOrMore
 
 
@@ -531,6 +531,7 @@ sendReadTags url path index name =
                     |> Result.andThen
                         (\s ->
                             P.run ctagsParser s
+                                |> Debug.log "ctags parse"
                                 |> Result.mapError
                                     (always "parse result error")
                                 |> Result.andThen
