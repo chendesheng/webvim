@@ -260,6 +260,9 @@ textObject map =
                 , define "\\<" (Pair '<') around
                 , define ">" (Pair '<') around
                 , define "t" (Pair 't') around
+                , define "\"" (Quote '"') around
+                , define "'" (Quote '\'') around
+                , define "`" (Quote '`') around
                 ]
     in
         P.succeed identity

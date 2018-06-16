@@ -43,6 +43,7 @@ type TextObject
     | WORD
     | Line
     | Pair Char -- '', "", <>, (), {}, [], <tag></tag>
+    | Quote Char -- ', ", `
 
 
 type Direction
@@ -277,6 +278,8 @@ type MotionData
     | CharStart
       -- f|t{char}
     | MatchChar String Bool
+      -- skip blackslash escaped char
+    | QuoteChar Char
       -- /search
     | ViewTop
     | ViewMiddle

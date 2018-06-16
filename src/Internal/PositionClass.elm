@@ -3,6 +3,8 @@ module Internal.PositionClass
         ( findPosition
         , findLineFirst
         , parserWordEdge
+        , parserForwardCharRespectBackslash
+        , parserBackwardCharRespectBackslash
         )
 
 import Char
@@ -33,7 +35,7 @@ spaceInline char =
 parserWordStart : String -> Bool -> Parser Int
 parserWordStart wordChars crossLine =
     P.succeed
-        (length3 -1)
+        (sumLength3 -1)
         |= P.oneOf
             [ P.keep P.oneOrMore (word wordChars)
             , P.keep P.oneOrMore (punctuation wordChars)
@@ -55,7 +57,7 @@ parserWordStart wordChars crossLine =
 parserLineFirst : Parser Int
 parserLineFirst =
     P.succeed
-        (length1 0)
+        (sumLength1 0)
         |= P.keep P.zeroOrMore spaceInline
         |. P.oneOf
             [ P.ignore (P.Exactly 1) (spaceInline >> not)
@@ -66,7 +68,7 @@ parserLineFirst =
 parserWordEnd : String -> Parser Int
 parserWordEnd wordChars =
     P.succeed
-        (length2 0)
+        (sumLength2 0)
         |. P.keep (P.Exactly 1) (always True)
         |= P.keep P.zeroOrMore isSpace
         |= P.oneOf
@@ -84,7 +86,7 @@ parserWordEnd wordChars =
 parserWORDStart : Bool -> Parser Int
 parserWORDStart crossLine =
     P.succeed
-        (length3 -1)
+        (sumLength3 -1)
         |= P.oneOf
             [ P.keep P.oneOrMore notSpace
             , P.keep P.oneOrMore isSpace
@@ -100,18 +102,18 @@ parserWORDStart crossLine =
            )
 
 
-length1 : Int -> String -> Int
-length1 delta a =
+sumLength1 : Int -> String -> Int
+sumLength1 delta a =
     delta + String.length a
 
 
-length2 : Int -> String -> String -> Int
-length2 delta a b =
+sumLength2 : Int -> String -> String -> Int
+sumLength2 delta a b =
     delta + String.length a + String.length b
 
 
-length3 : Int -> String -> String -> String -> Int
-length3 delta a b c =
+sumLength3 : Int -> String -> String -> String -> Int
+sumLength3 delta a b c =
     delta
         + String.length a
         + String.length b
@@ -128,7 +130,7 @@ parserWordEdge wordChars =
                     , P.end |> P.map (always "")
                     ]
     in
-        P.succeed (length1 -1)
+        P.succeed (sumLength1 -1)
             |= P.oneOf
                 [ divider spaceInline
                 , divider (word wordChars)
@@ -145,14 +147,14 @@ parserWORDAround : Parser Int
 parserWORDAround =
     P.oneOf
         [ P.succeed
-            (length1 -1)
+            (sumLength1 -1)
             |= P.keep P.oneOrMore spaceInline
             |. P.oneOf
                 [ P.ignore (P.Exactly 1) (spaceInline >> not)
                 , P.end
                 ]
         , P.succeed
-            (length2 -1)
+            (sumLength2 -1)
             |= P.keep P.oneOrMore notSpace
             |= P.keep P.zeroOrMore spaceInline
         ]
@@ -163,7 +165,7 @@ parserWORDEdge =
     let
         divider pred =
             P.succeed
-                (length1 -1)
+                (sumLength1 -1)
                 |= P.keep P.oneOrMore pred
                 |. P.oneOf
                     [ P.keep (P.Exactly 1) (pred >> not)
@@ -179,7 +181,7 @@ parserWORDEdge =
 parserWORDEnd : Parser Int
 parserWORDEnd =
     P.succeed
-        (length2 0)
+        (sumLength2 0)
         |. P.keep (P.Exactly 1) (always True)
         |= P.keep P.zeroOrMore isSpace
         |= P.keep P.oneOrMore notSpace
@@ -192,7 +194,7 @@ parserWORDEnd =
 parserChar : Char -> Parser Int
 parserChar ch =
     P.succeed
-        (length2 0)
+        (sumLength2 0)
         |= P.keep (P.Exactly 1) (always True)
         |= P.keep P.zeroOrMore ((/=) ch)
         |. P.ignore (P.Exactly 1) ((==) ch)
@@ -204,6 +206,46 @@ parserBeforeChar ch =
         |. P.ignore (P.Exactly 1) (always True)
         |= P.keep P.zeroOrMore ((/=) ch)
         |. P.ignore (P.Exactly 1) ((==) ch)
+
+
+parserForwardCharRespectBackslash : Char -> Parser Int
+parserForwardCharRespectBackslash ch =
+    P.succeed
+        (+)
+        |= (P.succeed String.length
+                |= P.keep P.zeroOrMore (\c -> c /= '\\' && c /= ch)
+           )
+        |= P.oneOf
+            [ P.succeed ((+) 2)
+                |. P.ignore (P.Exactly 1) ((==) '\\')
+                |. P.ignore (P.Exactly 1) (always True)
+                |= P.lazy (\_ -> parserForwardCharRespectBackslash ch)
+            , P.succeed 0
+                |. P.ignore (P.Exactly 1) ((==) ch)
+            ]
+
+
+ignoreFirstChar : Parser Int -> Parser Int
+ignoreFirstChar p =
+    P.succeed ((+) 1)
+        |. P.ignore (P.Exactly 1) (always True)
+        |= p
+
+
+parserBackwardCharRespectBackslash : Char -> Parser Int
+parserBackwardCharRespectBackslash ch =
+    P.succeed
+        (+)
+        |= (P.succeed String.length
+                |= P.keep P.zeroOrMore ((/=) ch)
+           )
+        |. P.ignore (P.Exactly 1) ((==) ch)
+        |= P.oneOf
+            [ P.succeed ((+) 2)
+                |. P.ignore (P.Exactly 1) ((==) '\\')
+                |= P.lazy (\_ -> parserBackwardCharRespectBackslash ch)
+            , P.succeed 0
+            ]
 
 
 findPositionBackward :
@@ -245,6 +287,10 @@ findPositionBackward wordChars md line =
                             |> String.uncons
                             |> Maybe.map (Tuple.first >> p)
                             |> Maybe.withDefault (P.fail "invalid char")
+
+                QuoteChar ch ->
+                    parserBackwardCharRespectBackslash ch
+                        |> ignoreFirstChar
 
                 _ ->
                     P.fail "unknown position md"
@@ -295,6 +341,9 @@ findPositionForward wordChars md crossLine line =
                             |> String.uncons
                             |> Maybe.map (Tuple.first >> p)
                             |> Maybe.withDefault (P.fail "invalid char")
+
+                QuoteChar ch ->
+                    parserForwardCharRespectBackslash ch
 
                 _ ->
                     P.fail "unknown motion data "

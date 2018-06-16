@@ -66,11 +66,75 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                  --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
                 )
 
+        Quote c ->
+            let
+                a =
+                    (findPosition wordChars
+                        (QuoteChar c)
+                        (motionOption "<]$-")
+                        line
+                        cursor
+                    )
+
+                --|> Debug.log "resulta"
+                b =
+                    (findPosition
+                        wordChars
+                        (QuoteChar c)
+                        (motionOption ">]$-")
+                        line
+                        cursor
+                    )
+
+                --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
+                res =
+                    case a of
+                        Just i ->
+                            case b of
+                                Just j ->
+                                    Just ( i, j )
+
+                                _ ->
+                                    Nothing
+
+                        _ ->
+                            case b of
+                                Just j ->
+                                    if cursor == j then
+                                        -- cursor on top of ch and
+                                        -- backward part not found
+                                        -- try forward again
+                                        findPosition
+                                            wordChars
+                                            (QuoteChar c)
+                                            (motionOption ">]$-")
+                                            line
+                                            (cursor + 1)
+                                            |> Maybe.map ((,) cursor)
+                                    else
+                                        Nothing
+
+                                _ ->
+                                    Nothing
+            in
+                Maybe.map
+                    (\( i, j ) ->
+                        if around then
+                            ( i, j )
+                        else
+                            ( i + 1, j - 1 )
+                    )
+                    res
+
         _ ->
             Nothing
 
 
-wordUnderCursor : String -> Position -> B.TextBuffer -> Maybe ( Position, Position )
+wordUnderCursor :
+    String
+    -> Position
+    -> B.TextBuffer
+    -> Maybe ( Position, Position )
 wordUnderCursor wordChars cursor lines =
     let
         ( y, x ) =

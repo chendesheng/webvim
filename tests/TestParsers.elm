@@ -4,6 +4,11 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Update.Service exposing (syntaxErrorParser)
+import Internal.PositionClass
+    exposing
+        ( parserForwardCharRespectBackslash
+        , parserBackwardCharRespectBackslash
+        )
 
 
 suite : Test
@@ -27,4 +32,46 @@ suite =
                             }
                         )
                         (P.run syntaxErrorParser resp)
+        , describe "forwardCharRespectBackslash" <|
+            let
+                testParser s expect =
+                    test ("find in " ++ s) <|
+                        \_ ->
+                            s
+                                |> P.run
+                                    (parserForwardCharRespectBackslash
+                                        '"'
+                                    )
+                                |> expect
+            in
+                [ testParser "abc\"def" <| Expect.equal (Ok 3)
+                , testParser "abc\\\"d\"ef" <| Expect.equal (Ok 6)
+                , testParser "\"" <| Expect.equal (Ok 0)
+                , testParser "\\\"\"" <| Expect.equal (Ok 2)
+                , testParser "abc\\\"def" Expect.err
+                , testParser "abcdef" Expect.err
+                , testParser "\n" Expect.err
+                , testParser "\\" Expect.err
+                ]
+        , describe "backwardCharRespectBackslash" <|
+            let
+                testParser s expect =
+                    test ("find in " ++ s) <|
+                        \_ ->
+                            s
+                                |> String.reverse
+                                |> P.run
+                                    (parserBackwardCharRespectBackslash
+                                        '"'
+                                    )
+                                |> expect
+            in
+                [ testParser "a\"" <| Expect.equal (Ok 0)
+                , testParser "\"\\a" <| Expect.equal (Ok 2)
+                , testParser "\"a\\\"" <| Expect.equal (Ok 3)
+                , testParser "\"\"" <| Expect.equal (Ok 0)
+                , testParser "\"" <| Expect.equal (Ok 0)
+                , testParser "\\\"" Expect.err
+                , testParser "\\\"aa" Expect.err
+                ]
         ]
