@@ -23,6 +23,8 @@ foreign import readAllString
   -> (String -> Effect Unit)
   -> Effect Unit
 
+foreign import createReadableStream :: String -> Readable ()
+
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s
 

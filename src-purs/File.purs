@@ -11,6 +11,9 @@ import Helper
     , affWaitEnd
     , affEnd
     , writeStdout
+    , affReadAllString
+    , affWriteString
+    , createReadableStream
     )
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
@@ -53,22 +56,21 @@ writeFile req resp path = do
   case stripSuffix (Pattern ".elm") path of
     Just _ -> do
       affLog ("elm-format :" <> path)
-      result <- execAsync Nothing "elm-format --stdin" (Just inputStream)
-      --affLog (show result.error)
+      -- hold input in memory and use later if format failed
+      input <- affReadAllString inputStream
+      result <- execAsync Nothing "elm-format --stdin"
+                  (Just $ createReadableStream input)
+      affLog (show result.error)
       case result.error of
         Just err -> do
-          -- FIXME: when input stream is interruptted in the middle of writing,
-          -- we might end up saving only part of the file
-          affPipe inputStream fileStream
-          affEnd outputStream
+          affWriteString fileStream input
         _ -> do
           affWriteBuffer outputStream result.stdout
           affWriteBuffer fileStream result.stdout
-          affEnd outputStream
     _ -> do
-      affPipe inputStream fileStream
+      affPipe inputStream fileStream 
       affWaitEnd inputStream
-      affEnd outputStream
+  affEnd outputStream
 
 
 
