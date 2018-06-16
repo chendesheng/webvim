@@ -1794,33 +1794,36 @@ update message buf =
                                 | syntax = syntax
                                 , syntaxDirtyFrom = Array.length syntax
                             }
-                    in
-                        ( if B.isEmpty lines then
-                            Buf.updateSavePoint buf
-                          else
-                            let
-                                n =
-                                    B.count buf.lines
 
-                                patches =
-                                    [ Deletion ( 0, 0 ) ( n, 0 )
-                                    , Insertion ( 0, 0 ) lines
-                                    ]
-                            in
-                                buf
-                                    |> Buf.transaction patches
-                                    |> Buf.commit
-                                    |> Buf.updateSavePoint
-                                    |> Buf.setCursor buf.cursor True
-                                    |> cursorScope
-                                    |> setSyntax
-                                    |> pairCursor
+                        buf1 =
+                            if B.isEmpty lines then
+                                Buf.updateSavePoint buf
+                            else
+                                let
+                                    n =
+                                        B.count buf.lines
+
+                                    patches =
+                                        [ Deletion ( 0, 0 ) ( n, 0 )
+                                        , Insertion ( 0, 0 ) lines
+                                        ]
+                                in
+                                    buf
+                                        |> Buf.transaction patches
+                                        |> Buf.commit
+                                        |> Buf.updateSavePoint
+                                        |> Buf.setCursor buf.cursor True
+                                        |> cursorScope
+                                        |> setSyntax
+                                        |> pairCursor
+                    in
+                        ( buf1
                         , Cmd.batch
-                            [ Doc.setTitle buf.name
-                            , if buf.config.lint then
-                                sendLintProject buf.config.service
-                                    buf.path
-                                    buf.history.version
+                            [ Doc.setTitle buf1.name
+                            , if buf1.config.lint then
+                                sendLintProject buf1.config.service
+                                    buf1.path
+                                    buf1.history.version
                               else
                                 Cmd.none
                             ]

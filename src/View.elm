@@ -517,12 +517,22 @@ renderLint scrollTop lines items =
                         region =
                             Maybe.withDefault item.region item.subRegion
 
-                        ( ( by, _ ), ( ey, _ ) ) =
+                        ( b, e ) =
                             region
+
+                        ( by, bx ) =
+                            b
+
+                        e1 =
+                            e
+                                |> Tuple.mapSecond (\x -> Basics.max 0 (x - 1))
+                                |> Basics.max b
+
+                        ( ey, _ ) =
+                            e1
                     in
                         if not (ey < scrollTop || by >= scrollTop + 50) then
-                            render "lint" region scrollTop lines
-                                |> Just
+                            Just <| render "lint" ( b, e1 ) scrollTop lines
                         else
                             Nothing
                 )
