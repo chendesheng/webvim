@@ -9,9 +9,10 @@ import Helper
     , affPipe
     , affWaitEnd
     , affEnd
-    , writeStdout
+    , affWriteStdout
     , affReadAllString
     , affWriteString
+    , affBufferToString
     , createReadableStream
     , diff
     )
@@ -64,9 +65,10 @@ writeFile req resp path = do
       affLog (show result.error)
       case result.error of
         Just err -> do
+          affWriteString outputStream "[]"
           affWriteString fileStream input
         _ -> do
-          formatted <- liftEffect $ Buf.toString UTF8 result.stdout
+          formatted <- affBufferToString result.stdout
           affWriteString fileStream formatted
           --affLog $ "formatted" <> formatted
           --affLog $ diff input formatted
@@ -84,7 +86,7 @@ listFiles resp cwd = do
   affLog ("listFiles: " <> show cwd)
   let outputStream = responseAsStream resp
   result <- execAsync cwd "ag -l --nocolor" Nothing 
-  writeStdout outputStream result
+  affWriteStdout outputStream result
 
 
 searchFiles :: Response -> Maybe String -> String -> Aff Unit
@@ -92,7 +94,7 @@ searchFiles resp cwd s = do
   affLog ("searchFiles: " <> s <> " in " <> show cwd)
   let outputStream = responseAsStream resp
   result <- execAsync cwd ("ag --nocolor --vimgrep " <> s) Nothing
-  writeStdout outputStream result
+  affWriteStdout outputStream result
 
 
 readTags :: Response -> String -> Aff Unit
@@ -100,6 +102,6 @@ readTags resp name = do
   affLog ("readTags: " <> name)
   let outputStream = responseAsStream resp
   result <- execAsync Nothing ("readtags -en " <> name) Nothing
-  writeStdout outputStream result
+  affWriteStdout outputStream result
 
 

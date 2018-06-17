@@ -9,13 +9,13 @@ import Effect.Console as Console
 import Node.ChildProcess (ExecResult)
 import Node.HTTP (Response, responseAsStream, setHeader)
 import Node.Stream
-  (write, end, pipe
+  (end, pipe
   , Writable, Readable
   , writeString, onEnd
   )
 import Node.Process (exit)
 import Node.Encoding (Encoding(..))
-import Node.Buffer (Buffer)
+import Node.Buffer (Buffer, toString)
 import Prelude
 
 foreign import readAllString
@@ -59,13 +59,6 @@ affWaitEnd inputStream =
     pure nonCanceler
   )
 
-affWriteBuffer :: Writable () -> Buffer -> Aff Unit
-affWriteBuffer stream buffer =
-  makeAff (\callback -> do
-    void $ write stream buffer (callback $ Right unit)
-    pure nonCanceler
-  )
-
 endStream :: Writable () -> Effect Unit
 endStream stream = end stream (pure unit)
 
@@ -74,6 +67,10 @@ endResponse resp = endStream $ responseAsStream resp
 
 affEnd :: Writable () -> Aff Unit
 affEnd stream = liftEffect $ endStream stream
+
+affBufferToString :: Buffer -> Aff String
+affBufferToString buffer =
+  liftEffect $ toString UTF8 buffer
 
 setCacheSeconds :: Int -> Response -> Aff Unit
 setCacheSeconds seconds resp =
@@ -87,12 +84,13 @@ setNoCacheHeaders resp = liftEffect $ do
   setHeader resp "Pragma" "no-cache"
   setHeader resp "Expires" "0"
 
-writeStdout :: Writable () -> ExecResult -> Aff Unit
-writeStdout outputStream result =
+affWriteStdout :: Writable () -> ExecResult -> Aff Unit
+affWriteStdout outputStream result =
   case result.error of
     Just err ->
       affEnd outputStream
     _ -> do
-      affWriteBuffer outputStream result.stdout
+      str <- affBufferToString result.stdout
+      affWriteString outputStream str
       affEnd outputStream
 
