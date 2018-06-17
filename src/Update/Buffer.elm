@@ -643,8 +643,6 @@ bestScrollTop y height lines scrollTop =
     in
         if scrollTop <= y && y < scrollTop + height then
             scrollTop
-        else if y >= maxLine - height then
-            maxLine - height
         else
             y
                 - (height // 2)

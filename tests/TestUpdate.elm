@@ -1405,7 +1405,6 @@ editBufferCasesBuf =
                   , { path = "src/test.elm"
                     , content = Just ( B.fromString "123", Array.empty )
                     , cursor = ( 0, 0 )
-                    , scrollTop = 0
                     }
                   )
                 ]
@@ -1432,7 +1431,6 @@ editBufferCases =
                     [ ( ""
                       , { path = ""
                         , content = Just ( emptyBuffer.lines, emptyBuffer.syntax )
-                        , scrollTop = 0
                         , cursor = ( 0, 0 )
                         }
                       )

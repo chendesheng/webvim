@@ -49,7 +49,6 @@ bufferInfoEncoder info =
             , info.cursor |> Tuple.second |> Encode.int
             ]
       )
-    , ( "scrollTop", Encode.int info.scrollTop )
     ]
         |> Encode.object
 
@@ -63,16 +62,14 @@ bufferInfoToString info =
 
 bufferInfoDecoder : Decode.Decoder BufferInfo
 bufferInfoDecoder =
-    Decode.map3
-        (\path scrollTop cursor ->
+    Decode.map2
+        (\path cursor ->
             { path = path
-            , scrollTop = scrollTop
             , cursor = cursor
             , content = Nothing
             }
         )
         (Decode.field "path" Decode.string)
-        (Decode.field "scrollTop" Decode.int)
         (Decode.field "cursor" (Decode.list Decode.int)
             |> Decode.map
                 (\xs ->
@@ -93,7 +90,6 @@ type alias Key =
 type alias BufferInfo =
     { path : String
     , cursor : Position
-    , scrollTop : Int
     , content : Maybe ( B.TextBuffer, Syntax )
     }
 

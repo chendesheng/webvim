@@ -3,7 +3,6 @@ module Helper.Fuzzy exposing (..)
 import List
 import String
 import Helper.Helper exposing (getLast)
-import Char
 
 
 type alias FuzzyMatchItem =

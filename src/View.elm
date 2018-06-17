@@ -174,10 +174,9 @@ view buf =
                     ++ if buf.path == "" then
                         []
                        else
-                        [ lazy3 saveActiveBuffer
+                        [ lazy2 saveActiveBuffer
                             buf.path
                             cursor
-                            scrollTop
                         ]
                 )
              ]
@@ -781,11 +780,10 @@ renderAutoCompleteMenu isEx viewScrollTop gutterWidth auto =
             )
 
 
-saveActiveBuffer : String -> Position -> Int -> Html msg
-saveActiveBuffer path cursor scrollTop =
+saveActiveBuffer : String -> Position -> Html msg
+saveActiveBuffer path cursor =
     { path = path
     , cursor = cursor
-    , scrollTop = scrollTop
     , content = Nothing
     }
         |> bufferInfoToString

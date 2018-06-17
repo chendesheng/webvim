@@ -140,16 +140,26 @@ maybeAndThen2 f ma mb =
         ma
 
 
+isAbsolutePath : String -> Bool
+isAbsolutePath =
+    if Native.Doc.isWindows () then
+        Re.contains (Re.regex "^[a-zA-Z]:")
+    else
+        String.startsWith "/"
+
+
 joinPath : String -> String -> String
 joinPath a b =
     let
         sep =
-            if Native.Doc.isWindows 0 then
+            if Native.Doc.isWindows () then
                 "\\"
             else
                 "/"
     in
-        if String.endsWith sep a || String.startsWith sep b then
+        if isAbsolutePath b then
+            b
+        else if String.endsWith sep a then
             a ++ b
         else
             a ++ sep ++ b

@@ -1118,7 +1118,7 @@ cursorScope ({ view, cursor, lines } as buf) =
 newBuffer : BufferInfo -> Buffer -> Buffer
 newBuffer info buf =
     let
-        { cursor, scrollTop, path, content } =
+        { cursor, path, content } =
             info
 
         ( name, ext ) =
@@ -1140,7 +1140,11 @@ newBuffer info buf =
                 { emptyView
                     | size = buf.view.size
                     , lineHeight = buf.view.lineHeight
-                    , scrollTop = min (B.count lines - 1) scrollTop
+                    , scrollTop =
+                        Buf.bestScrollTop (Tuple.first cursor)
+                            buf.view.size.height
+                            lines
+                            0
                 }
             , cursor = cursor
             , lint = { items = [], count = 0 }
@@ -1407,13 +1411,6 @@ jumpToPath isSaveJump path maybeCursor buf =
                 |> Maybe.withDefault
                     { path = path
                     , cursor = Maybe.withDefault ( 0, 0 ) maybeCursor
-                    , scrollTop =
-                        (maybeCursor
-                            |> Maybe.map Tuple.first
-                            |> Maybe.withDefault 0
-                        )
-                            - (buf.view.size.height // 2)
-                            |> max 0
                     , content = Nothing
                     }
     in
@@ -1756,7 +1753,6 @@ update message buf =
                             jumpTo True
                                 { path = resp.body
                                 , cursor = ( 0, 0 )
-                                , scrollTop = 0
                                 , content =
                                     Just
                                         ( B.fromString B.lineBreak
@@ -1869,12 +1865,6 @@ update message buf =
                                         }
                                     )
                                     errors
-
-                            view =
-                                buf.view
-
-                            showTip =
-                                not <| List.isEmpty items
                         in
                             ( { buf
                                 | lint =
@@ -1883,7 +1873,6 @@ update message buf =
                                     }
                                 , locationList =
                                     lintErrorToLocationList items
-                                , view = { view | showTip = showTip }
                               }
                             , Cmd.none
                             )
@@ -1903,19 +1892,18 @@ update message buf =
                                     (\item ->
                                         { item
                                             | file =
-                                                if String.isEmpty item.file then
+                                                if
+                                                    String.isEmpty item.file
+                                                        || String.endsWith
+                                                            buf.path
+                                                            item.file
+                                                then
                                                     buf.path
                                                 else
                                                     item.file
                                         }
                                     )
                                     items
-
-                            view =
-                                buf.view
-
-                            showTip =
-                                not <| List.isEmpty items
                         in
                             ( { buf
                                 | lint =
@@ -1923,7 +1911,6 @@ update message buf =
                                     , count = List.length items1
                                     }
                                 , locationList = lintErrorToLocationList items1
-                                , view = { view | showTip = showTip }
                               }
                             , Cmd.none
                             )
@@ -1961,9 +1948,6 @@ update message buf =
                                                 }
                                     }
                             }
-
-                        _ =
-                            Debug.log "loc" loc
                     in
                         buf
                             |> saveLastJumpToTag
@@ -1978,7 +1962,6 @@ update message buf =
                     jumpTo True
                         { path = "[Find]"
                         , cursor = ( 0, 0 )
-                        , scrollTop = 0
                         , content = Just ( B.fromString s, Array.empty )
                         }
                         buf
@@ -2021,7 +2004,7 @@ editBuffer info buf =
     if info.path /= "" && info.content == Nothing then
         ( buf
         , sendReadBuffer buf.config.service
-            (info.scrollTop + buf.view.size.height * 2)
+            (Tuple.first info.cursor + buf.view.size.height * 2)
             buf.config.tabSize
             info
         )
@@ -2041,7 +2024,6 @@ editBuffer info buf =
                                 |> Dict.insert buf.path
                                     { path = buf.path
                                     , content = Just ( buf.lines, buf.syntax )
-                                    , scrollTop = buf.view.scrollTop
                                     , cursor = buf.cursor
                                     }
                             )
@@ -2095,7 +2077,6 @@ init flags =
                 |> Result.withDefault
                     { path = ""
                     , content = Nothing
-                    , scrollTop = 0
                     , cursor = ( 0, 0 )
                     }
 
@@ -2116,6 +2097,7 @@ init flags =
                                         - emptyBuffer.view.statusbarHeight
                                 }
                         }
+                    , path = activeBuf.path
                     , jumps = jumps
                     , config =
                         { defaultBufferConfig | service = service }
