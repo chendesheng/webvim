@@ -4,8 +4,7 @@ import Data.Maybe (Maybe(..))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helper
-    (affWriteBuffer
-    , endStream
+    ( endStream
     , affLog
     , affPipe
     , affWaitEnd
@@ -14,6 +13,7 @@ import Helper
     , affReadAllString
     , affWriteString
     , createReadableStream
+    , diff
     )
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
@@ -29,6 +29,7 @@ import Node.Stream (pipe, writeString)
 import Prelude
 import Shell (execAsync)
 import Data.String (Pattern(..), stripSuffix)
+import Node.Buffer as Buf
 
 
 readFile :: Response -> String -> Aff Unit
@@ -65,10 +66,14 @@ writeFile req resp path = do
         Just err -> do
           affWriteString fileStream input
         _ -> do
-          affWriteBuffer outputStream result.stdout
-          affWriteBuffer fileStream result.stdout
+          formatted <- liftEffect $ Buf.toString UTF8 result.stdout
+          affWriteString fileStream formatted
+          --affLog $ "formatted" <> formatted
+          --affLog $ diff input formatted
+          affWriteString outputStream $ diff input formatted
     _ -> do
       affPipe inputStream fileStream 
+      affWriteString outputStream "[]"
       affWaitEnd inputStream
   affEnd outputStream
 

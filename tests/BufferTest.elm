@@ -215,6 +215,7 @@ suite =
                                 , pending = []
                                 , redoes = []
                                 , version = 3
+                                , savePoint = 1
                             }
                             buf.history
                 ]
@@ -240,6 +241,7 @@ suite =
                             , pending = []
                             , redoes =
                                 [ [ Deletion ( 0, 1 ) ( 0, 2 ) ] ]
+                            , savePoint = 1
                             , version = 3
                         }
                         buf.history
@@ -264,6 +266,7 @@ suite =
                             , pending = []
                             , redoes = []
                             , version = 3
+                            , savePoint = 1
                         }
                         buf.history
         , fuzz (Fuzz.list fuzzPatch) "undo random patches" <|

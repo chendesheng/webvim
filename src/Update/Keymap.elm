@@ -1,8 +1,7 @@
 module Update.Keymap exposing (keymap)
 
-import Update.Message exposing (Key)
 import Vim.Helper exposing (parseKeys)
-import Model exposing (Mode(..))
+import Model exposing (Mode(..), Key)
 
 
 normalKeyMap : Key -> List Key

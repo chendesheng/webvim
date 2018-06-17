@@ -10,13 +10,6 @@ import Html.Attributes exposing (..)
 import Internal.Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
 import Internal.Syntax exposing (Syntax, Token)
-import Update.Message
-    exposing
-        ( LintError
-        , BufferInfo
-        , bufferInfoToString
-        , buffersInfoToString
-        )
 import String
 import Elm.Array exposing (Array)
 import Update.Buffer as Buf

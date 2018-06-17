@@ -38,6 +38,7 @@ import Model
         , emptyBuffer
         , emptyView
         , View
+        , LintError
         )
 import Internal.TextBuffer as B
     exposing
@@ -71,7 +72,6 @@ import Internal.Syntax
         )
 import Elm.Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
-import Update.Message exposing (LintError)
 import Helper.Helper exposing (parseWords)
 
 
@@ -285,6 +285,7 @@ commit buf =
                             | undoes = pending :: undoes
                             , pending = []
                             , redoes = []
+                            , savePoint = history.savePoint + 1
                         }
                 }
 
@@ -323,6 +324,7 @@ undo buf =
                             , pending = []
                             , redoes = patches1 :: redoes
                             , version = history.version + 1
+                            , savePoint = history.savePoint - 1
                         }
 
                     cursor =
@@ -383,6 +385,7 @@ redo buf =
                                 List.tail redoes
                                     |> Maybe.withDefault []
                             , version = history.version + 1
+                            , savePoint = history.savePoint + 1
                         }
 
                     cursor =
@@ -574,7 +577,7 @@ updateSavePoint buf =
             buf.history
     in
         { buf
-            | history = { history | savePoint = history.version }
+            | history = { history | savePoint = 0 }
         }
 
 
@@ -589,7 +592,7 @@ setShowTip showTip buf =
 
 isDirty : Buffer -> Bool
 isDirty buf =
-    buf.history.savePoint /= buf.history.version
+    buf.history.savePoint /= 0
 
 
 isEditing : Buffer -> Buffer -> Bool

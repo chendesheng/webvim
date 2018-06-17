@@ -6,7 +6,7 @@ import Update exposing (update)
 import Model exposing (..)
 import Update.Buffer as Buf
 import Internal.TextBuffer as B exposing (Patch(..))
-import Update.Message exposing (Msg(..), Key)
+import Update.Message exposing (Msg(..))
 import Parser as P exposing ((|.), (|=), Parser)
 import Dict
 import Maybe
@@ -68,6 +68,7 @@ insertCases =
                 { emptyBufferHistory
                     | undoes =
                         [ [ Deletion ( 0, 0 ) ( 0, 2 ) ] ]
+                    , savePoint = 1
                 }
             , last = { emptyLast | inserts = "12" }
         }
@@ -80,6 +81,7 @@ insertCases =
                 { emptyBufferHistory
                     | undoes =
                         [ [ Deletion ( 0, 0 ) ( 1, 0 ) ] ]
+                    , savePoint = 1
                 }
             , view =
                 let
@@ -99,6 +101,7 @@ insertCases =
                 { emptyBufferHistory
                     | undoes =
                         [ [ Deletion ( 0, 0 ) ( 0, 6 ) ] ]
+                    , savePoint = 1
                 }
             , last = { emptyLast | inserts = "12<tab><tab>" }
         }
@@ -155,6 +158,7 @@ insertCases =
                 { emptyBufferHistory
                     | undoes =
                         [ [ Deletion ( 0, 0 ) ( 0, 2 ) ] ]
+                    , savePoint = 1
                 }
             , last = { emptyLast | inserts = "12" }
         }
@@ -169,6 +173,7 @@ insertCases =
                         [ [ Deletion ( 0, 0 ) ( 0, 1 ) ] ]
                     , pending =
                         [ Deletion ( 1, 0 ) ( 1, 1 ), Deletion ( 1, 0 ) ( 2, 0 ) ]
+                    , savePoint = 1
                 }
             , view =
                 let
@@ -194,6 +199,7 @@ insertCases =
                         [ Deletion ( 0, 0 ) ( 0, 1 )
                         , Deletion ( 0, 0 ) ( 1, 0 )
                         ]
+                    , savePoint = 1
                 }
             , mode = emptyInsertMode
             , continuation = "O"
@@ -210,6 +216,7 @@ insertCases =
                     | undoes =
                         [ [ Deletion ( 0, 0 ) ( 1, 0 ) ]
                         ]
+                    , savePoint = 1
                 }
         }
       )
@@ -229,7 +236,7 @@ insertCases =
                         (B.fromString "123")
                     ]
                 , redoes = []
-                , savePoint = 0
+                , savePoint = 1
                 , version = 0
                 }
         }

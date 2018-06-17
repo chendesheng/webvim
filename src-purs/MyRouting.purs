@@ -10,7 +10,6 @@ import Data.String (joinWith)
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Data.Maybe (Maybe, maybe)
-import Data.Either (Either(..))
 import Node.Path (sep)
 import Routing (match)
 import Routing.Match (Match, eitherMatch, end, list, lit, optionalMatch, param, root, str)
@@ -29,7 +28,7 @@ data DynamicActions
   | Lint NonEmptyString
   | LintOnTheFly NonEmptyString
   | ReadTags NonEmptyString
-  | Tokenize NonEmptyString Int Int
+  | Tokenize NonEmptyString Int
   | Kill
   | Log
 
@@ -89,7 +88,7 @@ routingDynamicPost = oneOf
   [ WriteFile <$> (root *> lit "write" *> paramPath)
   , WriteClipboard <$ (root *> lit "clipboard")
   , LintOnTheFly <$> (root *> lit "lint" *> paramPath)
-  , Tokenize <$> (root *> lit "tokenize" *> paramPath) <*> (paramInt "line") <*> (paramInt "version")
+  , Tokenize <$> (root *> lit "tokenize" *> paramPath) <*> (paramInt "line")
   ]
 
 matchUrl :: String -> String -> Either String MyRoutes

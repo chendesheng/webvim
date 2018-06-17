@@ -1,6 +1,10 @@
 module Model exposing (..)
 
-import Update.Message exposing (Msg(..), BufferInfo, LintError, bufferInfoDecoder)
+-- types referenced from Model should be here (expect internal types like Patch)
+-- types only part of a message (like tokenize result) should be in
+--   Update.Message module
+-- Model should not import Update.Message
+
 import Internal.Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
 import Window as Win exposing (Size)
@@ -15,6 +19,83 @@ import Internal.Jumps exposing (..)
 import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode
+
+
+type alias LintError =
+    { tipe : String
+    , tag : String
+    , file : String
+    , overview : String
+    , details : String
+    , region : ( Position, Position )
+    , subRegion : Maybe ( Position, Position )
+    }
+
+
+buffersInfoToString : List BufferInfo -> String
+buffersInfoToString buffers =
+    buffers
+        |> List.map bufferInfoEncoder
+        |> Encode.list
+        |> Encode.encode 0
+
+
+bufferInfoEncoder : BufferInfo -> Encode.Value
+bufferInfoEncoder info =
+    [ ( "path", Encode.string info.path )
+    , ( "cursor"
+      , Encode.list
+            [ info.cursor |> Tuple.first |> Encode.int
+            , info.cursor |> Tuple.second |> Encode.int
+            ]
+      )
+    , ( "scrollTop", Encode.int info.scrollTop )
+    ]
+        |> Encode.object
+
+
+bufferInfoToString : BufferInfo -> String
+bufferInfoToString info =
+    info
+        |> bufferInfoEncoder
+        |> Encode.encode 0
+
+
+bufferInfoDecoder : Decode.Decoder BufferInfo
+bufferInfoDecoder =
+    Decode.map3
+        (\path scrollTop cursor ->
+            { path = path
+            , scrollTop = scrollTop
+            , cursor = cursor
+            , content = Nothing
+            }
+        )
+        (Decode.field "path" Decode.string)
+        (Decode.field "scrollTop" Decode.int)
+        (Decode.field "cursor" (Decode.list Decode.int)
+            |> Decode.map
+                (\xs ->
+                    case xs of
+                        a :: b :: _ ->
+                            ( a, b )
+
+                        _ ->
+                            ( 0, 0 )
+                )
+        )
+
+
+type alias Key =
+    String
+
+
+type alias BufferInfo =
+    { path : String
+    , cursor : Position
+    , scrollTop : Int
+    , content : Maybe ( B.TextBuffer, Syntax )
+    }
 
 
 type alias Undo =

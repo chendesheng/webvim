@@ -4,13 +4,8 @@ import Http
 import Update.Message
     exposing
         ( Msg(..)
-        , BufferInfo
-        , LintError
-        , elmMakeResultDecoder
         , TokenizeResponse(..)
-        , File
         , TokenizeRequest
-        , Key
         )
 import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
@@ -20,11 +15,66 @@ import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
 import Vim.AST exposing (AST)
-import Internal.Jumps exposing (Location)
 import Helper.Helper exposing (levenshtein, isSpace, notSpace)
 import Internal.TextBuffer as B
+import Internal.Jumps exposing (Location)
+import Internal.TextBuffer exposing (Patch(..))
+import Internal.Position exposing (regionDecoder)
 import Task exposing (Task)
 import Regex as Re
+import Model
+    exposing
+        ( Buffer
+        , BufferInfo
+        , LintError
+        , Key
+        )
+
+
+elmMakeResultDecoder : Decode.Decoder (List LintError)
+elmMakeResultDecoder =
+    Decode.map7 LintError
+        (Decode.field "type" Decode.string)
+        (Decode.field "tag" Decode.string)
+        (Decode.field "file" Decode.string)
+        (Decode.field "overview" Decode.string)
+        (Decode.field "details" Decode.string)
+        (Decode.field "region" regionDecoder)
+        (Decode.field "subregion" regionDecoder |> Decode.maybe)
+        |> Decode.list
+
+
+lineDiffDecoder : Decode.Decoder (List Patch)
+lineDiffDecoder =
+    (Decode.field "type" Decode.string
+        |> Decode.andThen
+            (\tipe ->
+                case tipe of
+                    "+" ->
+                        Decode.map2
+                            Insertion
+                            (Decode.field "from" Decode.int
+                                |> Decode.map (\y -> ( y, 0 ))
+                            )
+                            (Decode.field "value" Decode.string
+                                |> Decode.map (B.fromString)
+                            )
+
+                    "-" ->
+                        Decode.map2
+                            Deletion
+                            (Decode.field "from" Decode.int
+                                |> Decode.map (\y -> ( y, 0 ))
+                            )
+                            (Decode.field "to" Decode.int
+                                |> Decode.map (\y -> ( y, 0 ))
+                            )
+
+                    _ ->
+                        Decode.fail "invalid change type"
+            )
+    )
+        |> Decode.list
 
 
 sendReadBuffer : String -> Int -> Int -> BufferInfo -> Cmd Msg
@@ -85,50 +135,13 @@ post url body =
         }
 
 
-sendWriteBuffer : String -> Int -> String -> String -> Cmd Msg
-sendWriteBuffer url tokenizeLines path buf =
-    let
-        body =
-            Http.stringBody "text/plain" buf
-    in
-        (post
+sendWriteBuffer : String -> String -> Buffer -> Cmd Msg
+sendWriteBuffer url path buf =
+    lineDiffDecoder
+        |> Http.post
             (url ++ "/write?path=" ++ path)
-            body
-        )
-            |> Http.toTask
-            |> Task.andThen
-                (\s ->
-                    if s == "" then
-                        Task.succeed ( B.empty, Array.empty )
-                    else
-                        let
-                            lines =
-                                B.fromString s
-                        in
-                            sendTokenizeTask url
-                                { path = path
-                                , version = 0
-                                , line = 0
-                                , lines =
-                                    lines
-                                        |> B.sliceLines 0 tokenizeLines
-                                        |> B.toString
-                                }
-                                |> Task.map
-                                    (\res ->
-                                        case res of
-                                            TokenizeSuccess s _ _ syntax ->
-                                                ( lines, syntax )
-
-                                            _ ->
-                                                ( lines, Array.empty )
-                                    )
-                                |> Task.onError
-                                    (\_ ->
-                                        Task.succeed ( lines, Array.empty )
-                                    )
-                )
-            |> Task.attempt Write
+            (Http.stringBody "text/plain" <| B.toString buf.lines)
+        |> Http.send Write
 
 
 syntaxErrorParser : Parser LintError
@@ -362,21 +375,20 @@ tokensParser =
             )
 
 
-tokenizeResponseDecoder : Int -> Decode.Decoder TokenizeResponse
-tokenizeResponseDecoder n =
+tokenizeResponseDecoder : Int -> Int -> Decode.Decoder TokenizeResponse
+tokenizeResponseDecoder version n =
     (Decode.field "type" Decode.string)
         |> Decode.andThen
             (\tipe ->
                 case tipe of
                     "success" ->
-                        Decode.map3
-                            (\path version list ->
+                        Decode.map2
+                            (\path list ->
                                 list
                                     |> Array.fromList
                                     |> TokenizeSuccess path version n
                             )
                             (Decode.field "path" Decode.string)
-                            (Decode.field "version" Decode.int)
                             (Decode.field "payload" (Decode.list tokensParser))
 
                     _ ->
@@ -393,15 +405,13 @@ sendTokenizeTask url { path, version, line, lines } =
         if path == "" then
             Task.succeed (TokenizeSuccess "" 0 0 Array.empty)
         else
-            tokenizeResponseDecoder line
+            tokenizeResponseDecoder version line
                 |> Http.post
                     (url
                         ++ "/tokenize?path="
                         ++ path
                         ++ "&line="
                         ++ (toString line)
-                        ++ "&version="
-                        ++ (toString version)
                     )
                     body
                 |> Http.toTask
@@ -445,7 +455,7 @@ sendTokenizeLine url req =
         (sendTokenize url req)
 
 
-parseFileList : Result a String -> Result String (List File)
+parseFileList : Result a String -> Result String (List String)
 parseFileList resp =
     case resp of
         Ok s ->

@@ -12,4 +12,5 @@ packages/
 .fake/
 highlightjs/
 bower_components
+output/
 

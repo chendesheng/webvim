@@ -25,6 +25,9 @@ foreign import readAllString
 
 foreign import createReadableStream :: String -> Readable ()
 
+-- return json stringfied result
+foreign import diff :: String -> String -> String
+
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s
 

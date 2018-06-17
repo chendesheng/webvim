@@ -2,8 +2,7 @@ module Clipboard (readClipboard, writeClipboard) where
 
 import Data.Maybe (Maybe(..))
 import Effect.Aff (Aff)
-import Helper (affLog, affWriteBuffer, writeStdout)
-import Node.ChildProcess (ExecResult)
+import Helper (affLog, writeStdout)
 import Node.HTTP
   (Request
   , requestAsStream

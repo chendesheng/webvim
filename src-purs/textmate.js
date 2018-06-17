@@ -72,50 +72,50 @@ function getGrammar(p) {
 exports.tokenize =
   function(path) {
     return function(line) {
-      return function(version) {
-        return function(payload) {
-          return function() {
-            try {
-              const cache = allCaches[path] || [null];
-              const begin = parseInt(line);
-              const lines = payload.split(/^/m);
-              const result = [];
-              const grammar = getGrammar(path);
-              // console.log('tokenize:', request.query.path)
-              // console.log('lines.length:', lines.length);
-              // console.log('cache.length:', cache.length);
-              // console.log('request.query.line:', request.query.line);
-              // console.log('request.query.version:', request.query.version);
+      return function(payload) {
+        return function() {
+          try {
+            const cache = allCaches[path] || [null];
+            const begin = parseInt(line);
+            const lines = payload.split(/^/m);
+            const result = [];
+            const grammar = getGrammar(path);
+            // console.log('tokenize:', request.query.path)
+            // console.log('lines.length:', lines.length);
+            // console.log('cache.length:', cache.length);
+            // console.log('request.query.line:', request.query.line);
 
-              for (var i = 0; i < lines.length; i++) { // lines.length
-                const line = lines[i];
-                const n = begin + i;
-                if (cache.length <= n && n > 0) {
-                  console.log('cache miss: n='+n+', cache.length='+cache.length);
-                  delete allCaches[path];
-                  return JSON.stringify({type: 'error', payload: 'cacheMiss'});
-                }
-                const r = grammar.tokenizeLine2(line, cache[n]);
-                const tokens = Array.from(r.tokens);
-                tokens.push(line.length);
-                tokens.push(0);
-                result[i] = tokens;
-                // console.log('Line: #' + i + ', tokens: ' + r.tokens);
-                cache[n+1] = r.ruleStack;
+            for (var i = 0; i < lines.length; i++) { // lines.length
+              const line = lines[i];
+              const n = begin + i;
+              if (cache.length <= n && n > 0) {
+                console.log('cache miss: n='+n+', cache.length='+cache.length);
+                delete allCaches[path];
+                return JSON.stringify({type: 'error', payload: 'cacheMiss'});
               }
-              allCaches[path] = cache.slice(0, begin + lines.length + 1);
-              return JSON.stringify({
-                type: 'success',
-                payload: result,
-                version: parseInt(version),
-                path: path,
-              });
-            } catch (e) {
-              console.error(e);
+              const r = grammar.tokenizeLine2(line, cache[n]);
+              const tokens = Array.from(r.tokens);
+              tokens.push(line.length);
+              tokens.push(0);
+              result[i] = tokens;
+              // console.log('Line: #' + i + ', tokens: ' + r.tokens);
+              cache[n+1] = r.ruleStack;
             }
-          };
+            allCaches[path] = cache.slice(0, begin + lines.length + 1);
+            return JSON.stringify({
+              type: 'success',
+              payload: result,
+              path: path,
+            });
+          } catch (e) {
+            console.error(e);
+            return {
+              type: 'error',
+              payload: e.message || e.toString(),
+            };
+          }
         };
-      };
+    };
     };
   };
 

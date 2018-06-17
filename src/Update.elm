@@ -1421,24 +1421,7 @@ execute s buf =
             jumpToPath True path Nothing buf
 
         [ "w" ] ->
-            ( buf
-            , sendWriteBuffer
-                buf.config.service
-                (buf.view.scrollTop + buf.view.size.height * 2)
-                buf.path
-              <|
-                B.toString buf.lines
-            )
-
-        [ "w", path ] ->
-            ( buf
-            , sendWriteBuffer
-                buf.config.service
-                (buf.view.scrollTop + buf.view.size.height * 2)
-                path
-              <|
-                B.toString buf.lines
-            )
+            ( buf, sendWriteBuffer buf.config.service buf.path buf )
 
         [ "ll" ] ->
             case List.head buf.locationList of
@@ -1787,58 +1770,65 @@ update message buf =
 
         Write result ->
             case result of
-                Ok ( lines, syntax ) ->
+                Ok patches ->
                     let
-                        setSyntax buf =
-                            { buf
-                                | syntax = syntax
-                                , syntaxDirtyFrom = Array.length syntax
-                            }
-
+                        -- TODO: add an unified `patch` function for buffer
                         buf1 =
-                            if B.isEmpty lines then
-                                Buf.updateSavePoint buf
-                            else
-                                let
-                                    n =
-                                        B.count buf.lines
+                            buf
+                                |> Buf.transaction patches
+                                |> Buf.commit
+                                |> Buf.updateSavePoint
+                                -- keep cursor position
+                                |> Buf.setCursor buf.cursor True
+                                |> correctCursor
+                                |> scrollToCursor
+                                |> pairCursor
 
-                                    patches =
-                                        [ Deletion ( 0, 0 ) ( n, 0 )
-                                        , Insertion ( 0, 0 ) lines
-                                        ]
-                                in
-                                    buf
-                                        |> Buf.transaction patches
-                                        |> Buf.commit
-                                        |> Buf.updateSavePoint
-                                        |> Buf.setCursor buf.cursor True
-                                        |> cursorScope
-                                        |> setSyntax
-                                        |> pairCursor
+                        syntaxBottom =
+                            buf.syntaxDirtyFrom
+
+                        tokenizeCmd buf =
+                            let
+                                requireBottom =
+                                    buf.view.scrollTop
+                                        + (2 * buf.view.size.height)
+
+                                lines =
+                                    buf.lines
+                                        |> B.sliceLines
+                                            buf.syntaxDirtyFrom
+                                            requireBottom
+                                        |> B.toString
+                            in
+                                if buf.syntaxDirtyFrom < requireBottom then
+                                    sendTokenize
+                                        buf.config.service
+                                        { path = buf.path
+                                        , version = buf.history.version
+                                        , line = buf.syntaxDirtyFrom
+                                        , lines = lines
+                                        }
+                                else
+                                    Cmd.none
+
+                        lintCmd buf =
+                            if buf1.config.lint then
+                                sendLintProject buf1.config.service
+                                    buf1.path
+                                    buf1.history.version
+                            else
+                                Cmd.none
                     in
                         ( buf1
                         , Cmd.batch
                             [ Doc.setTitle buf1.name
-                            , if buf1.config.lint then
-                                sendLintProject buf1.config.service
-                                    buf1.path
-                                    buf1.history.version
-                              else
-                                Cmd.none
+                            , lintCmd buf1
+                            , tokenizeCmd buf1
                             ]
                         )
 
-                Err err ->
+                _ ->
                     ( buf, Cmd.none )
-
-        Edit info ->
-            ( buf
-            , sendReadBuffer buf.config.service
-                (buf.view.size.height * 2)
-                buf.config.tabSize
-                info
-            )
 
         SendLint ->
             if buf.config.lint then

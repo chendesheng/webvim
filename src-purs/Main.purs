@@ -81,11 +81,11 @@ dynamicActionHandler req resp action = do
     ReadTags (NonEmptyString name) ->
       readTags resp name
 
-    Tokenize (NonEmptyString path) line version -> do
+    Tokenize (NonEmptyString path) line -> do
        let outputStream = responseAsStream resp
            inputStream = requestAsStream req
        payload <- affReadAllString inputStream
-       json <- liftEffect $ tokenize path line version payload
+       json <- liftEffect $ tokenize path line payload
        affWriteString outputStream json
        affEnd outputStream
 

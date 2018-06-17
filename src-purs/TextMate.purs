@@ -6,6 +6,5 @@ import Effect (Effect)
 foreign import tokenize
   :: String -- path
   -> Int -- line
-  -> Int -- version
   -> String -- input string
   -> Effect String
