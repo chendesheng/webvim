@@ -7,12 +7,13 @@ import Data.Foldable (oneOf)
 import Data.Int (fromString)
 import Data.List (List)
 import Data.String (joinWith)
-import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
+import Data.String.NonEmpty.Internal (NonEmptyString(..))
 import Data.Maybe (Maybe, maybe)
 import Node.Path (sep)
 import Routing (match)
 import Routing.Match (Match, eitherMatch, end, list, lit, optionalMatch, param, root, str)
+import Node.Path (normalize)
 
 data MyRoutes
   = StaticFile String
@@ -42,7 +43,9 @@ paramInt s =
   eitherMatch $ (((maybe (Left "Not Int") Right) <<< fromString) <$> param s)
 
 paramPath :: Match NonEmptyString
-paramPath = nonemptyParam "path"
+--normalize path means every file is accessible from this interface
+--  which is kind of dangerous
+paramPath = (NES.toString >>> normalize >>> NonEmptyString) <$> nonemptyParam "path"
 
 distFolder :: List String -> String
 distFolder parts =

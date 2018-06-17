@@ -15,7 +15,7 @@ import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
 import Vim.AST exposing (AST)
-import Helper.Helper exposing (levenshtein, isSpace, notSpace)
+import Helper.Helper exposing (levenshtein, isSpace, notSpace, joinPath)
 import Internal.TextBuffer as B
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer exposing (Patch(..))
@@ -204,7 +204,7 @@ parseLintResponse resp =
                             |> Result.map
                                 (List.map
                                     (\item ->
-                                        { item | file = dir ++ item.file }
+                                        { item | file = joinPath dir item.file }
                                     )
                                 )
                     else
@@ -212,7 +212,7 @@ parseLintResponse resp =
                             P.run syntaxErrorParser s
                         of
                             Ok item ->
-                                Ok [ { item | file = dir ++ item.file } ]
+                                Ok [ { item | file = joinPath dir item.file } ]
 
                             Err _ ->
                                 Ok

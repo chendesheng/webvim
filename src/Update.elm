@@ -392,11 +392,16 @@ correctCursor buf =
             0
                 |> max (B.count buf.lines - 2)
                 |> min y
+
+        x1 =
+            B.getLineMaxColumn y1 buf.lines
+                |> max 0
+                |> min x
     in
-        if y1 == y then
+        if y1 == y && x == x1 then
             buf
         else
-            { buf | cursor = ( y1, x ) }
+            Buf.setCursor ( y1, x1 ) True buf
 
 
 runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
@@ -1146,6 +1151,7 @@ newBuffer info buf =
             , syntax = syntax
             , syntaxDirtyFrom = Array.length syntax
         }
+            |> correctCursor
             |> scrollToCursor
 
 
@@ -1848,8 +1854,27 @@ update message buf =
                     if version == buf.history.version then
                         let
                             items =
-                                List.map (\item -> { item | file = buf.path })
+                                List.map
+                                    (\item ->
+                                        { item
+                                            | file =
+                                                if
+                                                    String.endsWith
+                                                        "912ec803b2ce49e4a541068d495ab570.txt"
+                                                        item.file
+                                                then
+                                                    buf.path
+                                                else
+                                                    item.file
+                                        }
+                                    )
                                     errors
+
+                            view =
+                                buf.view
+
+                            showTip =
+                                not <| List.isEmpty items
                         in
                             ( { buf
                                 | lint =
@@ -1858,6 +1883,7 @@ update message buf =
                                     }
                                 , locationList =
                                     lintErrorToLocationList items
+                                , view = { view | showTip = showTip }
                               }
                             , Cmd.none
                             )
@@ -1873,30 +1899,31 @@ update message buf =
                     if version == buf.history.version then
                         let
                             items1 =
-                                List.filterMap
+                                List.map
                                     (\item ->
-                                        if
-                                            String.isEmpty item.file
-                                                || String.endsWith
-                                                    (String.toLower buf.path)
-                                                    (String.toLower item.file)
-                                        then
-                                            Just { item | file = buf.path }
-                                        else
-                                            Nothing
+                                        { item
+                                            | file =
+                                                if String.isEmpty item.file then
+                                                    buf.path
+                                                else
+                                                    item.file
+                                        }
                                     )
                                     items
 
+                            view =
+                                buf.view
+
                             showTip =
-                                not (List.isEmpty items1)
+                                not <| List.isEmpty items
                         in
                             ( { buf
                                 | lint =
                                     { items = items1
                                     , count = List.length items1
                                     }
-                                , locationList =
-                                    lintErrorToLocationList items1
+                                , locationList = lintErrorToLocationList items1
+                                , view = { view | showTip = showTip }
                               }
                             , Cmd.none
                             )

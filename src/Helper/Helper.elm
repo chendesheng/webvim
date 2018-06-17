@@ -138,3 +138,18 @@ maybeAndThen2 f ma mb =
             Maybe.andThen (f a) mb
         )
         ma
+
+
+joinPath : String -> String -> String
+joinPath a b =
+    let
+        sep =
+            if Native.Doc.isWindows 0 then
+                "\\"
+            else
+                "/"
+    in
+        if String.endsWith sep a || String.startsWith sep b then
+            a ++ b
+        else
+            a ++ sep ++ b

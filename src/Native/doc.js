@@ -112,7 +112,10 @@ return {
       return false;
     }
   },
-  levenshtein: F2(levenshtein)
+  levenshtein: F2(levenshtein),
+  isWindows: function() {
+    return /win/.test(navigator.platform);
+  },
 };
 
 }();

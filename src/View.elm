@@ -99,6 +99,17 @@ view buf =
                 _ ->
                     Nothing
 
+        showTip =
+            case buf.mode of
+                Insert _ ->
+                    False
+
+                TempNormal ->
+                    False
+
+                _ ->
+                    view.showTip
+
         gutterWidth =
             totalLines |> toString |> String.length
 
@@ -146,7 +157,7 @@ view buf =
                                 )
                                 maybeCursor
                             )
-                            view.showTip
+                            showTip
                         ?:: []
                     )
                 ]
