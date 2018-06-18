@@ -1,7 +1,6 @@
 module Update.Motion
     exposing
         ( saveMotion
-        , gotoLine
         , setVisualEnd
         , setVisualBegin
         , runMotion
@@ -231,22 +230,6 @@ findPositionInBuffer md mo y x wordChars lines =
                 Nothing
 
 
-gotoLine : Int -> B.TextBuffer -> Maybe Position
-gotoLine y lines =
-    B.getLine y lines
-        |> Maybe.andThen
-            (\line ->
-                (findPosition
-                    ""
-                    V.LineFirst
-                    (V.motionOption "<]$-")
-                    line
-                    0
-                )
-                    |> Maybe.map ((,) y)
-            )
-
-
 gotoMatchedString : Maybe Int -> V.MotionOption -> Buffer -> Maybe Position
 gotoMatchedString count mo buf =
     case buf.mode of
@@ -421,18 +404,18 @@ runMotion count md mo buf =
                 V.BufferTop ->
                     case count of
                         Just n ->
-                            gotoLine (n - 1) buf.lines
+                            Buf.cursorLineFirst buf.lines (n - 1)
 
                         _ ->
-                            gotoLine 0 buf.lines
+                            Buf.cursorLineFirst buf.lines 0
 
                 V.BufferBottom ->
                     case count of
                         Just n ->
-                            gotoLine (n - 1) buf.lines
+                            Buf.cursorLineFirst buf.lines (n - 1)
 
                         _ ->
-                            gotoLine (B.count buf.lines - 2) buf.lines
+                            Buf.cursorLineFirst buf.lines (B.count buf.lines - 2)
 
                 V.LineDelta ->
                     let
@@ -463,17 +446,17 @@ runMotion count md mo buf =
                 V.ViewTop ->
                     (buf.view.scrollTop + (Maybe.withDefault 0 count))
                         |> Basics.min (bottomLine buf)
-                        |> flip gotoLine buf.lines
+                        |> Buf.cursorLineFirst buf.lines
 
                 V.ViewMiddle ->
-                    gotoLine
-                        (middleLine buf)
+                    Buf.cursorLineFirst
                         buf.lines
+                        (middleLine buf)
 
                 V.ViewBottom ->
                     (bottomLine buf - (Maybe.withDefault 0 count))
                         |> Basics.max buf.view.scrollTop
-                        |> flip gotoLine buf.lines
+                        |> Buf.cursorLineFirst buf.lines
 
                 V.RepeatMatchChar ->
                     case buf.last.matchChar of
@@ -555,7 +538,7 @@ runMotion count md mo buf =
                                     |> ceiling
                                     |> (\x -> x - 1)
                                     |> Basics.min (cnt - 1)
-                                    |> flip gotoLine buf.lines
+                                    |> Buf.cursorLineFirst buf.lines
 
                         _ ->
                             let
@@ -579,12 +562,21 @@ runMotion count md mo buf =
                                         )
 
                 V.Paragraph ->
-                    Just
-                        ( findParagraph mo.forward
-                            (Tuple.first buf.cursor)
-                            buf.lines
-                        , 0
-                        )
+                    let
+                        findNext y =
+                            let
+                                y1 =
+                                    findParagraph mo.forward y buf.lines
+                            in
+                                if y == y1 then
+                                    Nothing
+                                else
+                                    Just y1
+                    in
+                        buf.cursor
+                            |> Tuple.first
+                            |> repeatfn (Maybe.withDefault 1 count) findNext
+                            |> Maybe.andThen (Buf.cursorLineFirst buf.lines)
 
                 V.WordStart ->
                     case buf.mode of

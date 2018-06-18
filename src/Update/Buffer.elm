@@ -22,6 +22,8 @@ module Update.Buffer
         , updateView
         , bestScrollTop
         , toWords
+        , cursorLineFirst
+        , gotoLine
         )
 
 import Internal.Position exposing (..)
@@ -607,6 +609,21 @@ isEditing buf1 buf2 =
         /= buf2.history.version
 
 
+cursorLineFirst : B.TextBuffer -> Int -> Maybe Position
+cursorLineFirst lines y =
+    lines
+        |> B.getLine y
+        |> Maybe.map (findLineFirst >> ((,) y))
+
+
+gotoLine : Int -> Buffer -> Buffer
+gotoLine y buf =
+    y
+        |> cursorLineFirst buf.lines
+        |> Maybe.map (\cursor -> setCursor cursor True buf)
+        |> Maybe.withDefault buf
+
+
 indentCursorToLineFirst : Buffer -> Buffer
 indentCursorToLineFirst buf =
     let
@@ -614,15 +631,7 @@ indentCursorToLineFirst buf =
             buf.cursor
     in
         if x == 0 then
-            setCursor
-                ( y
-                , buf.lines
-                    |> B.getLine y
-                    |> Maybe.map findLineFirst
-                    |> Maybe.withDefault 0
-                )
-                True
-                buf
+            gotoLine y buf
         else
             buf
 

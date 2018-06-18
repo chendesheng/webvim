@@ -639,7 +639,7 @@ runOperator count register operator buf =
                 scrollTop =
                     scrollScope view.scrollTop n
             in
-                case gotoLine y buf.lines of
+                case Buf.cursorLineFirst buf.lines y of
                     Just cursor ->
                         buf
                             |> Buf.setCursor cursor True
@@ -955,14 +955,7 @@ runOperator count register operator buf =
                                     (List.map genPatches lineNumbers)
                                     buf
                         in
-                            ( gotoLine y buf1.lines
-                                |> Maybe.map
-                                    (\pos ->
-                                        Buf.setCursor pos True buf1
-                                    )
-                                |> Maybe.withDefault buf
-                            , Cmd.none
-                            )
+                            ( Buf.gotoLine y buf1, Cmd.none )
 
                     _ ->
                         ( buf, Cmd.none )
@@ -1123,7 +1116,7 @@ cursorScope ({ view, cursor, lines } as buf) =
             else
                 Buf.setCursor ( y1, x1 ) True buf
         else
-            case gotoLine y1 lines of
+            case Buf.cursorLineFirst lines y1 of
                 Just cursor ->
                     buf
                         |> Buf.setCursor cursor True
