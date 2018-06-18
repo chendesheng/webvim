@@ -148,6 +148,14 @@ isAbsolutePath =
         String.startsWith "/"
 
 
+pathSep : String
+pathSep =
+    if Native.Doc.isWindows () then
+        "\\"
+    else
+        "/"
+
+
 joinPath : String -> String -> String
 joinPath a b =
     let
@@ -159,7 +167,7 @@ joinPath a b =
     in
         if isAbsolutePath b then
             b
-        else if String.endsWith sep a then
+        else if String.endsWith pathSep a then
             a ++ b
         else
-            a ++ sep ++ b
+            a ++ pathSep ++ b

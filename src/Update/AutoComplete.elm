@@ -78,16 +78,23 @@ selectAutoComplete forward buf =
             buf
 
 
-autoCompleteTarget : Buffer -> Maybe ( Position, String )
-autoCompleteTarget buf =
+autoCompleteTarget : String -> Buffer -> Maybe ( Position, String )
+autoCompleteTarget wordChars buf =
     let
         ( y, x ) =
             buf.cursor
     in
         wordStringUnderCursor
-            buf.config.wordChars
+            wordChars
             buf.lines
             ( y, max 0 (x - 1) )
+            |> Maybe.andThen
+                (\(( pos, s ) as result) ->
+                    if pos >= buf.cursor then
+                        Nothing
+                    else
+                        Just result
+                )
 
 
 isAutoCompleteStarted : Buffer -> Bool
@@ -151,10 +158,17 @@ filterAutoComplete buf =
                                                         pos
                                                         buf.cursor
                                                     |> B.toString
-                                                    |> String.trim
 
                                             matches =
-                                                if String.length target > 0 then
+                                                if
+                                                    String.endsWith " "
+                                                        target
+                                                then
+                                                    []
+                                                else if
+                                                    String.length target
+                                                        > 0
+                                                then
                                                     fuzzyMatch source target
                                                 else
                                                     []

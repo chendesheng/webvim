@@ -19,6 +19,7 @@ import Helper.Helper
         , safeRegex
         , isSpace
         , notSpace
+        , pathSep
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -776,7 +777,7 @@ runOperator count register operator buf =
                             )
 
                         _ ->
-                            ( case autoCompleteTarget buf of
+                            ( case autoCompleteTarget buf.config.wordChars buf of
                                 Just ( pos, word ) ->
                                     buf
                                         |> startAutoComplete
@@ -1981,7 +1982,7 @@ update message buf =
                         Ex ({ exbuf } as ex) ->
                             ( setExbuf buf
                                 ex
-                                (case autoCompleteTarget exbuf of
+                                (case autoCompleteTarget pathSep exbuf of
                                     Just ( pos, word ) ->
                                         startAutoComplete files
                                             pos

@@ -100,6 +100,7 @@ type alias Undo =
     }
 
 
+emptyUndo : Undo
 emptyUndo =
     { patches = [], cursor = ( 0, 0 ) }
 
