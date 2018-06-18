@@ -97,7 +97,10 @@ initMode { cursor, mode } modeName =
             TempNormal
 
         V.ModeNameInsert ->
-            Insert { autoComplete = Nothing }
+            Insert
+                { autoComplete = Nothing
+                , startCursor = cursor
+                }
 
         V.ModeNameEx prefix ->
             Ex
@@ -404,6 +407,24 @@ correctCursor buf =
             Buf.setCursor ( y1, x1 ) True buf
 
 
+clearExBufAutoComplete : Buffer -> Buffer
+clearExBufAutoComplete exbuf =
+    { exbuf
+        | mode =
+            case exbuf.mode of
+                Insert insert ->
+                    Insert
+                        { insert
+                            | autoComplete =
+                                Nothing
+                        }
+
+                _ ->
+                    initMode exbuf
+                        V.ModeNameInsert
+    }
+
+
 runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator count register operator buf =
     case operator of
@@ -695,9 +716,7 @@ runOperator count register operator buf =
                             ex.exbuf
 
                         exbuf1 =
-                            { exbuf
-                                | mode = Insert { autoComplete = Nothing }
-                            }
+                            clearExBufAutoComplete exbuf
                     in
                         ex.exbuf.lines
                             |> B.toString
@@ -1218,13 +1237,7 @@ applyEdit count edit register buf =
                                 else
                                     ( setExbuf buf1
                                         newex
-                                        { exbuf
-                                            | mode =
-                                                Insert
-                                                    { autoComplete =
-                                                        Nothing
-                                                    }
-                                        }
+                                        (clearExBufAutoComplete exbuf)
                                     , cmd
                                     )
 

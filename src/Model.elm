@@ -130,7 +130,10 @@ type alias AutoComplete =
 type Mode
     = Normal
     | Visual VisualMode
-    | Insert { autoComplete : Maybe AutoComplete }
+    | Insert
+        { autoComplete : Maybe AutoComplete
+        , startCursor : Position -- cursor position when enter insert mode
+        }
     | TempNormal
     | Ex ExMode
 
@@ -236,7 +239,11 @@ cacheVimAST k v buf =
 emptyExBuffer : Buffer
 emptyExBuffer =
     { emptyBuffer
-        | mode = Insert { autoComplete = Nothing }
+        | mode =
+            Insert
+                { autoComplete = Nothing
+                , startCursor = ( 0, 0 )
+                }
         , lines = B.empty
     }
 

@@ -381,6 +381,7 @@ matchString forward re pos lines =
                         re
                         ( n - y - 1, -1 )
                         (B.sliceLines y n lines)
+                        -- FIXME: Maybe.map here break tail recursion
                         |> Maybe.map
                             (\rg ->
                                 let
@@ -573,20 +574,72 @@ runMotion count md mo buf =
                 V.Paragraph ->
                     Just ( findParagraph mo.forward (Tuple.first buf.cursor) buf.lines, 0 )
 
+                V.WordStart ->
+                    case buf.mode of
+                        Insert { startCursor } ->
+                            findPositionDeleteWordBack count md mo startCursor buf
+
+                        _ ->
+                            findPositionDefault count md mo buf
+
                 _ ->
-                    let
-                        findNext ( y, x ) =
-                            findPositionInBuffer md
-                                mo
-                                y
-                                x
-                                buf.config.wordChars
-                                buf.lines
-                    in
-                        repeatfn
-                            (Maybe.withDefault 1 count)
-                            findNext
-                            buf.cursor
+                    findPositionDefault count md mo buf
+
+
+findPositionDeleteWordBack :
+    Maybe Int
+    -> V.MotionData
+    -> V.MotionOption
+    -> Position
+    -> Buffer
+    -> Maybe Position
+findPositionDeleteWordBack count md mo startCursor buf =
+    let
+        { cursor, lines, config } =
+            buf
+
+        ( y, x ) =
+            cursor
+    in
+        lines
+            |> findPositionInBuffer md mo y x config.wordChars
+            |> Maybe.map
+                (\(( y1, _ ) as res) ->
+                    if
+                        (res < startCursor)
+                            && (startCursor < cursor)
+                    then
+                        startCursor
+                    else if y1 /= y then
+                        if x > 0 then
+                            ( y, 0 )
+                        else
+                            ( y1, B.getLineMaxColumn y1 lines )
+                    else
+                        res
+                )
+
+
+findPositionDefault :
+    Maybe Int
+    -> V.MotionData
+    -> V.MotionOption
+    -> Buffer
+    -> Maybe Position
+findPositionDefault count md mo buf =
+    let
+        findNext ( y, x ) =
+            findPositionInBuffer md
+                mo
+                y
+                x
+                buf.config.wordChars
+                buf.lines
+    in
+        repeatfn
+            (Maybe.withDefault 1 count)
+            findNext
+            buf.cursor
 
 
 findParagraph : Bool -> Int -> B.TextBuffer -> Int

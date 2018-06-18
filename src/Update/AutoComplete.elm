@@ -12,8 +12,8 @@ import Internal.Position exposing (Position)
 selectAutoComplete : Bool -> Buffer -> Buffer
 selectAutoComplete forward buf =
     case buf.mode of
-        Insert { autoComplete } ->
-            case autoComplete of
+        Insert insert ->
+            case insert.autoComplete of
                 Just auto ->
                     let
                         { pos, matches, select } =
@@ -61,12 +61,13 @@ selectAutoComplete forward buf =
                         { buf1
                             | mode =
                                 Insert
-                                    { autoComplete =
-                                        Just
-                                            { auto
-                                                | select = newSelect
-                                                , scrollTop = scrollTop
-                                            }
+                                    { insert
+                                        | autoComplete =
+                                            Just
+                                                { auto
+                                                    | select = newSelect
+                                                    , scrollTop = scrollTop
+                                                }
                                     }
                         }
 
@@ -102,25 +103,26 @@ isAutoCompleteStarted buf =
 startAutoComplete : List String -> Position -> String -> Buffer -> Buffer
 startAutoComplete source pos word buf =
     case buf.mode of
-        Insert _ ->
+        Insert insert ->
             { buf
                 | mode =
                     Insert
-                        { autoComplete =
-                            Just
-                                { source = source
-                                , pos = pos
-                                , matches =
-                                    word
-                                        |> fuzzyMatch source
-                                        |> Array.fromList
-                                        |> Array.push
-                                            { text = word
-                                            , matches = []
-                                            }
-                                , select = -1
-                                , scrollTop = 0
-                                }
+                        { insert
+                            | autoComplete =
+                                Just
+                                    { source = source
+                                    , pos = pos
+                                    , matches =
+                                        word
+                                            |> fuzzyMatch source
+                                            |> Array.fromList
+                                            |> Array.push
+                                                { text = word
+                                                , matches = []
+                                                }
+                                    , select = -1
+                                    , scrollTop = 0
+                                    }
                         }
             }
 
@@ -131,48 +133,49 @@ startAutoComplete source pos word buf =
 filterAutoComplete : Buffer -> Buffer
 filterAutoComplete buf =
     case buf.mode of
-        Insert { autoComplete } ->
+        Insert insert ->
             { buf
                 | mode =
                     Insert
-                        { autoComplete =
-                            case autoComplete of
-                                Just auto ->
-                                    let
-                                        { pos, source } =
-                                            auto
+                        { insert
+                            | autoComplete =
+                                case insert.autoComplete of
+                                    Just auto ->
+                                        let
+                                            { pos, source } =
+                                                auto
 
-                                        target =
-                                            buf.lines
-                                                |> B.substring
-                                                    pos
-                                                    buf.cursor
-                                                |> B.toString
-                                                |> String.trim
+                                            target =
+                                                buf.lines
+                                                    |> B.substring
+                                                        pos
+                                                        buf.cursor
+                                                    |> B.toString
+                                                    |> String.trim
 
-                                        matches =
-                                            if String.length target > 0 then
-                                                fuzzyMatch source target
+                                            matches =
+                                                if String.length target > 0 then
+                                                    fuzzyMatch source target
+                                                else
+                                                    []
+                                        in
+                                            if List.isEmpty matches then
+                                                Nothing
                                             else
-                                                []
-                                    in
-                                        if List.isEmpty matches then
-                                            Nothing
-                                        else
-                                            Just
-                                                { auto
-                                                    | matches =
-                                                        Array.push
-                                                            { text = target
-                                                            , matches = []
-                                                            }
-                                                            (Array.fromList
-                                                                matches
-                                                            )
-                                                }
+                                                Just
+                                                    { auto
+                                                        | matches =
+                                                            Array.push
+                                                                { text = target
+                                                                , matches = []
+                                                                }
+                                                                (Array.fromList
+                                                                    matches
+                                                                )
+                                                    }
 
-                                _ ->
-                                    Nothing
+                                    _ ->
+                                        Nothing
                         }
             }
 

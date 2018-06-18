@@ -14,6 +14,7 @@ import Vim.Helper exposing (keyParser)
 import Vim.AST exposing (VisualType(..))
 import Elm.Array as Array
 import Internal.Jumps exposing (Location)
+import Internal.Position exposing (Position)
 
 
 handleKeys : List Key -> Model -> Model
@@ -33,16 +34,16 @@ keysParser =
     P.repeat P.zeroOrMore keyParser
 
 
-emptyInsertMode : Mode
+emptyInsertMode : { autoComplete : Maybe a, startCursor : Position }
 emptyInsertMode =
-    Insert { autoComplete = Nothing }
+    { autoComplete = Nothing, startCursor = ( 0, 0 ) }
 
 
 insertCases : List ( String, Buffer )
 insertCases =
     [ ( "i"
       , { emptyBuffer
-            | mode = emptyInsertMode
+            | mode = Insert emptyInsertMode
             , continuation = "i"
         }
       )
@@ -50,7 +51,7 @@ insertCases =
       , { emptyBuffer
             | cursor = ( 0, 2 )
             , lines = B.fromString "12\n"
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , continuation = "i"
             , history =
                 { emptyBufferHistory
@@ -109,7 +110,7 @@ insertCases =
     , ( "i1<backspace>"
       , { emptyBuffer
             | cursor = ( 0, 0 )
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , continuation = "i"
             , history =
                 { emptyBufferHistory
@@ -125,7 +126,7 @@ insertCases =
       , { emptyBuffer
             | cursor = ( 0, 1 )
             , lines = B.fromString "1\n"
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , continuation = "i"
             , history =
                 { emptyBufferHistory
@@ -181,7 +182,7 @@ insertCases =
                         emptyBuffer.view
                 in
                     { view | scrollTop = 1 }
-            , mode = emptyInsertMode
+            , mode = Insert { emptyInsertMode | startCursor = ( 1, 0 ) }
             , continuation = "o"
             , last = { emptyLast | inserts = "1" }
         }
@@ -201,7 +202,7 @@ insertCases =
                         ]
                     , savePoint = 1
                 }
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , continuation = "O"
             , last = { emptyLast | inserts = "2" }
         }
@@ -223,7 +224,7 @@ insertCases =
     , ( "i123<cr><esc>kC"
       , { emptyBuffer
             | lines = B.fromString "\n\n"
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , continuation = "C"
             , registers = Dict.fromList [ ( "\"", Text "123" ) ]
             , history =
@@ -762,21 +763,21 @@ changeCases =
     [ ( "ce"
       , { changeCasesBuf
             | lines = B.fromString "\n456\ndef\ndef\n"
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , registers = Dict.fromList [ ( "\"", Text " 123" ) ]
             , continuation = "ce"
         }
       )
     , ( "cfa"
       , { changeCasesBuf
-            | mode = emptyInsertMode
+            | mode = Insert emptyInsertMode
             , continuation = "cfa"
         }
       )
     , ( "cw"
       , { changeCasesBuf
             | lines = B.fromString "123\n456\ndef\ndef\n"
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , registers = Dict.fromList [ ( "\"", Text " " ) ]
             , continuation = "cw"
         }
@@ -784,14 +785,14 @@ changeCases =
     , ( "cvw"
       , { changeCasesBuf
             | lines = B.fromString " 123\n456\ndef\ndef\n"
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , registers = Dict.fromList [ ( "\"", Text "" ) ]
             , continuation = "cvw"
         }
       )
     , ( "c/ef<cr>"
       , { changeCasesBuf
-            | mode = emptyInsertMode
+            | mode = Insert emptyInsertMode
             , lines = B.fromString "ef\ndef\n"
             , continuation = "c/<cr>"
             , history =
@@ -919,7 +920,7 @@ putCases =
             | cursor = ( 0, 3 )
             , cursorColumn = 3
             , lines = B.fromString "abc123\n456\n"
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , last = { emptyLast | inserts = "<c-r>\"" }
         }
       )
@@ -933,7 +934,7 @@ putCases =
                     [ ( "\"", Text "123" )
                     , ( "a", Lines "newline\n" )
                     ]
-            , mode = emptyInsertMode
+            , mode = Insert emptyInsertMode
             , last = { emptyLast | inserts = "<c-r>\"" }
         }
       )
@@ -1143,7 +1144,7 @@ visualModeCases =
       )
     , ( "vc"
       , { visualModeCasesBuf
-            | mode = emptyInsertMode
+            | mode = Insert emptyInsertMode
             , lines = B.fromString "23\n456\n"
             , registers = Dict.fromList [ ( "\"", Text "1" ) ]
             , continuation = "vc"
@@ -1151,7 +1152,7 @@ visualModeCases =
       )
     , ( "vlc"
       , { visualModeCasesBuf
-            | mode = emptyInsertMode
+            | mode = Insert emptyInsertMode
             , lines = B.fromString "3\n456\n"
             , last = { emptyLast | visual = "l" }
             , registers = Dict.fromList [ ( "\"", Text "12" ) ]
