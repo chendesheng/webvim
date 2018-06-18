@@ -95,7 +95,13 @@ type alias BufferInfo =
 
 
 type alias Undo =
-    List Patch
+    { patches : List Patch
+    , cursor : Position
+    }
+
+
+emptyUndo =
+    { patches = [], cursor = ( 0, 0 ) }
 
 
 type alias Redo =
@@ -176,7 +182,7 @@ type alias BufferHistory =
 emptyBufferHistory : BufferHistory
 emptyBufferHistory =
     { undoes = []
-    , pending = []
+    , pending = { patches = [], cursor = ( 0, 0 ) }
     , redoes = []
     , savePoint = 0
     , version = 0

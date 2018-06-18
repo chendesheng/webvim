@@ -396,7 +396,12 @@ matchString forward re pos lines =
 --|> Debug.log "search hit top"
 
 
-runMotion : Maybe Int -> V.MotionData -> V.MotionOption -> Buffer -> Maybe Position
+runMotion :
+    Maybe Int
+    -> V.MotionData
+    -> V.MotionOption
+    -> Buffer
+    -> Maybe Position
 runMotion count md mo buf =
     if B.isEmpty buf.lines then
         Nothing
@@ -490,7 +495,9 @@ runMotion count md mo buf =
                                         buf.config.wordChars
                                         buf.lines
                             in
-                                repeatfn (Maybe.withDefault 1 count) findNext buf.cursor
+                                repeatfn (Maybe.withDefault 1 count)
+                                    findNext
+                                    buf.cursor
 
                         _ ->
                             Nothing
@@ -572,12 +579,22 @@ runMotion count md mo buf =
                                         )
 
                 V.Paragraph ->
-                    Just ( findParagraph mo.forward (Tuple.first buf.cursor) buf.lines, 0 )
+                    Just
+                        ( findParagraph mo.forward
+                            (Tuple.first buf.cursor)
+                            buf.lines
+                        , 0
+                        )
 
                 V.WordStart ->
                     case buf.mode of
                         Insert { startCursor } ->
-                            findPositionDeleteWordBack count md mo startCursor buf
+                            findPositionDeleteWordBack
+                                count
+                                md
+                                mo
+                                startCursor
+                                buf
 
                         _ ->
                             findPositionDefault count md mo buf
@@ -675,7 +692,11 @@ findParagraph forward start lines =
         findParagraphHelper True start
 
 
-wordStringUnderCursor : String -> B.TextBuffer -> Position -> Maybe ( Position, String )
+wordStringUnderCursor :
+    String
+    -> B.TextBuffer
+    -> Position
+    -> Maybe ( Position, String )
 wordStringUnderCursor wordChars lines cursor =
     lines
         |> wordUnderCursor wordChars cursor

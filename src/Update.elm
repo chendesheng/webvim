@@ -584,7 +584,6 @@ runOperator count register operator buf =
         Undo ->
             buf
                 |> Buf.undo
-                |> Buf.indentCursorToLineFirst
                 |> cmdNone
 
         Redo ->

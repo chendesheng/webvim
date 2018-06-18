@@ -39,6 +39,7 @@ import Model
         , emptyView
         , View
         , LintError
+        , emptyUndo
         )
 import Internal.TextBuffer as B
     exposing
@@ -184,7 +185,7 @@ transaction patches buf =
         else
             let
                 history =
-                    addPending undo buf1.history
+                    addPending buf.cursor undo buf1.history
 
                 --_ =
                 --    Debug.log "history" history
@@ -240,23 +241,28 @@ updateCursor patch patch1 cursor =
                     cursor
 
 
-addPending : List Patch -> BufferHistory -> BufferHistory
-addPending patches history =
+addPending : Position -> List Patch -> BufferHistory -> BufferHistory
+addPending cursor patches history =
     { history
         | pending =
             List.foldl
                 (\patch result ->
-                    case result of
+                    case result.patches of
                         x :: xs ->
-                            case B.mergePatch patch x of
-                                Just patch1 ->
-                                    patch1 :: xs
+                            { result
+                                | patches =
+                                    case B.mergePatch patch x of
+                                        Just patch1 ->
+                                            patch1 :: xs
 
-                                _ ->
-                                    patch :: x :: xs
+                                        _ ->
+                                            patch :: x :: xs
+                            }
 
                         _ ->
-                            [ patch ]
+                            { patches = [ patch ]
+                            , cursor = cursor
+                            }
                 )
                 history.pending
                 (List.reverse patches)
@@ -274,7 +280,7 @@ commit buf =
         { pending, undoes } =
             history
     in
-        case pending of
+        case pending.patches of
             [] ->
                 buf
 
@@ -283,7 +289,7 @@ commit buf =
                     | history =
                         { history
                             | undoes = pending :: undoes
-                            , pending = []
+                            , pending = emptyUndo
                             , redoes = []
                             , savePoint = history.savePoint + 1
                         }
@@ -299,46 +305,43 @@ undo buf =
         |> Maybe.map
             (\undo ->
                 let
+                    undoPatches =
+                        undo.patches
+
                     history =
                         buf.history
 
                     ( lines1, patches1, miny ) =
-                        applyPatches undo buf.lines
+                        applyPatches undoPatches buf.lines
 
                     ( syntax, n ) =
-                        applyPatchesToSyntax undo buf.syntax
+                        applyPatchesToSyntax undoPatches buf.syntax
 
                     jumps =
-                        applyPatchesToJumps undo buf.jumps
+                        applyPatchesToJumps undoPatches buf.jumps
 
                     lintErrors =
                         applyPatchesToLintErrors
                             buf.lint.items
-                            undo
+                            undoPatches
 
                     undoHistory { undoes, redoes } =
                         { history
                             | undoes =
                                 List.tail undoes
                                     |> Maybe.withDefault []
-                            , pending = []
-                            , redoes = patches1 :: redoes
+                            , pending = emptyUndo
+                            , redoes = { undo | patches = patches1 } :: redoes
                             , version = history.version + 1
                             , savePoint = history.savePoint - 1
                         }
 
-                    cursor =
-                        patches1
-                            |> List.map B.patchCursor
-                            |> List.minimum
-                            |> Maybe.withDefault buf.cursor
-
                     ( y, x ) =
-                        cursor
+                        undo.cursor
                 in
                     { buf
                         | lines = lines1
-                        , cursor = cursor
+                        , cursor = undo.cursor
                         , cursorColumn = x
                         , syntax = syntax
                         , syntaxDirtyFrom = y
@@ -362,25 +365,28 @@ redo buf =
         |> Maybe.map
             (\redo ->
                 let
+                    redoPatches =
+                        redo.patches
+
                     history =
                         buf.history
 
                     ( lines1, patches1, miny ) =
-                        applyPatches redo buf.lines
+                        applyPatches redoPatches buf.lines
 
                     ( syntax, n ) =
-                        applyPatchesToSyntax redo buf.syntax
+                        applyPatchesToSyntax redoPatches buf.syntax
 
                     jumps =
-                        applyPatchesToJumps redo buf.jumps
+                        applyPatchesToJumps redoPatches buf.jumps
 
                     lintErrors =
-                        applyPatchesToLintErrors buf.lint.items redo
+                        applyPatchesToLintErrors buf.lint.items redoPatches
 
                     redoHistory { undoes, redoes } =
                         { history
-                            | undoes = patches1 :: undoes
-                            , pending = []
+                            | undoes = { redo | patches = patches1 } :: undoes
+                            , pending = emptyUndo
                             , redoes =
                                 List.tail redoes
                                     |> Maybe.withDefault []
@@ -440,7 +446,7 @@ clearHistory buf =
 
 getLastPatch : Buffer -> Maybe Patch
 getLastPatch { history } =
-    List.head history.pending
+    List.head history.pending.patches
 
 
 getLastDeleted : Buffer -> Maybe TextBuffer

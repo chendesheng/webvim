@@ -10,71 +10,16 @@ import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
-import Internal.Position exposing (Position, positionMin)
 import Update.Motion exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
 import List
 
 
-type alias Transaction =
-    { pos : Maybe ( Position, Bool )
-    , patches : List Patch
-    }
-
-
-applyTransaction : Transaction -> Buffer -> Buffer
-applyTransaction { pos, patches } buf =
-    case pos of
-        Just ( cursor, saveColumn ) ->
-            buf
-                |> Buf.setCursor cursor saveColumn
-                |> Buf.transaction patches
-
-        _ ->
-            Buf.transaction patches buf
-
-
-deleteOperator : Maybe Int -> V.OperatorRange -> Buffer -> Maybe Transaction
+deleteOperator : Maybe Int -> V.OperatorRange -> Buffer -> List Patch
 deleteOperator count range buf =
     let
         ranges =
             operatorRanges count range buf
-
-        pos =
-            case range of
-                V.MotionRange md mo ->
-                    case runMotion count md mo buf of
-                        Just pos ->
-                            if mo.linewise then
-                                Just ( pos, False )
-                            else
-                                Nothing
-
-                        Nothing ->
-                            Nothing
-
-                V.VisualRange linewise ->
-                    case buf.mode of
-                        Visual { begin, end } ->
-                            let
-                                begin1 =
-                                    min begin end
-                            in
-                                Just ( begin1, True )
-
-                        _ ->
-                            Nothing
-
-                V.TextObject _ _ ->
-                    Just
-                        ( ranges
-                            |> List.foldl min
-                                ( ( 0x0FFFFFFF, 0x0FFFFFFF )
-                                , ( 0x0FFFFFFF, 0x0FFFFFFF )
-                                )
-                            |> Tuple.first
-                        , True
-                        )
 
         --Ex { visual } ->
         --    case visual of
@@ -90,17 +35,9 @@ deleteOperator count range buf =
         --            Nothing
     in
         if List.isEmpty ranges then
-            Nothing
+            []
         else
-            Just
-                { pos = pos
-                , patches =
-                    List.map
-                        (\( begin, end ) ->
-                            Deletion begin end
-                        )
-                        ranges
-                }
+            List.map (\( begin, end ) -> Deletion begin end) ranges
 
 
 delete : Maybe Int -> String -> V.OperatorRange -> Buffer -> Buffer
@@ -114,13 +51,13 @@ delete count register rg buf =
 
         deleteAnd f buf =
             case deleteOperator count rg buf of
-                Just trans ->
+                [] ->
                     buf
-                        |> applyTransaction trans
-                        |> f
 
-                _ ->
+                patches ->
                     buf
+                        |> Buf.transaction patches
+                        |> f
     in
         case buf.mode of
             Ex ({ exbuf } as ex) ->
