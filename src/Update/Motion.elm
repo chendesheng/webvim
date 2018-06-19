@@ -297,7 +297,7 @@ matchStringInner :
     -> Position
     -> B.TextBuffer
     -> Maybe ( Position, Position )
-matchStringInner forward re ( y, x ) lines =
+matchStringInner forward re (( y, x ) as start) lines =
     case B.getLine y lines of
         Just line ->
             if forward then
@@ -315,20 +315,27 @@ matchStringInner forward re ( y, x ) lines =
                         _ ->
                             matchStringInner forward re ( y + 1, -1 ) lines
             else
-                Re.find Re.All re line
-                    |> lastItemOf
-                        (\m ->
-                            x < 0 || m.index < x
-                        )
-                    |> Maybe.map
-                        (\m ->
-                            Just
+                case
+                    Re.find Re.All re line
+                        |> lastItemOf
+                            (\m ->
+                                x < 0 || m.index < x
+                            )
+                        |> Maybe.map
+                            (\m ->
                                 ( ( y, m.index )
                                 , ( y, m.index + String.length m.match - 1 )
                                 )
-                        )
-                    |> Maybe.withDefault
-                        (matchStringInner forward re ( y - 1, -1 ) lines)
+                            )
+                of
+                    Nothing ->
+                        matchStringInner forward re ( y - 1, -1 ) lines
+
+                    Just (( a, b ) as rg) ->
+                        if a <= start && start < b then
+                            matchStringInner forward re ( y - 1, -1 ) lines
+                        else
+                            Just rg
 
         _ ->
             Nothing
@@ -364,7 +371,6 @@ matchString forward re pos lines =
                         re
                         ( n - y - 1, -1 )
                         (B.sliceLines y n lines)
-                        -- FIXME: Maybe.map here break tail recursion
                         |> Maybe.map
                             (\rg ->
                                 let
