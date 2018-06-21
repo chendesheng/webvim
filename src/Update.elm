@@ -1,4 +1,4 @@
-module Update exposing (update, init, Flags)
+module Update exposing (update, init, initCommand)
 
 import Http
 import Internal.Brackets exposing (pairBracket, pairBracketAt)
@@ -6,7 +6,6 @@ import Char
 import Task
 import Update.Keymap exposing (keymap)
 import Window as Win exposing (Size)
-import Json.Encode as Encode
 import Json.Decode as Decode
 import Model exposing (..)
 import Update.Message exposing (..)
@@ -19,7 +18,7 @@ import Helper.Helper
         , safeRegex
         , isSpace
         , notSpace
-        , pathSep
+        , resolvePath
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -833,6 +832,7 @@ runOperator count register operator buf =
                 Just ( _, s ) ->
                     ( buf
                     , sendReadTags buf.config.service
+                        buf.cwd
                         buf.path
                         (Maybe.withDefault 1 count - 1)
                         s
@@ -1223,6 +1223,7 @@ applyEdit count edit register buf =
                                                 [ cmd
                                                 , sendListFiles
                                                     buf.config.service
+                                                    buf.cwd
                                                 ]
                                             )
                                     else
@@ -1441,7 +1442,13 @@ execute s buf =
                     ( buf, Cmd.none )
 
         [ "f", s ] ->
-            ( buf, sendSearch buf.config.service s )
+            ( buf, sendSearch buf.config.service buf.cwd s )
+
+        [ "cd", cwd ] ->
+            if String.isEmpty cwd then
+                ( buf, Cmd.none )
+            else
+                ( buf, sendCd buf.config.service cwd )
 
         _ ->
             ( buf, Cmd.none )
@@ -1608,6 +1615,16 @@ onTokenized buf resp =
         Ok payload ->
             case payload of
                 TokenizeSuccess path version begin syntax ->
+                    --let
+                    --    _ =
+                    --        Debug.log "path" path
+                    --    _ =
+                    --        Debug.log "buf.path" buf.path
+                    --    _ =
+                    --        Debug.log "version" version
+                    --    _ =
+                    --        Debug.log "buf.version" buf.history.version
+                    --in
                     ( if
                         (path == buf.path)
                             && (version == buf.history.version)
@@ -1698,7 +1715,7 @@ pairCursor buf =
             buf
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Buffer -> ( Buffer, Cmd Msg )
 update message buf =
     case message of
         PressKey key ->
@@ -1822,6 +1839,7 @@ update message buf =
                         lintCmd buf =
                             if buf1.config.lint then
                                 sendLintProject buf1.config.service
+                                    buf1.config.pathSeperator
                                     buf1.path
                                     buf1.history.version
                             else
@@ -1843,6 +1861,7 @@ update message buf =
                 ( buf
                 , sendLintOnTheFly
                     buf.config.service
+                    buf.config.pathSeperator
                     buf.path
                     buf.history.version
                     (B.toString buf.lines)
@@ -1930,11 +1949,7 @@ update message buf =
             onTokenized buf resp
 
         SendTokenize req ->
-            ( buf
-            , sendTokenize
-                buf.config.service
-                req
-            )
+            ( buf, sendTokenize buf.config.service req )
 
         ReadTags result ->
             case result of
@@ -1982,7 +1997,13 @@ update message buf =
                         Ex ({ exbuf } as ex) ->
                             ( setExbuf buf
                                 ex
-                                (case autoCompleteTarget pathSep exbuf of
+                                (case
+                                    autoCompleteTarget
+                                        (buf.config.pathSeperator
+                                            ++ "-._"
+                                        )
+                                        exbuf
+                                 of
                                     Just ( pos, word ) ->
                                         startAutoComplete files
                                             pos
@@ -2001,78 +2022,105 @@ update message buf =
                 Err _ ->
                     ( buf, Cmd.none )
 
+        SetCwd (Ok cwd) ->
+            ( { buf | cwd = cwd }, Cmd.none )
+
         _ ->
             ( buf, Cmd.none )
 
 
 editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-editBuffer info buf =
-    if info.path /= "" && info.content == Nothing then
-        ( buf
-        , sendReadBuffer buf.config.service
-            (Tuple.first info.cursor + buf.view.size.height * 2)
-            buf.config.tabSize
-            info
-        )
-    else
-        let
-            view =
-                buf.view
+editBuffer info_ buf =
+    let
+        info =
+            { info_
+                | path =
+                    if String.isEmpty info_.path then
+                        ""
+                    else
+                        resolvePath
+                            buf.config.pathSeperator
+                            buf.cwd
+                            info_.path
+            }
 
-            newbuf =
-                newBuffer
-                    info
-                    { buf
-                        | jumps = buf.jumps
-                        , buffers =
-                            (buf.buffers
-                                |> Dict.remove info.path
-                                |> Dict.insert buf.path
-                                    { path = buf.path
-                                    , content = Just ( buf.lines, buf.syntax )
-                                    , cursor = buf.cursor
-                                    }
-                            )
-                        , registers =
-                            buf.registers
-                                |> Dict.insert "%" (Text info.path)
-                                |> (\regs ->
-                                        if buf.path == info.path then
-                                            regs
-                                        else
-                                            Dict.insert "#" (Text buf.path) regs
-                                   )
-                    }
-        in
-            ( newbuf
-            , Cmd.batch
-                [ if newbuf.config.lint then
-                    sendLintProject newbuf.config.service
-                        newbuf.path
-                        newbuf.history.version
-                  else
-                    Cmd.none
-                , Doc.setTitle newbuf.name
-                , tokenizeBufferCmd False 0 newbuf
-                ]
+        --|> Debug.log "info"
+        view =
+            buf.view
+    in
+        if info.path /= "" && info.content == Nothing then
+            ( buf
+            , sendReadBuffer buf.config.service
+                (Tuple.first info.cursor + view.size.height * 2)
+                buf.config.tabSize
+                info
             )
+        else
+            let
+                newbuf =
+                    newBuffer
+                        info
+                        { buf
+                            | jumps = buf.jumps
+                            , buffers =
+                                (buf.buffers
+                                    |> Dict.remove info.path
+                                    |> Dict.insert buf.path
+                                        { path = buf.path
+                                        , content =
+                                            Just
+                                                ( buf.lines, buf.syntax )
+                                        , cursor = buf.cursor
+                                        }
+                                )
+                            , registers =
+                                buf.registers
+                                    |> Dict.insert "%" (Text info.path)
+                                    |> (\regs ->
+                                            if buf.path == info.path then
+                                                regs
+                                            else
+                                                Dict.insert
+                                                    "#"
+                                                    (Text buf.path)
+                                                    regs
+                                       )
+                        }
+            in
+                ( newbuf
+                , Cmd.batch
+                    [ if newbuf.config.lint then
+                        sendLintProject newbuf.config.service
+                            newbuf.config.pathSeperator
+                            newbuf.path
+                            newbuf.history.version
+                      else
+                        Cmd.none
+                    , Doc.setTitle newbuf.name
+                    , tokenizeBufferCmd False 0 newbuf
+                    ]
+                )
 
 
-type alias Flags =
-    { lineHeight : Int
-    , service : String
-    , buffers : Encode.Value
-    , activeBuffer : Encode.Value
-    , registers : Encode.Value
-    , height : Int
-    }
+initCommand : Flags -> Cmd Msg
+initCommand =
+    sendBoot
 
 
-init : Flags -> ( Model, Cmd Msg )
+init : Flags -> ( Buffer, Cmd Msg )
 init flags =
     let
-        { lineHeight, service, buffers, activeBuffer, registers, height } =
+        { cwd, lineHeight, service, buffers } =
             flags
+
+        { activeBuffer, registers, height, pathSeperator } =
+            flags
+
+        cwd1 =
+            if String.isEmpty cwd then
+                "."
+            else
+                cwd
 
         view =
             emptyBuffer.view
@@ -2103,10 +2151,14 @@ init flags =
                                         - emptyBuffer.view.statusbarHeight
                                 }
                         }
+                    , cwd = cwd1
                     , path = activeBuf.path
                     , jumps = jumps
                     , config =
-                        { defaultBufferConfig | service = service }
+                        { defaultBufferConfig
+                            | service = service
+                            , pathSeperator = pathSeperator
+                        }
                     , registers =
                         Decode.decodeValue registersDecoder registers
                             |> Result.withDefault Dict.empty

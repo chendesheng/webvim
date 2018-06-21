@@ -61,3 +61,6 @@ exports.diff = function(oldStr) {
   };
 };
 
+var homedir = require('os').homedir();
+exports.homedir = homedir;
+

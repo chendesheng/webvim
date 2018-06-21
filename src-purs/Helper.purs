@@ -28,6 +28,8 @@ foreign import createReadableStream :: String -> Readable ()
 -- return json stringfied result
 foreign import diff :: String -> String -> String
 
+foreign import homedir :: String
+
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s
 

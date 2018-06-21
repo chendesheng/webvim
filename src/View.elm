@@ -38,7 +38,7 @@ translate x y =
     )
 
 
-view : Model -> Html msg
+view : Buffer -> Html msg
 view buf =
     let
         { mode, cursor, lines, syntax, continuation, view, history } =
@@ -170,6 +170,7 @@ view buf =
              , div [ style [ ( "display", "none" ) ] ]
                 ([ lazy saveBuffers buf.buffers
                  , lazy saveRegisters buf.registers
+                 , lazy saveCwd buf.cwd
                  ]
                     ++ if buf.path == "" then
                         []
@@ -803,6 +804,11 @@ saveRegisters registers =
     registers
         |> registerToString
         |> renderSessionStorageItem "registers"
+
+
+saveCwd : String -> Html msg
+saveCwd cwd =
+    renderSessionStorageItem "cwd" cwd
 
 
 renderSessionStorageItem : String -> String -> Html msg

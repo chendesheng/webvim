@@ -17,7 +17,7 @@ import Internal.Jumps exposing (Location)
 import Internal.Position exposing (Position)
 
 
-handleKeys : List Key -> Model -> Model
+handleKeys : List Key -> Buffer -> Buffer
 handleKeys keys model =
     keys
         |> List.map PressKey
@@ -1443,7 +1443,7 @@ jumpsCases =
 editBufferCasesBuf : Buffer
 editBufferCasesBuf =
     { emptyBuffer
-        | name = "src/test.elm"
+        | name = "test.elm"
         , buffers =
             Dict.fromList
                 [ ( "src/test.elm"
@@ -1489,7 +1489,7 @@ allCases :
     List
         { cases : List ( String, Buffer )
         , map : Buffer -> Buffer
-        , model : Model
+        , model : Buffer
         , name : String
         }
 allCases =

@@ -1,11 +1,18 @@
 module Main where
 
 import Prelude (Unit, bind, discard, pure, show, unit
-  ,void, ($), (<$>), (<>), (*))
+  ,void, ($), (<>), (*))
 import Node.HTTP (Request, Response, createServer, listen, requestMethod
   ,requestURL, setHeader, setStatusCode, setStatusMessage
   ,requestAsStream, responseAsStream)
-import File (listFiles, readFile, readTags, searchFiles, writeFile)
+import File
+  (listFiles
+  , readFile
+  , readTags
+  , searchFiles
+  , writeFile
+  , cd
+  )
 import Clipboard (readClipboard, writeClipboard)
 import Lint (lint, lintOnTheFly)
 import MyRouting (MyRoutes(..), matchUrl, DynamicActions(..))
@@ -16,6 +23,7 @@ import Helper
     , affReadAllString
     , affEnd
     , setCacheSeconds
+    , homedir
     )
 import TextMate (tokenize)
 
@@ -25,7 +33,6 @@ import Effect (Effect)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Aff (attempt, launchAff_, Aff)
-import Data.String.NonEmpty as NES
 import Data.String.NonEmpty.Internal (NonEmptyString(..))
 
 handler :: Request -> Response -> Aff Unit
@@ -60,11 +67,11 @@ dynamicActionHandler req resp action = do
     WriteFile (NonEmptyString path) ->
       writeFile req resp path 
 
-    ListFiles p -> 
-      listFiles resp (NES.toString <$> p)
+    ListFiles (NonEmptyString cwd) -> 
+      listFiles resp cwd
 
-    Search cwd (NonEmptyString s) ->
-      searchFiles resp (NES.toString <$> cwd) s
+    Search (NonEmptyString cwd) (NonEmptyString s) ->
+      searchFiles resp cwd s
 
     ReadClipboard ->
       readClipboard resp
@@ -78,8 +85,8 @@ dynamicActionHandler req resp action = do
     LintOnTheFly (NonEmptyString path) ->
       lintOnTheFly req resp path
 
-    ReadTags (NonEmptyString name) ->
-      readTags resp name
+    ReadTags (NonEmptyString cwd) (NonEmptyString name) ->
+      readTags resp cwd name
 
     Tokenize (NonEmptyString path) line -> do
        let outputStream = responseAsStream resp
@@ -88,6 +95,14 @@ dynamicActionHandler req resp action = do
        json <- liftEffect $ tokenize path line payload
        affWriteString outputStream json
        affEnd outputStream
+
+    Cd (Just (NonEmptyString cwd)) ->
+      cd resp cwd
+
+    Cd Nothing -> do
+      let outputStream = responseAsStream resp
+      affWriteString outputStream homedir
+      affEnd outputStream
 
     Kill -> do
       affLog "bye"

@@ -21,6 +21,18 @@ import Json.Encode as Encode
 import Json.Decode as Decode
 
 
+type alias Flags =
+    { lineHeight : Int
+    , service : String
+    , buffers : Encode.Value
+    , activeBuffer : Encode.Value
+    , registers : Encode.Value
+    , height : Int
+    , cwd : String
+    , pathSeperator : String
+    }
+
+
 type alias LintError =
     { tipe : String
     , tag : String
@@ -167,8 +179,10 @@ type alias View =
     }
 
 
-type alias Model =
-    Buffer
+type Model
+    = Booting
+    | Ready Buffer
+    | Crashed String
 
 
 type alias BufferHistory =
@@ -235,6 +249,7 @@ type alias Buffer =
     , jumps : Jumps
     , buffers : Dict String BufferInfo
     , locationList : List Location
+    , cwd : String
     }
 
 
@@ -295,6 +310,7 @@ type alias BufferConfig =
     , expandTab : Bool
     , lint : Bool
     , service : String
+    , pathSeperator : String
     }
 
 
@@ -305,6 +321,7 @@ defaultBufferConfig =
     , expandTab = True
     , lint = False
     , service = ""
+    , pathSeperator = "/"
     }
 
 
@@ -341,6 +358,7 @@ emptyBuffer =
         }
     , buffers = Dict.empty
     , locationList = []
+    , cwd = ""
     }
 
 

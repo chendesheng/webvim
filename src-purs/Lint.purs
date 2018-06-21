@@ -8,7 +8,6 @@ import Node.Buffer (toString)
 import Node.Encoding (Encoding(..))
 import Shell (execAsync)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Node.Path (normalize)
 import Node.FS.Stream (createWriteStream)
 import Node.Stream (pipe)
 import Effect (Effect)
@@ -41,7 +40,7 @@ elmLint :: Request -> Response -> String -> Aff Unit
 elmLint req resp path = do
   let inputStream = requestAsStream req
       outputStream = responseAsStream resp
-  absolutePath <- FS.realpath $ normalize path
+  absolutePath <- FS.realpath $ Path.normalize path
   cwd <- findProjectDir absolutePath
   void $ affLog ("elmLint: " <> absolutePath <> " in " <> show cwd)
   result <- execAsync cwd ("elm-make "
@@ -62,8 +61,9 @@ elmLintOnTheFly req resp path = do
   let inputStream = requestAsStream req
       outputStream = responseAsStream resp
   file <- tempfile
-  absolutePath <- FS.realpath $ normalize path
+  absolutePath <- FS.realpath $ Path.normalize path
   cwd <- findProjectDir $ absolutePath
+  void $ affLog ("elmLintOnTheFly: " <> absolutePath <> " in " <> show cwd)
   liftEffect $ do
       fileStream <- createWriteStream file
       void $ pipe inputStream fileStream
@@ -82,11 +82,11 @@ elmLintOnTheFly req resp path = do
 
 lint :: Request -> Response -> String -> Aff Unit
 lint req resp path = do
-    affLog ("lint: " <> path)
-    elmLint req resp path
+  affLog ("lint: " <> path)
+  elmLint req resp path
 
 
 lintOnTheFly :: Request -> Response -> String -> Aff Unit
 lintOnTheFly req resp path = do
-    affLog ("lintOnTheFly: " <> path)
-    elmLintOnTheFly req resp path
+  affLog ("lintOnTheFly: " <> path)
+  elmLintOnTheFly req resp path

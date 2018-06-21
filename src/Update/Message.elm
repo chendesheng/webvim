@@ -7,7 +7,7 @@ import Internal.Syntax exposing (Token, Syntax)
 import Vim.AST exposing (AST)
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer as B exposing (Patch)
-import Model exposing (Key, LintError, BufferInfo)
+import Model exposing (Key, LintError, BufferInfo, Flags)
 
 
 type TokenizeResponse
@@ -39,4 +39,6 @@ type Msg
     | ListFiles (Result String (List String))
     | ReadTags (Result String Location)
     | SearchResult (Result Http.Error String)
+    | SetCwd (Result Http.Error String)
+    | Boot (Result Http.Error Flags)
     | NoneMessage

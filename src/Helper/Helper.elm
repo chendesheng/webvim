@@ -42,7 +42,7 @@ filename s =
     case
         Re.find
             (Re.AtMost 1)
-            (Re.regex "(^|[/\\\\])([^.]+)([.][^.]*)?$")
+            (Re.regex "(^|[/\\\\])([^./\\\\]+)([.][^.]*)?$")
             s
     of
         [ m ] ->
@@ -89,10 +89,12 @@ levenshtein =
     Native.Doc.levenshtein
 
 
+isSpace : Char -> Bool
 isSpace c =
     Char.toCode c < 20 || c == ' '
 
 
+notSpace : Char -> Bool
 notSpace =
     isSpace >> not
 
@@ -142,32 +144,114 @@ maybeAndThen2 f ma mb =
 
 isAbsolutePath : String -> Bool
 isAbsolutePath =
-    if Native.Doc.isWindows () then
-        Re.contains (Re.regex "^[a-zA-Z]:")
+    String.startsWith "/"
+
+
+joinPath : String -> String -> String -> String
+joinPath sep a b =
+    if isAbsolutePath b then
+        b
+    else if String.endsWith sep a then
+        a ++ b
     else
-        String.startsWith "/"
+        a ++ sep ++ b
 
 
-pathSep : String
-pathSep =
-    if Native.Doc.isWindows () then
-        "\\"
-    else
-        "/"
-
-
-joinPath : String -> String -> String
-joinPath a b =
-    let
-        sep =
-            if Native.Doc.isWindows () then
-                "\\"
+dropWhile : (a -> Bool) -> List a -> List a
+dropWhile pred items =
+    case items of
+        x :: xs ->
+            if pred x then
+                dropWhile pred xs
             else
-                "/"
+                items
+
+        _ ->
+            items
+
+
+{-| Resolve a relative path start from a dir.
+dir: absolute path
+relativePath: a normalized relative path
+return: absolute path
+-}
+resolvePath : String -> String -> String -> String
+resolvePath sep dir path =
+    if String.isEmpty dir || isAbsolutePath path then
+        path
+    else
+        let
+            --_ =
+            --    Debug.log "dir" dir
+            --_ =
+            --    Debug.log "path" path
+            parts =
+                String.split sep path
+                    |> dropWhile ((==) ".")
+
+            n =
+                parts
+                    |> List.filter ((==) "..")
+                    |> List.length
+
+            dropEndPathSeperator s =
+                if String.endsWith sep s then
+                    String.dropRight (String.length sep) s
+                else
+                    s
+
+            dirParts =
+                dir
+                    |> dropEndPathSeperator
+                    |> String.split sep
+
+            m =
+                List.length dirParts
+        in
+            if m >= n then
+                (List.take (m - n) dirParts ++ List.drop n parts)
+                    |> String.join sep
+            else
+                parts
+                    |> List.take (n - m)
+                    |> String.join sep
+
+
+{-| Calcuate relative path between two normalized absolute paths
+
+    relativePath "/users/webvim/" "/users/webvim/src/main.elm" == "src/main.elm"
+
+    relativePath "/a/b/" "/a/c/d.elm" == "../c/d.elm"
+
+    relativePath "/a/c/d.elm" "/a/b/" == "../../b"
+
+-}
+relativePath : String -> String -> String -> String
+relativePath sep from to =
+    let
+        commonAncestors a b ancestors =
+            case a of
+                x :: xs ->
+                    case b of
+                        y :: ys ->
+                            if x == y then
+                                commonAncestors xs ys (y :: ancestors)
+                            else
+                                ( a, b, ancestors )
+
+                        _ ->
+                            ( a, b, ancestors )
+
+                _ ->
+                    ( a, b, ancestors )
+
+        ( fromParts, toParts, ancestors ) =
+            commonAncestors
+                (String.split sep from)
+                (String.split sep to)
+                []
+
+        --|> Debug.log "result"
     in
-        if isAbsolutePath b then
-            b
-        else if String.endsWith pathSep a then
-            a ++ b
-        else
-            a ++ pathSep ++ b
+        (List.repeat (List.length fromParts - 1) ".." ++ toParts)
+            |> String.join sep

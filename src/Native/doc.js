@@ -98,14 +98,6 @@ function levenshtein(str1, str2) {
   return nextCol;
 }
 
-function getPlatform() {
-  if (typeof navigator === 'undefined') { // run on node.js
-    return require('os').platform();
-  } else {
-    return navigator.platform;
-  }
-}
-
 
 return {
   onDocument: F3(onDocument),
@@ -120,9 +112,6 @@ return {
     }
   },
   levenshtein: F2(levenshtein),
-  isWindows: function() {
-    return /win/.test(getPlatform());
-  },
 };
 
 }();

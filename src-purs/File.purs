@@ -1,6 +1,9 @@
 module File where
 
 import Data.Maybe (Maybe(..))
+import Data.String.Regex as Re
+import Data.String.Regex.Flags (noFlags)
+import Data.Either(Either(..))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Helper
@@ -15,6 +18,7 @@ import Helper
     , affBufferToString
     , createReadableStream
     , diff
+    , homedir
     )
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
@@ -25,12 +29,14 @@ import Node.HTTP
   , Response
   , responseAsStream
   , setStatusCode
+  , setHeader
   )
 import Node.Stream (pipe, writeString)
+import Node.Process as Process
 import Prelude
 import Shell (execAsync)
 import Data.String (Pattern(..), stripSuffix)
-import Node.Buffer as Buf
+import Node.FS.Stats (isDirectory)
 
 
 readFile :: Response -> String -> Aff Unit
@@ -41,7 +47,8 @@ readFile resp path = do
     if exists then
       do
         let outputStream = responseAsStream resp
-        fileStream <- createReadStream path 
+        setHeader resp "Path" path
+        fileStream <- createReadStream path
         void $ pipe fileStream outputStream
     else
       do
@@ -81,27 +88,47 @@ writeFile req resp path = do
 
 
 
-listFiles :: Response  -> Maybe String -> Aff Unit
+listFiles :: Response -> String -> Aff Unit
 listFiles resp cwd = do
   affLog ("listFiles: " <> show cwd)
   let outputStream = responseAsStream resp
-  result <- execAsync cwd "ag -l --nocolor" Nothing 
+  result <- execAsync (Just cwd) "ag -l --nocolor" Nothing 
   affWriteStdout outputStream result
 
 
-searchFiles :: Response -> Maybe String -> String -> Aff Unit
+searchFiles :: Response -> String -> String -> Aff Unit
 searchFiles resp cwd s = do
   affLog ("searchFiles: " <> s <> " in " <> show cwd)
   let outputStream = responseAsStream resp
-  result <- execAsync cwd ("ag --nocolor --vimgrep " <> s) Nothing
+  result <- execAsync (Just cwd) ("ag --nocolor --vimgrep " <> s) Nothing
   affWriteStdout outputStream result
 
 
-readTags :: Response -> String -> Aff Unit
-readTags resp name = do
+readTags :: Response -> String -> String -> Aff Unit
+readTags resp cwd name = do
   affLog ("readTags: " <> name)
   let outputStream = responseAsStream resp
-  result <- execAsync Nothing ("readtags -en " <> name) Nothing
+  result <- execAsync (Just cwd) ("readtags -en " <> name) Nothing
   affWriteStdout outputStream result
 
+cd :: Response -> String -> Aff Unit
+cd resp cwd = do
+  let outputStream = responseAsStream resp
+      cwd' = case Re.regex "^~" noFlags of
+               Right re -> Re.replace re homedir cwd
+               _ -> cwd
+  affLog ("cd: " <> cwd')
+  affLog ("home: " <> homedir)
+  exists <- FS.exists cwd'
+  s <- (if exists then do
+          stat <- FS.stat cwd'
+          if isDirectory stat then
+            FS.realpath cwd'
+            else 
+              liftEffect $ Process.cwd
+          else 
+            liftEffect $ Process.cwd)
+  affWriteString outputStream s
+  affEnd outputStream
+        
 

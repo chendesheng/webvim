@@ -10,10 +10,9 @@ import Data.String (joinWith)
 import Data.String.NonEmpty as NES
 import Data.String.NonEmpty.Internal (NonEmptyString(..))
 import Data.Maybe (Maybe, maybe)
-import Node.Path (sep)
 import Routing (match)
 import Routing.Match (Match, eitherMatch, end, list, lit, optionalMatch, param, root, str)
-import Node.Path (normalize)
+import Node.Path (normalize, sep)
 
 data MyRoutes
   = StaticFile String
@@ -22,16 +21,17 @@ data MyRoutes
 data DynamicActions
   = ReadFile NonEmptyString
   | WriteFile NonEmptyString
-  | ListFiles (Maybe NonEmptyString)
-  | Search (Maybe NonEmptyString) NonEmptyString
+  | ListFiles NonEmptyString
+  | Search NonEmptyString NonEmptyString
   | ReadClipboard
   | WriteClipboard
   | Lint NonEmptyString
   | LintOnTheFly NonEmptyString
-  | ReadTags NonEmptyString
+  | ReadTags NonEmptyString NonEmptyString
   | Tokenize NonEmptyString Int
   | Kill
   | Log
+  | Cd (Maybe NonEmptyString)
 
 
 nonemptyParam :: String -> Match NonEmptyString
@@ -42,9 +42,10 @@ paramInt :: String -> Match Int
 paramInt s =
   eitherMatch $ (((maybe (Left "Not Int") Right) <<< fromString) <$> param s)
 
+paramCwd :: Match NonEmptyString
+paramCwd = (NES.toString >>> normalize >>> NonEmptyString) <$> nonemptyParam "cwd"
+
 paramPath :: Match NonEmptyString
---normalize path means every file is accessible from this interface
---  which is kind of dangerous
 paramPath = (NES.toString >>> normalize >>> NonEmptyString) <$> nonemptyParam "path"
 
 distFolder :: List String -> String
@@ -77,21 +78,23 @@ routingStaticFiles = oneOf
 routingDynamicGet :: Match DynamicActions
 routingDynamicGet = oneOf
   [ ReadFile <$> (root *> lit "read" *> paramPath)
-  , ListFiles <$> (root *> lit "ls" *> optionalMatch paramPath)
-  , Search <$> (root *> lit "search" *> optionalMatch paramPath) <*> (nonemptyParam "s")
+  , ListFiles <$> (root *> lit "ls" *> paramCwd)
+  , Search <$> (root *> lit "search" *> paramCwd) <*> (nonemptyParam "s")
   , ReadClipboard <$ (root *> lit "clipboard")
   , Lint <$> (root *> lit "lint" *> paramPath)
-  , ReadTags <$> (root *> lit "readtags" *> (nonemptyParam "name"))
+  , ReadTags <$> (root *> lit "readtags" *> paramCwd) <*> (nonemptyParam "name")
   , Kill <$ (root *> lit "kill" *> end)
   , Log <$ (root *> lit "log" *> end)
+  , Cd <$> (root *> lit "cd" *> optionalMatch paramCwd)
   ]
 
 routingDynamicPost :: Match DynamicActions
 routingDynamicPost = oneOf
-  [ WriteFile <$> (root *> lit "write" *> paramPath)
+  [ WriteFile <$> (root *> lit "write" *> paramPath) 
   , WriteClipboard <$ (root *> lit "clipboard")
   , LintOnTheFly <$> (root *> lit "lint" *> paramPath)
-  , Tokenize <$> (root *> lit "tokenize" *> paramPath) <*> (paramInt "line")
+  , Tokenize <$> (root *> lit "tokenize" *> paramPath)
+             <*> (paramInt "line")
   ]
 
 matchUrl :: String -> String -> Either String MyRoutes

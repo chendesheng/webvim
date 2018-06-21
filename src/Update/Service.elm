@@ -28,6 +28,7 @@ import Model
         , BufferInfo
         , LintError
         , Key
+        , Flags
         )
 
 
@@ -190,8 +191,8 @@ syntaxErrorParser =
            )
 
 
-parseLintResponse : Result a String -> Result String (List LintError)
-parseLintResponse resp =
+parseLintResponse : String -> Result a String -> Result String (List LintError)
+parseLintResponse sep resp =
     case Result.mapError toString resp of
         Ok ss ->
             case Re.split (Re.AtMost 1) (Re.regex "\n") ss of
@@ -204,7 +205,7 @@ parseLintResponse resp =
                             |> Result.map
                                 (List.map
                                     (\item ->
-                                        { item | file = joinPath dir item.file }
+                                        { item | file = joinPath sep dir item.file }
                                     )
                                 )
                     else
@@ -212,7 +213,7 @@ parseLintResponse resp =
                             P.run syntaxErrorParser s
                         of
                             Ok item ->
-                                Ok [ { item | file = joinPath dir item.file } ]
+                                Ok [ { item | file = joinPath sep dir item.file } ]
 
                             Err _ ->
                                 Ok
@@ -233,20 +234,20 @@ parseLintResponse resp =
             Err err
 
 
-sendLintProject : String -> String -> Int -> Cmd Msg
-sendLintProject url path version =
+sendLintProject : String -> String -> String -> Int -> Cmd Msg
+sendLintProject url sep path version =
     Http.getString (url ++ "/lint?path=" ++ path)
-        |> Http.send (parseLintResponse >> Lint version)
+        |> Http.send (parseLintResponse sep >> Lint version)
 
 
-sendLintOnTheFly : String -> String -> Int -> String -> Cmd Msg
-sendLintOnTheFly url path version buf =
+sendLintOnTheFly : String -> String -> String -> Int -> String -> Cmd Msg
+sendLintOnTheFly url sep path version buf =
     let
         body =
             Http.stringBody "text/plain" buf
     in
         post (url ++ "/lint?path=" ++ path) body
-            |> Http.send (parseLintResponse >> LintOnTheFly version)
+            |> Http.send (parseLintResponse sep >> LintOnTheFly version)
 
 
 unpackClass : Int -> Int -> Int -> Token
@@ -468,9 +469,9 @@ parseFileList resp =
             Err <| toString err
 
 
-sendListFiles : String -> Cmd Msg
-sendListFiles url =
-    Http.getString (url ++ "/ls")
+sendListFiles : String -> String -> Cmd Msg
+sendListFiles url cwd =
+    Http.getString (url ++ "/ls?cwd=" ++ cwd)
         |> Http.send (parseFileList >> ListFiles)
 
 
@@ -531,9 +532,9 @@ pickClosest path index locs =
         |> Array.get index
 
 
-sendReadTags : String -> String -> Int -> String -> Cmd Msg
-sendReadTags url path index name =
-    Http.getString (url ++ "/readtags?name=" ++ name)
+sendReadTags : String -> String -> String -> Int -> String -> Cmd Msg
+sendReadTags url cwd path index name =
+    Http.getString (url ++ "/readtags?name=" ++ name ++ "&cwd=" ++ cwd)
         |> Http.send
             (\result ->
                 result
@@ -541,7 +542,7 @@ sendReadTags url path index name =
                     |> Result.andThen
                         (\s ->
                             P.run ctagsParser s
-                                |> Debug.log "ctags parse"
+                                --|> Debug.log "ctags parse"
                                 |> Result.mapError
                                     (always "parse result error")
                                 |> Result.andThen
@@ -556,7 +557,29 @@ sendReadTags url path index name =
             )
 
 
-sendSearch : String -> String -> Cmd Msg
-sendSearch url s =
-    Http.getString (url ++ "/search?s=" ++ s)
+sendSearch : String -> String -> String -> Cmd Msg
+sendSearch url cwd s =
+    Http.getString (url ++ "/search?s=" ++ s ++ "&cwd=" ++ cwd)
         |> Http.send SearchResult
+
+
+sendCd : String -> String -> Cmd Msg
+sendCd url cwd =
+    Http.getString (url ++ "/cd?cwd=" ++ cwd)
+        |> Http.send SetCwd
+
+
+sendBoot : Flags -> Cmd Msg
+sendBoot ({ service, cwd } as flags) =
+    Http.getString
+        (service
+            ++ "/cd"
+            ++ if String.isEmpty cwd then
+                ""
+               else
+                "?cwd=" ++ cwd
+        )
+        |> Http.send
+            (Result.map (\s -> { flags | cwd = s })
+                >> Boot
+            )

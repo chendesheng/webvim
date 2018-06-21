@@ -54,12 +54,46 @@ handleTokenizeBounce event =
         |> SendTokenize
 
 
+toModel : ( Buffer, cmd ) -> ( Model, cmd )
+toModel =
+    Tuple.mapFirst Ready
+
+
 main : Program Flags Model Msg
 main =
     Html.programWithFlags
-        { init = init
-        , view = view
-        , update = update
+        { init = (initCommand >> ((,) Booting))
+        , view =
+            (\model ->
+                case model of
+                    Booting ->
+                        Html.text ""
+
+                    Crashed err ->
+                        Html.text err
+
+                    Ready buf ->
+                        view buf
+            )
+        , update =
+            (\msg model ->
+                case msg of
+                    Boot (Ok flags) ->
+                        init flags
+                            |> toModel
+
+                    Boot (Err err) ->
+                        ( Crashed ("boot failed: " ++ toString err), Cmd.none )
+
+                    _ ->
+                        case model of
+                            Ready buf ->
+                                update msg buf
+                                    |> toModel
+
+                            _ ->
+                                ( model, Cmd.none )
+            )
         , subscriptions =
             \_ ->
                 Sub.batch
