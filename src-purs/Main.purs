@@ -25,7 +25,7 @@ import Helper
     , setCacheSeconds
     , homedir
     )
-import TextMate (tokenize)
+import TextMate (tokenize, themeCss)
 
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -95,6 +95,11 @@ dynamicActionHandler req resp action = do
        json <- liftEffect $ tokenize path line payload
        affWriteString outputStream json
        affEnd outputStream
+
+    Css -> do
+      let outputStream = responseAsStream resp
+      affWriteString outputStream themeCss
+      affEnd outputStream
 
     Cd (Just (NonEmptyString cwd)) ->
       cd resp cwd

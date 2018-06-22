@@ -8,15 +8,13 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Effect (Effect)
 import Effect.Aff (Aff, effectCanceler, error, makeAff, throwError)
-import Effect.Exception (Error)
 import Node.ChildProcess
     (ExecResult
     , defaultExecOptions
     , execFile
-    , ChildProcess
-    , kill, stdin, stdout, stderr)
+    , kill, stdin)
 import Prelude
-import Node.Stream (Readable, Writable, pipe)
+import Node.Stream (Readable, pipe)
 
 execAsync ::
     Maybe String

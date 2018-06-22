@@ -1,6 +1,6 @@
 {
     "version": "0.8.0",
-    "summary": "Toy vim clone (in elm this time)",
+    "summary": "A toy vim clone",
     "repository": "https://github.com/chendesheng/webvim-elm.git",
     "license": "MIT",
     "source-directories": [

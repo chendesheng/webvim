@@ -15,3 +15,5 @@ bower_components
 output/
 
 jquery.js
+
+*.exe

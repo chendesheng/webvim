@@ -8,3 +8,5 @@ foreign import tokenize
   -> Int -- line
   -> String -- input string
   -> Effect String
+
+foreign import themeCss :: String

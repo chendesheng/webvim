@@ -54,6 +54,16 @@ const flags = {
   cwd: sessionStorage.getItem('cwd') || '',
   pathSeperator: /win/.test(navigator.platform) ? '\\' : '/',
 };
+
+const applyCss = (url) => {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = url;
+  document.head.appendChild(link);
+};
+
+applyCss(`${flags.service}/css`);
+
 // console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);
 

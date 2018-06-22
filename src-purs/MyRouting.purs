@@ -32,6 +32,7 @@ data DynamicActions
   | Kill
   | Log
   | Cd (Maybe NonEmptyString)
+  | Css
 
 
 nonemptyParam :: String -> Match NonEmptyString
@@ -63,8 +64,7 @@ fontFolder parts =
 
 routingStaticFiles :: Match String
 routingStaticFiles = oneOf
-  [ "index.html" <$ (root *> end)
-  , "index.html" <$ (root *> lit "index.html" *> end)
+  [ "dist/webvim.html" <$ (root *> end)
   , "favicon.ico" <$ (root *> lit "favicon.ico" *> end)
   , distFolder <$> (root *> lit "dist" *> list str)
   , fontFolder <$> (root
@@ -86,6 +86,7 @@ routingDynamicGet = oneOf
   , Kill <$ (root *> lit "kill" *> end)
   , Log <$ (root *> lit "log" *> end)
   , Cd <$> (root *> lit "cd" *> optionalMatch paramCwd)
+  , Css <$ (root *> lit "css")
   ]
 
 routingDynamicPost :: Match DynamicActions
