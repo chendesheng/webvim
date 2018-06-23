@@ -6,7 +6,7 @@
   "scripts": {
     "css": "node ./build/less.config.js",
     "start": "node ./start.js && npm run start",
-    "purs": "pulp build --src-path src-purs --test-path tests-purs",
+    "purs": "pulp build --src-path src-purs --test-path tests-purs --to dist/webvim-backend.js",
     "purs:watch": "pulp -w run --src-path src-purs",
     "js": "elm make src/Main.elm --output dist/elm.js --debug --warn",
     "release": "npm run css && node ./build/release.js",
@@ -14,7 +14,8 @@
     "eslint": "eslint start.js build/*.js src-purs/**/*.js --fix"
   },
   "files": [
-      "dist/webvim.html"
+    "dist/webvim.html",
+    "vscode-syntaxes/"
   ],
   "author": "chendesheng",
   "license": "MIT",
@@ -28,7 +29,6 @@
     "chokidar": "^2.0.3",
     "clean-css": "^4.1.11",
     "debounce": "^1.1.0",
-    "elm": "^0.18.0",
     "eslint": "^4.19.1",
     "eslint-config-google": "^0.9.1",
     "execa": "^0.10.0",

@@ -84,7 +84,7 @@ const releaseBackEnd = () => {
   console.log('Successfully generated webvim-backend.js');
 };
 
-fs.unlinkSync('dist/.bundle.js');
-
 releaseFrontEnd();
 releaseBackEnd();
+
+fs.unlinkSync('dist/.bundle.js');

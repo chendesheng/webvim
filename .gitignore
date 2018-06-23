@@ -17,3 +17,4 @@ output/
 jquery.js
 
 *.exe
+.psc-ide-port

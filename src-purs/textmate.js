@@ -532,19 +532,21 @@ function walk(dir, callback) {
   });
 }
 
+const syntaxFolder = path.join(__dirname, '..', 'vscode-syntaxes');
+
 /* eslint-disable max-len */
 const allGrammars = {
-  'js': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/javascript/syntaxes/JavaScript.tmLanguage.json'),
-  'jsx': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/javascript/syntaxes/JavaScriptReact.tmLanguage.json'),
-  'fs': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/fsharp/syntaxes/fsharp.tmLanguage.json'),
-  'elm': registry.loadGrammarFromPathSync('/Users/chendesheng/.vscode/extensions/sbrink.elm-0.18.0/syntaxes/elm.json'),
-  'purs': registry.loadGrammarFromPathSync('/Users/chendesheng/.vscode/extensions/nwolverson.language-purescript-0.1.2/syntaxes/purescript.json'),
-  'rb': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/ruby/syntaxes/ruby.tmLanguage.json'),
-  'sh': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/shellscript/syntaxes/shell-unix-bash.tmLanguage.json'),
-  'ps': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/powershell/syntaxes/powershell.tmLanguage.json'),
-  'm': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/objective-c/syntaxes/objective-c.tmLanguage.json'),
-  'clj': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/clojure/syntaxes/clojure.tmLanguage.json'),
-  'cljs': registry.loadGrammarFromPathSync('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/clojure/syntaxes/clojure.tmLanguage.json'),
+  'js': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'JavaScript.tmLanguage.json')),
+  'jsx': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'JavaScriptReact.tmLanguage.json')),
+  'fs': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'fsharp.tmLanguage.json')),
+  'elm': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'elm', 'elm.json')),
+  'purs': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'purescript.json')),
+  'rb': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'ruby.tmLanguage.json')),
+  'sh': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'shell-unix-bash.tmLanguage.json')),
+  'ps': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'powershell.tmLanguage.json')),
+  'm': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'objective-c.tmLanguage.json')),
+  'clj': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'clojure.tmLanguage.json')),
+  'cljs': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'clojure.tmLanguage.json')),
 };
 
 function loadAllGrammars(dir) {
@@ -558,7 +560,7 @@ function loadAllGrammars(dir) {
   });
 };
 
-loadAllGrammars('/Applications/Visual Studio Code.app/Contents/Resources/app/extensions');
+loadAllGrammars(syntaxFolder);
 // console.log(Object.keys(allGrammars));
 
 function getGrammar(p) {

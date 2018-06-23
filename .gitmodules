@@ -1,0 +1,3 @@
+[submodule "vscode-syntaxes"]
+	path = vscode-syntaxes
+	url = https://github.com/chendesheng/vscode-syntaxes.git
