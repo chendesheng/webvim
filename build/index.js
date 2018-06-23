@@ -52,7 +52,7 @@ const flags = {
   registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
   height: window.innerHeight,
   cwd: sessionStorage.getItem('cwd') || '',
-  pathSeperator: /win/.test(navigator.platform) ? '\\' : '/',
+  pathSeperator: /win/i.test(navigator.platform) ? '\\' : '/',
 };
 
 const applyCss = (url) => {

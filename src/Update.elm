@@ -19,6 +19,7 @@ import Helper.Helper
         , isSpace
         , notSpace
         , resolvePath
+        , normalizePath
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -1147,7 +1148,10 @@ newBuffer info buf =
         { buf
             | lines = lines
             , config =
-                { config | service = buf.config.service }
+                { config
+                    | service = buf.config.service
+                    , pathSeperator = buf.config.pathSeperator
+                }
             , view =
                 { emptyView
                     | size = buf.view.size
@@ -1223,6 +1227,7 @@ applyEdit count edit register buf =
                                                 [ cmd
                                                 , sendListFiles
                                                     buf.config.service
+                                                    buf.config.pathSeperator
                                                     buf.cwd
                                                 ]
                                             )
@@ -1428,7 +1433,7 @@ execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            jumpToPath True path Nothing buf
+            jumpToPath True (normalizePath buf.config.pathSeperator path) Nothing buf
 
         [ "w" ] ->
             ( buf, sendWriteBuffer buf.config.service buf.path buf )
@@ -2038,10 +2043,14 @@ editBuffer info_ buf =
                     if String.isEmpty info_.path then
                         ""
                     else
-                        resolvePath
-                            buf.config.pathSeperator
-                            buf.cwd
-                            info_.path
+                        let
+                            _ =
+                                Debug.log "resolvePath" ( buf.config.pathSeperator, buf.cwd, info_.path )
+                        in
+                            resolvePath
+                                buf.config.pathSeperator
+                                buf.cwd
+                                info_.path
             }
 
         --|> Debug.log "info"
@@ -2110,6 +2119,9 @@ initCommand =
 init : Flags -> ( Buffer, Cmd Msg )
 init flags =
     let
+        _ =
+            Debug.log "flags" flags
+
         { cwd, lineHeight, service, buffers } =
             flags
 

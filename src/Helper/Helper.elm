@@ -142,19 +142,26 @@ maybeAndThen2 f ma mb =
         ma
 
 
-isAbsolutePath : String -> Bool
-isAbsolutePath =
-    String.startsWith "/"
+isAbsolutePath : String -> String -> Bool
+isAbsolutePath sep =
+    if sep == "/" then
+        String.startsWith "/"
+    else
+        Re.contains (Re.regex "^[a-zA-Z]:\\\\")
 
 
 joinPath : String -> String -> String -> String
 joinPath sep a b =
-    if isAbsolutePath b then
-        b
-    else if String.endsWith sep a then
-        a ++ b
-    else
-        a ++ sep ++ b
+    let
+        _ =
+            Debug.log "joinPath" ( sep, a, b )
+    in
+        if isAbsolutePath sep b then
+            b
+        else if String.endsWith sep a then
+            a ++ b
+        else
+            a ++ sep ++ b
 
 
 dropWhile : (a -> Bool) -> List a -> List a
@@ -170,6 +177,21 @@ dropWhile pred items =
             items
 
 
+normalizePath : String -> String -> String
+normalizePath sep path =
+    let
+        sep1 =
+            if sep == "/" then
+                "/"
+            else
+                "\\"
+    in
+        path
+            |> String.trim
+            |> String.split sep1
+            |> String.join sep
+
+
 {-| Resolve a relative path start from a dir.
 dir: absolute path
 relativePath: a normalized relative path
@@ -177,7 +199,7 @@ return: absolute path
 -}
 resolvePath : String -> String -> String -> String
 resolvePath sep dir path =
-    if String.isEmpty dir || isAbsolutePath path then
+    if String.isEmpty dir || isAbsolutePath sep path then
         path
     else
         let

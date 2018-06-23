@@ -15,7 +15,7 @@ import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
 import Vim.AST exposing (AST)
-import Helper.Helper exposing (levenshtein, isSpace, notSpace, joinPath)
+import Helper.Helper exposing (levenshtein, isSpace, notSpace, joinPath, normalizePath)
 import Internal.TextBuffer as B
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer exposing (Patch(..))
@@ -456,23 +456,23 @@ sendTokenizeLine url req =
         (sendTokenize url req)
 
 
-parseFileList : Result a String -> Result String (List String)
-parseFileList resp =
+parseFileList : String -> Result a String -> Result String (List String)
+parseFileList sep resp =
     case resp of
         Ok s ->
             s
                 |> String.split "\n"
-                |> List.map String.trim
+                |> List.map (normalizePath sep)
                 |> Ok
 
         Err err ->
             Err <| toString err
 
 
-sendListFiles : String -> String -> Cmd Msg
-sendListFiles url cwd =
+sendListFiles : String -> String -> String -> Cmd Msg
+sendListFiles url sep cwd =
     Http.getString (url ++ "/ls?cwd=" ++ cwd)
-        |> Http.send (parseFileList >> ListFiles)
+        |> Http.send (parseFileList sep >> ListFiles)
 
 
 sendReadClipboard : Bool -> Key -> String -> AST -> Cmd Msg

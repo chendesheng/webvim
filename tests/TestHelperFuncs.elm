@@ -56,6 +56,8 @@ suite =
                 , testUnix "/a/b/c" "../d" "/a/b/d"
                 , testUnix "/a/b/c" "../../d" "/a/d"
                 , testUnix "" "src/Main.elm" "src/Main.elm"
+                , testWin "c:\\windows" "system32" "c:\\windows\\system32"
+                , testWin "c:\\users\\chendesheng\\webvim" "src\\main.elm" "c:\\users\\chendesheng\\webvim\\src\\main.elm"
                 ]
             )
         ]

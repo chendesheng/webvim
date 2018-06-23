@@ -55,7 +55,7 @@ readFile resp path = do
         setStatusCode resp 404
         let outputStream = responseAsStream resp
         void $ writeString outputStream UTF8 path $ endStream outputStream
-    
+
 
 writeFile :: Request -> Response -> String -> Aff Unit
 writeFile req resp path = do
@@ -81,7 +81,7 @@ writeFile req resp path = do
           --affLog $ diff input formatted
           affWriteString outputStream $ diff input formatted
     _ -> do
-      affPipe inputStream fileStream 
+      affPipe inputStream fileStream
       affWriteString outputStream "[]"
       affWaitEnd inputStream
   affEnd outputStream
@@ -92,7 +92,7 @@ listFiles :: Response -> String -> Aff Unit
 listFiles resp cwd = do
   affLog ("listFiles: " <> show cwd)
   let outputStream = responseAsStream resp
-  result <- execAsync (Just cwd) "ag -l --nocolor" Nothing 
+  result <- execAsync (Just cwd) "git ls-files" Nothing
   affWriteStdout outputStream result
 
 
@@ -124,11 +124,11 @@ cd resp cwd = do
           stat <- FS.stat cwd'
           if isDirectory stat then
             FS.realpath cwd'
-            else 
+            else
               liftEffect $ Process.cwd
-          else 
+          else
             liftEffect $ Process.cwd)
   affWriteString outputStream s
   affEnd outputStream
-        
+
 
