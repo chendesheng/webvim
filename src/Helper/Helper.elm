@@ -182,9 +182,9 @@ normalizePath sep path =
     let
         sep1 =
             if sep == "/" then
-                "/"
-            else
                 "\\"
+            else
+                "/"
     in
         path
             |> String.trim

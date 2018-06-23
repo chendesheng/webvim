@@ -32,6 +32,28 @@ tokenizeRequestParser =
         (Decode.field "lines" Decode.string)
 
 
+minLine : List TokenizeRequest -> Maybe TokenizeRequest
+minLine items =
+    case items of
+        [ x ] ->
+            Just x
+
+        x :: xs ->
+            List.foldl
+                (\result current ->
+                    if result.line >= current.line then
+                        current
+                    else
+                        result
+                )
+                x
+                items
+                |> Just
+
+        _ ->
+            Nothing
+
+
 handleTokenizeBounce : DebounceEvent -> Msg
 handleTokenizeBounce event =
     event.payloads
@@ -39,19 +61,9 @@ handleTokenizeBounce event =
             (decodeValue tokenizeRequestParser
                 >> Result.toMaybe
             )
-        |> List.foldl
-            (\result current ->
-                if result.line >= current.line then
-                    current
-                else
-                    result
-            )
-            { path = ""
-            , version = 0
-            , line = 0xFFFFFFFF
-            , lines = ""
-            }
-        |> SendTokenize
+        |> minLine
+        |> Maybe.map SendTokenize
+        |> Maybe.withDefault NoneMessage
 
 
 toModel : ( Buffer, cmd ) -> ( Model, cmd )

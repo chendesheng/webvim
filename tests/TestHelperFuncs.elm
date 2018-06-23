@@ -60,4 +60,22 @@ suite =
                 , testWin "c:\\users\\chendesheng\\webvim" "src\\main.elm" "c:\\users\\chendesheng\\webvim\\src\\main.elm"
                 ]
             )
+        , describe "normalizePath"
+            (let
+                testNormalizePath sep path result =
+                    test path
+                        (\_ ->
+                            Expect.equal result <| normalizePath sep path
+                        )
+
+                testUnix =
+                    testNormalizePath "/"
+
+                testWin =
+                    testNormalizePath "\\"
+             in
+                [ testUnix "\\d/e/f" "/d/e/f"
+                , testWin "\\d/e\\f  " "\\d\\e\\f"
+                ]
+            )
         ]

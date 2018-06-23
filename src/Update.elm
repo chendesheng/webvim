@@ -2043,14 +2043,10 @@ editBuffer info_ buf =
                     if String.isEmpty info_.path then
                         ""
                     else
-                        let
-                            _ =
-                                Debug.log "resolvePath" ( buf.config.pathSeperator, buf.cwd, info_.path )
-                        in
-                            resolvePath
-                                buf.config.pathSeperator
-                                buf.cwd
-                                info_.path
+                        resolvePath
+                            buf.config.pathSeperator
+                            buf.cwd
+                            info_.path
             }
 
         --|> Debug.log "info"
