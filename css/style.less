@@ -26,24 +26,11 @@
 @line-height: 25px;
 @font-size: 18px;
 
-
-
-// solarized light
-// @body-background: #FDF6E3;
-// @body-color: contrast(@body-background);
-// @gutter-color: #567983;
-// @ruler: 80ch;
-// @cursor-color: #657B83;
-
-// solarized dark
-@body-background: #1b1d1e;
+@body-background: #fff;
 @body-color: darken(contrast(@body-background), 20%);
-@gutter-color: #949494;
+@gutter-color: #000;
 @ruler: 80ch;
-@cursor-color: #ffffff;
-
-// @body-background: #272922;
-// @gutter-color: lighten(@body-background, 40%);
+@cursor-color: #000;
 
 html, body {
   margin: 0;
@@ -52,8 +39,6 @@ html, body {
   height: 100%;
   font-family: "@{font-family}";
   font-size: @line-height;
-  color: @body-color;
-  background: @body-background;
   font-variant-ligatures: common-ligatures;
   font-weight: 400;
 }
@@ -84,8 +69,8 @@ html, body {
   height: 100%;
   top: 0;
   left: @ruler;
-  border-left: solid 1px contrast(@body-background);
-  opacity: 0.1;
+  width: 2px;
+  box-shadow: 1px 0px 0px 0px inset #5a5a5a;
 }
 
 .gutter-container {
@@ -93,7 +78,7 @@ html, body {
   margin-right: @gutter-lines-spacing;
 }
 .gutter-container:first-child {
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='@{gutter-color}'>~</text></svg>"); 
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='#888'>~</text></svg>"); 
   background-repeat: repeat-y;
 }
 
@@ -115,8 +100,6 @@ html, body {
 }
 
 .gutter {
-  background: @body-background;
-  color: @gutter-color;
   display: flex;
   flex-direction: column;
 }
@@ -137,8 +120,7 @@ html, body {
 .cursor {
   position: absolute;
   width: 1ch;
-  background: @cursor-color;
-  opacity: 0.5;
+  opacity: 0.3;
   white-space: pre;
   height: 1rem;
   border-radius: 1px;
@@ -150,7 +132,6 @@ html, body {
 
 .guide {
   position: absolute;
-  background: lighten(@body-background, 2%);
   white-space: pre;
 }
 
@@ -158,6 +139,7 @@ html, body {
   height: 100%;
   width: 1ch;
   top: 0;
+  opacity: 0.5;
 }
 
 .line-guide {
@@ -169,7 +151,6 @@ html, body {
 
 .status {
   width: 100%;
-  background: linear-gradient(0deg, @statusbar-background, lighten(@statusbar-background, 2%));
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -178,12 +159,10 @@ html, body {
   flex-grow: 0;
   flex-shrink: 1;
   position: relative;
-  color: contrast(@statusbar-background);
 }
 
 .status.dirty {
   opacity: 0.7;
-  background: linear-gradient(0deg, lighten(@statusbar-background, 10%), lighten(@statusbar-background, 12%));
 }
 
 .status > div:first-child {
@@ -202,10 +181,6 @@ html, body {
 .highlights div, .selections div, .lint div {
   height: 1rem;
   position: absolute;
-}
-
-.highlights div, .selections div {
-  background: lighten(@body-background, 15%);
 }
 
 .highlights div {
@@ -255,8 +230,6 @@ html, body {
 
 .auto-complete {
   position: absolute;
-  box-shadow: 0px 0px 10px darken(@body-background, 30%);
-  background: @body-background;
   border-radius: 5px;
   left: 2ch;
   display: flex;
@@ -269,14 +242,9 @@ html, body {
   padding: 0 1ch;
   line-height: 1rem;
 }
-.auto-complete > div.selected {
-  background: lighten(@body-background, 15%);
-}
 
 .auto-complete .matched {
   font-weight: 700;
-  // color: lighten(@statusbar-background, 10%);
-  color: #D08928;
 }
 
 .auto-complete-ex {

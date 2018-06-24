@@ -1,621 +1,371 @@
 const fs = require('fs');
 const Registry = require('vscode-textmate').Registry;
+const parseRawGrammar = require('vscode-textmate').parseRawGrammar;
 const path = require('path');
+const JSON = require('comment-json');
+const homedir = require('os').homedir();
 
 /* eslint-disable no-var */
 
 
-// a vscode theme
 /* eslint-disable comma-dangle */
-const theme = {
-  'name': 'iosvka',
-  'tokenColors': [
-    {
-      'settings': {
-        'background': '#1b1d1e',
-        'foreground': '#cccccc'
-      }
-    },
-    {
-      'scope': ['meta.embedded', 'source.groovy.embedded'],
-      'settings': {
-        'background': '#002B36',
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Comment',
-      'scope': 'comment',
-      'settings': {
-        'fontStyle': 'italic',
-        'foreground': '#808080'
-      }
-    },
-    {
-      'name': 'String',
-      'scope': 'string',
-      'settings': {
-        'foreground': '#d08928'
-      }
-    },
-    {
-      'name': 'Regexp',
-      'scope': 'string.regexp',
-      'settings': {
-        'foreground': '#d08928'
-      }
-    },
-    {
-      'name': 'Number',
-      'scope': 'constant.numeric',
-      'settings': {
-        'foreground': '#60aa00'
-      }
-    },
-    {
-      'name': 'Variable',
-      'scope': [
-        'variable.language',
-        'variable.other'
-      ],
-      'settings': {
-        'foreground': '#268BD2'
-      }
-    },
-    {
-      'name': 'Keyword',
-      'scope': 'keyword',
-      'settings': {
-        'foreground': '#6c9ef8'
-      }
-    },
-    {
-      'name': 'Storage',
-      'scope': 'storage',
-      'settings': {
-        'fontStyle': 'bold',
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Class name',
-      'scope': [
-        'entity.name.class',
-        'entity.name.type'
-      ],
-      'settings': {
-        'fontStyle': '',
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Function name',
-      'scope': 'entity.name.function',
-      'settings': {
-        'foreground': '#b77fdb'
-      }
-    },
-    {
-      'name': 'Variable start',
-      'scope': 'punctuation.definition.variable',
-      'settings': {
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Embedded code markers',
-      'scope': [
-        'punctuation.section.embedded.begin',
-        'punctuation.section.embedded.end'
-      ],
-      'settings': {
-        'foreground': '#D30102'
-      }
-    },
-    {
-      'name': 'Built-in constant',
-      'scope': [
-        'constant.language',
-        'meta.preprocessor'
-      ],
-      'settings': {
-        'foreground': '#60aa00'
-      }
-    },
-    {
-      'name': 'Support.construct',
-      'scope': [
-        'support.function.construct',
-        'keyword.other.new'
-      ],
-      'settings': {
-        'foreground': '#60aa00'
-      }
-    },
-    {
-      'name': 'User-defined constant',
-      'scope': [
-        'constant.character',
-        'constant.other'
-      ],
-      'settings': {
-        'foreground': '#d02b61'
-      }
-    },
-    {
-      'name': 'Inherited class',
-      'scope': 'entity.other.inherited-class',
-      'settings': {
-        'foreground': '#6C71C4'
-      }
-    },
-    {
-      'name': 'Function argument',
-      'scope': 'variable.parameter',
-      'settings': {}
-    },
-    {
-      'name': 'Tag name',
-      'scope': 'entity.name.tag',
-      'settings': {
-        'foreground': '#268BD2'
-      }
-    },
-    {
-      'name': 'Tag start/end',
-      'scope': 'punctuation.definition.tag',
-      'settings': {
-        'foreground': '#657B83'
-      }
-    },
-    {
-      'name': 'Tag attribute',
-      'scope': 'entity.other.attribute-name',
-      'settings': {
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Library function',
-      'scope': 'support.function',
-      'settings': {
-        'foreground': '#268BD2'
-      }
-    },
-    {
-      'name': 'Continuation',
-      'scope': 'punctuation.separator.continuation',
-      'settings': {
-        'foreground': '#D30102'
-      }
-    },
-    {
-      'name': 'Library constant',
-      'scope': 'support.constant',
-      'settings': {}
-    },
-    {
-      'name': 'Library class/type',
-      'scope': [
-        'support.type',
-        'support.class'
-      ],
-      'settings': {
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Library Exception',
-      'scope': 'support.type.exception',
-      'settings': {
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Library variable',
-      'scope': 'support.other.variable',
-      'settings': {}
-    },
-    {
-      'name': 'Invalid',
-      'scope': 'invalid',
-      'settings': {}
-    },
-    {
-      'name': 'diff: header',
-      'scope': [
-        'meta.diff',
-        'meta.diff.header'
-      ],
-      'settings': {
-        'background': '#60aa00',
-        'fontStyle': 'italic',
-        'foreground': '#E0EDDD'
-      }
-    },
-    {
-      'name': 'diff: deleted',
-      'scope': 'markup.deleted',
-      'settings': {
-        'background': '#eee8d5',
-        'fontStyle': '',
-        'foreground': '#dc322f'
-      }
-    },
-    {
-      'name': 'diff: changed',
-      'scope': 'markup.changed',
-      'settings': {
-        'background': '#eee8d5',
-        'fontStyle': '',
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'diff: inserted',
-      'scope': 'markup.inserted',
-      'settings': {
-        'background': '#eee8d5',
-        'foreground': '#219186'
-      }
-    },
-    {
-      'name': 'Markup Quote',
-      'scope': 'markup.quote',
-      'settings': {
-        'foreground': '#00aa80'
-      }
-    },
-    {
-      'name': 'Markup Lists',
-      'scope': 'markup.list',
-      'settings': {
-        'foreground': '#60aa00'
-      }
-    },
-    {
-      'name': 'Markup Styling',
-      'scope': [
-        'markup.bold',
-        'markup.italic'
-      ],
-      'settings': {
-        'foreground': '#D33682'
-      }
-    },
-    {
-      'name': 'Markup Inline',
-      'scope': 'markup.inline.raw',
-      'settings': {
-        'fontStyle': '',
-        'foreground': '#2AA198'
-      }
-    },
-    {
-      'name': 'Markup Headings',
-      'scope': 'markup.heading',
-      'settings': {
-        'foreground': '#268BD2'
-      }
-    },
-    {
-      'name': 'Markup Setext Header',
-      'scope': 'markup.heading.setext',
-      'settings': {
-        'fontStyle': '',
-        'foreground': '#268BD2'
-      }
+
+function loadVscodeExtensions(dir, allExtensions) {
+  function loadExtensionData(extensionFolder, data) {
+    const contributes = data.contributes;
+    if (!contributes) return;
+
+    if (contributes.languages) {
+      contributes.languages.forEach(function(lang) {
+        if (lang.extensions) {
+          lang.extensions.forEach(function(ext) {
+            allExtensions.languages[ext.toLowerCase()] = lang;
+          });
+        }
+        if (lang.filenames) {
+          lang.filenames.forEach(function(filename) {
+            allExtensions.languages[filename.toLowerCase()] = lang;
+          });
+        }
+      });
     }
-  ],
-  'colors': {
 
-    // Base
-    // 'foreground': '',
-    'focusBorder': '#2AA19899',
-    // 'contrastActiveBorder': '',
-    // 'contrastBorder': '',
+    if (contributes.grammars) {
+      contributes.grammars.forEach(function(grammar) {
+        grammar.path = path.join(extensionFolder, grammar.path);
+        allExtensions.grammars[grammar.language] = grammar;
+        allExtensions.scopeNames[grammar.scopeName] = grammar;
+      });
+    }
 
-    // 'widget.shadow': '',
-
-    'selection.background': '#2AA19899',
-
-    'input.background': '#003847',
-    'input.foreground': '#00aa80',
-    'input.placeholderForeground': '#93A1A1AA',
-    // 'input.border': '',
-
-    'inputOption.activeBorder': '#2AA19899',
-    'inputValidation.infoBorder': '#363b5f',
-    'inputValidation.infoBackground': '#052730',
-    'inputValidation.warningBackground': '#5d5938',
-    'inputValidation.warningBorder': '#9d8a5e',
-    'inputValidation.errorBackground': '#571b26',
-    'inputValidation.errorBorder': '#a92049',
-
-    'errorForeground': '#ffeaea',
-
-    'badge.background': '#047aa6',
-    'progressBar.background': '#047aa6',
-
-    'dropdown.background': '#00212B',
-    'dropdown.border': '#2AA19899',
-    // 'dropdown.foreground': '',
-
-    'button.background': '#2AA19899',
-    // 'button.foreground': '',
-
-    'list.activeSelectionBackground': '#005A6F',
-    // 'list.activeSelectionForeground': '',
-    'list.focusBackground': '#005A6F',
-    'list.hoverBackground': '#004454AA',
-    'list.inactiveSelectionBackground': '#00445488',
-    'list.dropBackground': '#00445488',
-    'list.highlightForeground': '#1ebcc5',
-
-    // 'scrollbar.shadow': '',
-    // 'scrollbarSlider.activeBackground': '',
-    // 'scrollbarSlider.background': '',
-    // 'scrollbarSlider.hoverBackground': '',
-
-    // Editor
-    'editor.background': '#002B36',
-    // 'editor.foreground': '#6688cc',
-    'editorWidget.background': '#00212B',
-    'editorCursor.foreground': '#D30102',
-    'editorWhitespace.foreground': '#93A1A180',
-    'editor.lineHighlightBackground': '#073642',
-    'editorLineNumber.activeForeground': '#949494',
-    'editor.selectionBackground': '#274642',
-    'editorIndentGuide.background': '#93A1A180',
-    'editorIndentGuide.activeBackground': '#C3E1E180',
-    'editorHoverWidget.background': '#004052',
-    // 'editorHoverWidget.border': '',
-    // 'editorLineNumber.foreground': '',
-    // 'editorMarkerNavigation.background': '',
-    'editorMarkerNavigationError.background': '#AB395B',
-    'editorMarkerNavigationWarning.background': '#5B7E7A',
-    // 'editorLink.activeForeground': '',
-    // 'editor.findMatchBackground': '',
-    // 'editor.findMatchHighlightBackground': '',
-    // 'editor.findRangeHighlightBackground': '',
-    // 'editor.hoverHighlightBackground': '',
-    // 'editor.inactiveSelectionBackground': '',
-    // 'editor.lineHighlightBorder': '',
-    // 'editor.rangeHighlightBackground': '',
-    'editor.selectionHighlightBackground': '#005A6FAA',
-    'editor.wordHighlightBackground': '#004454AA',
-    'editor.wordHighlightStrongBackground': '#005A6FAA',
-
-    // Editor: Suggest
-    // 'editorSuggestWidget.background': '',
-    // 'editorSuggestWidget.border': '',
-    // 'editorSuggestWidget.foreground': '',
-    // 'editorSuggestWidget.highlightForeground': '',
-    // 'editorSuggestWidget.selectedBackground': '',
-
-    // Editor: Peek View
-    'peekViewResult.background': '#00212B',
-    // 'peekViewResult.lineForeground': '',
-    // 'peekViewResult.selectionBackground': '',
-    // 'peekViewResult.selectionForeground': '',
-    'peekViewEditor.background': '#10192c',
-    'peekViewTitle.background': '#00212B',
-    'peekView.border': '#2b2b4a',
-    'peekViewEditor.matchHighlightBackground': '#7744AA40',
-    // 'peekViewResult.fileForeground': '',
-    // 'peekViewResult.matchHighlightBackground': '',
-    // 'peekViewTitleLabel.foreground': '',
-    // 'peekViewTitleDescription.foreground': '',
-
-    // Editor: Diff
-    // 'diffEditor.insertedTextBackground': '',
-    // 'diffEditor.insertedTextBorder': '',
-    // 'diffEditor.removedTextBackground': '',
-    // 'diffEditor.removedTextBorder': '',
-
-    // Workbench: Title
-    'titleBar.activeBackground': '#002C39',
-    // 'titleBar.inactiveBackground': '',
-    // 'titleBar.activeForeground': '',
-    // 'titleBar.inactiveForeground': '',
-
-    // Workbench: Editors
-    // 'editorGroupHeader.noTabsBackground': '',
-    'editorGroup.border': '#00212B',
-    'editorGroup.background': '#011b23',
-    'editorGroup.dropBackground': '#2AA19844',
-    'editorGroupHeader.tabsBackground': '#004052',
-
-    // Workbench: Tabs
-    'tab.activeForeground': '#d6dbdb',
-    'tab.activeBackground': '#002B37',
-    'tab.inactiveForeground': '#00aa80',
-    'tab.inactiveBackground': '#004052',
-    'tab.border': '#003847',
-
-    // Workbench: Activity Bar
-    'activityBar.background': '#003847',
-    // 'activityBarBadge.background': '',
-    // 'activityBar.dropBackground': '',
-    // 'activityBar.foreground': '',
-    // 'activityBarBadge.foreground': '',
-
-    // Workbench: Panel
-    // 'panel.background': '',
-    'panel.border': '#2b2b4a',
-    // 'panelTitle.activeBorder': '',
-    // 'panelTitle.activeForeground': '',
-    // 'panelTitle.inactiveForeground': '',
-
-    // Workbench: Side Bar
-    'sideBar.background': '#00212B',
-    'sideBarTitle.foreground': '#00aa80',
-    // 'sideBarSectionHeader.background': '',
-
-    // Workbench: Status Bar
-    'statusBar.foreground': '#00aa80',
-    'statusBar.background': '#00212B',
-    'statusBar.debuggingBackground': '#00212B',
-    'statusBar.noFolderBackground': '#00212B',
-    'statusBarItem.prominentBackground': '#003847',
-    'statusBarItem.prominentHoverBackground': '#003847',
-    // 'statusBarItem.activeBackground': '',
-    // 'statusBarItem.hoverBackground': '',
-
-    // Workbench: Debug
-    'debugToolBar.background': '#00212B',
-    'debugExceptionWidget.background': '#00212B',
-    'debugExceptionWidget.border': '#AB395B',
-
-    // Workbench: Quick Open
-    'pickerGroup.foreground': '#2AA19899',
-    'pickerGroup.border': '#2AA19899',
-
-    // Workbench: Terminal
-    // Colors sourced from the official palette http://ethanschoonover.com/solarized
-    'terminal.ansiBlack': '#073642',
-    'terminal.ansiRed': '#dc322f',
-    'terminal.ansiGreen': '#00aa80',
-    'terminal.ansiYellow': '#60aa00',
-    'terminal.ansiBlue': '#268bd2',
-    'terminal.ansiMagenta': '#d33682',
-    'terminal.ansiCyan': '#2aa198',
-    'terminal.ansiWhite': '#eee8d5',
-    'terminal.ansiBrightBlack': '#586e75',
-    'terminal.ansiBrightRed': '#00aa80',
-    'terminal.ansiBrightGreen': '#586e75',
-    'terminal.ansiBrightYellow': '#657b83',
-    'terminal.ansiBrightBlue': '#839496',
-    'terminal.ansiBrightMagenta': '#6c71c4',
-    'terminal.ansiBrightCyan': '#00aa80',
-    'terminal.ansiBrightWhite': '#fdf6e3'
+    if (contributes.themes) {
+      contributes.themes.forEach(function(theme) {
+        theme.path = path.join(extensionFolder, theme.path);
+        allExtensions.themes[theme.label.toLowerCase()] = theme;
+      });
+    }
   }
+
+  function loadExtension(file) {
+    return new Promise(function(resolve, reject) {
+      var extensionFolder = path.join(dir, file);
+      fs.stat(extensionFolder, function(err, stats) {
+        if (stats.isDirectory()) {
+          fs.readFile(path.join(extensionFolder, 'package.json'), 'utf8',
+            function(err, content) {
+              if (err) {
+                console.error('Open extension package.json failed: ' + err);
+              } else {
+                // console.log('Load extension:', extensionFolder);
+                loadExtensionData(extensionFolder, JSON.parse(content));
+              }
+              // always resolve here ignore load failed
+              resolve();
+            }
+          );
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  function readdir(dir) {
+    return new Promise(function(resolve, reject) {
+      fs.readdir(dir, function(err, files) {
+        if (err) reject(err);
+        else resolve(files);
+      });
+    });
+  }
+
+  return readdir(dir)
+    .then(function(files) {
+      return Promise.all(files.map(loadExtension));
+    }).then(function() {
+      return Promise.resolve(allExtensions);
+    }).catch(function() {
+      // ignore not exists folder
+      return Promise.resolve(allExtensions);
+    });
+}
+
+
+const vscodeExtensions = {
+  // key: file extension (like .elm) or file name (like makefile)
+  // value: language (id, extensions, aliases, config)
+  languages: {},
+  // key: languageId, value: grammar (scope name and path)
+  grammars: {},
+  // key: scopeName, value: grammar (scope name and path)
+  scopeNames: {},
+  // key: label, value theme ({label: 'Monokai', uiTheme:'vs-dark', path})
+  themes: {},
+  // TODO: snippets
 };
+
+loadVscodeExtensions(
+  path.join(__dirname, '../vscode/extensions'),
+  vscodeExtensions
+).then(function(allExtensions) {
+  return loadVscodeExtensions(
+    // vscode directory is different in dev mode
+    path.join(__dirname, '../../vscode/extensions'),
+    allExtensions
+  );
+}).then(function(allExtensions) {
+  return loadVscodeExtensions(
+    path.join(homedir, '.vscode/extensions'),
+    allExtensions
+  );
+}).catch(console.error);
+
 
 /* eslint-enable comma-dangle */
 
-const registry = new Registry();
-registry.setTheme({
-  name: theme.label,
-  settings: theme.tokenColors,
-});
+function genThemeCss(uiTheme, theme, colorMap) {
+  console.log(uiTheme);
+  const rules = uiTheme == 'vs' ?
+    // light
+    ['body { background: #fff; color: #000 } ',
+      '.gutter { color: #2b91af } ',
+      '.auto-complete { box-shadow: 0 0 8px #a8a8a8 }',
+      '.ruler { box-shadow: 1px 0px 0px 0px inset #d3d3d3 }',
+    ] :
+    // dark
+    ['body { background: #000; color: #fff } ',
+      '.gutter { color: #5a5a5a } ',
+      '.auto-complete { box-shadow: 0 0 8px #000 }',
+      '.ruler { box-shadow: 1px 0px 0px 0px inset #5a5a5a }',
+    ];
 
-function genThemeCss(colorMap) {
-  const rules = [];
+  function cssColor(selector, prop) {
+    if (!theme.colors) return;
+    const color = theme.colors[prop];
+    if (color) {
+      console.log('color:', color);
+      rules.push(selector + ' { color:' + color + ' }');
+    }
+  }
+
+  function cssBg(selector, prop) {
+    if (!theme.colors) return;
+
+    const bg = theme.colors[prop];
+    if (bg) {
+      rules.push(selector + ' { background:' + bg + ' }');
+    }
+  }
+
+  function cssShadow(selector, prop, args) {
+    // widget.shadow
+    if (!theme.colors) return;
+    const color = theme.colors[prop];
+    if (color) {
+      return rules.push(selector + ' { box-shadow:' + args + ' ' + color + '}');
+    }
+  }
+
+  cssColor('body', 'editor.forground');
+  cssBg('body', 'editor.background');
+
+  cssColor('.gutter', 'editor.foreground');
+  cssColor('.gutter', 'editorLineNumber.foreground');
+  cssBg('.gutter', 'editor.background');
+
+  cssColor('.status', 'statusBar.foreground');
+  cssBg('.status', 'statusBar.background');
+
+  cssBg('.selections>div', 'editor.selectionBackground');
+
+  cssBg('.cursor', 'editorCursor.foreground');
+
+  cssBg('.highlights>div', 'editor.selectionBackground');
+  cssBg('.highlights>div', 'editor.selectionHighlightBackground');
+
+  cssBg('.guide', 'editor.lineHighlightBackground');
+
+  cssBg('.auto-complete', 'editor.background');
+  cssColor('.auto-complete>*', 'statusBar.foreground');
+  cssColor('.auto-complete>*', 'editor.foreground');
+  cssColor('.auto-complete>.selected', 'list.activeSelectionForeground');
+  cssBg('.auto-complete>.selected', 'list.activeSelectionBackground');
+  cssColor('.auto-complete .matched', 'list.highlightForeground');
+
+  cssShadow('.auto-complete', 'widget.shadow', '0 0 8px');
+
+  cssShadow('.ruler', 'editorRuler.foreground', '1px 0 0 0 inset');
+
   for (var i = 1, len = colorMap.length; i < len; i++) {
     const color = colorMap[i];
-    rules[i] = '.mtk'+i+' { color: '+color+'; }';
+    rules.push('.mtk'+i+' { color: '+color+'; }');
   }
+
   rules.push('.mtki { font-style: italic; }');
-  rules.push('.mtkb { font-weight: 400; }');
+  rules.push('.mtkb { font-weight: 700; }');
   rules.push('.mtku { border-bottom: solid 1px }');
+
   return rules.join('\n');
 };
 
-exports.themeCss = genThemeCss(registry.getColorMap());
-
-const allCaches = {}; // cache StackElement
-
-function walk(dir, callback) {
-  fs.readdir(dir, function(err, files) {
-    if (err) throw err;
-    files.forEach(function(file) {
-      var filepath = path.join(dir, file);
-      fs.stat(filepath, function(err, stats) {
-        if (stats.isDirectory()) {
-          walk(filepath, callback);
-        } else if (stats.isFile()) {
-          callback(filepath, stats);
-        }
+const registry = new Registry({
+  loadGrammar: function(scopeName) {
+    var grammar = vscodeExtensions.scopeNames[scopeName];
+    // console.log('grammar:', grammar);
+    if (grammar) {
+      return new Promise(function(resolve, reject) {
+        fs.readFile(grammar.path, 'utf8', function(err, content) {
+          if (err) {
+            console.log('Laod grammar failed:', grammar.path);
+            reject('Laod grammar failed:', grammar.path);
+          } else {
+            resolve(parseRawGrammar(content, grammar.path));
+          }
+        });
       });
+    }
+    // should not happen
+    throw new Error('nogrammar');
+  },
+});
+
+function getGrammar(p) {
+  // console.log(Object.keys(allGrammars));
+  const ext = path.extname(p).toLowerCase();
+  const extension = vscodeExtensions.languages[ext];
+  // console.log('extension:', extension);
+  if (extension) {
+    const languageId = extension.id;
+    const grammar = vscodeExtensions.grammars[languageId];
+    if (grammar) {
+      return registry.loadGrammar(grammar.scopeName);
+    } else {
+      return Promise.reject('nogrammar');
+    }
+  } else {
+    return Promise.reject('noextension');
+  }
+};
+
+function readJson(file) {
+  console.log('readJson:', file);
+  return new Promise(function(resolve, reject) {
+    fs.readFile(file, 'utf8', function(err, content) {
+      if (err) reject(err);
+      else resolve(JSON.parse(content));
     });
   });
 }
 
-const syntaxFolder = path.join(__dirname, '..', 'vscode-syntaxes');
+function mergeThemeData(parent, child) {
+  const colors = Object.assign({}, parent.colors, child.colors);
+  const tokenColors =
+    (parent.tokenColors || []).concat(child.tokenColors || []);
+  return Object.assign(
+    parent,
+    {
+      colors: colors,
+      tokenColors: tokenColors,
+    });
+}
 
-/* eslint-disable max-len */
-const allGrammars = {
-  'js': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'JavaScript.tmLanguage.json')),
-  'jsx': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'JavaScriptReact.tmLanguage.json')),
-  'fs': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'fsharp.tmLanguage.json')),
-  'elm': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'elm', 'elm.json')),
-  'purs': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'purescript.json')),
-  'rb': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'ruby.tmLanguage.json')),
-  'sh': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'shell-unix-bash.tmLanguage.json')),
-  'ps': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'powershell.tmLanguage.json')),
-  'm': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'objective-c.tmLanguage.json')),
-  'clj': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'clojure.tmLanguage.json')),
-  'cljs': registry.loadGrammarFromPathSync(path.join(syntaxFolder, 'clojure.tmLanguage.json')),
-};
-
-function loadAllGrammars(dir) {
-  walk(dir, function(filename) {
-    if (/[.]tmLanguage[.]json$/i.test(filename)) {
-      const grammar = registry.loadGrammarFromPathSync(filename);
-      const name = path.basename(filename).split('.')[0];
-      // console.log('load grammar:', filename, name);
-      allGrammars[name.toLowerCase()] = grammar;
+function loadThemeFile(file) {
+  return readJson(file).then(function(data) {
+    // include can be recursive
+    if (data.include) {
+      return loadThemeFile(path.resolve(path.dirname(file), data.include))
+        .then(function(include) {
+          return mergeThemeData(data, include);
+        });
+    } else {
+      return data;
     }
   });
-};
+}
 
-loadAllGrammars(syntaxFolder);
-// console.log(Object.keys(allGrammars));
+exports.loadTheme =
+  function(label) {
+    return function(callback) {
+      return function() {
+        const theme = vscodeExtensions.themes[label.toLowerCase()];
+        console.log('loadTheme:', label);
+        if (theme) {
+          if (theme.data && theme.css) {
+            registry.setTheme({name: label, settings: theme.data.tokenColors});
+            callback(theme.css)();
+          } else {
+            loadThemeFile(theme.path).then(function(data) {
+              theme.data = data;
+              registry.setTheme({name: label, settings: data.tokenColors});
+              theme.css = genThemeCss(
+                theme.uiTheme,
+                data,
+                registry.getColorMap()
+              );
+              callback(theme.css)();
+            });
+          }
+        } else {
+          callback('');
+        }
+      };
+    };
+  };
 
-function getGrammar(p) {
-  // console.log(p);
-  // console.log(path.extname(p));
-  return allGrammars[path.extname(p).substr(1).toLowerCase()];
-};
-
+const allCaches = {}; // cache StackElement
 exports.tokenize =
   function(path) {
     return function(line) {
       return function(payload) {
-        return function() {
-          try {
+        return function(callback) {
+          return function() {
             const cache = allCaches[path] || [null];
             const begin = parseInt(line);
             const lines = payload.split(/^/m);
             const result = [];
-            const grammar = getGrammar(path);
-            // console.log('tokenize:', request.query.path)
-            // console.log('lines.length:', lines.length);
-            // console.log('cache.length:', cache.length);
-            // console.log('request.query.line:', request.query.line);
+            getGrammar(path).then(function(grammar) {
+              // console.log('tokenize:', request.query.path)
+              // console.log('lines.length:', lines.length);
+              // console.log('cache.length:', cache.length);
+              // console.log('request.query.line:', request.query.line);
 
-            for (var i = 0; i < lines.length; i++) { // lines.length
-              const line = lines[i];
-              const n = begin + i;
-              if (cache.length <= n && n > 0) {
-                console.log('cache miss: n='+n+', cache.length='+cache.length);
-                delete allCaches[path];
-                return JSON.stringify({type: 'error', payload: 'cacheMiss'});
+              for (var i = 0; i < lines.length; i++) { // lines.length
+                const line = lines[i];
+                const n = begin + i;
+                if (cache.length <= n && n > 0) {
+                  console.log('cache miss: n='+n+
+                    ', cache.length='+cache.length);
+                  delete allCaches[path];
+                  callback(JSON.stringify({
+                    type: 'error',
+                    payload: 'cacheMiss',
+                  }))();
+                }
+                const r = grammar.tokenizeLine2(line, cache[n]);
+                const tokens = Array.from(r.tokens);
+                tokens.push(line.length);
+                tokens.push(0);
+                result[i] = tokens;
+                // console.log('Line: #' + i + ', tokens: ' + r.tokens);
+                cache[n+1] = r.ruleStack;
               }
-              const r = grammar.tokenizeLine2(line, cache[n]);
-              const tokens = Array.from(r.tokens);
-              tokens.push(line.length);
-              tokens.push(0);
-              result[i] = tokens;
-              // console.log('Line: #' + i + ', tokens: ' + r.tokens);
-              cache[n+1] = r.ruleStack;
-            }
-            allCaches[path] = cache.slice(0, begin + lines.length + 1);
-            return JSON.stringify({
-              type: 'success',
-              payload: result,
-              path: path,
+              allCaches[path] = cache.slice(0, begin + lines.length + 1);
+              callback(JSON.stringify({
+                type: 'success',
+                payload: result,
+                path: path,
+              }))();
+            })
+            .catch(function(e) {
+              console.error(e);
+              callback(JSON.stringify({
+                type: 'error',
+                payload: e.message || e.toString(),
+              }))();
             });
-          } catch (e) {
-            console.error(e);
-            return {
-              type: 'error',
-              payload: e.message || e.toString(),
-            };
-          }
+          };
         };
-    };
+      };
     };
   };
 

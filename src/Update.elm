@@ -1669,6 +1669,9 @@ onTokenized buf resp =
                 TokenizeCacheMiss ->
                     tokenizeBuffer { buf | syntaxDirtyFrom = 0 }
 
+                TokenizeError s ->
+                    ( { buf | syntax = Array.empty }, Cmd.none )
+
         Err _ ->
             ( buf, Cmd.none )
 

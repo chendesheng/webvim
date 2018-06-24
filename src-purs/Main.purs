@@ -25,7 +25,7 @@ import Helper
     , setCacheSeconds
     , homedir
     )
-import TextMate (tokenize, themeCss)
+import TextMate (affTokenize, affLoadTheme)
 
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -92,13 +92,14 @@ dynamicActionHandler req resp action = do
        let outputStream = responseAsStream resp
            inputStream = requestAsStream req
        payload <- affReadAllString inputStream
-       json <- liftEffect $ tokenize path line payload
+       json <- affTokenize path line payload
        affWriteString outputStream json
        affEnd outputStream
 
-    Css -> do
+    Css (NonEmptyString label)  -> do
       let outputStream = responseAsStream resp
-      affWriteString outputStream themeCss
+      css <- affLoadTheme label
+      affWriteString outputStream css 
       affEnd outputStream
 
     Cd (Just (NonEmptyString cwd)) ->

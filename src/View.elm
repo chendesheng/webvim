@@ -391,7 +391,7 @@ getStatusBar : Mode -> { text : String, cursor : Maybe Position }
 getStatusBar mode =
     case mode of
         Normal ->
-            { text = "-- Normal --"
+            { text = ""
             , cursor = Nothing
             }
 
@@ -646,7 +646,7 @@ renderRelativeGutter topn bottomn =
                         [ class "line-number"
                         , class "current-line"
                         ]
-                        []
+                        [ text "0" ]
                    ]
                 ++ (List.range 1 bottomn
                         |> List.map

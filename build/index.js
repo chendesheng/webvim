@@ -44,6 +44,11 @@ const safeJsonParse = (s) => {
   else return null;
 };
 
+const getQuery = (key) => {
+  const m = location.search.match(/[&?]theme=([^&]*)/i);
+  return m ? m[1] : null;
+};
+
 const flags = {
   lineHeight,
   service: `${scheme}//${host}:8899`,
@@ -62,7 +67,7 @@ const applyCss = (url) => {
   document.head.appendChild(link);
 };
 
-applyCss(`${flags.service}/css`);
+applyCss(`${flags.service}/css?theme=${getQuery('theme') || 'Solarized Dark'}`);
 
 // console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);

@@ -11,7 +11,7 @@ import Data.String.NonEmpty as NES
 import Data.String.NonEmpty.Internal (NonEmptyString(..))
 import Data.Maybe (Maybe, maybe)
 import Routing (match)
-import Routing.Match (Match, eitherMatch, end, list, lit, optionalMatch, param, root, str)
+import Routing.Match (Match, eitherMatch, end, list, lit, optionalMatch, params, param, root, str)
 import Node.Path (normalize, sep)
 
 data MyRoutes
@@ -32,7 +32,7 @@ data DynamicActions
   | Kill
   | Log
   | Cd (Maybe NonEmptyString)
-  | Css
+  | Css NonEmptyString
 
 
 nonemptyParam :: String -> Match NonEmptyString
@@ -65,6 +65,7 @@ fontFolder parts =
 routingStaticFiles :: Match String
 routingStaticFiles = oneOf
   [ "dist/webvim.html" <$ (root *> end)
+  , "dist/webvim.html" <$ (root *> params *> end)
   , "favicon.ico" <$ (root *> lit "favicon.ico" *> end)
   , distFolder <$> (root *> lit "dist" *> list str)
   , fontFolder <$> (root
@@ -86,7 +87,7 @@ routingDynamicGet = oneOf
   , Kill <$ (root *> lit "kill" *> end)
   , Log <$ (root *> lit "log" *> end)
   , Cd <$> (root *> lit "cd" *> optionalMatch paramCwd)
-  , Css <$ (root *> lit "css")
+  , Css <$> (root *> lit "css" *> (nonemptyParam "theme"))
   ]
 
 routingDynamicPost :: Match DynamicActions

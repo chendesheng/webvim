@@ -14,6 +14,7 @@ type TokenizeResponse
     = TokenizeSuccess String Int Int Syntax
     | LineTokenizeSuccess String Int Int (List Token)
     | TokenizeCacheMiss -- happens when server restart
+    | TokenizeError String
 
 
 type alias TokenizeRequest =

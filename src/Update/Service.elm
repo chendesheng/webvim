@@ -392,6 +392,10 @@ tokenizeResponseDecoder version n =
                             (Decode.field "path" Decode.string)
                             (Decode.field "payload" (Decode.list tokensParser))
 
+                    "error" ->
+                        Decode.map TokenizeError <|
+                            Decode.field "payload" Decode.string
+
                     _ ->
                         Decode.succeed TokenizeCacheMiss
             )
