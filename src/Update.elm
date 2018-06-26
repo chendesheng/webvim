@@ -388,24 +388,40 @@ correctLines buf =
 
 correctCursor : Buffer -> Buffer
 correctCursor buf =
+    Buf.setCursor
+        (correctPosition buf.cursor False buf.lines)
+        False
+        buf
+
+
+correctPosition : Position -> Bool -> B.TextBuffer -> Position
+correctPosition pos excludeLineBreak lines =
     let
         ( y, x ) =
-            buf.cursor
+            pos
 
         y1 =
             0
-                |> max (B.count buf.lines - 2)
+                |> max (B.count lines - 2)
                 |> min y
 
+        maxcol =
+            B.getLineMaxColumn y1 lines
+                - (if excludeLineBreak then
+                    1
+                   else
+                    0
+                  )
+
         x1 =
-            B.getLineMaxColumn y1 buf.lines
+            maxcol
                 |> max 0
                 |> min x
     in
         if y1 == y && x == x1 then
-            buf
+            pos
         else
-            Buf.setCursor ( y1, x1 ) True buf
+            ( y1, x1 )
 
 
 clearExBufAutoComplete : Buffer -> Buffer
@@ -1592,7 +1608,16 @@ applyVimAST replaying key ast buf =
 
         doLint oldBuf ( buf, cmds ) =
             if Buf.isEditing oldBuf buf then
-                ( buf, debounceLint 500 :: cmds )
+                let
+                    delay =
+                        case buf.mode of
+                            Insert _ ->
+                                500
+
+                            _ ->
+                                0
+                in
+                    ( buf, debounceLint delay :: cmds )
             else
                 ( buf, cmds )
     in
@@ -1895,6 +1920,20 @@ update message buf =
                                                     buf.path
                                                 else
                                                     item.file
+                                            , region =
+                                                let
+                                                    ( a, b ) =
+                                                        item.region
+                                                in
+                                                    ( correctPosition
+                                                        a
+                                                        True
+                                                        buf.lines
+                                                    , correctPosition
+                                                        b
+                                                        True
+                                                        buf.lines
+                                                    )
                                         }
                                     )
                                     errors

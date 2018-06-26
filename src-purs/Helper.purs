@@ -30,6 +30,10 @@ foreign import diff :: String -> String -> String
 
 foreign import homedir :: String
 
+foreign import currentdir :: String
+
+foreign import tempdir :: Effect String
+
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s
 

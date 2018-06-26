@@ -575,6 +575,18 @@ configs =
                 , lint = True
             }
           )
+        , ( ".js"
+          , { defaultBufferConfig
+                | tabSize = 2
+                , lint = True
+            }
+          )
+        , ( ".jsx"
+          , { defaultBufferConfig
+                | tabSize = 2
+                , lint = True
+            }
+          )
         ]
 
 

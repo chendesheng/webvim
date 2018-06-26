@@ -23,7 +23,7 @@ suite =
                     Expect.equal
                         (Ok
                             { tipe = "error"
-                            , tag = "SYNTAX PROBLEM"
+                            , tag = Just "SYNTAX PROBLEM"
                             , file = "src/View.elm"
                             , overview = "I need whitespace, but got stuck on what looks like a new declaration. You are\neither missing some stuff in the declaration above or just need to add some\nspaces here:"
                             , details = "I am looking for one of the following things:\n\n    whitespace"

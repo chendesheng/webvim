@@ -1,8 +1,8 @@
 module Lint (lint, lintOnTheFly) where
 
-import Prelude (Unit, bind, discard, pure, show, void, ($), (<>), (==))
+import Prelude (Unit, bind, discard, pure, show, void, ($), (<>), (==), (#))
 import Effect.Aff (Aff)
-import Helper (affLog, affWriteString, affEnd)
+import Helper (affLog, affWriteString, affEnd, tempdir, currentdir)
 import Node.HTTP (Request, Response, requestAsStream, responseAsStream)
 import Node.Buffer (toString)
 import Node.Encoding (Encoding(..))
@@ -10,12 +10,10 @@ import Shell (execAsync)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Node.FS.Stream (createWriteStream)
 import Node.Stream (pipe)
-import Effect (Effect)
 import Effect.Class (liftEffect)
 import Node.Path as Path
 import Node.FS.Aff as FS
-
-foreign import tempdir :: Effect String
+import Data.String as Str
 
 tempfile :: Aff String
 tempfile = do
@@ -56,6 +54,32 @@ elmLint req resp path = do
   affEnd outputStream
 
 
+eslint :: Request -> Response -> String -> Aff Unit
+eslint req resp path = do
+  let inputStream = requestAsStream req
+      outputStream = responseAsStream resp
+      formatter = [currentdir, "../eslint-json-formatter.js"]
+                  # Path.concat 
+                  # Path.normalize
+  absolutePath <- FS.realpath $ Path.normalize path
+  affLog formatter
+
+  void $ affLog "eslintOnTheFly"
+  result <- execAsync
+              Nothing
+              (Str.joinWith 
+                " "
+                [ "eslint"
+                , "--format=" <> formatter
+                , "\"" <> path <> "\""
+                ]
+              )
+              (Just inputStream)
+  stdoutStr <- liftEffect $ toString UTF8 result.stdout
+  affWriteString outputStream stdoutStr
+  affEnd outputStream
+
+
 elmLintOnTheFly :: Request -> Response -> String -> Aff Unit
 elmLintOnTheFly req resp path = do
   let inputStream = requestAsStream req
@@ -79,14 +103,46 @@ elmLintOnTheFly req resp path = do
                               )
   affEnd outputStream
 
+eslintOnTheFly :: Request -> Response -> String -> Aff Unit
+eslintOnTheFly req resp path = do
+  let inputStream = requestAsStream req
+      outputStream = responseAsStream resp
+      formatter = [currentdir, "../eslint-json-formatter.js"]
+                  # Path.concat 
+                  # Path.normalize
+  absolutePath <- FS.realpath $ Path.normalize path
+  affLog formatter
+
+  void $ affLog "eslintOnTheFly"
+  result <- execAsync
+              Nothing
+              (Str.joinWith 
+                " "
+                [ "eslint"
+                , "--stdin"
+                , "--stdin-filename=" <> path
+                , "--format=" <> formatter
+                ]
+              )
+              (Just inputStream)
+  stdoutStr <- liftEffect $ toString UTF8 result.stdout
+  affWriteString outputStream stdoutStr
+  affEnd outputStream
+
 
 lint :: Request -> Response -> String -> Aff Unit
 lint req resp path = do
   affLog ("lint: " <> path)
-  elmLint req resp path
+  let ext = Path.extname path
+  if ext == ".elm" then
+    elmLint req resp path
+    else eslint req resp path
 
 
 lintOnTheFly :: Request -> Response -> String -> Aff Unit
 lintOnTheFly req resp path = do
   affLog ("lintOnTheFly: " <> path)
-  elmLintOnTheFly req resp path
+  let ext = Path.extname path
+  if ext == ".elm" then
+    elmLintOnTheFly req resp path
+    else eslintOnTheFly req resp path

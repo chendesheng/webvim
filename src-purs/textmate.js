@@ -127,15 +127,15 @@ function genThemeCss(uiTheme, theme, colorMap) {
   console.log(uiTheme);
   const rules = uiTheme == 'vs' ?
     // light
-    ['body { background: #fff; color: #000 } ',
+    ['body, .tip { background: #fff; color: #111 } ',
       '.gutter { color: #2b91af } ',
-      '.auto-complete { box-shadow: 0 0 8px #a8a8a8 }',
+      '.auto-complete, .tip { box-shadow: 0 0 8px #a8a8a8 }',
       '.ruler { box-shadow: 1px 0px 0px 0px inset #d3d3d3 }',
     ] :
     // dark
-    ['body { background: #000; color: #fff } ',
+    ['body, .tip { background: #000; color: #ddd } ',
       '.gutter { color: #5a5a5a } ',
-      '.auto-complete { box-shadow: 0 0 8px #000 }',
+      '.auto-complete, .tip { box-shadow: 0 0 8px #000 }',
       '.ruler { box-shadow: 1px 0px 0px 0px inset #5a5a5a }',
     ];
 
@@ -167,7 +167,7 @@ function genThemeCss(uiTheme, theme, colorMap) {
   }
 
   cssColor('body', 'editor.forground');
-  cssBg('body', 'editor.background');
+  cssBg('body, .tip', 'editor.background');
 
   cssColor('.gutter', 'editor.foreground');
   cssColor('.gutter', 'editorLineNumber.foreground');
@@ -192,12 +192,15 @@ function genThemeCss(uiTheme, theme, colorMap) {
   cssBg('.auto-complete>.selected', 'list.activeSelectionBackground');
   cssColor('.auto-complete .matched', 'list.highlightForeground');
 
-  cssShadow('.auto-complete', 'widget.shadow', '0 0 8px');
+  cssShadow('.auto-complete, .tip', 'widget.shadow', '0 0 8px');
 
   cssShadow('.ruler', 'editorRuler.foreground', '1px 0 0 0 inset');
 
   for (var i = 1, len = colorMap.length; i < len; i++) {
     const color = colorMap[i];
+    if (i == 1) {
+      rules.push('.tip { color: '+color+'; }');
+    }
     rules.push('.mtk'+i+' { color: '+color+'; }');
   }
 

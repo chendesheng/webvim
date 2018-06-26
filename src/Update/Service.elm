@@ -15,11 +15,23 @@ import List
 import Parser as P exposing ((|.), (|=), Parser)
 import Char
 import Vim.AST exposing (AST)
-import Helper.Helper exposing (levenshtein, isSpace, notSpace, joinPath, normalizePath)
+import Helper.Helper
+    exposing
+        ( levenshtein
+        , isSpace
+        , notSpace
+        , joinPath
+        , normalizePath
+        )
 import Internal.TextBuffer as B
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer exposing (Patch(..))
-import Internal.Position exposing (regionDecoder)
+import Internal.Position
+    exposing
+        ( regionDecoder
+        , positionDecoder
+        , endPositionDecoder
+        )
 import Task exposing (Task)
 import Regex as Re
 import Model
@@ -32,11 +44,60 @@ import Model
         )
 
 
+eslintResultDecoder : Decode.Decoder (List LintError)
+eslintResultDecoder =
+    let
+        regionDecoder =
+            positionDecoder
+                |> Decode.andThen
+                    (\start ->
+                        Decode.map
+                            ((,) start)
+                            endPositionDecoder
+                            |> Decode.maybe
+                            |> Decode.map (Maybe.withDefault ( start, start ))
+                    )
+
+        messageDecoder filePath =
+            Decode.map7 LintError
+                (Decode.field "severity" Decode.int
+                    |> Decode.map
+                        (\severity ->
+                            if severity == 2 then
+                                "error"
+                            else
+                                "warning"
+                        )
+                )
+                (Decode.succeed Nothing)
+                (Decode.succeed filePath)
+                (Decode.field "message" Decode.string)
+                (Decode.field "ruleId"
+                    (Decode.oneOf
+                        [ Decode.null ""
+                        , Decode.string
+                            |> Decode.map (\s -> "(" ++ s ++ ")")
+                        ]
+                    )
+                )
+                regionDecoder
+                (Decode.succeed Nothing)
+                |> Decode.list
+    in
+        Decode.field "filePath" Decode.string
+            |> Decode.andThen
+                (\filePath ->
+                    Decode.field "messages" (messageDecoder filePath)
+                )
+            |> Decode.list
+            |> Decode.map List.concat
+
+
 elmMakeResultDecoder : Decode.Decoder (List LintError)
 elmMakeResultDecoder =
     Decode.map7 LintError
         (Decode.field "type" Decode.string)
-        (Decode.field "tag" Decode.string)
+        (Decode.field "tag" Decode.string |> Decode.maybe)
         (Decode.field "file" Decode.string)
         (Decode.field "overview" Decode.string)
         (Decode.field "details" Decode.string)
@@ -157,7 +218,7 @@ syntaxErrorParser =
                     x - (toString y1 ++ "| " |> String.length)
             in
                 { tipe = "error"
-                , tag = tag
+                , tag = Just tag
                 , file = file
                 , overview = overview
                 , details = details
@@ -191,8 +252,8 @@ syntaxErrorParser =
            )
 
 
-parseLintResponse : String -> Result a String -> Result String (List LintError)
-parseLintResponse sep resp =
+parseElmMakeResponse : String -> Result a String -> Result String (List LintError)
+parseElmMakeResponse sep resp =
     case Result.mapError toString resp of
         Ok ss ->
             case Re.split (Re.AtMost 1) (Re.regex "\n") ss of
@@ -218,7 +279,7 @@ parseLintResponse sep resp =
                             Err _ ->
                                 Ok
                                     [ { tipe = "error"
-                                      , tag = ""
+                                      , tag = Nothing
                                       , file = ""
                                       , overview = ""
                                       , details = s
@@ -234,10 +295,29 @@ parseLintResponse sep resp =
             Err err
 
 
+parseLintResult :
+    String
+    -> String
+    -> Result a String
+    -> Result String (List LintError)
+parseLintResult sep path =
+    if String.endsWith ".elm" path then
+        parseElmMakeResponse sep
+    else
+        (\result ->
+            case result of
+                Ok s ->
+                    decodeString eslintResultDecoder (Debug.log "s" s)
+
+                Err err ->
+                    Err <| toString err
+        )
+
+
 sendLintProject : String -> String -> String -> Int -> Cmd Msg
 sendLintProject url sep path version =
     Http.getString (url ++ "/lint?path=" ++ path)
-        |> Http.send (parseLintResponse sep >> Lint version)
+        |> Http.send (parseLintResult sep path >> Lint version)
 
 
 sendLintOnTheFly : String -> String -> String -> Int -> String -> Cmd Msg
@@ -247,7 +327,10 @@ sendLintOnTheFly url sep path version buf =
             Http.stringBody "text/plain" buf
     in
         post (url ++ "/lint?path=" ++ path) body
-            |> Http.send (parseLintResponse sep >> LintOnTheFly version)
+            |> Http.send
+                (parseLintResult sep path
+                    >> LintOnTheFly version
+                )
 
 
 unpackClass : Int -> Int -> Int -> Token

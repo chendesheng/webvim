@@ -35,7 +35,7 @@ type alias Flags =
 
 type alias LintError =
     { tipe : String
-    , tag : String
+    , tag : Maybe String
     , file : String
     , overview : String
     , details : String

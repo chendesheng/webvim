@@ -69,6 +69,13 @@ positionDecoder =
         (Decode.field "column" Decode.int)
 
 
+endPositionDecoder : Decode.Decoder Position
+endPositionDecoder =
+    Decode.map2 (\a b -> ( a - 1, b - 1 ))
+        (Decode.field "endLine" Decode.int)
+        (Decode.field "endColumn" Decode.int)
+
+
 regionDecoder : Decode.Decoder ( Position, Position )
 regionDecoder =
     Decode.map2 (,)

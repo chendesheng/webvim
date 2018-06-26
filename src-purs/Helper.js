@@ -63,3 +63,8 @@ exports.diff = function(oldStr) {
 
 exports.homedir = require('os').homedir();
 
+exports.currentdir = __dirname;
+
+var os = require('os');
+exports.tempdir = os.tmpdir;
+
