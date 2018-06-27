@@ -24,6 +24,8 @@ module Update.Buffer
         , toWords
         , cursorLineFirst
         , gotoLine
+        , setLastIndent
+        , cancelLastIndent
         )
 
 import Internal.Position exposing (..)
@@ -726,3 +728,30 @@ toWords exclude { config, lines } =
                             EQ
             )
         |> List.map Tuple.first
+
+
+setLastIndent : Int -> Buffer -> Buffer
+setLastIndent indent buf =
+    let
+        last =
+            buf.last
+    in
+        { buf | last = { last | indent = indent } }
+
+
+cancelLastIndent : Buffer -> Buffer
+cancelLastIndent buf =
+    if buf.last.indent > 0 then
+        let
+            ( y, _ ) =
+                buf.cursor
+
+            setCursorColumn cursorColumn buf =
+                { buf | cursorColumn = cursorColumn }
+        in
+            buf
+                |> transaction [ Deletion ( y, 0 ) ( y, buf.last.indent ) ]
+                |> setLastIndent 0
+                |> setCursorColumn buf.last.indent
+    else
+        buf

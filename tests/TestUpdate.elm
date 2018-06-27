@@ -878,14 +878,13 @@ replaceCases =
             | lines = B.fromString "123\n  4\n  6\n"
             , cursor = ( 2, 1 )
             , cursorColumn = 1
-            , last = { emptyLast | indent = 2 }
         }
       )
     , ( "jllllr<cr>"
       , { replaceCasesBuf
             | lines = B.fromString "123\n  45\n\n"
             , cursor = ( 2, 0 )
-            , last = { emptyLast | indent = 2 }
+            , cursorColumn = 2
         }
       )
     ]

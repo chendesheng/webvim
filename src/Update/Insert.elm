@@ -64,30 +64,40 @@ insert s buf =
                     getString buf s
             in
                 if str == B.lineBreak then
-                    let
-                        indent =
-                            autoIndent (Tuple.first buf.cursor) buf.lines
-                    in
+                    if buf.last.indent > 0 then
                         buf
-                            |> setLastIndent (String.length indent)
-                            |> insertString (str ++ indent)
+                            |> Buf.cancelLastIndent
+                            |> insertString str
+                    else
+                        let
+                            indent =
+                                autoIndent buf.config.indent
+                                    (Tuple.first buf.cursor)
+                                    buf.lines
+
+                            saveLastIndent buf =
+                                let
+                                    ( y, x ) =
+                                        buf.cursor
+                                in
+                                    if B.getLineMaxColumn y buf.lines == x then
+                                        Buf.setLastIndent
+                                            (String.length indent)
+                                            buf
+                                    else
+                                        buf
+                        in
+                            buf
+                                |> insertString (str ++ indent)
+                                |> saveLastIndent
                 else
                     buf
-                        |> setLastIndent 0
+                        |> Buf.setLastIndent 0
                         |> insertString str
 
 
-setLastIndent : Int -> Buffer -> Buffer
-setLastIndent indent buf =
-    let
-        last =
-            buf.last
-    in
-        { buf | last = { last | indent = indent } }
-
-
-autoIndent : Int -> B.TextBuffer -> String
-autoIndent y lines =
+autoIndent : IndentConfig -> Int -> B.TextBuffer -> String
+autoIndent config y lines =
     let
         x =
             lines
@@ -107,7 +117,7 @@ openNewLine y buf =
                 |> min (B.count buf.lines)
 
         indent =
-            autoIndent (y1 - 1) buf.lines
+            autoIndent buf.config.indent (y1 - 1) buf.lines
 
         x =
             String.length indent
@@ -119,6 +129,6 @@ openNewLine y buf =
             buf.last
     in
         buf
-            |> setLastIndent x
+            |> Buf.setLastIndent x
             |> Buf.transaction [ patch ]
             |> Buf.setCursor ( y1, x ) True

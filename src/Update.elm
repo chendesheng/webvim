@@ -203,23 +203,9 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                 ( y, x ) =
                     buf.cursor
 
-                lastIndent =
-                    if oldModeName == V.ModeNameInsert then
-                        case buf.last.indent of
-                            x ->
-                                if B.getLineMaxColumn y buf.lines == x then
-                                    x
-                                else
-                                    0
-                    else
-                        0
-
                 cursor =
                     if oldModeName == V.ModeNameInsert then
-                        if lastIndent > 0 then
-                            ( y, 0 )
-                        else
-                            ( y, max (x - 1) 0 )
+                        ( y, max (x - 1) 0 )
                     else
                         ( y
                         , if B.getLineMaxColumn y buf.lines > x then
@@ -228,24 +214,17 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                             max (x - 1) 0
                         )
 
-                buf1 =
-                    if lastIndent > 0 then
-                        Buf.transaction
-                            [ Deletion ( y, 0 ) ( y, lastIndent ) ]
-                            buf
-                    else
-                        buf
-
                 changeColumn =
                     if lineDeltaMotion then
                         False
                     else
                         cursor /= buf.cursor
             in
-                buf1
+                buf
                     |> Buf.setCursor
                         cursor
                         changeColumn
+                    |> Buf.cancelLastIndent
                     |> Buf.commit
 
         TempNormal ->
