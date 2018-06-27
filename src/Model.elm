@@ -19,6 +19,7 @@ import Internal.Jumps exposing (..)
 import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode
+import Regex as Re
 
 
 type alias Flags =
@@ -304,6 +305,15 @@ encodeBuffer buf =
             ]
 
 
+type IndentConfig
+    = AutoIndent -- same indent as last line
+    | CIndent -- for C like languages (c#, java, js etc.)
+    | IndentRules
+        { increase : Re.Regex
+        , decrease : Re.Regex
+        }
+
+
 type alias BufferConfig =
     { wordChars : String -- a-z and A-Z are word chars by default
     , tabSize : Int
@@ -311,6 +321,7 @@ type alias BufferConfig =
     , lint : Bool
     , service : String
     , pathSeperator : String
+    , indent : IndentConfig
     }
 
 
@@ -322,6 +333,7 @@ defaultBufferConfig =
     , lint = False
     , service = ""
     , pathSeperator = "/"
+    , indent = AutoIndent
     }
 
 

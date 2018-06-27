@@ -1571,27 +1571,34 @@ applyVimAST replaying key ast buf =
                 buf
 
         doTokenize oldBuf ( buf, cmds ) =
-            let
-                newBottom =
-                    case buf.mode of
-                        Ex { prefix, visual } ->
-                            case prefix of
-                                ExSearch { match } ->
-                                    case match of
-                                        Just ( begin, _ ) ->
-                                            Tuple.first begin
-                                                + buf.view.size.height
+            if
+                (oldBuf.path == buf.path)
+                    && (buf.cursor /= oldBuf.cursor)
+                    || (Buf.isEditing oldBuf buf)
+            then
+                let
+                    newBottom =
+                        case buf.mode of
+                            Ex { prefix, visual } ->
+                                case prefix of
+                                    ExSearch { match } ->
+                                        case match of
+                                            Just ( begin, _ ) ->
+                                                Tuple.first begin
+                                                    + buf.view.size.height
 
-                                        _ ->
-                                            0
+                                            _ ->
+                                                0
 
-                                _ ->
-                                    0
+                                    _ ->
+                                        0
 
-                        _ ->
-                            0
-            in
-                ( buf, tokenizeBufferCmd True newBottom buf :: cmds )
+                            _ ->
+                                0
+                in
+                    ( buf, tokenizeBufferCmd True newBottom buf :: cmds )
+            else
+                ( buf, cmds )
 
         doSetTitle oldBuf ( buf, cmds ) =
             if Buf.isDirty oldBuf /= Buf.isDirty buf then
@@ -2157,9 +2164,6 @@ initCommand =
 init : Flags -> ( Buffer, Cmd Msg )
 init flags =
     let
-        _ =
-            Debug.log "flags" flags
-
         { cwd, lineHeight, service, buffers } =
             flags
 

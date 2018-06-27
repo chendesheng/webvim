@@ -199,7 +199,7 @@ function genThemeCss(uiTheme, theme, colorMap) {
   for (var i = 1, len = colorMap.length; i < len; i++) {
     const color = colorMap[i];
     if (i == 1) {
-      rules.push('.tip { color: '+color+'; }');
+      rules.push('body, .tip { color: '+color+'; }');
     }
     rules.push('.mtk'+i+' { color: '+color+'; }');
   }

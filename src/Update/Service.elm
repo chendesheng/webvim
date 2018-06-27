@@ -307,7 +307,7 @@ parseLintResult sep path =
         (\result ->
             case result of
                 Ok s ->
-                    decodeString eslintResultDecoder (Debug.log "s" s)
+                    decodeString eslintResultDecoder s
 
                 Err err ->
                     Err <| toString err
