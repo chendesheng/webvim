@@ -24,6 +24,7 @@ import Helper
     , affEnd
     , setCacheSeconds
     , homedir
+    , boot
     )
 import TextMate (affTokenize, affLoadTheme)
 
@@ -118,6 +119,12 @@ dynamicActionHandler req resp action = do
     Log ->
       -- TODO
       invalidRequest resp
+
+    Boot -> do
+      let outputStream = responseAsStream resp
+      affWriteString outputStream boot
+      affEnd outputStream
+
 
 invalidRequest :: Response -> Aff Unit
 invalidRequest resp = do

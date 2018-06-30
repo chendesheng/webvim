@@ -38,6 +38,11 @@ translate x y =
     )
 
 
+vrView : Buffer -> Html msg
+vrView buf =
+    div [ class "vr-editor" ] [ view buf, view buf ]
+
+
 view : Buffer -> Html msg
 view buf =
     let

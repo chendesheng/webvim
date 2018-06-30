@@ -490,7 +490,7 @@ sendTokenizeTask url { path, version, line, lines } =
         body =
             Http.stringBody "text/plain" lines
     in
-        if path == "" then
+        if path == "" || path == "[Find]" then
             Task.succeed (TokenizeSuccess "" 0 0 Array.empty)
         else
             tokenizeResponseDecoder version line
@@ -656,17 +656,24 @@ sendCd url cwd =
         |> Http.send SetCwd
 
 
-sendBoot : Flags -> Cmd Msg
-sendBoot ({ service, cwd } as flags) =
-    Http.getString
-        (service
-            ++ "/cd"
-            ++ if String.isEmpty cwd then
-                ""
-               else
-                "?cwd=" ++ cwd
+bootDecoder : Flags -> Decode.Decoder Flags
+bootDecoder flags =
+    Decode.map2
+        (\homedir pathSeperator ->
+            { flags
+                | cwd =
+                    if String.isEmpty flags.cwd then
+                        homedir
+                    else
+                        flags.cwd
+                , pathSeperator = pathSeperator
+            }
         )
-        |> Http.send
-            (Result.map (\s -> { flags | cwd = s })
-                >> Boot
-            )
+        (Decode.field "homedir" Decode.string)
+        (Decode.field "pathSeperator" Decode.string)
+
+
+sendBoot : Flags -> Cmd Msg
+sendBoot ({ service } as flags) =
+    Http.get (service ++ "/boot") (bootDecoder flags)
+        |> Http.send Boot

@@ -88,7 +88,7 @@ delete count register rg buf =
                             buf
 
             Insert _ ->
-                deleteAnd identity buf
+                deleteAnd (Buf.setLastIndent 0) buf
 
             _ ->
                 deleteAnd

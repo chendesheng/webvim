@@ -1,4 +1,4 @@
-module Update.Insert exposing (insert, openNewLine, autoIndent)
+module Update.Insert exposing (insert, openNewLine)
 
 import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
@@ -8,6 +8,7 @@ import Tuple
 import Internal.PositionClass exposing (findPosition, findLineFirst)
 import String
 import Update.Motion exposing (wordStringUnderCursor)
+import Regex as Re
 
 
 getString : Buffer -> V.StringType -> String
@@ -62,50 +63,169 @@ insert s buf =
             let
                 str =
                     getString buf s
+
+                lastIndent =
+                    buf.last.indent
             in
                 if str == B.lineBreak then
                     if buf.last.indent > 0 then
-                        buf
-                            |> Buf.cancelLastIndent
-                            |> insertString str
-                    else
                         let
-                            indent =
-                                autoIndent buf.config.indent
-                                    (Tuple.first buf.cursor)
-                                    buf.lines
-
-                            saveLastIndent buf =
-                                let
-                                    ( y, x ) =
-                                        buf.cursor
-                                in
-                                    if B.getLineMaxColumn y buf.lines == x then
-                                        Buf.setLastIndent
-                                            (String.length indent)
-                                            buf
-                                    else
-                                        buf
+                            keepLastIndent indent buf =
+                                buf
+                                    |> Buf.transaction
+                                        [ indent
+                                            |> repeatSpace
+                                            |> B.fromString
+                                            |> Insertion
+                                                ( Tuple.first buf.cursor, 0 )
+                                        ]
+                                    |> Buf.setLastIndent indent
                         in
                             buf
-                                |> insertString (str ++ indent)
-                                |> saveLastIndent
+                                |> Buf.cancelLastIndent
+                                |> insertString str
+                                |> keepLastIndent lastIndent
+                    else
+                        buf
+                            |> insertString str
+                            |> autoIndent
+                    -- FIXME
+                else if String.endsWith ".js" buf.path && str == "}" then
+                    buf
+                        |> Buf.setLastIndent 0
+                        |> insertString str
+                        |> autoIndent
                 else
                     buf
                         |> Buf.setLastIndent 0
                         |> insertString str
 
 
-autoIndent : IndentConfig -> Int -> B.TextBuffer -> String
-autoIndent config y lines =
+repeatSpace : Int -> String
+repeatSpace n =
+    String.repeat n " "
+
+
+{-| indent after insert
+-}
+autoIndent : Buffer -> Buffer
+autoIndent buf =
     let
-        x =
-            lines
+        ( y, _ ) =
+            buf.cursor
+
+        indent =
+            calcIndent buf.config.indent buf.config.tabSize y buf.lines
+
+        insertIndent =
+            indent
+                |> repeatSpace
+                |> B.fromString
+                |> Insertion ( y, 0 )
+
+        deleteIndent =
+            buf.lines
                 |> B.getLine y
+                |> Maybe.map
+                    (\line ->
+                        let
+                            indent =
+                                findLineFirst line
+                        in
+                            if indent > 0 then
+                                [ Deletion ( y, 0 ) ( y, indent ) ]
+                            else
+                                []
+                    )
+                |> Maybe.withDefault []
+
+        saveLastIndent buf =
+            let
+                ( y, x ) =
+                    buf.cursor
+
+                isBlank =
+                    Re.contains (Re.regex "\\S")
+                        >> not
+            in
+                if
+                    buf.lines
+                        |> B.getLine y
+                        |> Maybe.map isBlank
+                        |> Maybe.withDefault False
+                then
+                    Buf.setLastIndent indent buf
+                else
+                    buf
+    in
+        buf
+            |> Buf.transaction (deleteIndent ++ [ insertIndent ])
+            |> Buf.setCursorColumn indent
+            |> saveLastIndent
+
+
+calcIndent : IndentConfig -> Int -> Int -> B.TextBuffer -> Int
+calcIndent config tabSize y lines =
+    let
+        baseIndent =
+            lines
+                |> B.getLine (y - 1)
                 |> Maybe.map findLineFirst
                 |> Maybe.withDefault 0
     in
-        String.repeat x " "
+        case config of
+            AutoIndent ->
+                baseIndent
+
+            IndentRules rules ->
+                let
+                    { increase, decrease, increaseNext } =
+                        rules
+
+                    getLine i =
+                        lines
+                            |> B.getLine i
+                            |> Maybe.map String.trim
+
+                    prevTwoLine =
+                        getLine (y - 2)
+                            |> Maybe.map
+                                (\line ->
+                                    if Re.contains increaseNext line then
+                                        -1
+                                    else
+                                        0
+                                )
+                            |> Maybe.withDefault 0
+
+                    prevLine =
+                        getLine (y - 1)
+                            |> Maybe.map
+                                (\line ->
+                                    if
+                                        Re.contains increase line
+                                            || Re.contains increaseNext line
+                                    then
+                                        1
+                                    else
+                                        0
+                                )
+                            |> Maybe.withDefault 0
+
+                    currentLine =
+                        getLine y
+                            |> Maybe.map
+                                (\line ->
+                                    if Re.contains decrease line then
+                                        -1
+                                    else
+                                        0
+                                )
+                            |> Maybe.withDefault 0
+                in
+                    baseIndent
+                        + (prevTwoLine + prevLine + currentLine)
+                        * tabSize
 
 
 openNewLine : Int -> Buffer -> Buffer
@@ -115,20 +235,12 @@ openNewLine y buf =
             y
                 |> max 0
                 |> min (B.count buf.lines)
-
-        indent =
-            autoIndent buf.config.indent (y1 - 1) buf.lines
-
-        x =
-            String.length indent
-
-        patch =
-            Insertion ( y1, 0 ) <| B.fromString (indent ++ B.lineBreak)
-
-        last =
-            buf.last
     in
         buf
-            |> Buf.setLastIndent x
-            |> Buf.transaction [ patch ]
-            |> Buf.setCursor ( y1, x ) True
+            |> Buf.transaction
+                [ B.lineBreak
+                    |> B.fromString
+                    |> Insertion ( y1, 0 )
+                ]
+            |> Buf.setCursor ( y1, 0 ) False
+            |> autoIndent

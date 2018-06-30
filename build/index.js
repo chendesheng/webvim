@@ -33,21 +33,21 @@ class SessionStorageItem extends HTMLElement {
 customElements.define('session-storage-item', SessionStorageItem);
 
 
-const host = location.hostname || 'localhost';
-let scheme = '';
-if (!location.hostname) {
-  scheme = 'http:';
-}
-
 const safeJsonParse = (s) => {
   if (s) return JSON.parse(s);
   else return null;
 };
 
-const getQuery = (key) => {
+const getTheme = () => {
   const m = location.search.match(/[&?]theme=([^&]*)/i);
   return m ? m[1] : null;
 };
+
+const host = location.hostname || 'localhost';
+let scheme = '';
+if (!location.hostname) {
+  scheme = 'http:';
+}
 
 const flags = {
   lineHeight,
@@ -57,7 +57,7 @@ const flags = {
   registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
   height: window.innerHeight,
   cwd: sessionStorage.getItem('cwd') || '',
-  pathSeperator: /win/i.test(navigator.platform) ? '\\' : '/',
+  pathSeperator: '',
 };
 
 const applyCss = (url) => {
@@ -67,7 +67,7 @@ const applyCss = (url) => {
   document.head.appendChild(link);
 };
 
-applyCss(`${flags.service}/css?theme=${getQuery('theme') || 'Solarized Dark'}`);
+applyCss(`${flags.service}/css?theme=${getTheme() || 'Solarized Dark'}`);
 
 // console.log("flags", flags);
 const app = Elm.Main.fullscreen(flags);

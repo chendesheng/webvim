@@ -1403,8 +1403,14 @@ jumpToLocation isSaveJump { path, cursor } buf =
 
 
 jumpToPath : Bool -> String -> Maybe Position -> Buffer -> ( Buffer, Cmd Msg )
-jumpToPath isSaveJump path maybeCursor buf =
+jumpToPath isSaveJump path_ overrideCursor buf =
     let
+        path =
+            resolvePath
+                buf.config.pathSeperator
+                buf.cwd
+                path_
+
         info =
             buf.buffers
                 |> Dict.get path
@@ -1412,12 +1418,12 @@ jumpToPath isSaveJump path maybeCursor buf =
                     (\info ->
                         { info
                             | cursor =
-                                Maybe.withDefault info.cursor maybeCursor
+                                Maybe.withDefault info.cursor overrideCursor
                         }
                     )
                 |> Maybe.withDefault
                     { path = path
-                    , cursor = Maybe.withDefault ( 0, 0 ) maybeCursor
+                    , cursor = Maybe.withDefault ( 0, 0 ) overrideCursor
                     , content = Nothing
                     }
     in
@@ -1428,7 +1434,11 @@ execute : String -> Buffer -> ( Buffer, Cmd Msg )
 execute s buf =
     case String.split " " s of
         [ "e", path ] ->
-            jumpToPath True (normalizePath buf.config.pathSeperator path) Nothing buf
+            jumpToPath
+                True
+                (normalizePath buf.config.pathSeperator path)
+                Nothing
+                buf
 
         [ "w" ] ->
             ( buf, sendWriteBuffer buf.config.service buf.path buf )
@@ -1761,7 +1771,10 @@ update message buf =
                     (\view ->
                         { view
                             | size =
-                                { width = size.width
+                                { width =
+                                    size.width
+
+                                --, height = 30
                                 , height =
                                     (size.height // buf.view.lineHeight)
                                         - buf.view.statusbarHeight
@@ -2063,76 +2076,59 @@ update message buf =
 
 
 editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-editBuffer info_ buf =
-    let
-        info =
-            { info_
-                | path =
-                    if String.isEmpty info_.path then
-                        ""
-                    else
-                        resolvePath
-                            buf.config.pathSeperator
-                            buf.cwd
-                            info_.path
-            }
-
-        --|> Debug.log "info"
-        view =
-            buf.view
-    in
-        if info.path /= "" && info.content == Nothing then
-            ( buf
-            , sendReadBuffer buf.config.service
-                (Tuple.first info.cursor + view.size.height * 2)
-                buf.config.tabSize
-                info
-            )
-        else
-            let
-                newbuf =
-                    newBuffer
-                        info
-                        { buf
-                            | jumps = buf.jumps
-                            , buffers =
-                                (buf.buffers
-                                    |> Dict.remove info.path
-                                    |> Dict.insert buf.path
-                                        { path = buf.path
-                                        , content =
-                                            Just
-                                                ( buf.lines, buf.syntax )
-                                        , cursor = buf.cursor
-                                        }
-                                )
-                            , registers =
-                                buf.registers
-                                    |> Dict.insert "%" (Text info.path)
-                                    |> (\regs ->
-                                            if buf.path == info.path then
+editBuffer info buf =
+    if info.path /= "" && info.content == Nothing then
+        ( buf
+        , sendReadBuffer buf.config.service
+            (Tuple.first info.cursor + buf.view.size.height * 2)
+            buf.config.tabSize
+            info
+        )
+    else
+        let
+            newbuf =
+                newBuffer
+                    info
+                    { buf
+                        | jumps = buf.jumps
+                        , buffers =
+                            (buf.buffers
+                                |> Dict.remove info.path
+                                |> Dict.insert buf.path
+                                    { path = buf.path
+                                    , content =
+                                        Just
+                                            ( buf.lines, buf.syntax )
+                                    , cursor = buf.cursor
+                                    }
+                            )
+                        , registers =
+                            buf.registers
+                                |> Dict.insert "%" (Text info.path)
+                                |> (\regs ->
+                                        if buf.path == info.path then
+                                            regs
+                                        else
+                                            Dict.insert
+                                                "#"
+                                                (Text buf.path)
                                                 regs
-                                            else
-                                                Dict.insert
-                                                    "#"
-                                                    (Text buf.path)
-                                                    regs
-                                       )
-                        }
-            in
-                ( newbuf
-                , Cmd.batch
-                    [ if newbuf.config.lint then
-                        sendLintProject newbuf.config.service
-                            newbuf.config.pathSeperator
-                            newbuf.path
-                            newbuf.history.version
-                      else
-                        Cmd.none
-                    , Doc.setTitle newbuf.name
-                    , tokenizeBufferCmd False 0 newbuf
-                    ]
-                )
+                                   )
+                    }
+        in
+            ( newbuf
+            , Cmd.batch
+                [ if newbuf.config.lint then
+                    sendLintProject newbuf.config.service
+                        newbuf.config.pathSeperator
+                        newbuf.path
+                        newbuf.history.version
+                  else
+                    Cmd.none
+                , Doc.setTitle newbuf.name
+                , tokenizeBufferCmd False 0 newbuf
+                ]
+            )
 
 
 initCommand : Flags -> Cmd Msg
@@ -2178,7 +2174,10 @@ init flags =
                         { view
                             | lineHeight = lineHeight
                             , size =
-                                { width = 0
+                                { width =
+                                    0
+
+                                --, height = 30
                                 , height =
                                     (height // lineHeight)
                                         - emptyBuffer.view.statusbarHeight

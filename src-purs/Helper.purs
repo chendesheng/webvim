@@ -32,7 +32,9 @@ foreign import homedir :: String
 
 foreign import currentdir :: String
 
-foreign import tempdir :: Effect String
+foreign import tempdir :: String
+
+foreign import boot :: String
 
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s

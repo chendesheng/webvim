@@ -33,6 +33,7 @@ data DynamicActions
   | Log
   | Cd (Maybe NonEmptyString)
   | Css NonEmptyString
+  | Boot
 
 
 nonemptyParam :: String -> Match NonEmptyString
@@ -88,6 +89,7 @@ routingDynamicGet = oneOf
   , Log <$ (root *> lit "log" *> end)
   , Cd <$> (root *> lit "cd" *> optionalMatch paramCwd)
   , Css <$> (root *> lit "css" *> (nonemptyParam "theme"))
+  , Boot <$ (root *> lit "boot" *> end)
   ]
 
 routingDynamicPost :: Match DynamicActions

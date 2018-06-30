@@ -66,5 +66,10 @@ exports.homedir = require('os').homedir();
 exports.currentdir = __dirname;
 
 var os = require('os');
-exports.tempdir = os.tmpdir;
+exports.tempdir = os.tmpdir();
+
+exports.boot = JSON.stringify({
+  homedir: exports.homedir,
+  pathSeperator: require('path').sep,
+});
 

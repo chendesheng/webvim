@@ -307,9 +307,9 @@ encodeBuffer buf =
 
 type IndentConfig
     = AutoIndent -- same indent as last line
-    | CIndent -- for C like languages (c#, java, js etc.)
     | IndentRules
         { increase : Re.Regex
+        , increaseNext : Re.Regex
         , decrease : Re.Regex
         }
 

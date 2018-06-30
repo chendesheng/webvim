@@ -85,6 +85,7 @@ main =
                         Html.text err
 
                     Ready buf ->
+                        --vrView buf
                         view buf
             )
         , update =

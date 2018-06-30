@@ -15,10 +15,9 @@ import Node.Path as Path
 import Node.FS.Aff as FS
 import Data.String as Str
 
-tempfile :: Aff String
-tempfile = do
-    dir <- liftEffect tempdir
-    pure $ Path.concat [dir, "912ec803b2ce49e4a541068d495ab570.txt"]
+tempfile :: String
+tempfile =
+    Path.concat [tempdir, "912ec803b2ce49e4a541068d495ab570.txt"]
 
 
 findProjectDir :: String -> Aff (Maybe String)
@@ -84,15 +83,14 @@ elmLintOnTheFly :: Request -> Response -> String -> Aff Unit
 elmLintOnTheFly req resp path = do
   let inputStream = requestAsStream req
       outputStream = responseAsStream resp
-  file <- tempfile
   absolutePath <- FS.realpath $ Path.normalize path
   cwd <- findProjectDir $ absolutePath
   void $ affLog ("elmLintOnTheFly: " <> absolutePath <> " in " <> show cwd)
   liftEffect $ do
-      fileStream <- createWriteStream file
+      fileStream <- createWriteStream tempfile
       void $ pipe inputStream fileStream
   result <- execAsync cwd ("elm-make "
-                          <> file
+                          <> tempfile
                           <> "  --yes --warn --report=json --output=/dev/null"
                           )
                           Nothing

@@ -26,6 +26,7 @@ module Update.Buffer
         , gotoLine
         , setLastIndent
         , cancelLastIndent
+        , setCursorColumn
         )
 
 import Internal.Position exposing (..)
@@ -44,6 +45,7 @@ import Model
         , View
         , LintError
         , emptyUndo
+        , IndentConfig(..)
         )
 import Internal.TextBuffer as B
     exposing
@@ -78,6 +80,7 @@ import Internal.Syntax
 import Elm.Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
 import Helper.Helper exposing (parseWords)
+import Regex as Re
 
 
 applyPatchToLintError : Patch -> LintError -> LintError
@@ -160,9 +163,6 @@ transaction patches buf =
 
                         ( syntax, _ ) =
                             applyPatchToSyntax patch buf.syntax
-
-                        ( y, _ ) =
-                            cursor
                     in
                         ( { buf
                             | lines = lines
@@ -171,7 +171,10 @@ transaction patches buf =
                             , syntaxDirtyFrom =
                                 min
                                     buf.syntaxDirtyFrom
-                                    y
+                                    (patch
+                                        |> B.patchCursor
+                                        |> Tuple.first
+                                    )
                           }
                         , patch1 :: undo
                         )
@@ -339,16 +342,19 @@ undo buf =
                             , version = history.version + 1
                             , savePoint = history.savePoint - 1
                         }
-
-                    ( y, x ) =
-                        undo.cursor
                 in
                     { buf
                         | lines = lines1
                         , cursor = undo.cursor
-                        , cursorColumn = x
+                        , cursorColumn = Tuple.second undo.cursor
                         , syntax = syntax
-                        , syntaxDirtyFrom = y
+                        , syntaxDirtyFrom =
+                            undoPatches
+                                |> List.map B.patchCursor
+                                |> List.minimum
+                                |> Maybe.map
+                                    (Tuple.first >> min buf.syntaxDirtyFrom)
+                                |> Maybe.withDefault buf.syntaxDirtyFrom
                         , history = undoHistory buf.history
                         , jumps = jumps
                         , lint =
@@ -403,16 +409,19 @@ redo buf =
                             |> List.map B.patchCursor
                             |> List.minimum
                             |> Maybe.withDefault buf.cursor
-
-                    ( y, x ) =
-                        cursor
                 in
                     { buf
                         | lines = lines1
                         , cursor = cursor
-                        , cursorColumn = x
+                        , cursorColumn = Tuple.second cursor
                         , syntax = syntax
-                        , syntaxDirtyFrom = y
+                        , syntaxDirtyFrom =
+                            redoPatches
+                                |> List.map B.patchCursor
+                                |> List.minimum
+                                |> Maybe.map
+                                    (Tuple.first >> min buf.syntaxDirtyFrom)
+                                |> Maybe.withDefault buf.syntaxDirtyFrom
                         , history = redoHistory buf.history
                         , jumps = jumps
                         , lint =
@@ -568,6 +577,14 @@ putString forward text buf =
                )
 
 
+cindentRules =
+    { increase = Re.regex "^.*\\{[^}\\\"']*$"
+    , decrease = Re.regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
+    , increaseNext =
+        Re.regex "^(?!.*;\\s*//).*[^\\s;{}]\\s*$"
+    }
+
+
 configs : Dict String BufferConfig
 configs =
     Dict.fromList
@@ -575,18 +592,48 @@ configs =
           , { defaultBufferConfig
                 | tabSize = 4
                 , lint = True
+                , indent =
+                    IndentRules
+                        { increase =
+                            Re.regex
+                                ("(^[(]?let$)|(^[(]?if)"
+                                    ++ "|(^then$)|(^else(\\s|$))|(=$)"
+                                    ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
+                                )
+                        , decrease = Re.regex "^(then|else( if)?|of|in)"
+                        , increaseNext = Re.regex "![\\s\\S]"
+                        }
             }
           )
         , ( ".js"
           , { defaultBufferConfig
                 | tabSize = 2
                 , lint = True
+                , indent = IndentRules cindentRules
             }
           )
         , ( ".jsx"
           , { defaultBufferConfig
                 | tabSize = 2
                 , lint = True
+                , indent = IndentRules cindentRules
+            }
+          )
+        , ( ".purs"
+          , { defaultBufferConfig
+                | tabSize = 2
+                , indent =
+                    IndentRules
+                        { increase =
+                            Re.regex
+                                ("(^[(]?let$)|(^[(]?if)"
+                                    ++ "|(^then$)|(^else(\\s|$))|(=$)"
+                                    ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
+                                    ++ "|(^when)|(\\sdo$)"
+                                )
+                        , decrease = Re.regex "^(then|else( if)?|of|in)"
+                        , increaseNext = Re.regex "![\\s\\S]"
+                        }
             }
           )
         ]
@@ -739,15 +786,17 @@ setLastIndent indent buf =
         { buf | last = { last | indent = indent } }
 
 
+setCursorColumn : Int -> Buffer -> Buffer
+setCursorColumn cursorColumn buf =
+    { buf | cursorColumn = cursorColumn }
+
+
 cancelLastIndent : Buffer -> Buffer
 cancelLastIndent buf =
     if buf.last.indent > 0 then
         let
             ( y, _ ) =
                 buf.cursor
-
-            setCursorColumn cursorColumn buf =
-                { buf | cursorColumn = cursorColumn }
         in
             buf
                 |> transaction [ Deletion ( y, 0 ) ( y, buf.last.indent ) ]
