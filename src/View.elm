@@ -682,7 +682,16 @@ renderTokens spans line i =
                     :: (renderTokens rest line j)
 
         _ ->
-            []
+            -- this means we have broken syntax tokens
+            if i < String.length line then
+                [ span []
+                    [ line
+                        |> String.slice i (String.length line)
+                        |> text
+                    ]
+                ]
+            else
+                []
 
 
 renderLines : Int -> Int -> B.TextBuffer -> Syntax -> Html msg

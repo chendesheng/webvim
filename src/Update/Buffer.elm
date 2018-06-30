@@ -577,11 +577,20 @@ putString forward text buf =
                )
 
 
-cindentRules =
+cIndentRules =
     { increase = Re.regex "^.*\\{[^}\\\"']*$"
     , decrease = Re.regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
     , increaseNext =
         Re.regex "^(?!.*;\\s*//).*[^\\s;{}]\\s*$"
+    }
+
+
+cssFileDefaultConfig : BufferConfig
+cssFileDefaultConfig =
+    { defaultBufferConfig
+        | tabSize = 2
+        , indent = IndentRules cIndentRules
+        , wordChars = "_-"
     }
 
 
@@ -609,14 +618,14 @@ configs =
           , { defaultBufferConfig
                 | tabSize = 2
                 , lint = True
-                , indent = IndentRules cindentRules
+                , indent = IndentRules cIndentRules
             }
           )
         , ( ".jsx"
           , { defaultBufferConfig
                 | tabSize = 2
                 , lint = True
-                , indent = IndentRules cindentRules
+                , indent = IndentRules cIndentRules
             }
           )
         , ( ".purs"
@@ -636,6 +645,8 @@ configs =
                         }
             }
           )
+        , ( ".less", cssFileDefaultConfig )
+        , ( ".css", cssFileDefaultConfig )
         ]
 
 
