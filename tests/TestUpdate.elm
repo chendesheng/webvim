@@ -1212,7 +1212,7 @@ visualModeCases =
       )
     , ( "vc11<esc>vc22<esc>"
       , { visualModeCasesBuf
-            | mode = Normal
+            | mode = Normal { message = EmptyMessage }
             , cursor = ( 0, 2 )
             , cursorColumn = 2
             , lines = B.fromString "12223\n456\n"

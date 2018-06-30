@@ -148,7 +148,7 @@ type alias AutoComplete =
 
 
 type Mode
-    = Normal
+    = Normal { message : StatusMessage }
     | Visual VisualMode
     | Insert
         { autoComplete : Maybe AutoComplete
@@ -347,7 +347,7 @@ emptyBuffer =
     , cursorColumn = 0
     , path = ""
     , name = "no name"
-    , mode = Normal
+    , mode = Normal { message = EmptyMessage }
     , history = emptyBufferHistory
     , config = defaultBufferConfig
     , view = emptyView
@@ -372,6 +372,12 @@ emptyBuffer =
     , locationList = []
     , cwd = ""
     }
+
+
+type StatusMessage
+    = InfoMessage String
+    | ErrorMessage String
+    | EmptyMessage
 
 
 registerString : RegisterText -> String

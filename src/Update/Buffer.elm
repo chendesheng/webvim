@@ -27,6 +27,8 @@ module Update.Buffer
         , setLastIndent
         , cancelLastIndent
         , setCursorColumn
+        , infoMessage
+        , errorMessage
         )
 
 import Internal.Position exposing (..)
@@ -38,7 +40,7 @@ import Model
         , BufferConfig
         , emptyBufferHistory
         , defaultBufferConfig
-        , Mode
+        , Mode(..)
         , RegisterText
         , emptyBuffer
         , emptyView
@@ -46,6 +48,7 @@ import Model
         , LintError
         , emptyUndo
         , IndentConfig(..)
+        , StatusMessage(..)
         )
 import Internal.TextBuffer as B
     exposing
@@ -592,6 +595,32 @@ cssFileDefaultConfig =
         , indent = IndentRules cIndentRules
         , wordChars = "_-"
     }
+
+
+infoMessage : String -> Buffer -> Buffer
+infoMessage s buf =
+    case buf.mode of
+        Normal data ->
+            { buf
+                | mode =
+                    Normal { data | message = InfoMessage s }
+            }
+
+        _ ->
+            buf
+
+
+errorMessage : String -> Buffer -> Buffer
+errorMessage s buf =
+    case buf.mode of
+        Normal data ->
+            { buf
+                | mode =
+                    Normal { data | message = ErrorMessage s }
+            }
+
+        _ ->
+            buf
 
 
 configs : Dict String BufferConfig

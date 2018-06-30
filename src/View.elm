@@ -83,8 +83,8 @@ view buf =
                 |> Tuple.first
 
         matchedCursor =
-            buf.view.matchedCursor
-                |> Maybe.map (Tuple.mapFirst (\y -> y - scrollTop))
+            Maybe.map (Tuple.mapFirst (\y -> y - scrollTop))
+                buf.view.matchedCursor
 
         matchedCursor2 =
             case buf.mode of
@@ -231,7 +231,15 @@ renderStatusBar dirty mode continuation errorsCnt name =
             [ class "status"
             , classList [ ( "dirty", dirty ) ]
             ]
-            [ div [] [ text statusBar.text ]
+            [ div
+                [ class
+                    (if statusBar.error then
+                        "status-error"
+                     else
+                        ""
+                    )
+                ]
+                [ text statusBar.text ]
             , renderCursor "" statusBar.cursor
             , div [ class "status-right" ]
                 [ div [ class "status-cmds" ] [ text continuation ]
@@ -392,12 +400,34 @@ renderLineGuide scrollTop cursor =
             text ""
 
 
-getStatusBar : Mode -> { text : String, cursor : Maybe Position }
+getStatusBar :
+    Mode
+    ->
+        { text : String
+        , cursor : Maybe Position
+        , error : Bool
+        }
 getStatusBar mode =
     case mode of
-        Normal ->
-            { text = ""
+        Normal { message } ->
+            { text =
+                case message of
+                    InfoMessage s ->
+                        s
+
+                    ErrorMessage s ->
+                        s
+
+                    _ ->
+                        ""
             , cursor = Nothing
+            , error =
+                case message of
+                    ErrorMessage _ ->
+                        True
+
+                    _ ->
+                        False
             }
 
         Visual { tipe } ->
@@ -412,21 +442,25 @@ getStatusBar mode =
                     _ ->
                         "-- Visual --"
             , cursor = Nothing
+            , error = False
             }
 
         Insert _ ->
             { text = "-- Insert --"
             , cursor = Nothing
+            , error = False
             }
 
         TempNormal ->
             { text = "-- (Insert) --"
             , cursor = Nothing
+            , error = False
             }
 
         Ex { exbuf } ->
             { text = B.toString exbuf.lines
             , cursor = Just exbuf.cursor
+            , error = False
             }
 
 

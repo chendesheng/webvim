@@ -19,6 +19,7 @@ import Helper.Helper
         , isSpace
         , notSpace
         , resolvePath
+        , relativePath
         , normalizePath
         )
 import Vim.Parser exposing (parse)
@@ -92,7 +93,7 @@ initMode : Buffer -> V.ModeName -> Mode
 initMode { cursor, mode } modeName =
     case modeName of
         V.ModeNameNormal ->
-            Normal
+            Normal { message = EmptyMessage }
 
         V.ModeNameTempNormal ->
             TempNormal
@@ -149,7 +150,7 @@ initMode { cursor, mode } modeName =
 getModeName : Mode -> V.ModeName
 getModeName mode =
     case mode of
-        Normal ->
+        Normal _ ->
             V.ModeNameNormal
 
         Insert _ ->
@@ -198,7 +199,7 @@ isLineDeltaMotion op =
 modeChanged : Bool -> Key -> V.ModeName -> Bool -> Buffer -> Buffer
 modeChanged replaying key oldModeName lineDeltaMotion buf =
     case buf.mode of
-        Normal ->
+        Normal _ ->
             let
                 ( y, x ) =
                     buf.cursor
@@ -729,7 +730,7 @@ runOperator count register operator buf =
 
         Replace ch ->
             case buf.mode of
-                Normal ->
+                Normal _ ->
                     let
                         ( y, x ) =
                             buf.cursor
@@ -1549,7 +1550,7 @@ applyVimAST replaying key ast buf =
 
         setMatchedCursor oldBuf buf =
             if
-                (oldBuf.cursor /= buf.cursor)
+                (pairSource oldBuf /= pairSource buf)
                     || (oldBuf.view.scrollTop /= buf.view.scrollTop)
                     || (oldBuf.view.size /= buf.view.size)
                     || (oldBuf.lines /= buf.lines)
@@ -1711,37 +1712,40 @@ lintErrorToLocationList items =
         items
 
 
+pairSource : Buffer -> Position
+pairSource buf =
+    case buf.mode of
+        Insert _ ->
+            buf.cursor
+                |> Tuple.mapSecond
+                    (\x -> Basics.max 0 (x - 1))
+
+        _ ->
+            buf.cursor
+
+
 pairCursor : Buffer -> Buffer
 pairCursor buf =
-    let
-        cursor =
-            case buf.mode of
-                Insert _ ->
-                    buf.cursor
-                        |> Tuple.mapSecond
-                            (\x ->
-                                if x > 0 then
-                                    x - 1
-                                else
-                                    0
-                            )
+    Buf.updateView
+        (\view ->
+            { view
+                | matchedCursor =
+                    pairBracketAt
+                        buf.view.scrollTop
+                        (buf.view.scrollTop + buf.view.size.height)
+                        buf.lines
+                        buf.syntax
+                        (pairSource buf)
+            }
+        )
+        buf
 
-                _ ->
-                    buf.cursor
-    in
-        Buf.updateView
-            (\view ->
-                { view
-                    | matchedCursor =
-                        pairBracketAt
-                            buf.view.scrollTop
-                            (buf.view.scrollTop + buf.view.size.height)
-                            buf.lines
-                            buf.syntax
-                            cursor
-                }
-            )
-            buf
+
+shortPath : Buffer -> String
+shortPath buf =
+    relativePath buf.config.pathSeperator
+        buf.cwd
+        buf.path
 
 
 update : Msg -> Buffer -> ( Buffer, Cmd Msg )
@@ -1840,6 +1844,8 @@ update message buf =
                                 |> correctCursor
                                 |> scrollToCursor
                                 |> pairCursor
+                                |> Buf.infoMessage
+                                    (shortPath buf ++ " Written")
 
                         syntaxBottom =
                             buf.syntaxDirtyFrom
@@ -1886,7 +1892,11 @@ update message buf =
                         )
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( Buf.errorMessage
+                        (shortPath buf ++ " save error")
+                        buf
+                    , Cmd.none
+                    )
 
         SendLint ->
             if buf.config.lint then

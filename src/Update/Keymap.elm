@@ -26,7 +26,7 @@ normalKeyMap key =
 keymap : Mode -> Key -> List Key
 keymap mode key =
     (case mode of
-        Normal ->
+        Normal _ ->
             normalKeyMap
 
         _ ->
