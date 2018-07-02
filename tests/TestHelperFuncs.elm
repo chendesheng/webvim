@@ -3,6 +3,7 @@ module TestHelperFuncs exposing (..)
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Helper.Helper exposing (..)
+import Elm.Array as Array exposing (Array)
 
 
 suite : Test
@@ -76,6 +77,45 @@ suite =
              in
                 [ testUnix "\\d/e/f" "/d/e/f"
                 , testWin "\\d/e\\f  " "\\d\\e\\f"
+                ]
+            )
+        , describe "nthList"
+            [ test "nthList 0 [0]" <|
+                \_ ->
+                    Expect.equal (Just 0) (nthList 0 [ 0 ])
+            , test "nthList 0 []" <|
+                \_ ->
+                    Expect.equal Nothing (nthList 0 [])
+            , test "nthList 1 [0, 1]" <|
+                \_ ->
+                    Expect.equal (Just 1) (nthList 1 [ 0, 1 ])
+            , test "nthList 2 [0, 1]" <|
+                \_ ->
+                    Expect.equal Nothing (nthList 2 [ 0, 1 ])
+            ]
+        , describe "arrayInsert"
+            (let
+                testArrayInsert n item target result =
+                    test
+                        (toString n
+                            ++ " "
+                            ++ toString item
+                            ++ " "
+                            ++ toString target
+                        )
+                    <|
+                        (\_ ->
+                            target
+                                |> Array.fromList
+                                |> arrayInsert n item
+                                |> Array.toList
+                                |> Expect.equal result
+                        )
+             in
+                [ testArrayInsert 0 0 [] [ 0 ]
+                , testArrayInsert 0 0 [ 1 ] [ 0, 1 ]
+                , testArrayInsert 1 0 [ 1 ] [ 1, 0 ]
+                , testArrayInsert 1 0 [ 1, 2, 3 ] [ 1, 0, 2, 3 ]
                 ]
             )
         ]

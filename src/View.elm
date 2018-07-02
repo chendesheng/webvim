@@ -170,7 +170,7 @@ view buf =
                 (Buf.isDirty buf)
                 mode
                 continuation
-                buf.lint.count
+                buf.lint.items
                 buf.name
              , div [ style [ ( "display", "none" ) ] ]
                 ([ lazy saveBuffers buf.buffers
@@ -180,8 +180,9 @@ view buf =
                     ++ if buf.path == "" then
                         []
                        else
-                        [ lazy2 saveActiveBuffer
+                        [ lazy3 saveActiveBuffer
                             buf.path
+                            buf.history.version
                             cursor
                         ]
                 )
@@ -221,11 +222,33 @@ view buf =
             )
 
 
-renderStatusBar : Bool -> Mode -> String -> Int -> String -> Html msg
-renderStatusBar dirty mode continuation errorsCnt name =
+renderLintStatus : List LintError -> Html msg
+renderLintStatus items =
+    div [ class "lint-status" ]
+        [ span []
+            [ i [ class "fas fa-times-circle" ] []
+            , items
+                |> List.filter (.tipe >> ((/=) "warning"))
+                |> List.length
+                |> toString
+                |> text
+            ]
+        , span []
+            [ i [ class "fas fa-exclamation-triangle" ] []
+            , items
+                |> List.filter (.tipe >> ((==) "warning"))
+                |> List.length
+                |> toString
+                |> text
+            ]
+        ]
+
+
+renderStatusBar : Bool -> Mode -> String -> List LintError -> String -> Html msg
+renderStatusBar dirty mode continuation items name =
     let
         statusBar =
-            getStatusBar mode
+            Buf.getStatusBar mode
     in
         div
             [ class "status"
@@ -244,10 +267,7 @@ renderStatusBar dirty mode continuation errorsCnt name =
             , div [ class "status-right" ]
                 [ div [ class "status-cmds" ] [ text continuation ]
                 , div [ class "filename" ] [ text name ]
-                , div [ class "lint-status" ]
-                    [ i [ class "far fa-times-circle" ] []
-                    , text <| toString errorsCnt
-                    ]
+                , lazy renderLintStatus items
                 ]
             ]
 
@@ -400,70 +420,6 @@ renderLineGuide scrollTop cursor =
             text ""
 
 
-getStatusBar :
-    Mode
-    ->
-        { text : String
-        , cursor : Maybe Position
-        , error : Bool
-        }
-getStatusBar mode =
-    case mode of
-        Normal { message } ->
-            { text =
-                case message of
-                    InfoMessage s ->
-                        s
-
-                    ErrorMessage s ->
-                        s
-
-                    _ ->
-                        ""
-            , cursor = Nothing
-            , error =
-                case message of
-                    ErrorMessage _ ->
-                        True
-
-                    _ ->
-                        False
-            }
-
-        Visual { tipe } ->
-            { text =
-                case tipe of
-                    VisualLine ->
-                        "-- Visual Line --"
-
-                    VisualBlock ->
-                        "-- Visual Block --"
-
-                    _ ->
-                        "-- Visual --"
-            , cursor = Nothing
-            , error = False
-            }
-
-        Insert _ ->
-            { text = "-- Insert --"
-            , cursor = Nothing
-            , error = False
-            }
-
-        TempNormal ->
-            { text = "-- (Insert) --"
-            , cursor = Nothing
-            , error = False
-            }
-
-        Ex { exbuf } ->
-            { text = B.toString exbuf.lines
-            , cursor = Just exbuf.cursor
-            , error = False
-            }
-
-
 renderHighlights :
     Int
     -> B.TextBuffer
@@ -573,9 +529,15 @@ renderLint scrollTop lines items =
 
                         ( ey, _ ) =
                             e1
+
+                        classname =
+                            if item.tipe == "warning" then
+                                "lint lint-warning"
+                            else
+                                "lint"
                     in
                         if not (ey < scrollTop || by >= scrollTop + 50) then
-                            Just <| render "lint" ( b, e1 ) scrollTop lines
+                            Just <| render classname ( b, e1 ) scrollTop lines
                         else
                             Nothing
                 )
@@ -829,9 +791,10 @@ renderAutoCompleteMenu isEx viewScrollTop gutterWidth auto =
             )
 
 
-saveActiveBuffer : String -> Position -> Html msg
-saveActiveBuffer path cursor =
+saveActiveBuffer : String -> Int -> Position -> Html msg
+saveActiveBuffer path version cursor =
     { path = path
+    , version = version
     , cursor = cursor
     , content = Nothing
     }

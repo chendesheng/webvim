@@ -1,4 +1,4 @@
-module Update exposing (update, init, initCommand)
+module Update exposing (update, init, initCommand, initMode)
 
 import Http
 import Internal.Brackets exposing (pairBracket, pairBracketAt)
@@ -21,6 +21,7 @@ import Helper.Helper
         , resolvePath
         , relativePath
         , normalizePath
+        , nthList
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -717,7 +718,7 @@ runOperator count register operator buf =
                         ex.exbuf.lines
                             |> B.toString
                             |> String.dropLeft 1
-                            |> flip execute
+                            |> flip (execute count)
                                 { buf | mode = Ex { ex | exbuf = exbuf1 } }
 
                 _ ->
@@ -1127,7 +1128,7 @@ cursorScope ({ view, cursor, lines } as buf) =
 newBuffer : BufferInfo -> Buffer -> Buffer
 newBuffer info buf =
     let
-        { cursor, path, content } =
+        { cursor, path, version, content } =
             info
 
         ( name, ext ) =
@@ -1143,6 +1144,7 @@ newBuffer info buf =
     in
         { buf
             | lines = lines
+            , mode = Normal { message = EmptyMessage }
             , config =
                 { config
                     | service = buf.config.service
@@ -1163,7 +1165,7 @@ newBuffer info buf =
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
-            , history = emptyBufferHistory
+            , history = { emptyBufferHistory | version = version }
             , syntax = syntax
             , syntaxDirtyFrom = Array.length syntax
         }
@@ -1424,6 +1426,7 @@ jumpToPath isSaveJump path_ overrideCursor buf =
                     )
                 |> Maybe.withDefault
                     { path = path
+                    , version = 0
                     , cursor = Maybe.withDefault ( 0, 0 ) overrideCursor
                     , content = Nothing
                     }
@@ -1431,8 +1434,8 @@ jumpToPath isSaveJump path_ overrideCursor buf =
         jumpTo isSaveJump info buf
 
 
-execute : String -> Buffer -> ( Buffer, Cmd Msg )
-execute s buf =
+execute : Maybe Int -> String -> Buffer -> ( Buffer, Cmd Msg )
+execute count s buf =
     case String.split " " s of
         [ "e", path ] ->
             jumpToPath
@@ -1445,12 +1448,18 @@ execute s buf =
             ( buf, sendWriteBuffer buf.config.service buf.path buf )
 
         [ "ll" ] ->
-            case List.head buf.locationList of
-                Just loc ->
-                    jumpToLocation True loc buf
+            let
+                n =
+                    (Maybe.withDefault 1 count) - 1
+            in
+                case nthList n buf.locationList of
+                    Just loc ->
+                        jumpToLocation True loc buf
 
-                _ ->
-                    ( buf, Cmd.none )
+                    _ ->
+                        ( Buf.errorMessage "location not found" buf
+                        , Cmd.none
+                        )
 
         [ "f", s ] ->
             ( buf, sendSearch buf.config.service buf.cwd s )
@@ -1811,6 +1820,7 @@ update message buf =
                         404 ->
                             jumpTo True
                                 { path = resp.body
+                                , version = 0
                                 , cursor = ( 0, 0 )
                                 , content =
                                     Just
@@ -2031,13 +2041,16 @@ update message buf =
                             |> jumpToLocation True loc
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( Buf.errorMessage "tag not found" buf
+                    , Cmd.none
+                    )
 
         SearchResult result ->
             case result of
                 Ok s ->
                     jumpTo True
                         { path = "[Find]"
+                        , version = 0
                         , cursor = ( 0, 0 )
                         , content = Just ( B.fromString s, Array.empty )
                         }
@@ -2106,6 +2119,7 @@ editBuffer info buf =
                                 |> Dict.remove info.path
                                 |> Dict.insert buf.path
                                     { path = buf.path
+                                    , version = buf.history.version
                                     , content =
                                         Just
                                             ( buf.lines, buf.syntax )
@@ -2169,6 +2183,7 @@ init flags =
                 |> Decode.decodeValue bufferInfoDecoder
                 |> Result.withDefault
                     { path = ""
+                    , version = 0
                     , content = Nothing
                     , cursor = ( 0, 0 )
                     }

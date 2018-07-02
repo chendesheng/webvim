@@ -14,6 +14,25 @@
     url('@{fa-font-path}/fa-regular-400.svg#fontawesome') format('svg');
 }
 
+@font-face {
+  font-family: 'Font Awesome 5 Free Solid';
+  font-style: normal;
+  font-weight: 900;
+  src: url('@{fa-font-path}/fa-solid-900.eot');
+  src: url('@{fa-font-path}/fa-solid-900.eot?#iefix') format('embedded-opentype'),
+       url('@{fa-font-path}/fa-solid-900.woff2') format('woff2'),
+       url('@{fa-font-path}/fa-solid-900.woff') format('woff'),
+       url('@{fa-font-path}/fa-solid-900.ttf') format('truetype'),
+       url('@{fa-font-path}/fa-solid-900.svg#fontawesome') format('svg');
+}
+
+.fa,
+.fas {
+  font-family: 'Font Awesome 5 Free Solid';
+  font-weight: 900;
+}
+
+
 .far {
   font-family: 'Font Awesome 5 Free';
   font-weight: 400;
@@ -208,6 +227,11 @@ html, body {
   border-bottom: dotted 1px #d13b2e;
 }
 
+.lint.lint-warning div {
+  border-bottom: dotted 1px orange;
+}
+
+
 .tip {
   white-space: pre-wrap;
   padding: 1ch;
@@ -218,13 +242,16 @@ html, body {
   opacity: 0.9;
 }
 
-.lint-status {
-  margin-right: 15px;
-}
-
 .lint-status i {
+  margin-left: 4px;
   margin-right: 4px;
 }
+
+.lint-status span {
+  margin-left: 4px;
+  margin-right: 4px;
+}
+
 
 .status .status-right {
   margin-left: auto;
@@ -235,7 +262,7 @@ html, body {
 .status-error {
   background: #840909;
   color: white;
-  padding-right 1ch;
+  padding-right: 1ch;
 }
 
 .status-right > div {

@@ -67,6 +67,7 @@ const ctagsTask = () => shell([
   '--exclude="elm-stuff/**/benchmarks"',
   '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/tests"',
   '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/benchmarks"',
+  '--exclude="tests/gen/**"',
   'src',
   'tests',
   'elm-stuff/packages',
@@ -100,6 +101,7 @@ const npmInstall = (() => {
     }
   };
 })();
+const generateTestData = () => shell('node ./tests/gen/gen.js');
 
 // const testTask = () => shell('elm test');
 
@@ -145,6 +147,7 @@ watch(['build/font/font-generator.js', 'css/icons/*.svg'], [fontTask]);
 watch(['start.js', 'elm-package.json'], [exitTask]);
 watch(['tests/**/*.elm'], [ctagsTask]);
 watch('package.json', [npmInstall]);
+watch(['tests/gen/data/*.*', 'tests/gen/gen.js'], [generateTestData]);
 
 const startBackend = (port) => {
   http.get(`http://localhost:${port}/kill`)

@@ -1,0 +1,25 @@
+{
+||      function addOne(i) {
+||        if (i != NaN) {
+||          return i ++
+||        } else {
+                 ^
+|           return
+|         }
+|       };
+-- Normal --
+}
+
+> dj
+
+{
+||      function addOne(i) {
+||        if (i != NaN) {
+||          return i ++
+||        }
+          ^
+|       };
+-- Normal --
+}
+
+

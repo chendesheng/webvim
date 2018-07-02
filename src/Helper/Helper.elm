@@ -5,6 +5,7 @@ import Regex as Re exposing (Regex)
 import Native.Doc
 import Char
 import Parser as P exposing ((|.), (|=))
+import Elm.Array as Array exposing (Array)
 
 
 getLast : List a -> Maybe a
@@ -277,3 +278,23 @@ relativePath sep from to =
     in
         (List.repeat (List.length fromParts - 1) ".." ++ toParts)
             |> String.join sep
+
+
+nthList : Int -> List a -> Maybe a
+nthList i list =
+    case list of
+        x :: xs ->
+            if i == 0 then
+                Just x
+            else
+                nthList (i - 1) xs
+
+        [] ->
+            Nothing
+
+
+arrayInsert : Int -> a -> Array a -> Array a
+arrayInsert i item arr =
+    (Array.slice i (Array.length arr) arr)
+        |> Array.append (Array.fromList [ item ])
+        |> Array.append (Array.slice 0 i arr)

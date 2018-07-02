@@ -1447,6 +1447,7 @@ editBufferCasesBuf =
             Dict.fromList
                 [ ( "src/test.elm"
                   , { path = "src/test.elm"
+                    , version = 0
                     , content = Just ( B.fromString "123", Array.empty )
                     , cursor = ( 0, 0 )
                     }
@@ -1474,6 +1475,7 @@ editBufferCases =
                 Dict.fromList
                     [ ( ""
                       , { path = ""
+                        , version = 0
                         , content = Just ( emptyBuffer.lines, emptyBuffer.syntax )
                         , cursor = ( 0, 0 )
                         }

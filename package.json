@@ -11,7 +11,8 @@
     "js": "elm make src/Main.elm --output dist/elm.js --debug --warn",
     "release": "npm run css && node ./build/release.js",
     "html": "node ./build/html.config.js",
-    "eslint": "eslint start.js build/*.js src-purs/**/*.js --fix"
+    "eslint": "eslint start.js build/*.js src-purs/**/*.js --fix",
+    "test": "node ./tests/gen/gen.js && elm test"
   },
   "files": [
     "dist/webvim.html",
@@ -50,7 +51,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run eslint && elm format src/ --yes && elm format tests/ --yes && elm test && npm run release"
+      "pre-commit": "npm run css && npm run eslint && elm format src/ --yes && elm format tests/ --yes && npm run test && npm run release"
     }
   }
 }

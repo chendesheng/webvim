@@ -1,0 +1,27 @@
+{
+||      function addOne(i) {
+||        if (i != NaN) {
+||          return i ++
+||        } else {
+                 ^
+|           return
+|         }
+|       };
+-- Normal --
+}
+
+> db
+
+{
+||      function addOne(i) {
+||        if (i != NaN) {
+||          return i ++
+||        } {
+            ^
+|           return
+|         }
+|       };
+-- Normal --
+}
+
+

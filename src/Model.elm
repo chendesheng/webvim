@@ -56,6 +56,7 @@ buffersInfoToString buffers =
 bufferInfoEncoder : BufferInfo -> Encode.Value
 bufferInfoEncoder info =
     [ ( "path", Encode.string info.path )
+    , ( "version", Encode.int info.version )
     , ( "cursor"
       , Encode.list
             [ info.cursor |> Tuple.first |> Encode.int
@@ -75,14 +76,16 @@ bufferInfoToString info =
 
 bufferInfoDecoder : Decode.Decoder BufferInfo
 bufferInfoDecoder =
-    Decode.map2
-        (\path cursor ->
+    Decode.map3
+        (\path version cursor ->
             { path = path
+            , version = version
             , cursor = cursor
             , content = Nothing
             }
         )
         (Decode.field "path" Decode.string)
+        (Decode.field "version" Decode.int)
         (Decode.field "cursor" (Decode.list Decode.int)
             |> Decode.map
                 (\xs ->
@@ -104,6 +107,7 @@ type alias BufferInfo =
     { path : String
     , cursor : Position
     , content : Maybe ( B.TextBuffer, Syntax )
+    , version : Int
     }
 
 

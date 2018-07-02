@@ -29,6 +29,7 @@ module Update.Buffer
         , setCursorColumn
         , infoMessage
         , errorMessage
+        , getStatusBar
         )
 
 import Internal.Position exposing (..)
@@ -68,6 +69,8 @@ import Vim.AST
         ( MotionData(..)
         , MotionOption
         , Direction(..)
+        , VisualType(..)
+        , ModeName(..)
         )
 import String
 import Maybe
@@ -580,6 +583,11 @@ putString forward text buf =
                )
 
 
+cIndentRules :
+    { decrease : Re.Regex
+    , increase : Re.Regex
+    , increaseNext : Re.Regex
+    }
 cIndentRules =
     { increase = Re.regex "^.*\\{[^}\\\"']*$"
     , decrease = Re.regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
@@ -844,3 +852,67 @@ cancelLastIndent buf =
                 |> setCursorColumn buf.last.indent
     else
         buf
+
+
+getStatusBar :
+    Mode
+    ->
+        { text : String
+        , cursor : Maybe Position
+        , error : Bool
+        }
+getStatusBar mode =
+    case mode of
+        Normal { message } ->
+            { text =
+                case message of
+                    InfoMessage s ->
+                        s
+
+                    ErrorMessage s ->
+                        s
+
+                    _ ->
+                        "-- Normal --"
+            , cursor = Nothing
+            , error =
+                case message of
+                    ErrorMessage _ ->
+                        True
+
+                    _ ->
+                        False
+            }
+
+        Visual { tipe } ->
+            { text =
+                case tipe of
+                    VisualLine ->
+                        "-- Visual Line --"
+
+                    VisualBlock ->
+                        "-- Visual Block --"
+
+                    _ ->
+                        "-- Visual --"
+            , cursor = Nothing
+            , error = False
+            }
+
+        Insert _ ->
+            { text = "-- Insert --"
+            , cursor = Nothing
+            , error = False
+            }
+
+        TempNormal ->
+            { text = "-- (Insert) --"
+            , cursor = Nothing
+            , error = False
+            }
+
+        Ex { exbuf } ->
+            { text = B.toString exbuf.lines
+            , cursor = Just exbuf.cursor
+            , error = False
+            }

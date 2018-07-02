@@ -262,13 +262,28 @@ parseElmMakeResponse sep resp =
                         Ok []
                     else if String.startsWith "[" s then
                         s
-                            |> decodeString elmMakeResultDecoder
-                            |> Result.map
-                                (List.map
-                                    (\item ->
-                                        { item | file = joinPath sep dir item.file }
-                                    )
+                            |> String.lines
+                            |> List.map
+                                (decodeString elmMakeResultDecoder
+                                    >> Result.map
+                                        (List.map
+                                            (\item ->
+                                                { item
+                                                    | file =
+                                                        joinPath sep
+                                                            dir
+                                                            item.file
+                                                }
+                                            )
+                                        )
+                                    >> Result.withDefault []
                                 )
+                            |> List.concat
+                            |> List.sortBy
+                                (\{ file, tipe, region } ->
+                                    ( file, tipe, region )
+                                )
+                            |> Ok
                     else
                         case
                             P.run syntaxErrorParser s
