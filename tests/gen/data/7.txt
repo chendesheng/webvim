@@ -1,0 +1,21 @@
+{
+||      
+        ^
+-- Normal --
+}
+
+> i1<backspace>
+
+{
+||      
+        ^
+-- Insert --
+}
+
+> 1<cr><backspace>
+
+{
+||      1
+         ^
+-- Insert --
+}

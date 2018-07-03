@@ -1570,11 +1570,7 @@ applyVimAST replaying key ast buf =
                 buf
 
         doTokenize oldBuf ( buf, cmds ) =
-            if
-                (oldBuf.path == buf.path)
-                    && (buf.cursor /= oldBuf.cursor)
-                    || (Buf.isEditing oldBuf buf)
-            then
+            if (oldBuf.path == buf.path) || (Buf.isEditing oldBuf buf) then
                 let
                     newBottom =
                         case buf.mode of

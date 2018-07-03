@@ -74,17 +74,37 @@ formatBuffer buf =
                     (buf.view.scrollTop + buf.view.size.height)
                     (B.count buf.lines)
                 |> B.mapLines (addPrefix "|       ")
+
+        lines =
+            Array.empty
+                |> Array.append bottom
+                |> Array.append middle
+                |> Array.append top
+                |> Array.toList
+                |> List.filter (String.isEmpty >> not)
+
+        emptyLines =
+            "~\n"
+                |> List.repeat
+                    (Basics.max
+                        (buf.view.size.height
+                            - (lines
+                                |> List.filter
+                                    (\line ->
+                                        String.startsWith "||" line
+                                            || String.startsWith "~" line
+                                    )
+                                |> List.length
+                              )
+                        )
+                        0
+                    )
     in
         buf.mode
             |> Buf.getStatusBar
             |> .text
-            |> ((++) "\n")
             |> List.singleton
-            |> Array.fromList
-            |> Array.append bottom
-            |> Array.append middle
-            |> Array.append top
-            |> Array.toList
+            |> List.append (lines ++ emptyLines)
             |> String.join ""
             |> String.trim
 
@@ -117,7 +137,13 @@ newBuffer mode cursor height scrollTop lines =
                         }
                     , scrollTop = scrollTop
                 }
-            , lines = B.fromString lines
+            , lines =
+                B.fromString
+                    (if String.endsWith B.lineBreak lines then
+                        lines
+                     else
+                        lines ++ B.lineBreak
+                    )
         }
 
 
@@ -159,7 +185,11 @@ testDataParser =
 
                             height =
                                 lines
-                                    |> List.filter (String.startsWith "||")
+                                    |> List.filter
+                                        (\line ->
+                                            String.startsWith "||" line
+                                                || String.startsWith "~" line
+                                        )
                                     |> List.length
 
                             cursor =
@@ -324,7 +354,9 @@ testDataParser =
                         |> P.source
                         |> P.andThen
                             (\s ->
-                                P.run keysParser s
+                                s
+                                    |> String.trim
+                                    |> P.run keysParser
                                     |> Result.withDefault []
                                     |> P.succeed
                             )

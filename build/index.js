@@ -30,7 +30,9 @@ class SessionStorageItem extends HTMLElement {
     );
   }
 }
-customElements.define('session-storage-item', SessionStorageItem);
+if (typeof customElements !== 'undefined') {
+  customElements.define('session-storage-item', SessionStorageItem);
+}
 
 
 const safeJsonParse = (s) => {
