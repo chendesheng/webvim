@@ -1,7 +1,4 @@
 {
-||      
-        ^
--- Normal --
 }
 
 > i1<backspace>

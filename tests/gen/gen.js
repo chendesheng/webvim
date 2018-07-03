@@ -4,9 +4,14 @@ const {execSync} = require('child_process');
 const chokidar = require('chokidar');
 
 function genLines(s) {
-  const code = s.split('\n').map(function(line) {
-    return `"""${line}"""`;
-  }).join('\n   , ');
+  const code = s.split('\n')
+    // remove comments
+    .filter(function(line) {
+      return line[0] !== '#';
+    })
+    .map(function(line) {
+      return `"""${line}"""`;
+    }).join('\n   , ');
 
   return `
     String.join "\\n"

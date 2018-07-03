@@ -1,3 +1,28 @@
+# '#' : comment
+# '{' : buffer start
+# '}' : buffer end
+# '|' : line in buffer and not inside screen, ignore first 8 characters
+# '||' : line in buffer and inside screen, ignore first 8 charactors
+# '^' : cursor position
+# '~' : tail empty lines, fill view height
+# '>' : input keys
+# line before buffer end is status bar
+#   status bar contains mode name or ex buffer
+# empty buffer (a line break will be inserted by default): 
+#   {
+#   }
+# or (height=2):
+#   {
+#   ~
+#   ~
+#   }
+# todo:
+#  '~': visual range
+#  '<->': resize view action
+#  cursor for ex buffer 
+#  matched bracket
+
+
 {
 ||      function addOne(i) {
 ||        if (i != NaN) {

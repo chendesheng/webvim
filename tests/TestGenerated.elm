@@ -89,11 +89,7 @@ formatBuffer buf =
                     (Basics.max
                         (buf.view.size.height
                             - (lines
-                                |> List.filter
-                                    (\line ->
-                                        String.startsWith "||" line
-                                            || String.startsWith "~" line
-                                    )
+                                |> List.filter isVisible
                                 |> List.length
                               )
                         )
@@ -147,6 +143,173 @@ newBuffer mode cursor height scrollTop lines =
         }
 
 
+isTextLine : String -> Bool
+isTextLine =
+    String.startsWith "|"
+
+
+parseCursor : List String -> Position
+parseCursor lines =
+    lines
+        |> List.indexedMap
+            (\i line ->
+                if String.startsWith " " line then
+                    line
+                        |> Re.find (Re.AtMost 1)
+                            (Re.regex "\\^")
+                        |> List.head
+                        |> Maybe.map
+                            (\m ->
+                                ( (lines
+                                    |> List.take i
+                                    |> List.filter isTextLine
+                                    |> List.length
+                                  )
+                                    - 1
+                                , m.index - 8
+                                )
+                            )
+                else
+                    Nothing
+            )
+        |> List.filterMap identity
+        |> List.head
+        |> Maybe.withDefault ( 0, 0 )
+
+
+parseScrollTop : List String -> Int
+parseScrollTop textLines =
+    textLines
+        |> List.indexedMap
+            (\i line ->
+                if String.startsWith "||" line then
+                    Just i
+                else
+                    Nothing
+            )
+        |> List.filterMap identity
+        |> List.head
+        |> Maybe.withDefault 0
+
+
+parseMode : Position -> String -> Mode
+parseMode cursor statusBar =
+    if
+        String.startsWith
+            "-- Insert --"
+            statusBar
+    then
+        Insert
+            { autoComplete = Nothing
+            , startCursor = cursor
+            }
+    else if
+        String.startsWith
+            "-- Visual --"
+            statusBar
+    then
+        Visual
+            { tipe = VisualChars
+            , begin = cursor
+            , end = cursor
+            }
+    else if
+        String.startsWith
+            "-- Visual Line --"
+            statusBar
+    then
+        Visual
+            { tipe = VisualLine
+            , begin = cursor
+            , end = cursor
+            }
+    else if
+        String.startsWith
+            "-- Visual Block --"
+            statusBar
+    then
+        Visual
+            { tipe = VisualBlock
+            , begin = cursor
+            , end = cursor
+            }
+    else if
+        String.startsWith
+            "-- (insert) --"
+            statusBar
+    then
+        TempNormal
+    else if String.startsWith ":" statusBar then
+        Ex
+            { prefix = ExCommand
+            , exbuf =
+                emptyExBuffer
+                    |> Buf.transaction
+                        [ Insertion ( 0, 0 ) <|
+                            B.fromString statusBar
+                        ]
+            , visual = Nothing
+            }
+    else if String.startsWith "/" statusBar then
+        Ex
+            { prefix =
+                ExSearch
+                    { forward = True
+                    , match = Nothing
+                    }
+            , exbuf =
+                emptyExBuffer
+                    |> Buf.transaction
+                        [ Insertion ( 0, 0 ) <|
+                            B.fromString statusBar
+                        ]
+            , visual = Nothing
+            }
+    else if String.startsWith "?" statusBar then
+        Ex
+            { prefix =
+                ExSearch
+                    { forward = False
+                    , match = Nothing
+                    }
+            , exbuf =
+                emptyExBuffer
+                    |> Buf.transaction
+                        [ Insertion ( 0, 0 ) <|
+                            B.fromString statusBar
+                        ]
+            , visual = Nothing
+            }
+    else if
+        String.startsWith "-- Normal --"
+            statusBar
+    then
+        Normal { message = EmptyMessage }
+    else
+        Normal
+            { message =
+                case
+                    statusBar
+                        |> String.split " "
+                        |> List.head
+                of
+                    Just s ->
+                        if String.isEmpty s then
+                            EmptyMessage
+                        else
+                            InfoMessage s
+
+                    _ ->
+                        EmptyMessage
+            }
+
+
+isVisible : String -> Bool
+isVisible line =
+    String.startsWith "||" line
+        || String.startsWith "~" line
+
+
 testDataParser : Parser TestCase
 testDataParser =
     P.succeed
@@ -160,191 +323,62 @@ testDataParser =
                 |> P.source
                 |> P.andThen
                     (\s ->
-                        let
-                            lines =
-                                s
-                                    |> String.dropRight 2
-                                    |> String.lines
+                        if s == "\n}" then
+                            P.succeed emptyBuffer
+                        else if String.startsWith "~\n" s then
+                            let
+                                height =
+                                    s
+                                        |> String.dropRight 2
+                                        |> String.lines
+                                        |> List.length
 
-                            statusBar =
-                                lines
-                                    |> getLast
-                                    |> Maybe.withDefault ""
+                                view =
+                                    emptyBuffer.view
+                            in
+                                P.succeed
+                                    { emptyBuffer
+                                        | view =
+                                            { emptyView
+                                                | size =
+                                                    { width = 1
+                                                    , height = height
+                                                    }
+                                            }
+                                    }
+                        else
+                            let
+                                lines =
+                                    s
+                                        |> String.dropRight 2
+                                        |> String.lines
 
-                            isTextLine =
-                                String.startsWith "|"
+                                textLines =
+                                    lines
+                                        |> List.filter isTextLine
 
-                            textLines =
-                                lines
-                                    |> List.filter isTextLine
+                                height =
+                                    lines
+                                        |> List.filter isVisible
+                                        |> List.length
 
-                            text =
+                                cursor =
+                                    parseCursor lines
+
+                                scrollTop =
+                                    parseScrollTop textLines
+
+                                mode =
+                                    lines
+                                        |> getLast
+                                        |> Maybe.withDefault ""
+                                        |> parseMode cursor
+                            in
                                 textLines
                                     |> List.map (String.dropLeft 8)
                                     |> String.join "\n"
-
-                            height =
-                                lines
-                                    |> List.filter
-                                        (\line ->
-                                            String.startsWith "||" line
-                                                || String.startsWith "~" line
-                                        )
-                                    |> List.length
-
-                            cursor =
-                                lines
-                                    |> List.indexedMap
-                                        (\i line ->
-                                            if String.startsWith " " line then
-                                                line
-                                                    |> Re.find (Re.AtMost 1)
-                                                        (Re.regex "\\^")
-                                                    |> List.head
-                                                    |> Maybe.map
-                                                        (\m ->
-                                                            ( (lines
-                                                                |> List.take i
-                                                                |> List.filter
-                                                                    isTextLine
-                                                                |> List.length
-                                                              )
-                                                                - 1
-                                                            , m.index - 8
-                                                            )
-                                                        )
-                                            else
-                                                Nothing
-                                        )
-                                    |> List.filterMap identity
-                                    |> List.head
-                                    |> Maybe.withDefault ( 0, 0 )
-
-                            scrollTop =
-                                textLines
-                                    |> List.indexedMap
-                                        (\i line ->
-                                            if String.startsWith "||" line then
-                                                Just i
-                                            else
-                                                Nothing
-                                        )
-                                    |> List.filterMap identity
-                                    |> List.head
-                                    |> Maybe.withDefault 0
-
-                            mode =
-                                if
-                                    String.startsWith
-                                        "-- Insert --"
-                                        statusBar
-                                then
-                                    Insert
-                                        { autoComplete = Nothing
-                                        , startCursor = cursor
-                                        }
-                                else if
-                                    String.startsWith
-                                        "-- Visual --"
-                                        statusBar
-                                then
-                                    Visual
-                                        { tipe = VisualChars
-                                        , begin = cursor
-                                        , end = cursor
-                                        }
-                                else if
-                                    String.startsWith
-                                        "-- Visual Line --"
-                                        statusBar
-                                then
-                                    Visual
-                                        { tipe = VisualLine
-                                        , begin = cursor
-                                        , end = cursor
-                                        }
-                                else if
-                                    String.startsWith
-                                        "-- Visual Block --"
-                                        statusBar
-                                then
-                                    Visual
-                                        { tipe = VisualBlock
-                                        , begin = cursor
-                                        , end = cursor
-                                        }
-                                else if
-                                    String.startsWith
-                                        "-- (insert) --"
-                                        statusBar
-                                then
-                                    TempNormal
-                                else if String.startsWith ":" statusBar then
-                                    Ex
-                                        { prefix = ExCommand
-                                        , exbuf =
-                                            emptyExBuffer
-                                                |> Buf.transaction
-                                                    [ Insertion ( 0, 0 ) <|
-                                                        B.fromString statusBar
-                                                    ]
-                                        , visual = Nothing
-                                        }
-                                else if String.startsWith "/" statusBar then
-                                    Ex
-                                        { prefix =
-                                            ExSearch
-                                                { forward = True
-                                                , match = Nothing
-                                                }
-                                        , exbuf =
-                                            emptyExBuffer
-                                                |> Buf.transaction
-                                                    [ Insertion ( 0, 0 ) <|
-                                                        B.fromString statusBar
-                                                    ]
-                                        , visual = Nothing
-                                        }
-                                else if String.startsWith "?" statusBar then
-                                    Ex
-                                        { prefix =
-                                            ExSearch
-                                                { forward = False
-                                                , match = Nothing
-                                                }
-                                        , exbuf =
-                                            emptyExBuffer
-                                                |> Buf.transaction
-                                                    [ Insertion ( 0, 0 ) <|
-                                                        B.fromString statusBar
-                                                    ]
-                                        , visual = Nothing
-                                        }
-                                else if
-                                    String.startsWith "-- Normal --"
-                                        statusBar
-                                then
-                                    Normal { message = EmptyMessage }
-                                else
-                                    Normal
-                                        { message =
-                                            case
-                                                statusBar
-                                                    |> String.split " "
-                                                    |> List.head
-                                            of
-                                                Just s ->
-                                                    if String.isEmpty s then
-                                                        EmptyMessage
-                                                    else
-                                                        InfoMessage s
-
-                                                _ ->
-                                                    EmptyMessage
-                                        }
-                        in
-                            newBuffer mode cursor height scrollTop text
-                                |> P.succeed
+                                    |> newBuffer mode cursor height scrollTop
+                                    |> P.succeed
                     )
            )
         |= P.repeat P.oneOrMore
