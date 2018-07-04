@@ -789,6 +789,19 @@ saveCursorBeforeJump md cursorAfter buf =
             buf
 
 
+showErrorMessage : V.MotionData -> V.MotionOption -> Buffer -> Buffer
+showErrorMessage md mo buf =
+    case md of
+        V.MatchChar _ _ ->
+            Buf.errorMessage "Char not found" buf
+
+        V.MatchString _ ->
+            Buf.errorMessage "Pattern not found" buf
+
+        _ ->
+            buf
+
+
 motion :
     Maybe Int
     -> V.MotionData
@@ -830,4 +843,8 @@ motion count md mo buf =
                 )
 
         Nothing ->
-            ( saveMotion md mo buf buf, Cmd.none )
+            ( buf
+                |> saveMotion md mo buf
+              --|> showErrorMessage md mo
+            , Cmd.none
+            )

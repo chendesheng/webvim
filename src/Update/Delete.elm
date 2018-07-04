@@ -52,7 +52,27 @@ delete count register rg buf =
         deleteAnd f buf =
             case deleteOperator count rg buf of
                 [] ->
-                    buf
+                    let
+                        last =
+                            buf.last
+
+                        setMotionFailed buf =
+                            { buf | last = { last | motionFailed = True } }
+                    in
+                        case rg of
+                            V.MotionRange md _ ->
+                                case md of
+                                    V.MatchString _ ->
+                                        setMotionFailed buf
+
+                                    V.MatchChar _ _ ->
+                                        setMotionFailed buf
+
+                                    _ ->
+                                        buf
+
+                            _ ->
+                                buf
 
                 patches ->
                     buf
