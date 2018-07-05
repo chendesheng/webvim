@@ -25,11 +25,11 @@ expandSingleLineTextObject :
 expandSingleLineTextObject wordChars textobj around line cursor =
     case textobj of
         Word ->
-            Maybe.map2 (,)
+            Maybe.map2 (\a b -> ( a + 1, b - 1 ))
                 ((findPosition
                     wordChars
                     WordEdge
-                    (motionOption "<]$-")
+                    (motionOption "<)$-")
                     line
                     cursor
                  )
@@ -38,7 +38,7 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                 ((findPosition
                     wordChars
                     WordEdge
-                    (motionOption ">]$-")
+                    (motionOption ">)$-")
                     line
                     cursor
                  )
@@ -46,11 +46,11 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                 )
 
         WORD ->
-            Maybe.map2 (,)
+            Maybe.map2 (\a b -> ( a + 1, b - 1 ))
                 ((findPosition
                     wordChars
                     WORDEdge
-                    (motionOption "<]$-")
+                    (motionOption "<)$-")
                     line
                     cursor
                  )
@@ -59,7 +59,7 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                 ((findPosition
                     wordChars
                     WORDEdge
-                    (motionOption ">]$-")
+                    (motionOption ">)$-")
                     line
                     cursor
                  )

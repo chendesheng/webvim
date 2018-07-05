@@ -249,6 +249,9 @@ type alias Buffer =
         , ex : String
         , indent : Int
         , jumpToTag : Maybe Location
+
+        -- if motion failed don't change to insert mode
+        , motionFailed : Bool
         }
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
     , jumps : Jumps
@@ -366,6 +369,7 @@ emptyBuffer =
         , ex = ""
         , indent = 0
         , jumpToTag = Nothing
+        , motionFailed = False
         }
     , vimASTCache = Dict.empty
     , jumps =

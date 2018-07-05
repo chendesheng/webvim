@@ -562,8 +562,8 @@ operator isVisual isTemp =
                 if key == "c" then
                     P.oneOf
                         -- w/W behavior differently in change operator
-                        [ define "w" WordEdge <| motionOption ">]$-"
-                        , define "W" WORDEdge <| motionOption ">]$-"
+                        [ define "w" WordEdge <| motionOption ">)$-"
+                        , define "W" WORDEdge <| motionOption ">)$-"
                         , textObjectParser
                         , motionParser
                         ]
@@ -583,7 +583,7 @@ operator isVisual isTemp =
                 (\key1 ->
                     (P.map
                         ((::) (PushKey (key ++ key1)))
-                        (operatorRange key <| flipInclusive >> map)
+                        (operatorRange key <| (visualAfterOperator key1) >> map)
                     )
                 )
 

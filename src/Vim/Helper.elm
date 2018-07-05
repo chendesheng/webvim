@@ -378,15 +378,47 @@ aggregateKeys changes =
         |> String.join ""
 
 
-flipInclusive : OperatorRange -> OperatorRange
-flipInclusive range =
+visualAfterOperator : Key -> OperatorRange -> OperatorRange
+visualAfterOperator key range =
+    case key of
+        "v" ->
+            visualRangeAfterOperator range
+
+        "V" ->
+            visualLineAfterOperator range
+
+        _ ->
+            range
+
+
+visualRangeAfterOperator : OperatorRange -> OperatorRange
+visualRangeAfterOperator range =
     case range of
         MotionRange md mo ->
             let
-                ({ inclusive } as opt) =
+                { inclusive, linewise } =
                     mo
             in
-                MotionRange md { opt | inclusive = not inclusive }
+                MotionRange md
+                    { mo
+                        | inclusive =
+                            if linewise then
+                                False
+                            else
+                                not inclusive
+                        , linewise = False
+                    }
+
+        _ ->
+            range
+
+
+visualLineAfterOperator : OperatorRange -> OperatorRange
+visualLineAfterOperator range =
+    case range of
+        MotionRange md mo ->
+            MotionRange md
+                { mo | linewise = True }
 
         _ ->
             range

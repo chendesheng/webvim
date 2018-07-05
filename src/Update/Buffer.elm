@@ -738,9 +738,15 @@ indentCursorToLineFirst buf =
     let
         ( y, x ) =
             buf.cursor
+
+        y1 =
+            if y >= B.count buf.lines - 1 then
+                Basics.max (y - 1) 0
+            else
+                y
     in
         if x == 0 then
-            gotoLine y buf
+            gotoLine y1 buf
         else
             buf
 

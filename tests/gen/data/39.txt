@@ -1,0 +1,15 @@
+{
+||       123
+        ^
+|       456
+-- Normal --
+}
+
+> ji<space><space><esc>kdd
+
+{
+||        456
+          ^
+-- Normal --
+}
+

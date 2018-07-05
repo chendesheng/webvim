@@ -95,7 +95,7 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                motionOption ">]$-"
+                motionOption ">)$-"
                     |> MotionRange WordEdge
                     |> Delete
                     |> Just
@@ -109,7 +109,7 @@ cases =
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
-                motionOption ">)$-"
+                motionOption ">]$-"
                     |> MotionRange WordEdge
                     |> Delete
                     |> Just
@@ -509,7 +509,7 @@ cases =
             | recordMacro = Just "a"
             , modeName = ModeNameInsert
             , edit =
-                motionOption ">]$-"
+                motionOption ">)$-"
                     |> MotionRange WordEdge
                     |> Delete
                     |> Just

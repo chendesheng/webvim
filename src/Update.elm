@@ -173,13 +173,26 @@ updateMode modeName buf =
         oldModeName =
             getModeName buf.mode
 
+        last =
+            buf.last
+
         newMode =
             if oldModeName == modeName then
+                buf.mode
+            else if
+                (oldModeName == V.ModeNameNormal)
+                    && (modeName == V.ModeNameInsert)
+                    && buf.last.motionFailed
+            then
+                -- Don't change to insert mode when motion failed
                 buf.mode
             else
                 initMode buf modeName
     in
-        { buf | mode = newMode }
+        { buf
+            | mode = newMode
+            , last = { last | motionFailed = False }
+        }
 
 
 isLineDeltaMotion : Operator -> Bool
@@ -1570,11 +1583,7 @@ applyVimAST replaying key ast buf =
                 buf
 
         doTokenize oldBuf ( buf, cmds ) =
-            if
-                (oldBuf.path == buf.path)
-                    && (buf.cursor /= oldBuf.cursor)
-                    || (Buf.isEditing oldBuf buf)
-            then
+            if (oldBuf.path == buf.path) || (Buf.isEditing oldBuf buf) then
                 let
                     newBottom =
                         case buf.mode of

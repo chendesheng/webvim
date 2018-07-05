@@ -130,7 +130,7 @@ parserWordEdge wordChars =
                     , P.end |> P.map (always "")
                     ]
     in
-        P.succeed (sumLength1 -1)
+        P.succeed String.length
             |= P.oneOf
                 [ divider spaceInline
                 , divider (word wordChars)
@@ -165,7 +165,7 @@ parserWORDEdge =
     let
         divider pred =
             P.succeed
-                (sumLength1 -1)
+                String.length
                 |= P.keep P.oneOrMore pred
                 |. P.oneOf
                     [ P.keep (P.Exactly 1) (pred >> not)
