@@ -6,6 +6,7 @@ import Update.Message
         ( Msg(..)
         , TokenizeResponse(..)
         , TokenizeRequest
+        , BufferIdentifier
         )
 import Json.Decode as Decode exposing (decodeString)
 import Elm.Array as Array
@@ -164,7 +165,7 @@ sendReadBuffer url tokenizeLines tabSize info =
                         |> Task.map
                             (\res ->
                                 case res of
-                                    TokenizeSuccess _ _ _ syntax ->
+                                    TokenizeSuccess _ syntax ->
                                         ( lines, syntax )
 
                                     _ ->
@@ -332,7 +333,7 @@ parseLintResult sep path =
 sendLintProject : String -> String -> String -> Int -> Cmd Msg
 sendLintProject url sep path version =
     Http.getString (url ++ "/lint?path=" ++ path)
-        |> Http.send (parseLintResult sep path >> Lint version)
+        |> Http.send (parseLintResult sep path >> Lint ( path, version ))
 
 
 sendLintOnTheFly : String -> String -> String -> Int -> String -> Cmd Msg
@@ -342,10 +343,7 @@ sendLintOnTheFly url sep path version buf =
             Http.stringBody "text/plain" buf
     in
         post (url ++ "/lint?path=" ++ path) body
-            |> Http.send
-                (parseLintResult sep path
-                    >> LintOnTheFly version
-                )
+            |> Http.send (parseLintResult sep path >> Lint ( path, version ))
 
 
 unpackClass : Int -> Int -> Int -> Token
@@ -474,8 +472,8 @@ tokensParser =
             )
 
 
-tokenizeResponseDecoder : Int -> Int -> Decode.Decoder TokenizeResponse
-tokenizeResponseDecoder version n =
+tokenizeResponseDecoder : Int -> Decode.Decoder TokenizeResponse
+tokenizeResponseDecoder n =
     (Decode.field "type" Decode.string)
         |> Decode.andThen
             (\tipe ->
@@ -485,30 +483,33 @@ tokenizeResponseDecoder version n =
                             (\path list ->
                                 list
                                     |> Array.fromList
-                                    |> TokenizeSuccess path version n
+                                    |> TokenizeSuccess n
                             )
                             (Decode.field "path" Decode.string)
                             (Decode.field "payload" (Decode.list tokensParser))
 
                     "error" ->
-                        Decode.map TokenizeError <|
-                            Decode.field "payload" Decode.string
+                        Decode.field "payload" Decode.string
+                            |> Decode.map TokenizeError
 
                     _ ->
                         Decode.succeed TokenizeCacheMiss
             )
 
 
-sendTokenizeTask : String -> TokenizeRequest -> Task Http.Error TokenizeResponse
-sendTokenizeTask url { path, version, line, lines } =
+sendTokenizeTask :
+    String
+    -> TokenizeRequest
+    -> Task Http.Error TokenizeResponse
+sendTokenizeTask url { path, line, lines } =
     let
         body =
             Http.stringBody "text/plain" lines
     in
         if path == "" || path == "[Find]" then
-            Task.succeed (TokenizeSuccess "" 0 0 Array.empty)
+            Task.succeed (TokenizeSuccess 0 Array.empty)
         else
-            tokenizeResponseDecoder version line
+            tokenizeResponseDecoder line
                 |> Http.post
                     (url
                         ++ "/tokenize?path="
@@ -521,8 +522,8 @@ sendTokenizeTask url { path, version, line, lines } =
 
 
 sendTokenize : String -> TokenizeRequest -> Cmd Msg
-sendTokenize url req =
-    Task.attempt Tokenized (sendTokenizeTask url req)
+sendTokenize url ({ path, version } as req) =
+    Task.attempt (Tokenized ( path, version )) (sendTokenizeTask url req)
 
 
 sendTokenizeLine : String -> TokenizeRequest -> Cmd Msg
@@ -530,17 +531,15 @@ sendTokenizeLine url req =
     Cmd.map
         (\msg ->
             case msg of
-                Tokenized res ->
+                Tokenized bufId res ->
                     res
                         |> Result.map
                             (\r ->
                                 case r of
-                                    TokenizeSuccess path version i syntax ->
+                                    TokenizeSuccess i syntax ->
                                         case Array.get 0 syntax of
                                             Just tokens ->
                                                 LineTokenizeSuccess
-                                                    path
-                                                    version
                                                     i
                                                     tokens
 
@@ -550,7 +549,7 @@ sendTokenizeLine url req =
                                     _ ->
                                         r
                             )
-                        |> Tokenized
+                        |> Tokenized bufId
 
                 _ ->
                     msg

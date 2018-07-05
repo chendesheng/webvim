@@ -10,9 +10,14 @@ import Internal.TextBuffer as B exposing (Patch)
 import Model exposing (Key, LintError, BufferInfo, Flags)
 
 
+type alias BufferIdentifier =
+    -- (path, version)
+    ( String, Int )
+
+
 type TokenizeResponse
-    = TokenizeSuccess String Int Int Syntax
-    | LineTokenizeSuccess String Int Int (List Token)
+    = TokenizeSuccess Int Syntax
+    | LineTokenizeSuccess Int (List Token)
     | TokenizeCacheMiss -- happens when server restart
     | TokenizeError String
 
@@ -34,9 +39,8 @@ type Msg
     | WriteClipboard (Result Http.Error ())
     | SendLint
     | SendTokenize TokenizeRequest
-    | Lint Int (Result String (List LintError))
-    | LintOnTheFly Int (Result String (List LintError))
-    | Tokenized (Result Http.Error TokenizeResponse)
+    | Lint BufferIdentifier (Result String (List LintError))
+    | Tokenized BufferIdentifier (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List String))
     | ReadTags (Result String Location)
     | SearchResult (Result Http.Error String)

@@ -1654,57 +1654,38 @@ applyVimAST replaying key ast buf =
             |> Tuple.mapSecond Cmd.batch
 
 
-onTokenized : Buffer -> Result error TokenizeResponse -> ( Buffer, Cmd Msg )
+onTokenized :
+    Buffer
+    -> Result error TokenizeResponse
+    -> ( Buffer, Cmd Msg )
 onTokenized buf resp =
     case resp of
         Ok payload ->
             case payload of
-                TokenizeSuccess path version begin syntax ->
-                    --let
-                    --    _ =
-                    --        Debug.log "path" path
-                    --    _ =
-                    --        Debug.log "buf.path" buf.path
-                    --    _ =
-                    --        Debug.log "version" version
-                    --    _ =
-                    --        Debug.log "buf.version" buf.history.version
-                    --in
-                    ( if
-                        (path == buf.path)
-                            && (version == buf.history.version)
-                      then
-                        let
-                            syntax1 =
-                                buf.syntax
-                                    |> Array.slice 0 begin
-                                    |> flip Array.append syntax
+                TokenizeSuccess begin syntax ->
+                    ( let
+                        syntax1 =
+                            buf.syntax
+                                |> Array.slice 0 begin
+                                |> flip Array.append syntax
 
-                            view =
-                                buf.view
-                        in
-                            { buf
-                                | syntax = syntax1
-                                , syntaxDirtyFrom = Array.length syntax1
-                            }
-                                |> pairCursor
-                      else
-                        buf
+                        view =
+                            buf.view
+                      in
+                        { buf
+                            | syntax = syntax1
+                            , syntaxDirtyFrom = Array.length syntax1
+                        }
+                            |> pairCursor
                     , Cmd.none
                     )
 
-                LineTokenizeSuccess path version begin tokens ->
-                    if
-                        (path == buf.path)
-                            && (version == buf.history.version)
-                    then
-                        tokenizeBuffer
-                            { buf
-                                | syntax = Array.set begin tokens buf.syntax
-                                , syntaxDirtyFrom = begin + 1
-                            }
-                    else
-                        ( buf, Cmd.none )
+                LineTokenizeSuccess begin tokens ->
+                    tokenizeBuffer
+                        { buf
+                            | syntax = Array.set begin tokens buf.syntax
+                            , syntaxDirtyFrom = begin + 1
+                        }
 
                 TokenizeCacheMiss ->
                     tokenizeBuffer { buf | syntaxDirtyFrom = 0 }
@@ -1930,20 +1911,27 @@ update message buf =
             else
                 ( buf, Cmd.none )
 
-        LintOnTheFly version resp ->
-            case resp of
-                Ok errors ->
-                    if version == buf.history.version then
+        Lint ( path, version ) resp ->
+            if
+                (path == buf.path)
+                    && (version == buf.history.version)
+            then
+                case resp of
+                    Ok items ->
                         let
-                            items =
+                            items1 =
                                 List.map
                                     (\item ->
                                         { item
                                             | file =
                                                 if
-                                                    String.endsWith
-                                                        "912ec803b2ce49e4a541068d495ab570.txt"
-                                                        item.file
+                                                    String.isEmpty item.file
+                                                        || String.endsWith
+                                                            buf.path
+                                                            item.file
+                                                        || String.endsWith
+                                                            "912ec803b2ce49e4a541068d495ab570.txt"
+                                                            item.file
                                                 then
                                                     buf.path
                                                 else
@@ -1964,45 +1952,6 @@ update message buf =
                                                     )
                                         }
                                     )
-                                    errors
-                        in
-                            ( { buf
-                                | lint =
-                                    { items = items
-                                    , count = List.length items
-                                    }
-                                , locationList =
-                                    lintErrorToLocationList items
-                              }
-                            , Cmd.none
-                            )
-                    else
-                        ( buf, Cmd.none )
-
-                Err _ ->
-                    ( buf, Cmd.none )
-
-        Lint version resp ->
-            case resp of
-                Ok items ->
-                    if version == buf.history.version then
-                        let
-                            items1 =
-                                List.map
-                                    (\item ->
-                                        { item
-                                            | file =
-                                                if
-                                                    String.isEmpty item.file
-                                                        || String.endsWith
-                                                            buf.path
-                                                            item.file
-                                                then
-                                                    buf.path
-                                                else
-                                                    item.file
-                                        }
-                                    )
                                     items
                         in
                             ( { buf
@@ -2014,14 +1963,20 @@ update message buf =
                               }
                             , Cmd.none
                             )
-                    else
+
+                    Err _ ->
                         ( buf, Cmd.none )
+            else
+                ( buf, Cmd.none )
 
-                Err _ ->
-                    ( buf, Cmd.none )
-
-        Tokenized resp ->
-            onTokenized buf resp
+        Tokenized ( path, version ) resp ->
+            if
+                (path == buf.path)
+                    && (version == buf.history.version)
+            then
+                onTokenized buf resp
+            else
+                ( buf, Cmd.none )
 
         SendTokenize req ->
             ( buf, sendTokenize buf.config.service req )
