@@ -19,6 +19,7 @@ import Helper
     , createReadableStream
     , diff
     , homedir
+    , isWindows
     )
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
@@ -31,7 +32,12 @@ import Node.HTTP
   , setStatusCode
   , setHeader
   )
-import Node.Stream (pipe, writeString)
+import Node.Stream
+  (pipe
+  , Writable
+  , Readable
+  , writeString
+  )
 import Node.Process as Process
 import Prelude
 import Shell (execAsync)
@@ -65,28 +71,36 @@ writeFile req resp path = do
   case stripSuffix (Pattern ".elm") path of
     Just _ -> do
       affLog ("elm-format :" <> path)
-      -- hold input in memory and use later if format failed
-      input <- affReadAllString inputStream
-      result <- execAsync Nothing "elm-format --stdin"
-                  (Just $ createReadableStream input)
-      affLog (show result.error)
-      case result.error of
-        Just err -> do
-          affWriteString outputStream "[]"
-          affWriteString fileStream input
+      format inputStream outputStream fileStream "elm-format --stdin"
+    _ ->
+      case stripSuffix (Pattern ".js") path of
+        Just _ -> do
+          let cmd = if isWindows then "jsfmt.cmd" else "jsfmt"
+          affLog ("jsformat :" <> path)
+          format inputStream outputStream fileStream cmd
         _ -> do
-          formatted <- affBufferToString result.stdout
-          affWriteString fileStream formatted
-          --affLog $ "formatted" <> formatted
-          --affLog $ diff input formatted
-          affWriteString outputStream $ diff input formatted
-    _ -> do
-      affPipe inputStream fileStream
-      affWriteString outputStream "[]"
-      affWaitEnd inputStream
+          affPipe inputStream fileStream
+          affWriteString outputStream "[]"
+          affWaitEnd inputStream
   affEnd outputStream
 
 
+format :: Readable () -> Writable () -> Writable() -> String -> Aff Unit
+format inputStream outputStream fileStream cmd = do
+  input <- affReadAllString inputStream
+  result <- execAsync Nothing cmd
+              (Just $ createReadableStream input)
+  affLog (show result.error)
+  case result.error of
+    Just err -> do
+      affWriteString outputStream "[]"
+      affWriteString fileStream input
+    _ -> do
+      formatted <- affBufferToString result.stdout
+      affWriteString fileStream formatted
+      --affLog $ "formatted" <> formatted
+      --affLog $ diff input formatted
+      affWriteString outputStream $ diff input formatted
 
 listFiles :: Response -> String -> Aff Unit
 listFiles resp cwd = do

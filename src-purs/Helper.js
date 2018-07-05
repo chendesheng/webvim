@@ -17,7 +17,9 @@ exports.readAllString = function(readable) {
 };
 
 exports.createReadableStream = function(s) {
-  return new MemoryStream(s, {writable: false});
+  return new MemoryStream(s, {
+    writable: false
+  });
 };
 
 var jsdiff = require('diff');
@@ -72,4 +74,6 @@ exports.boot = JSON.stringify({
   homedir: exports.homedir,
   pathSeperator: require('path').sep,
 });
+
+exports.isWindows = /win/i.test(require('os').platform());
 

@@ -34,8 +34,11 @@ customElements.define('session-storage-item', SessionStorageItem);
 
 
 const safeJsonParse = (s) => {
-  if (s) return JSON.parse(s);
-  else return null;
+  if (s) {
+    return JSON.parse(s);
+  } else {
+    return null;
+  }
 };
 
 const getTheme = () => {

@@ -2,7 +2,7 @@ module Lint (lint, lintOnTheFly) where
 
 import Prelude (Unit, bind, discard, pure, show, void, ($), (<>), (==), (#))
 import Effect.Aff (Aff)
-import Helper (affLog, affWriteString, affEnd, tempdir, currentdir)
+import Helper (affLog, affWriteString, affEnd, tempdir, currentdir, isWindows)
 import Node.HTTP (Request, Response, requestAsStream, responseAsStream)
 import Node.Buffer (toString)
 import Node.Encoding (Encoding(..))
@@ -60,6 +60,7 @@ eslint req resp path = do
       formatter = [currentdir, "../eslint-json-formatter.js"]
                   # Path.concat 
                   # Path.normalize
+      eslintCmd = if isWindows then "eslint.cmd" else "eslint"
   absolutePath <- FS.realpath $ Path.normalize path
   affLog formatter
 
@@ -68,7 +69,7 @@ eslint req resp path = do
               Nothing
               (Str.joinWith 
                 " "
-                [ "eslint"
+                [ eslintCmd
                 , "--format=" <> formatter
                 , "\"" <> path <> "\""
                 ]
@@ -108,15 +109,17 @@ eslintOnTheFly req resp path = do
       formatter = [currentdir, "../eslint-json-formatter.js"]
                   # Path.concat 
                   # Path.normalize
+      eslintCmd = if isWindows then "eslint.cmd" else "eslint"
   absolutePath <- FS.realpath $ Path.normalize path
   affLog formatter
+  affLog eslintCmd
 
   void $ affLog "eslintOnTheFly"
   result <- execAsync
               Nothing
               (Str.joinWith 
                 " "
-                [ "eslint"
+                [ eslintCmd
                 , "--stdin"
                 , "--stdin-filename=" <> path
                 , "--format=" <> formatter

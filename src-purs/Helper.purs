@@ -36,6 +36,8 @@ foreign import tempdir :: String
 
 foreign import boot :: String
 
+foreign import isWindows :: Boolean
+
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s
 

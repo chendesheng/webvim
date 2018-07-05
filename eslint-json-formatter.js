@@ -1,4 +1,9 @@
 module.exports = function(results) {
+  // console.log(results);
+  if (!results) {
+    return null;
+  }
+
   // the source field is quite big and useless (for now), just remove it
   for (let i = 0, len = results.length; i < len; i++) {
     const result = results[i];
