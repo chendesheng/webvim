@@ -1,0 +1,29 @@
+{
+}
+
+> inewline<esc>"ayyddiabc<esc>^dei123<cr>456<esc>gg
+
+{
+||      123
+        ^
+|       456
+-- Normal --
+}
+
+> i<c-r>"
+
+{
+||      abc123
+           ^
+|       456
+-- Insert --
+}
+
+> <esc>ucw<c-r>"
+
+{
+||      123
+           ^
+|       456
+-- Insert --
+}

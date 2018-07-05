@@ -1,0 +1,30 @@
+{
+}
+
+> inewline<esc>"ayyddiabc<esc>^dei123<cr>456<esc>gg
+
+{
+||      123
+        ^
+|       456
+-- Normal --
+}
+
+> dwp
+
+{
+||      123
+          ^
+|       456
+-- Normal --
+}
+
+> uudwP
+
+{
+||      123
+          ^
+|       456
+-- Normal --
+}
+

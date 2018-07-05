@@ -6,22 +6,33 @@
 -- Normal --
 }
 
-> :11
+> /bc<cr>
+
+{
+||      abc
+         ^
+|       def
+|       def
+-- Normal --
+}
+
+> /de<cr>
+
+{
+|       abc
+||      def
+        ^
+|       def
+-- Normal --
+}
+
+> ?ab<cr>
 
 {
 ||      abc
         ^
 |       def
 |       def
-:11
+-- Normal --
 }
 
-> <backspace>
-
-{
-||      abc
-        ^
-|       def
-|       def
-:1
-}

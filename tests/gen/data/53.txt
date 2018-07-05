@@ -6,22 +6,24 @@
 -- Normal --
 }
 
-> :11
+> ?123<cr>
 
 {
 ||      abc
         ^
 |       def
 |       def
-:11
+-- Normal --
 }
 
-> <backspace>
+> jj?def<cr>
 
 {
-||      abc
+|       abc
+||      def
         ^
 |       def
-|       def
-:1
+-- Normal --
 }
+
+

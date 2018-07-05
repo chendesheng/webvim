@@ -10,11 +10,12 @@ function genLines(s) {
       return line[0] !== '#';
     })
     .map(function(line) {
-      return `"""${line}"""`;
+      return `"${line.replace(/"/ig, '\\"')}"`;
     }).join('\n   , ');
 
   return `
-    String.join "\\n"
+    String.join "
+"
     [ ${code}
     ]`;
 }
@@ -41,7 +42,9 @@ function gen() {
     if (ext === '.txt') {
       const content = fs.readFileSync(
         path.join(__dirname, 'data', f),
-        {encoding: 'utf8'});
+        {
+          encoding: 'utf8',
+        });
       const prefix = prefixCommand(content);
       return `${prefix}genTest "${name}" (${genLines(content)})`;
     }
@@ -69,11 +72,11 @@ if (process.argv.indexOf('--watch') >= 0) {
   console.log('Watching data change...');
   chokidar.watch(path.join(__dirname, 'data')).on('change', (event, path) => {
     gen();
-    console.log('Written TestData.elm');
+    console.log('[change]Written TestData.elm');
   });
   chokidar.watch(path.join(__dirname, 'data')).on('add', (event, path) => {
     gen();
-    console.log('Written TestData.elm');
+    console.log('[add]Written TestData.elm');
   });
 }
 

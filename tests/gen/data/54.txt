@@ -1,0 +1,42 @@
+{
+}
+
+> inewline<esc>"ayyddiabc<esc>^dei123<cr>456<esc>gg
+
+{
+||      123
+        ^
+|       456
+-- Normal --
+}
+
+> "ap
+
+{
+|       123
+||      newline
+        ^
+|       456
+-- Normal --
+}
+
+> ddgg"aP
+
+{
+||      newline
+        ^
+|       123
+|       456
+-- Normal --
+}
+
+> ddjll"ap
+
+{
+|       123
+|       456
+||      newline
+        ^
+-- Normal --
+}
+
