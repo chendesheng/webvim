@@ -13,7 +13,10 @@ import File
   , writeFile
   , cd
   )
-import Clipboard (readClipboard, writeClipboard)
+import Clipboard
+    ( readClipboard
+    , writeClipboard
+    )
 import Lint (lint, lintOnTheFly)
 import MyRouting (MyRoutes(..), matchUrl, DynamicActions(..))
 import Helper
@@ -74,7 +77,7 @@ dynamicActionHandler req resp action = do
     Search (NonEmptyString cwd) (NonEmptyString s) ->
       searchFiles resp cwd s
 
-    ReadClipboard ->
+    ReadClipboard -> do
       readClipboard resp
 
     WriteClipboard ->

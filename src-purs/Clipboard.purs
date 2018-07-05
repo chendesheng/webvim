@@ -1,8 +1,9 @@
 module Clipboard (readClipboard, writeClipboard) where
 
-import Data.Maybe (Maybe(..))
 import Effect.Aff (Aff)
-import Helper (affLog, affWriteStdout)
+import Effect.Class (liftEffect)
+import Helper (affLog, affWriteString, affEnd, affReadAllString)
+import Helper as H
 import Node.HTTP
   (Request
   , requestAsStream
@@ -10,18 +11,19 @@ import Node.HTTP
   , responseAsStream
   )
 import Prelude
-import Shell (execAsync)
  
 readClipboard :: Response -> Aff Unit
 readClipboard resp = do
   affLog "readClipboard"
   let outputStream = responseAsStream resp
-  result <- execAsync Nothing "pbpaste" Nothing
-  affWriteStdout outputStream result
+  s <- liftEffect $ H.readClipboard
+  affWriteString outputStream s
+  affEnd outputStream
 
 
 writeClipboard :: Request -> Aff Unit
 writeClipboard req = do
   affLog "writeClipboard"
   let inputStream = requestAsStream req
-  void $ execAsync Nothing "pbcopy" (Just inputStream)
+  s <- affReadAllString inputStream
+  void $ liftEffect $ H.writeClipboard s

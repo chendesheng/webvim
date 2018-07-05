@@ -77,3 +77,13 @@ exports.boot = JSON.stringify({
 
 exports.isWindows = /^win/i.test(require('os').platform());
 
+var clipboardy = require('clipboardy');
+exports.readClipboard = clipboardy.readSync;
+exports.writeClipboard = function(s) {
+  return function() {
+    console.log(s);
+    clipboardy.writeSync(s);
+  };
+};
+
+

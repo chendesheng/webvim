@@ -38,6 +38,10 @@ foreign import boot :: String
 
 foreign import isWindows :: Boolean
 
+foreign import readClipboard :: Effect String
+
+foreign import writeClipboard :: String -> Effect Unit
+
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s
 

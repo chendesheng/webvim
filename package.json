@@ -11,7 +11,7 @@
     "js": "elm make src/Main.elm --output dist/elm.js --debug --warn",
     "release": "npm run css && node ./build/release.js",
     "html": "node ./build/html.config.js",
-    "eslint": "eslint start.js build/*.js src-purs/**/*.js --fix",
+    "eslint": "eslint start.js tests/gen/gen.js build/*.js src-purs/**/*.js --fix",
     "test": "node ./tests/gen/gen.js && elm test"
   },
   "files": [
@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free-webfonts": "^1.0.9",
+    "clipboardy": "^1.2.3",
     "comment-json": "^1.1.3",
     "diff": "^3.5.0",
     "memorystream": "^0.3.1",
