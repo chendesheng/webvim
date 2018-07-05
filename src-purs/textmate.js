@@ -13,7 +13,9 @@ const homedir = require('os').homedir();
 function loadVscodeExtensions(dir, allExtensions) {
   function loadExtensionData(extensionFolder, data) {
     const contributes = data.contributes;
-    if (!contributes) return;
+    if (!contributes) {
+      return;
+    }
 
     if (contributes.languages) {
       contributes.languages.forEach(function(lang) {
@@ -51,8 +53,8 @@ function loadVscodeExtensions(dir, allExtensions) {
       var extensionFolder = path.join(dir, file);
       fs.stat(extensionFolder, function(err, stats) {
         if (stats.isDirectory()) {
-          fs.readFile(path.join(extensionFolder, 'package.json'), 'utf8',
-            function(err, content) {
+          fs.readFile(path.join(extensionFolder, 'package.json'),
+            'utf8', function(err, content) {
               if (err) {
                 console.error('Open extension package.json failed: ' + err);
               } else {
@@ -73,8 +75,11 @@ function loadVscodeExtensions(dir, allExtensions) {
   function readdir(dir) {
     return new Promise(function(resolve, reject) {
       fs.readdir(dir, function(err, files) {
-        if (err) reject(err);
-        else resolve(files);
+        if (err) {
+          reject(err);
+        } else {
+          resolve(files);
+        }
       });
     });
   }
@@ -83,11 +88,11 @@ function loadVscodeExtensions(dir, allExtensions) {
     .then(function(files) {
       return Promise.all(files.map(loadExtension));
     }).then(function() {
-      return Promise.resolve(allExtensions);
-    }).catch(function() {
-      // ignore not exists folder
-      return Promise.resolve(allExtensions);
-    });
+    return Promise.resolve(allExtensions);
+  }).catch(function() {
+    // ignore not exists folder
+    return Promise.resolve(allExtensions);
+  });
 }
 
 
@@ -101,7 +106,7 @@ const vscodeExtensions = {
   scopeNames: {},
   // key: label, value theme ({label: 'Monokai', uiTheme:'vs-dark', path})
   themes: {},
-  // TODO: snippets
+// TODO: snippets
 };
 
 loadVscodeExtensions(
@@ -140,7 +145,9 @@ function genThemeCss(uiTheme, theme, colorMap) {
     ];
 
   function cssColor(selector, prop) {
-    if (!theme.colors) return;
+    if (!theme.colors) {
+      return;
+    }
     const color = theme.colors[prop];
     if (color) {
       console.log('color:', color);
@@ -149,7 +156,9 @@ function genThemeCss(uiTheme, theme, colorMap) {
   }
 
   function cssBg(selector, prop) {
-    if (!theme.colors) return;
+    if (!theme.colors) {
+      return;
+    }
 
     const bg = theme.colors[prop];
     if (bg) {
@@ -159,7 +168,9 @@ function genThemeCss(uiTheme, theme, colorMap) {
 
   function cssShadow(selector, prop, args) {
     // widget.shadow
-    if (!theme.colors) return;
+    if (!theme.colors) {
+      return;
+    }
     const color = theme.colors[prop];
     if (color) {
       return rules.push(selector + ' { box-shadow:' + args + ' ' + color + '}');
@@ -199,9 +210,9 @@ function genThemeCss(uiTheme, theme, colorMap) {
   for (var i = 1, len = colorMap.length; i < len; i++) {
     const color = colorMap[i];
     if (i == 1) {
-      rules.push('body, .tip { color: '+color+'; }');
+      rules.push('body, .tip { color: ' + color + '; }');
     }
-    rules.push('.mtk'+i+' { color: '+color+'; }');
+    rules.push('.mtk' + i + ' { color: ' + color + '; }');
   }
 
   rules.push('.mtki { font-style: italic; }');
@@ -209,7 +220,8 @@ function genThemeCss(uiTheme, theme, colorMap) {
   rules.push('.mtku { border-bottom: solid 1px }');
 
   return rules.join('\n');
-};
+}
+;
 
 const registry = new Registry({
   loadGrammar: function(scopeName) {
@@ -248,22 +260,26 @@ function getGrammar(p) {
   } else {
     return Promise.reject('noextension');
   }
-};
+}
+;
 
 function readJson(file) {
   console.log('readJson:', file);
   return new Promise(function(resolve, reject) {
     fs.readFile(file, 'utf8', function(err, content) {
-      if (err) reject(err);
-      else resolve(JSON.parse(content));
+      if (err) {
+        reject(err);
+      } else {
+        resolve(JSON.parse(content));
+      }
     });
   });
 }
 
 function mergeThemeData(parent, child) {
   const colors = Object.assign({}, parent.colors, child.colors);
-  const tokenColors =
-    (parent.tokenColors || []).concat(child.tokenColors || []);
+  const tokenColors = (parent.tokenColors || [])
+    .concat(child.tokenColors || []);
   return Object.assign(
     parent,
     {
@@ -286,79 +302,83 @@ function loadThemeFile(file) {
   });
 }
 
-exports.loadTheme =
-  function(label) {
-    return function(callback) {
-      return function() {
-        const theme = vscodeExtensions.themes[label.toLowerCase()];
-        console.log('loadTheme:', label);
-        if (theme) {
-          if (theme.data && theme.css) {
-            registry.setTheme({name: label, settings: theme.data.tokenColors});
-            callback(theme.css)();
-          } else {
-            loadThemeFile(theme.path).then(function(data) {
-              theme.data = data;
-              registry.setTheme({name: label, settings: data.tokenColors});
-              theme.css = genThemeCss(
-                theme.uiTheme,
-                data,
-                registry.getColorMap()
-              );
-              callback(theme.css)();
-            });
-          }
+exports.loadTheme = function(label) {
+  return function(callback) {
+    return function() {
+      const theme = vscodeExtensions.themes[label.toLowerCase()];
+      console.log('loadTheme:', label);
+      if (theme) {
+        if (theme.data && theme.css) {
+          registry.setTheme({
+            name: label,
+            settings: theme.data.tokenColors,
+          });
+          callback(theme.css)();
         } else {
-          callback('');
+          loadThemeFile(theme.path).then(function(data) {
+            theme.data = data;
+            registry.setTheme({
+              name: label,
+              settings: data.tokenColors,
+            });
+            theme.css = genThemeCss(
+              theme.uiTheme,
+              data,
+              registry.getColorMap()
+            );
+            callback(theme.css)();
+          });
         }
-      };
+      } else {
+        callback('');
+      }
     };
   };
+};
 
 const allCaches = {}; // cache StackElement
-exports.tokenize =
-  function(path) {
-    return function(line) {
-      return function(payload) {
-        return function(callback) {
-          return function() {
-            const cache = allCaches[path] || [null];
-            const begin = parseInt(line);
-            const lines = payload.split(/^/m);
-            const result = [];
-            getGrammar(path).then(function(grammar) {
-              // console.log('tokenize:', request.query.path)
-              // console.log('lines.length:', lines.length);
-              // console.log('cache.length:', cache.length);
-              // console.log('request.query.line:', request.query.line);
+exports.tokenize = function(path) {
+  return function(line) {
+    return function(payload) {
+      return function(callback) {
+        return function() {
+          const cache = allCaches[path] || [null];
+          const begin = parseInt(line);
+          const lines = payload.split(/^/m);
+          const result = [];
+          getGrammar(path).then(function(grammar) {
+            // console.log('tokenize:', request.query.path)
+            // console.log('lines.length:', lines.length);
+            // console.log('cache.length:', cache.length);
+            // console.log('request.query.line:', request.query.line);
 
-              for (var i = 0; i < lines.length; i++) { // lines.length
-                const line = lines[i];
-                const n = begin + i;
-                if (cache.length <= n && n > 0) {
-                  console.log('cache miss: n='+n+
-                    ', cache.length='+cache.length);
-                  delete allCaches[path];
-                  callback(JSON.stringify({
-                    type: 'error',
-                    payload: 'cacheMiss',
-                  }))();
-                }
-                const r = grammar.tokenizeLine2(line, cache[n]);
-                const tokens = Array.from(r.tokens);
-                tokens.push(line.length);
-                tokens.push(0);
-                result[i] = tokens;
-                // console.log('Line: #' + i + ', tokens: ' + r.tokens);
-                cache[n+1] = r.ruleStack;
+            for (var i = 0; i < lines.length; i++) { // lines.length
+              const line = lines[i];
+              const n = begin + i;
+              if (cache.length <= n && n > 0) {
+                console.log('cache miss: n=' + n +
+                  ', cache.length=' + cache.length);
+                delete allCaches[path];
+                callback(JSON.stringify({
+                  type: 'error',
+                  payload: 'cacheMiss',
+                }))();
               }
-              allCaches[path] = cache.slice(0, begin + lines.length + 1);
-              callback(JSON.stringify({
-                type: 'success',
-                payload: result,
-                path: path,
-              }))();
-            })
+              const r = grammar.tokenizeLine2(line, cache[n]);
+              const tokens = Array.from(r.tokens);
+              tokens.push(line.length);
+              tokens.push(0);
+              result[i] = tokens;
+              // console.log('Line: #' + i + ', tokens: ' + r.tokens);
+              cache[n + 1] = r.ruleStack;
+            }
+            allCaches[path] = cache.slice(0, begin + lines.length + 1);
+            callback(JSON.stringify({
+              type: 'success',
+              payload: result,
+              path: path,
+            }))();
+          })
             .catch(function(e) {
               console.error(e);
               callback(JSON.stringify({
@@ -366,9 +386,9 @@ exports.tokenize =
                 payload: e.message || e.toString(),
               }))();
             });
-          };
         };
       };
     };
   };
+};
 

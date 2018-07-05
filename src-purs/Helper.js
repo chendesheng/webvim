@@ -18,7 +18,7 @@ exports.readAllString = function(readable) {
 
 exports.createReadableStream = function(s) {
   return new MemoryStream(s, {
-    writable: false
+    writable: false,
   });
 };
 
@@ -75,5 +75,5 @@ exports.boot = JSON.stringify({
   pathSeperator: require('path').sep,
 });
 
-exports.isWindows = /win/i.test(require('os').platform());
+exports.isWindows = /^win/i.test(require('os').platform());
 

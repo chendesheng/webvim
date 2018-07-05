@@ -16,14 +16,18 @@ const executor = (() => {
       executing[cmd] = null;
     }
     const args = cmd.split(/\s+/);
-    const child = spawn(args[0], args.slice(1), {stdio: 'inherit'});
+    const child = spawn(args[0], args.slice(1), {
+      stdio: 'inherit',
+    });
     child.once('exit', () => {
       const exitCode = executing[cmd].exitCode;
       console.log('exit ' + cmd);
       console.log('exitCode ' + exitCode);
       if (exitCode === 0) {
         executing[cmd] = null;
-        if (onsuccess) onsuccess();
+        if (onsuccess) {
+          onsuccess();
+        }
       }
     });
     child.on('error', (err) => {
@@ -53,8 +57,11 @@ const shell = (sh, onsuccess) => {
 
 const shellAndReload = (cmd, file) => shell(cmd, () => {
   console.log('reload', file);
-  if (file) browserSync.reload(file);
-  else browserSync.reload();
+  if (file) {
+    browserSync.reload(file);
+  } else {
+    browserSync.reload();
+  }
 });
 
 const jsTask = () => shellAndReload('npm run js --silent');
@@ -72,11 +79,13 @@ const ctagsTask = () => shell([
   'tests',
   'elm-stuff/packages',
   'tests/elm-stuff/packages/elm-community/elm-test',
-  ].join(' '));
+].join(' '));
 
 const exitTask = () => {
   // check current file syntax before restart!!
-  const child = spawn('node', ['-c', __filename], {stdio: 'inherit'});
+  const child = spawn('node', ['-c', __filename], {
+    stdio: 'inherit',
+  });
   child.on('exit', () => {
     if (child.exitCode === 0) {
       process.exit(0);
@@ -86,15 +95,16 @@ const exitTask = () => {
 const htmlTask = () => shellAndReload('npm run html');
 const fontTask = () => shellAndReload('npm run font');
 const npmInstall = (() => {
-  const readPackageJson = () =>
-    JSON.parse(fs.readFileSync('./package.json', {encoding: 'utf8'}));
+  const readPackageJson = () => JSON.parse(fs.readFileSync('./package.json', {
+    encoding: 'utf8',
+  }));
   let lastPackageJson = readPackageJson();
   return () => {
     const obj = readPackageJson();
     try {
       deepEqual(obj.dependencies, lastPackageJson.dependencies);
       deepEqual(obj.devDependencies, lastPackageJson.devDependencies);
-    } catch (e) {
+    } catch ( e ) {
       shell('npm install');
     } finally {
       lastPackageJson = obj;
@@ -105,7 +115,7 @@ const generateTestData = () => shell('node ./tests/gen/gen.js');
 
 // const testTask = () => shell('elm test');
 
-const withColor = (number, str) => `\x1b[${number}m${str}\x1b[0m`;
+const withColor = (number, str) => `[${number}m${str}[0m`;
 const green = 32;
 
 const runTaskList = (tasks) => {
@@ -152,8 +162,10 @@ watch(['tests/gen/data/*.*', 'tests/gen/gen.js'], [generateTestData]);
 const startBackend = (port) => {
   http.get(`http://localhost:${port}/kill`)
     .once('error',
-      () => spawn('npm', ['run', 'purs:watch'], {stdio: 'inherit'})
-    );
+      () => spawn('npm', ['run', 'purs:watch'], {
+        stdio: 'inherit',
+      })
+  );
 };
 startBackend(8899);
 
