@@ -1,0 +1,18 @@
+{
+||      abc
+        ^
+|       def
+|       def
+-- Normal --
+}
+
+> v/ef<cr>
+
+{
+|       abc
+        ----
+||      def
+        -^
+|       def
+-- Visual --
+}

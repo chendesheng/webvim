@@ -1447,15 +1447,35 @@ jumpToPath isSaveJump path_ overrideCursor buf =
         jumpTo isSaveJump info buf
 
 
+editTestBuffer : String -> Buffer -> ( Buffer, Cmd Msg )
+editTestBuffer path buf =
+    Ok
+        { content =
+            Just
+                ( B.fromString B.lineBreak
+                , Array.empty
+                )
+        , path = path
+        , version = 0
+        , cursor = ( 0, 0 )
+        }
+        |> Read
+        |> flip update buf
+
+
 execute : Maybe Int -> String -> Buffer -> ( Buffer, Cmd Msg )
 execute count s buf =
     case String.split " " s of
         [ "e", path ] ->
-            jumpToPath
-                True
-                (normalizePath buf.config.pathSeperator path)
-                Nothing
-                buf
+            -- for unit testing
+            if path == "*Test*" then
+                editTestBuffer path buf
+            else
+                jumpToPath
+                    True
+                    (normalizePath buf.config.pathSeperator path)
+                    Nothing
+                    buf
 
         [ "w" ] ->
             ( buf, sendWriteBuffer buf.config.service buf.path buf )

@@ -74,8 +74,6 @@ formatBuffer buf =
                 |> B.sliceLines buf.view.scrollTop
                     (buf.view.scrollTop + buf.view.size.height)
                 |> B.mapLines (addPrefix "||      ")
-                |> arrayInsert (y - buf.view.scrollTop + 1)
-                    (String.repeat (x + 8) " " ++ "^\n")
 
         bottom =
             buf.lines
@@ -84,13 +82,121 @@ formatBuffer buf =
                     (B.count buf.lines)
                 |> B.mapLines (addPrefix "|       ")
 
+        breakRegions buf =
+            case buf.mode of
+                Visual { tipe, begin, end } ->
+                    let
+                        ( by, bx ) =
+                            if begin > end then
+                                end
+                            else
+                                begin
+
+                        ( ey, ex ) =
+                            if begin > end then
+                                begin
+                            else
+                                end
+                    in
+                        case tipe of
+                            VisualBlock ->
+                                List.range by ey
+                                    |> List.filterMap
+                                        (\y ->
+                                            case B.getLine y buf.lines of
+                                                Just s ->
+                                                    if bx >= String.length s then
+                                                        Nothing
+                                                    else
+                                                        Just ( y, ( bx, ex ) )
+
+                                                _ ->
+                                                    Nothing
+                                        )
+
+                            VisualLine ->
+                                List.range by ey
+                                    |> List.map
+                                        (\y ->
+                                            case B.getLine y buf.lines of
+                                                Just s ->
+                                                    ( y
+                                                    , ( 0, String.length s - 1 )
+                                                    )
+
+                                                _ ->
+                                                    ( y, ( 0, 0 ) )
+                                        )
+
+                            _ ->
+                                List.range by ey
+                                    |> List.map
+                                        (\y ->
+                                            let
+                                                b =
+                                                    if y == by then
+                                                        bx
+                                                    else
+                                                        0
+
+                                                e =
+                                                    if y == ey then
+                                                        ex
+                                                    else
+                                                        (buf.lines
+                                                            |> B.getLine y
+                                                            |> Maybe.map
+                                                                String.length
+                                                            |> Maybe.withDefault
+                                                                0
+                                                        )
+                                                            - 1
+                                            in
+                                                ( y, ( b, e ) )
+                                        )
+
+                _ ->
+                    case buf.cursor of
+                        ( y, x ) ->
+                            [ ( y, ( x, x ) ) ]
+
+        insertRegions regions textLines =
+            regions
+                |> List.reverse
+                |> List.foldl
+                    (\( y, ( b, e ) ) lines ->
+                        let
+                            s =
+                                if y == Tuple.first buf.cursor then
+                                    let
+                                        x =
+                                            Tuple.second buf.cursor
+                                    in
+                                        ((String.repeat (8 + b) " ")
+                                            ++ (String.repeat (x - b) "-")
+                                            ++ "^"
+                                            ++ (String.repeat (e - x) "-")
+                                        )
+                                else
+                                    ((String.repeat (8 + b) " ")
+                                        ++ (String.repeat (e - b + 1) "-")
+                                    )
+                        in
+                            arrayInsert
+                                (y + 1)
+                                (s ++ "\n")
+                                lines
+                    )
+                    textLines
+
         lines =
             Array.empty
                 |> Array.append bottom
                 |> Array.append middle
                 |> Array.append top
+                |> Array.filter (String.isEmpty >> not)
+                |> insertRegions (breakRegions buf)
                 |> Array.toList
-                |> List.filter (String.isEmpty >> not)
 
         emptyLines =
             "~\n"
