@@ -2,10 +2,17 @@ module Lint (lint, lintOnTheFly) where
 
 import Prelude (Unit, bind, discard, pure, show, void, ($), (<>), (==), (#))
 import Effect.Aff (Aff)
-import Helper (affLog, affWriteString, affEnd, tempdir, currentdir, isWindows)
+import Helper
+  ( affLog
+  , affWriteString
+  , affWriteStdout
+  , affBufferToString
+  , affEnd
+  , tempdir
+  , currentdir
+  , isWindows
+  )
 import Node.HTTP (Request, Response, requestAsStream, responseAsStream)
-import Node.Buffer (toString)
-import Node.Encoding (Encoding(..))
 import Shell (execAsync)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Node.FS.Stream (createWriteStream)
@@ -45,8 +52,8 @@ elmLint req resp path = do
                           <> "  --yes --warn --report=json --output=/dev/null"
                           )
                           Nothing
-  stdoutStr <- liftEffect $ toString UTF8 result.stdout
-  stderrStr <- liftEffect $ toString UTF8 result.stderr
+  stdoutStr <- affBufferToString result.stdout
+  stderrStr <- affBufferToString result.stderr
   affWriteString outputStream (fromMaybe "" cwd <> "\n"
                               <> stdoutStr <> stderrStr
                               )
@@ -63,21 +70,18 @@ eslint req resp path = do
       eslintCmd = if isWindows then "eslint.cmd" else "eslint"
   absolutePath <- FS.realpath $ Path.normalize path
   affLog formatter
-
-  void $ affLog "eslintOnTheFly"
+  affLog "eslint"
   result <- execAsync
               Nothing
               (Str.joinWith 
                 " "
                 [ eslintCmd
                 , "--format=" <> formatter
-                , "\"" <> path <> "\""
+                , path
                 ]
               )
               (Just inputStream)
-  stdoutStr <- liftEffect $ toString UTF8 result.stdout
-  affWriteString outputStream stdoutStr
-  affEnd outputStream
+  affWriteStdout outputStream result
 
 
 elmLintOnTheFly :: Request -> Response -> String -> Aff Unit
@@ -95,8 +99,8 @@ elmLintOnTheFly req resp path = do
                           <> "  --yes --warn --report=json --output=/dev/null"
                           )
                           Nothing
-  stdoutStr <- liftEffect $ toString UTF8 result.stdout
-  stderrStr <- liftEffect $ toString UTF8 result.stderr
+  stdoutStr <- affBufferToString result.stdout
+  stderrStr <- affBufferToString result.stderr
   affWriteString outputStream (fromMaybe "" cwd <> "\n"
                               <> stdoutStr <> stderrStr
                               )
@@ -113,8 +117,7 @@ eslintOnTheFly req resp path = do
   absolutePath <- FS.realpath $ Path.normalize path
   affLog formatter
   affLog eslintCmd
-
-  void $ affLog "eslintOnTheFly"
+  affLog "eslintOnTheFly"
   result <- execAsync
               Nothing
               (Str.joinWith 
@@ -126,9 +129,7 @@ eslintOnTheFly req resp path = do
                 ]
               )
               (Just inputStream)
-  stdoutStr <- liftEffect $ toString UTF8 result.stdout
-  affWriteString outputStream stdoutStr
-  affEnd outputStream
+  affWriteStdout outputStream result
 
 
 lint :: Request -> Response -> String -> Aff Unit

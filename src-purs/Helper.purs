@@ -1,7 +1,6 @@
 module Helper where
 
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Aff (Aff, nonCanceler, makeAff)
 import Effect.Class (liftEffect)
@@ -53,9 +52,13 @@ affExit code = liftEffect $ exit code
 
 affWriteString :: Writable () -> String -> Aff Unit
 affWriteString stream s =
-  makeAff (\callback -> do
-    void $ writeString stream UTF8 s (callback $ Right unit)
-    pure nonCanceler
+  makeAff (\callback -> 
+    if s == "" then do
+      callback $ Right unit
+      pure nonCanceler
+      else do
+        void $ writeString stream UTF8 s (callback $ Right unit)
+        pure nonCanceler
   )
 
 affReadAllString :: Readable () -> Aff String
@@ -99,12 +102,8 @@ setNoCacheHeaders resp = liftEffect $ do
   setHeader resp "Expires" "0"
 
 affWriteStdout :: Writable () -> ExecResult -> Aff Unit
-affWriteStdout outputStream result =
-  case result.error of
-    Just err ->
-      affEnd outputStream
-    _ -> do
-      str <- affBufferToString result.stdout
-      affWriteString outputStream str
-      affEnd outputStream
+affWriteStdout outputStream result = do
+  str <- affBufferToString result.stdout
+  affWriteString outputStream str
+  affEnd outputStream
 
