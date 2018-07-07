@@ -16,6 +16,15 @@ import Elm.Array as Array
 import Update.Buffer as Buf
 
 
+log : String -> (a -> b) -> a -> a
+log prefix f obj =
+    let
+        _ =
+            Debug.log prefix (f obj)
+    in
+        obj
+
+
 handleKeys : List Key -> Buffer -> Buffer
 handleKeys keys buf =
     keys
@@ -377,6 +386,7 @@ testDataParser =
                                 textLines
                                     |> List.map (String.dropLeft 8)
                                     |> String.join "\n"
+                                    |> (flip (++) "\n")
                                     |> newBuffer mode cursor height scrollTop
                                     |> P.succeed
                     )
@@ -398,9 +408,33 @@ testDataParser =
                 |. P.ignoreUntil "\n{"
                 |= (P.ignoreUntil "\n}"
                         |> P.source
-                        |> P.map (String.slice 0 -1)
+                        |> P.map (String.slice 0 -1 >> String.trim)
                    )
             )
+
+
+scanlInputs :
+    List
+        { a
+            | input : List String
+            , result : String
+        }
+    -> List { input : List String, result : String }
+scanlInputs tests =
+    tests
+        |> List.foldl
+            (\{ input, result } allTests ->
+                case allTests of
+                    x :: xs ->
+                        { input = (x.input ++ input), result = result }
+                            :: x
+                            :: xs
+
+                    _ ->
+                        [ { input = input, result = result } ]
+            )
+            []
+        |> List.reverse
 
 
 genTest : String -> String -> Test
@@ -408,29 +442,23 @@ genTest name data =
     case P.run testDataParser data of
         Ok { init, tests } ->
             tests
-                |> List.foldl
-                    (\{ input, result } ( buf, allTests, i ) ->
-                        let
-                            buf1 =
-                                handleKeys input buf
-                        in
-                            ( buf1
-                            , (buf1
-                                |> formatBuffer
-                                |> Expect.equal (String.trim result)
-                                |> always
-                                |> test
-                                    (toString i
-                                        ++ "> "
-                                        ++ String.join "" input
-                                    )
-                              )
-                                :: allTests
-                            , i + 1
+                |> scanlInputs
+                |> List.indexedMap
+                    (\i { input, result } ->
+                        test
+                            (name
+                                ++ "."
+                                ++ toString (i + 1)
+                                ++ "> "
+                                ++ String.join "" input
                             )
+                        <|
+                            \_ ->
+                                init
+                                    |> handleKeys input
+                                    |> formatBuffer
+                                    |> Expect.equal result
                     )
-                    ( init, [], 0 )
-                |> (\( _, tests, _ ) -> List.reverse tests)
                 |> describe name
 
         Err _ ->

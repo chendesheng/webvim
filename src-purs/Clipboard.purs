@@ -21,9 +21,11 @@ readClipboard resp = do
   affEnd outputStream
 
 
-writeClipboard :: Request -> Aff Unit
-writeClipboard req = do
+writeClipboard :: Request -> Response -> Aff Unit
+writeClipboard req resp = do
   affLog "writeClipboard"
   let inputStream = requestAsStream req
+      outputStream = responseAsStream resp
   s <- affReadAllString inputStream
   void $ liftEffect $ H.writeClipboard s
+  affEnd outputStream

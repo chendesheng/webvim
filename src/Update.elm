@@ -737,9 +737,9 @@ runOperator count register operator buf =
                 _ ->
                     ( buf, Cmd.none )
 
-        Join mergeSpaces ->
+        Join collapseSpaces ->
             buf
-                |> join mergeSpaces
+                |> join count collapseSpaces
                 |> cmdNone
 
         Replace ch ->

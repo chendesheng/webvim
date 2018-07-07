@@ -1,7 +1,6 @@
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 const {execSync} = require('child_process');
-const chokidar = require('chokidar');
 
 function genLines(s) {
   const code = s.split('\n')
@@ -36,8 +35,9 @@ function prefixCommand(content) {
   return '';
 }
 
-function gen() {
-  const code = fs.readdirSync(path.join(__dirname, 'data')).map(function(f) {
+exports.genTests = async function() {
+  const dirs = await fs.readdir(path.join(__dirname, 'data'));
+  const code = dirs.map(function(f) {
     const {name, ext} = path.parse(f);
     if (ext === '.txt') {
       const content = fs.readFileSync(
@@ -54,7 +54,7 @@ function gen() {
   }).join('\n   , ');
 
   // console.log(code);
-  fs.writeFileSync(path.join(__dirname, '../TestData.elm'), format(`
+  return fs.writeFile(path.join(__dirname, '../TestData.elm'), format(`
 module TestData exposing(..)
 import Test exposing (..)
 import TestGenerated exposing (genTest)
@@ -65,18 +65,6 @@ suite =
         [${code}
         ]
 `));
-}
+};
 
-gen();
-if (process.argv.indexOf('--watch') >= 0) {
-  console.log('Watching data change...');
-  chokidar.watch(path.join(__dirname, 'data')).on('change', (event, path) => {
-    gen();
-    console.log('[change]Written TestData.elm');
-  });
-  chokidar.watch(path.join(__dirname, 'data')).on('add', (event, path) => {
-    gen();
-    console.log('[add]Written TestData.elm');
-  });
-}
 

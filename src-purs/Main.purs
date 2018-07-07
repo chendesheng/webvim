@@ -81,7 +81,7 @@ dynamicActionHandler req resp action = do
       readClipboard resp
 
     WriteClipboard ->
-      writeClipboard req
+      writeClipboard req resp
 
     Lint (NonEmptyString path) ->
       lint req resp path

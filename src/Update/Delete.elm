@@ -153,8 +153,8 @@ saveLastDeleted linewise reg buf =
         Buf.setRegister reg s buf
 
 
-join : Bool -> Buffer -> Buffer
-join collapseSpaces buf =
+join : Maybe Int -> Bool -> Buffer -> Buffer
+join count collapseSpaces buf =
     let
         ( y, x ) =
             buf.cursor
@@ -177,7 +177,15 @@ join collapseSpaces buf =
                     joinLines collapseSpaces lineRange buf
 
             _ ->
-                joinLines collapseSpaces [ y ] buf
+                joinLines collapseSpaces
+                    (List.repeat
+                        (count
+                            |> Maybe.map (\n -> max (n - 1) 1)
+                            |> Maybe.withDefault 1
+                        )
+                        y
+                    )
+                    buf
 
 
 joinLines : Bool -> List Int -> Buffer -> Buffer
