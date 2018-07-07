@@ -523,9 +523,12 @@ getLineMaxColumn y lines =
                 let
                     len =
                         String.length s
+
+                    lenLineBreak =
+                        String.length lineBreak
                 in
-                    if String.right 1 s == lineBreak then
-                        len - 1
+                    if String.right lenLineBreak s == lineBreak then
+                        len - lenLineBreak
                     else
                         len
             )

@@ -402,7 +402,7 @@ correctPosition pos excludeLineBreak lines =
         maxcol =
             B.getLineMaxColumn y1 lines
                 - (if excludeLineBreak then
-                    1
+                    String.length B.lineBreak
                    else
                     0
                   )
@@ -1938,15 +1938,24 @@ update message buf =
                                                     item.file
                                             , region =
                                                 let
-                                                    ( a, b ) =
+                                                    ( b, e_ ) =
                                                         item.region
+
+                                                    -- make inclusive
+                                                    e =
+                                                        if b == e_ then
+                                                            e_
+                                                        else
+                                                            Tuple.mapSecond
+                                                                (\x -> (x - 1))
+                                                                e_
                                                 in
                                                     ( correctPosition
-                                                        a
+                                                        b
                                                         True
                                                         buf.lines
                                                     , correctPosition
-                                                        b
+                                                        e
                                                         True
                                                         buf.lines
                                                     )

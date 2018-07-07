@@ -89,25 +89,47 @@ import Helper.Helper exposing (parseWords)
 import Regex as Re
 
 
-applyPatchToLintError : Patch -> LintError -> LintError
+applyPatchToLintError : Patch -> LintError -> Maybe LintError
 applyPatchToLintError patch ({ region, subRegion } as error) =
     let
         updateRegion ( b, e ) =
-            ( shiftPositionByPatch patch b
-            , shiftPositionByPatch patch e
-            )
+            case patch of
+                Deletion bDel eDel ->
+                    if bDel <= b && e <= eDel then
+                        Nothing
+                    else
+                        Just
+                            ( shiftPositionByPatch patch b
+                            , shiftPositionByPatch patch e
+                            )
+
+                Insertion pos _ ->
+                    Just
+                        ( shiftPositionByPatch patch b
+                        , shiftPositionByPatch patch e
+                        )
+
+        maybeRegion =
+            updateRegion region
+
+        maybeSubRegion =
+            Maybe.andThen updateRegion subRegion
     in
-        { error
-            | region = updateRegion region
-            , subRegion = Maybe.map updateRegion subRegion
-        }
+        maybeRegion
+            |> Maybe.map
+                (\rg ->
+                    { error
+                        | region = rg
+                        , subRegion = maybeSubRegion
+                    }
+                )
 
 
 applyPatchesToLintErrors : List LintError -> List Patch -> List LintError
 applyPatchesToLintErrors =
     List.foldl
         (\patch result ->
-            List.map
+            List.filterMap
                 (applyPatchToLintError patch)
                 result
         )

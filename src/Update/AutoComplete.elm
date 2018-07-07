@@ -139,59 +139,64 @@ startAutoComplete source pos word buf =
 
 filterAutoComplete : Buffer -> Buffer
 filterAutoComplete buf =
-    case buf.mode of
-        Insert insert ->
-            { buf
-                | mode =
-                    Insert
-                        { insert
-                            | autoComplete =
-                                case insert.autoComplete of
-                                    Just auto ->
-                                        let
-                                            { pos, source } =
-                                                auto
+    let
+        updateAutoComplete autoComplete =
+            case autoComplete of
+                Just auto ->
+                    let
+                        { pos, source } =
+                            auto
 
-                                            target =
-                                                buf.lines
-                                                    |> B.substring
-                                                        pos
-                                                        buf.cursor
-                                                    |> B.toString
+                        target =
+                            buf.lines
+                                |> B.substring pos buf.cursor
+                                |> B.toString
 
-                                            matches =
-                                                if
-                                                    String.endsWith " "
-                                                        target
-                                                then
-                                                    []
-                                                else if
-                                                    String.length target
-                                                        > 0
-                                                then
-                                                    fuzzyMatch source target
-                                                else
-                                                    []
-                                        in
-                                            if List.isEmpty matches then
-                                                Nothing
-                                            else
-                                                Just
-                                                    { auto
-                                                        | matches =
-                                                            Array.push
-                                                                { text = target
-                                                                , matches = []
-                                                                }
-                                                                (Array.fromList
-                                                                    matches
-                                                                )
-                                                    }
+                        matches =
+                            if String.endsWith " " target then
+                                []
+                            else if String.length target > 0 then
+                                fuzzyMatch source target
+                            else
+                                []
+                    in
+                        if List.isEmpty matches then
+                            Nothing
+                        else
+                            Just
+                                { auto
+                                    | matches =
+                                        Array.push
+                                            { text = target
+                                            , matches = []
+                                            }
+                                            (Array.fromList matches)
+                                }
 
-                                    _ ->
-                                        Nothing
+                _ ->
+                    Nothing
+    in
+        case buf.mode of
+            Insert insert ->
+                let
+                    autoComplete =
+                        updateAutoComplete insert.autoComplete
+                in
+                    -- avoid create new mode object when autoComplete hide
+                    if
+                        (insert.autoComplete == Nothing)
+                            && (autoComplete == Nothing)
+                    then
+                        buf
+                    else
+                        { buf
+                            | mode =
+                                Insert
+                                    { insert
+                                        | autoComplete =
+                                            updateAutoComplete autoComplete
+                                    }
                         }
-            }
 
-        _ ->
-            buf
+            _ ->
+                buf

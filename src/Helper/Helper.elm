@@ -153,16 +153,12 @@ isAbsolutePath sep =
 
 joinPath : String -> String -> String -> String
 joinPath sep a b =
-    let
-        _ =
-            Debug.log "joinPath" ( sep, a, b )
-    in
-        if isAbsolutePath sep b then
-            b
-        else if String.endsWith sep a then
-            a ++ b
-        else
-            a ++ sep ++ b
+    if isAbsolutePath sep b then
+        b
+    else if String.endsWith sep a then
+        a ++ b
+    else
+        a ++ sep ++ b
 
 
 dropWhile : (a -> Bool) -> List a -> List a

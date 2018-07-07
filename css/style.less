@@ -112,6 +112,7 @@ html, body {
 .gutter-container {
   user-select: none;
   margin-right: @gutter-lines-spacing;
+  position: relative;
 }
 .gutter-container:first-child {
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='#888'>~</text></svg>"); 
@@ -151,6 +152,12 @@ html, body {
 .line-number {
   text-align: right;
   display: inline-block;
+}
+
+.line-number-highlight {
+  position: absolute;
+  color: yellow;
+  right: 0ch;
 }
 
 .cursor {

@@ -223,7 +223,7 @@ syntaxErrorParser =
                 , file = file
                 , overview = overview
                 , details = details
-                , region = ( ( y1, x1 ), ( y1, x1 ) )
+                , region = ( ( y1, x1 ), ( y1, x1 + 1 ) )
                 , subRegion = Nothing
                 }
         )
