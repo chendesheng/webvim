@@ -19,6 +19,6 @@
 ||      abc
 ||       def
 ~
--- Normal --
+/bc
 }
 

@@ -294,15 +294,7 @@ parseElmMakeResponse sep resp =
 
                             Err _ ->
                                 Ok
-                                    [ { tipe = "error"
-                                      , tag = Nothing
-                                      , file = ""
-                                      , overview = ""
-                                      , details = s
-                                      , region = ( ( 0, 0 ), ( 0, 0 ) )
-                                      , subRegion = Nothing
-                                      }
-                                    ]
+                                    []
 
                 _ ->
                     Ok []

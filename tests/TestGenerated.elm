@@ -364,6 +364,7 @@ parseMode cursor statusBar =
                             B.fromString statusBar
                         ]
             , visual = Nothing
+            , message = EmptyMessage
             }
     else if String.startsWith "/" statusBar then
         Ex
@@ -379,6 +380,7 @@ parseMode cursor statusBar =
                             B.fromString statusBar
                         ]
             , visual = Nothing
+            , message = EmptyMessage
             }
     else if String.startsWith "?" statusBar then
         Ex
@@ -394,6 +396,7 @@ parseMode cursor statusBar =
                             B.fromString statusBar
                         ]
             , visual = Nothing
+            , message = EmptyMessage
             }
     else if
         String.startsWith "-- Normal --"

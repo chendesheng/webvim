@@ -94,7 +94,12 @@ initMode : Buffer -> V.ModeName -> Mode
 initMode { cursor, mode } modeName =
     case modeName of
         V.ModeNameNormal ->
-            Normal { message = EmptyMessage }
+            case mode of
+                Ex { message } ->
+                    Normal { message = message }
+
+                _ ->
+                    Normal { message = EmptyMessage }
 
         V.ModeNameTempNormal ->
             TempNormal
@@ -121,6 +126,7 @@ initMode { cursor, mode } modeName =
 
                         _ ->
                             Nothing
+                , message = EmptyMessage
                 }
 
         V.ModeNameVisual tipe ->
@@ -1497,11 +1503,15 @@ execute count s buf =
         [ "f", s ] ->
             ( buf, sendSearch buf.config.service buf.cwd s )
 
+        [ "cd" ] ->
+            let
+                _ =
+                    Debug.log "cwd" buf.cwd
+            in
+                ( Buf.infoMessage buf.cwd buf, Cmd.none )
+
         [ "cd", cwd ] ->
-            if String.isEmpty cwd then
-                ( buf, Cmd.none )
-            else
-                ( buf, sendCd buf.config.service cwd )
+            ( buf, sendCd buf.config.service cwd )
 
         _ ->
             ( buf, Cmd.none )
@@ -2039,6 +2049,7 @@ update message buf =
                             }
                     in
                         buf
+                            |> Buf.clearMessage
                             |> saveLastJumpToTag
                             |> jumpToLocation True loc
 
@@ -2094,7 +2105,7 @@ update message buf =
                     ( buf, Cmd.none )
 
         SetCwd (Ok cwd) ->
-            ( { buf | cwd = cwd }, Cmd.none )
+            ( Buf.infoMessage cwd { buf | cwd = cwd }, Cmd.none )
 
         _ ->
             ( buf, Cmd.none )

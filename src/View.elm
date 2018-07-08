@@ -287,7 +287,13 @@ renderStatusBarLeft mode =
                         ""
                     )
                 ]
-                [ text statusBar.text ]
+                [ text
+                    (if statusBar.text == "-- Normal --" then
+                        ""
+                     else
+                        statusBar.text
+                    )
+                ]
             , renderCursor "" statusBar.cursor
             ]
 

@@ -13,7 +13,7 @@
          ^
 |       def
 |       def
--- Normal --
+/bc
 }
 
 > /de<cr>
@@ -23,7 +23,7 @@
 ||      def
         ^
 |       def
--- Normal --
+/de
 }
 
 > ?ab<cr>
@@ -33,6 +33,6 @@
         ^
 |       def
 |       def
--- Normal --
+?ab
 }
 

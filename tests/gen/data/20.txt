@@ -11,7 +11,7 @@
 ||      123
         ^
 |       45678
--- Normal --
+Char not found
 }
 
 

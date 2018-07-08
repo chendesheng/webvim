@@ -30,6 +30,7 @@ module Update.Buffer
         , infoMessage
         , errorMessage
         , getStatusBar
+        , clearMessage
         )
 
 import Internal.Position exposing (..)
@@ -636,6 +637,12 @@ infoMessage s buf =
                     Normal { data | message = InfoMessage s }
             }
 
+        Ex ex ->
+            { buf
+                | mode =
+                    Ex { ex | message = InfoMessage s }
+            }
+
         _ ->
             buf
 
@@ -647,6 +654,31 @@ errorMessage s buf =
             { buf
                 | mode =
                     Normal { data | message = ErrorMessage s }
+            }
+
+        Ex ex ->
+            { buf
+                | mode =
+                    Ex { ex | message = ErrorMessage s }
+            }
+
+        _ ->
+            buf
+
+
+clearMessage : Buffer -> Buffer
+clearMessage buf =
+    case buf.mode of
+        Normal data ->
+            { buf
+                | mode =
+                    Normal { data | message = EmptyMessage }
+            }
+
+        Ex ex ->
+            { buf
+                | mode =
+                    Ex { ex | message = EmptyMessage }
             }
 
         _ ->

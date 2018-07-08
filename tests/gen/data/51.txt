@@ -13,7 +13,7 @@
         ^
 |       def
 |       def
--- Normal --
+Pattern not found
 }
 
 

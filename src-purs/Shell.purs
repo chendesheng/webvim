@@ -30,7 +30,7 @@ execAsync cwd cmd maybeInput =
   of
     Just { head : name, tail : args } ->
       makeAff (\callback -> do
-        let option = defaultExecOptions {cwd = cwd}
+        let option = defaultExecOptions {cwd = cwd, timeout = Just 2000.0}
             onAfterExecute :: ExecResult -> Effect Unit
             onAfterExecute result = 
                 callback $ Right result

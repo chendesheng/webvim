@@ -13,7 +13,7 @@
         ^
 |       def
 |       def
--- Normal --
+Pattern not found
 }
 
 > jj?def<cr>
@@ -23,7 +23,7 @@
 ||      def
         ^
 |       def
--- Normal --
+?def
 }
 
 

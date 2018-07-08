@@ -166,6 +166,7 @@ type alias ExMode =
     { prefix : ExPrefix
     , exbuf : Buffer
     , visual : Maybe VisualMode
+    , message : StatusMessage
     }
 
 

@@ -792,11 +792,43 @@ saveCursorBeforeJump md cursorAfter buf =
 showErrorMessage : V.MotionData -> V.MotionOption -> Buffer -> Buffer
 showErrorMessage md mo buf =
     case md of
+        V.RepeatMatchChar ->
+            Buf.errorMessage "Char not found" buf
+
         V.MatchChar _ _ ->
             Buf.errorMessage "Char not found" buf
 
         V.MatchString _ ->
             Buf.errorMessage "Pattern not found" buf
+
+        _ ->
+            buf
+
+
+showSuccessMessage : V.MotionData -> V.MotionOption -> Buffer -> Buffer
+showSuccessMessage md mo buf =
+    case md of
+        V.RepeatMatchChar ->
+            Buf.clearMessage buf
+
+        V.MatchChar _ _ ->
+            Buf.clearMessage buf
+
+        V.MatchString _ ->
+            case buf.last.matchString of
+                Just ( s, _ ) ->
+                    Buf.infoMessage
+                        ((if mo.forward then
+                            "/"
+                          else
+                            "?"
+                         )
+                            ++ s
+                        )
+                        buf
+
+                _ ->
+                    Buf.clearMessage buf
 
         _ ->
             buf
@@ -839,12 +871,13 @@ motion count md mo buf =
                     |> Buf.setScrollTop scrollTop
                     |> setVisualEnd cursor
                     |> saveMotion md mo buf
+                    |> showSuccessMessage md mo
                 , Cmd.none
                 )
 
         Nothing ->
             ( buf
                 |> saveMotion md mo buf
-              --|> showErrorMessage md mo
+                |> showErrorMessage md mo
             , Cmd.none
             )
