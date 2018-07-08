@@ -1,5 +1,5 @@
 {
-    "version": "0.8.4",
+    "version": "0.9.0",
     "summary": "A toy vim clone",
     "repository": "https://github.com/chendesheng/webvim-elm.git",
     "license": "MIT",
