@@ -8,9 +8,11 @@ import Effect.Console as Console
 import Node.ChildProcess (ExecResult)
 import Node.HTTP (Response, responseAsStream, setHeader)
 import Node.Stream
-  (end, pipe
-  , Writable, Readable
-  , writeString, onEnd
+  (end
+  , pipe
+  , Writable
+  , Readable
+  , onEnd
   )
 import Node.Process (exit)
 import Node.Encoding (Encoding(..))
@@ -51,15 +53,10 @@ affExit :: Int -> Aff Unit
 affExit code = liftEffect $ exit code
 
 affWriteString :: Writable () -> String -> Aff Unit
-affWriteString stream s =
-  makeAff (\callback -> 
-    if s == "" then do
-      callback $ Right unit
-      pure nonCanceler
-      else do
-        void $ writeString stream UTF8 s (callback $ Right unit)
-        pure nonCanceler
-  )
+affWriteString stream s = do
+  let inputStream = createReadableStream s
+  affPipe inputStream stream
+  affWaitEnd inputStream
 
 affReadAllString :: Readable () -> Aff String
 affReadAllString stream =

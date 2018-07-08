@@ -80,8 +80,8 @@ writeFile req resp path = do
           format inputStream outputStream fileStream cmd
         _ -> do
           affPipe inputStream fileStream
-          affWriteString outputStream "[]"
           affWaitEnd inputStream
+          affWriteString outputStream "[]"
   affEnd outputStream
 
 
