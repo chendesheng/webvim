@@ -1708,10 +1708,19 @@ onTokenized buf resp =
                         }
 
                 TokenizeCacheMiss ->
-                    tokenizeBuffer { buf | syntaxDirtyFrom = 0 }
+                    tokenizeBuffer
+                        { buf
+                            | syntax = Array.empty
+                            , syntaxDirtyFrom = 0
+                        }
 
                 TokenizeError s ->
-                    ( { buf | syntax = Array.empty }, Cmd.none )
+                    ( { buf
+                        | syntax = Array.empty
+                        , syntaxDirtyFrom = 0
+                      }
+                    , Cmd.none
+                    )
 
         Err _ ->
             ( buf, Cmd.none )

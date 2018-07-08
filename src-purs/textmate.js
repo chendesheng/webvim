@@ -123,6 +123,18 @@ loadVscodeExtensions(
     path.join(homedir, '.vscode/extensions'),
     allExtensions
   );
+}).then(function(allExtensions) {
+  const label = 'solarized dark';
+  const theme = allExtensions.themes[label];
+  if (theme) {
+    console.log('initDefaultTheme');
+    loadThemeFile(theme.path).then(function(data) {
+      registry.setTheme({
+        name: label,
+        settings: data.tokenColors,
+      });
+    });
+  }
 }).catch(console.error);
 
 
@@ -226,6 +238,7 @@ function genThemeCss(uiTheme, theme, colorMap) {
 const registry = new Registry({
   loadGrammar: function(scopeName) {
     var grammar = vscodeExtensions.scopeNames[scopeName];
+    // console.log('scopeName:', scopeName);
     // console.log('grammar:', grammar);
     if (grammar) {
       return new Promise(function(resolve, reject) {
@@ -239,8 +252,7 @@ const registry = new Registry({
         });
       });
     }
-    // should not happen
-    throw new Error('nogrammar');
+    return null;
   },
 });
 
@@ -261,10 +273,9 @@ function getGrammar(p) {
     return Promise.reject('noextension');
   }
 }
-;
 
 function readJson(file) {
-  console.log('readJson:', file);
+  // console.log('readJson:', file);
   return new Promise(function(resolve, reject) {
     fs.readFile(file, 'utf8', function(err, content) {
       if (err) {
@@ -301,6 +312,7 @@ function loadThemeFile(file) {
     }
   });
 }
+
 
 exports.loadTheme = function(label) {
   return function(callback) {
@@ -360,8 +372,7 @@ exports.tokenize = function(path) {
                   ', cache.length=' + cache.length);
                 delete allCaches[path];
                 callback(JSON.stringify({
-                  type: 'error',
-                  payload: 'cacheMiss',
+                  type: 'cacheMiss',
                 }))();
               }
               const r = grammar.tokenizeLine2(line, cache[n]);
