@@ -118,4 +118,20 @@ suite =
                 , testArrayInsert 1 0 [ 1, 2, 3 ] [ 1, 0, 2, 3 ]
                 ]
             )
+        , describe "filename"
+            (let
+                testFilename name result =
+                    test name
+                        (\_ ->
+                            Expect.equal result <| filename name
+                        )
+             in
+                [ testFilename "a" ( "a", "" )
+                , testFilename "a.b" ( "a", ".b" )
+                , testFilename "a.b.c" ( "a.b", ".c" )
+                , testFilename "a/b/c" ( "c", "" )
+                , testFilename "a\\b\\c.d" ( "c", ".d" )
+                , testFilename "a/b\\c.d.e" ( "c.d", ".e" )
+                ]
+            )
         ]

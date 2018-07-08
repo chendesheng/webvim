@@ -41,20 +41,21 @@ fromListBy fnkey lst =
 filename : String -> ( String, String )
 filename s =
     case
-        Re.find
-            (Re.AtMost 1)
-            (Re.regex "(^|[/\\\\])([^./\\\\]+)([.][^.]*)?$")
-            s
+        s
+            |> Re.split Re.All (Re.regex "[/\\\\]")
+            |> getLast
+            |> Maybe.map (String.split "." >> List.reverse)
+            |> Maybe.withDefault []
     of
-        [ m ] ->
-            case m.submatches of
-                [ _, a, b ] ->
-                    ( Maybe.withDefault "" a
-                    , Maybe.withDefault "" b
-                    )
+        [ x ] ->
+            ( x, "" )
 
-                _ ->
-                    ( "", "" )
+        x :: xs ->
+            ( xs
+                |> List.reverse
+                |> String.join "."
+            , "." ++ x
+            )
 
         _ ->
             ( "", "" )
