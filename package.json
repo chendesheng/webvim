@@ -4,15 +4,15 @@
   "description": "A tony vim clone",
   "main": "dist/webvim-backend.js",
   "scripts": {
-    "css": "node ./build/less.config.js",
-    "start": "node ./start.js && npm run start",
+    "start": "gulp",
+    "css": "gulp css",
     "purs": "pulp build --src-path src-purs --test-path tests-purs --to dist/webvim-backend.js",
     "purs:watch": "pulp -w run --src-path src-purs",
-    "js": "elm make src/Main.elm --output dist/elm.js --debug --warn",
-    "release": "npm run css && node ./build/release.js",
-    "html": "node ./build/html.config.js",
-    "eslint": "eslint start.js tests/gen/gen.js build/*.js src-purs/**/*.js --fix",
-    "test": "node ./tests/gen/gen.js && elm test"
+    "js": "gulp js",
+    "release": "gulp css && node ./build/release.js",
+    "html": "gulp html",
+    "eslint": "eslint tests/gen/gen.js build/*.js src-purs/**/*.js --fix",
+    "test": "gulp test"
   },
   "files": [
     "dist/webvim.html",

@@ -1,29 +1,41 @@
-const fs = require('fs');
+const fs = require('fs-extra');
 
-const getLineHeight = () => {
+async function getLineHeight() {
   try {
-    return parseInt(fs.readFileSync('css/style.less', {encoding: 'utf8'})
-      .match(/@line-height:\s?(\d+)px;/)[1]);
-  } catch (e) {
+    const str = await fs.readFile('css/style.less', {
+      encoding: 'utf8',
+    });
+    return parseInt(str.match(/@line-height:\s?(\d+)px;/)[1]);
+  } catch ( e ) {
     console.warn('read line height failed: ' + e);
     return 21;
   }
-};
+}
 
-const base64Encode = (file) => {
-  const image = fs.readFileSync(file);
+async function base64Encode(file) {
+  const image = await fs.readFile(file);
   return new Buffer(image).toString('base64');
-};
+}
 
-const placeholder = '<!-- inject index.js -->';
-const htmlfile = fs.readFileSync('build/template.html', {encoding: 'utf8'});
-const jsfile
-  = `const lineHeight = ${getLineHeight()};\n`
-  + fs.readFileSync('build/index.js', {encoding: 'utf8'});
-fs.writeFileSync('index.html',
-  htmlfile
-    .replace(placeholder, jsfile)
-    .replace('href="favicon.ico"',
-             `href="data:image/x-icon;base64,${base64Encode('favicon.ico')}"`)
-);
+async function generateHtml() {
+  const placeholder = '<!-- inject index.js -->';
+  const htmlfile = await fs.readFile('build/template.html', {
+    encoding: 'utf8',
+  });
+  const height = await getLineHeight();
+  const indexjs = await fs.readFile('build/index.js', {
+    encoding: 'utf8',
+  });
+  const jsfile = `const lineHeight = ${height};
+${indexjs}`;
+  const favicon = await base64Encode('favicon.ico');
+  await fs.writeFile('index.html',
+    htmlfile
+      .replace(placeholder, jsfile)
+      .replace('href="favicon.ico"',
+        `href="data:image/x-icon;base64,${favicon}"`)
+  );
+  console.log(`[${new Date().toJSON()}]: index.html has been saved`);
+}
 
+exports.generateHtml = generateHtml;

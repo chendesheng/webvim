@@ -54,7 +54,7 @@ exports.genTests = async function() {
   }).join('\n   , ');
 
   // console.log(code);
-  return fs.writeFile(path.join(__dirname, '../TestData.elm'), format(`
+  await fs.writeFile(path.join(__dirname, '../TestData.elm'), format(`
 module TestData exposing(..)
 import Test exposing (..)
 import TestGenerated exposing (genTest)
@@ -65,6 +65,7 @@ suite =
         [${code}
         ]
 `));
+  console.log(`${new Date()} TestData.elm has been saved`);
 };
 
 
