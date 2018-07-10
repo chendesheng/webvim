@@ -450,7 +450,7 @@ runMotion count md mo buf =
                         Just ( y1, x1 )
 
                 V.ViewTop ->
-                    (buf.view.scrollTop + (Maybe.withDefault 0 count))
+                    (buf.view.scrollTop + (Maybe.withDefault 1 count) - 1)
                         |> Basics.min (bottomLine buf)
                         |> Buf.cursorLineFirst buf.lines
 
@@ -460,7 +460,7 @@ runMotion count md mo buf =
                         (middleLine buf)
 
                 V.ViewBottom ->
-                    (bottomLine buf - (Maybe.withDefault 0 count))
+                    (bottomLine buf - (Maybe.withDefault 1 count) + 1)
                         |> Basics.max buf.view.scrollTop
                         |> Buf.cursorLineFirst buf.lines
 
