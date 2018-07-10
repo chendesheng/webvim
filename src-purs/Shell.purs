@@ -33,7 +33,7 @@ execAsync cwd cmd maybeInput =
         let option = defaultExecOptions
                       { cwd = cwd
                       , timeout = Just 2000.0
-                      , windowsHide = true
+                      --, windowsHide = true
                       }
             onAfterExecute :: ExecResult -> Effect Unit
             onAfterExecute result = 
