@@ -86,4 +86,5 @@ exports.writeClipboard = function(s) {
   };
 };
 
+exports.argv = process.argv;
 
