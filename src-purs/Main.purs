@@ -1,7 +1,7 @@
 module Main where
 
 import Prelude (Unit, bind, discard, pure, show, unit
-  ,void, ($), (<>), (*))
+  ,void, ($), (<>), (*), (#))
 import Node.HTTP (Request, Response, createServer, listen, requestMethod
   ,requestURL, setHeader, setStatusCode, setStatusMessage
   ,requestAsStream, responseAsStream)
@@ -20,7 +20,7 @@ import Clipboard
 import Lint (lint, lintOnTheFly)
 import MyRouting (MyRoutes(..), matchUrl, DynamicActions(..))
 import Helper
-    (affExit
+    ( affExit
     , affLog, endResponse
     , setNoCacheHeaders, affWriteString
     , affReadAllString
@@ -28,16 +28,20 @@ import Helper
     , setCacheSeconds
     , homedir
     , boot
+    , argv
     )
 import TextMate (affTokenize, affLoadTheme)
 
+import Data.Array as Array
+import Data.Int as Int
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Aff (attempt, launchAff_, Aff)
 import Data.String.NonEmpty.Internal (NonEmptyString(..))
+import Data.String as String
 
 handler :: Request -> Response -> Aff Unit
 handler req resp = do
@@ -137,9 +141,18 @@ invalidRequest resp = do
     setStatusCode resp 400
   affEnd outputStream
 
+getPort :: Array String -> Maybe Int
+getPort args =
+  do
+    s <- args
+          # Array.mapMaybe (String.stripPrefix $ String.Pattern "--port=")
+          # Array.head
+    Int.fromString s
+
+
 main :: Effect Unit
 main = do
-  let port = 8899
+  let port = argv # getPort # fromMaybe 8899
   server <- createServer
     (\req resp -> launchAff_ $ do
       liftEffect $ setHeader resp "Access-Control-Allow-Origin" "*"
