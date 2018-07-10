@@ -31,6 +31,7 @@ module Update.Buffer
         , errorMessage
         , getStatusBar
         , clearMessage
+        , cIndentRules
         )
 
 import Internal.Position exposing (..)

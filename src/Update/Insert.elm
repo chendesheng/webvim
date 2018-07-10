@@ -89,8 +89,10 @@ insert s buf =
                         buf
                             |> insertString str
                             |> autoIndent
-                    -- FIXME
-                else if String.endsWith ".js" buf.path && str == "}" then
+                else if
+                    (buf.config.indent == IndentRules Buf.cIndentRules)
+                        && (str == "}")
+                then
                     buf
                         |> Buf.setLastIndent 0
                         |> insertString str

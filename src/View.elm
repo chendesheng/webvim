@@ -2,6 +2,7 @@ module View exposing (..)
 
 import Html exposing (..)
 import Html.Lazy exposing (..)
+import Html.Keyed as Keyed
 import Model exposing (..)
 import Internal.TextBuffer as B
 import Elm.Array as Array
@@ -32,7 +33,7 @@ pack offset a b =
 unpack : Int -> Int -> ( Int, Int )
 unpack offset n =
     ( BW.shiftRightZfBy offset n
-    , BW.and 0x0FFF n
+    , BW.and (BW.shiftLeftBy offset 1 - 1) n
     )
 
 
@@ -284,7 +285,7 @@ renderStatusBarLeft mode =
                     (if statusBar.error then
                         "status-error"
                      else
-                        ""
+                        "status-info"
                     )
                 ]
                 [ text
@@ -674,16 +675,22 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
 
 renderGutterInner : Int -> Int -> Html msg
 renderGutterInner begin end =
-    div
+    Keyed.node "div"
         [ class "gutter"
         , class "absolute-gutter"
         ]
         (List.range begin end
             |> List.map
                 (\i ->
-                    div
-                        [ class "line-number" ]
-                        [ text <| toString i ]
+                    let
+                        stri =
+                            toString i
+                    in
+                        ( stri
+                        , div
+                            [ class "line-number" ]
+                            [ text stri ]
+                        )
                 )
         )
 
@@ -778,7 +785,7 @@ renderLinesInner packed lines syntax =
         ( scrollTop, height ) =
             unpack 12 packed
     in
-        div
+        Keyed.node "div"
             [ class "lines" ]
             (lines
                 |> B.indexedMapLinesToList scrollTop
@@ -786,11 +793,15 @@ renderLinesInner packed lines syntax =
                     (\n line ->
                         case Array.get n syntax of
                             Just tokens ->
-                                div [ class "line" ]
+                                ( toString n
+                                , div [ class "line" ]
                                     (renderTokens tokens line 0)
+                                )
 
                             Nothing ->
-                                div [ class "line" ] [ text line ]
+                                ( toString n
+                                , div [ class "line" ] [ text line ]
+                                )
                     )
             )
 
