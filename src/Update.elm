@@ -348,12 +348,12 @@ setContinuation s buf =
     { buf | continuation = s }
 
 
-ceilingFromZero : Float -> Int
-ceilingFromZero n =
+floorFromZero : Float -> Int
+floorFromZero n =
     if n < 0 then
-        floor n
-    else
         ceiling n
+    else
+        floor n
 
 
 expandVisual :
@@ -621,6 +621,9 @@ runOperator count register operator buf =
 
         JumpByView factor ->
             let
+                forward =
+                    factor > 0
+
                 view =
                     buf.view
 
@@ -640,15 +643,20 @@ runOperator count register operator buf =
                         maxy =
                             B.count buf.lines - 1
                     in
-                        if newn < 0 then
-                            scrollTop
-                        else if (newn + height) > maxy then
-                            max (maxy - height + 1) 0
+                        if forward then
+                            if (newn + height) > maxy then
+                                max (maxy - height) 0
+                            else
+                                newn
                         else
-                            newn
+                            (if newn < height then
+                                0
+                             else
+                                newn
+                            )
 
                 n =
-                    ceilingFromZero (toFloat height * factor)
+                    floorFromZero (toFloat height * factor)
 
                 y =
                     lineScope (Tuple.first buf.cursor + n)
