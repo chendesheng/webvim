@@ -12,7 +12,8 @@
     "release": "gulp css && node ./build/release.js",
     "html": "gulp html",
     "eslint": "eslint tests/gen/gen.js build/*.js src-purs/**/*.js --fix",
-    "test": "gulp test"
+    "test": "gulp test",
+    "forever": "forever stop dist/webvim-backend.js && forever start dist/webvim-backend.js --port=9988"
   },
   "files": [
     "dist/webvim.html",

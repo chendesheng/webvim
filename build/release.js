@@ -9,10 +9,14 @@ const base64Encode = (file) => {
 
 const shell = (sh) => {
   console.log(sh);
-  return execa.shellSync(sh, {stdio: 'inherit'});
+  return execa.shellSync(sh, {
+    stdio: 'inherit',
+  });
 };
 
-const read = (f) => fs.readFileSync(f, {encoding: 'utf8'});
+const read = (f) => fs.readFileSync(f, {
+  encoding: 'utf8',
+});
 const commit = execa.shellSync('git rev-parse HEAD').stdout;
 const packagejson = JSON.parse(read('package.json'));
 const version = packagejson.version;
@@ -20,7 +24,9 @@ const version = packagejson.version;
 const optimizeByGoogleClosureCompiler = (version, commit, code) => {
   console.log('Optimizing');
   const flags = {
-    jsCode: [{src: code}],
+    jsCode: [{
+      src: code,
+    }],
     compilationLevel: 'ADVANCED',
     warningLevel: 'VERBOSE',
   };
@@ -37,7 +43,7 @@ const releaseFrontEnd = () => {
     try {
       return parseInt(read('css/style.less')
         .match(/@line-height:\s?(\d+)px;/)[1]);
-    } catch (e) {
+    } catch ( e ) {
       console.warn('read line height failed: ' + e);
       return 21;
     }
@@ -48,9 +54,11 @@ const releaseFrontEnd = () => {
   const code = optimizeByGoogleClosureCompiler(
     version,
     commit,
-    read('dist/.bundle.js')
-        + `\nconst lineHeight = ${getLineHeight()};\n`
-        + read('build/index.js'));
+    [read('dist/.bundle.js'),
+      `const lineHeight = ${getLineHeight()};`,
+      read('build/index.js')
+        .replace(/\n\s*service:.*8899.*,\s*\n/, '\nservice:"",\n'),
+    ].join('\n'));
 
   const placeholder = '<!-- inject index.js -->';
   const htmlfile = read('build/template.html');
@@ -58,11 +66,11 @@ const releaseFrontEnd = () => {
 
   fs.writeFileSync('dist/webvim.html',
     htmlfile
-    .replace(placeholder, '')
-    .replace(/[<]link.*dist\/style.min.css.*?>/, `<style>${css}</style>`)
-    .replace('src="dist/elm.js">', `>${code}`)
-    .replace('href="favicon.ico"',
-      `href="data:image/x-icon;base64,${base64Encode('favicon.ico')}"`));
+      .replace(placeholder, '')
+      .replace(/[<]link.*dist\/style.min.css.*?>/, `<style>${css}</style>`)
+      .replace('src="dist/elm.js">', `>${code}`)
+      .replace('href="favicon.ico"',
+        `href="data:image/x-icon;base64,${base64Encode('favicon.ico')}"`));
 
   console.log('Successfully generated webvim.html');
 };
@@ -78,8 +86,9 @@ const releaseBackEnd = () => {
       'require("path").join(__dirname,"webvim.html")');
   fs.writeFileSync(
     'dist/webvim-backend.js',
-    `#!/usr/bin/env node\n${code}`
-    );
+    `#!/usr/bin/env node
+${code}`
+  );
 
   console.log('Successfully generated webvim-backend.js');
 };
