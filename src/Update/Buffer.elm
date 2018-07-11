@@ -60,6 +60,7 @@ import Internal.TextBuffer as B
         , getLine
         , lineBreak
         , fromString
+        , fromStringExpandTabs
         , Patch(..)
         , isEmpty
         , foldlLines
@@ -151,11 +152,15 @@ applyPatches patches lines =
         patches
 
 
+{-| for unit testing
+-}
 insert : Position -> String -> Buffer -> Buffer
 insert pos s =
     transaction [ Insertion pos <| fromString s ]
 
 
+{-| for unit testing
+-}
 delete : Position -> Position -> Buffer -> Buffer
 delete from to =
     transaction [ Deletion from to ]
@@ -534,6 +539,9 @@ putString forward text buf =
         ( y, x ) =
             buf.cursor
 
+        tabSize =
+            buf.config.tabSize
+
         ( patch, cursor ) =
             let
                 line =
@@ -542,11 +550,15 @@ putString forward text buf =
                 case text of
                     Model.Text s ->
                         if forward && line /= lineBreak then
-                            ( Insertion ( y, x + 1 ) <| fromString s
+                            ( s
+                                |> fromStringExpandTabs tabSize (x + 1)
+                                |> Insertion ( y, x + 1 )
                             , Nothing
                             )
                         else
-                            ( Insertion ( y, x ) <| fromString s
+                            ( s
+                                |> fromStringExpandTabs tabSize x
+                                |> Insertion ( y, x )
                             , Nothing
                             )
 
@@ -563,18 +575,24 @@ putString forward text buf =
                                     else
                                         lineBreak ++ s
                             in
-                                ( Insertion ( y + 1, 0 ) <| fromString s1
+                                ( s1
+                                    |> fromStringExpandTabs tabSize 0
+                                    |> Insertion ( y + 1, 0 )
                                 , Just ( y + 1, findLineFirst s + 1 )
                                 )
                         else
                             case buf.mode of
                                 Model.Insert _ ->
-                                    ( Insertion ( y, x ) <| fromString s
+                                    ( s
+                                        |> fromStringExpandTabs tabSize x
+                                        |> Insertion ( y, x )
                                     , Nothing
                                     )
 
                                 _ ->
-                                    ( Insertion ( y, 0 ) <| fromString s
+                                    ( s
+                                        |> fromStringExpandTabs tabSize 0
+                                        |> Insertion ( y, 0 )
                                     , Just ( y, findLineFirst s + 1 )
                                     )
 
@@ -592,6 +610,7 @@ putString forward text buf =
                     buf.cursor
     in
         buf
+            |> setLastIndent 0
             |> transaction [ patch ]
             |> (\buf1 ->
                     setCursor

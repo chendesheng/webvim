@@ -1,0 +1,14 @@
+{
+||        aa
+          ^
+-- Normal --
+}
+
+> yeo<c-r>"<esc>
+
+{
+|         aa
+||        aa
+           ^
+-- Normal --
+}
