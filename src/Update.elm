@@ -1114,13 +1114,19 @@ cursorScope ({ view, cursor, lines } as buf) =
         ( y, x ) =
             cursor
 
+        scrollTop =
+            if Basics.rem view.scrollTopPx buf.view.lineHeight > 0 then
+                view.scrollTop + 1
+            else
+                view.scrollTop
+
         maxy =
             min
-                (view.scrollTop + view.size.height - 1)
+                (scrollTop + view.size.height - 1)
                 (max 0 (B.count lines - 2))
 
         miny =
-            min view.scrollTop maxy
+            min scrollTop maxy
 
         y1 =
             y |> min maxy |> max miny
@@ -1181,6 +1187,13 @@ newBuffer info buf =
                 { emptyView
                     | size = buf.view.size
                     , lineHeight = buf.view.lineHeight
+                    , scrollTopPx =
+                        (Buf.bestScrollTop (Tuple.first cursor)
+                            buf.view.size.height
+                            lines
+                            0
+                        )
+                            * buf.view.lineHeight
                     , scrollTop =
                         Buf.bestScrollTop (Tuple.first cursor)
                             buf.view.size.height
@@ -1797,6 +1810,35 @@ shortPath buf =
 update : Msg -> Buffer -> ( Buffer, Cmd Msg )
 update message buf =
     case message of
+        MouseWheel delta ->
+            let
+                view =
+                    buf.view
+
+                scrollTopPx =
+                    (view.scrollTopPx + delta)
+                        |> max 0
+                        |> min ((B.count buf.lines - 2) * buf.view.lineHeight)
+
+                lineHeight =
+                    buf.view.lineHeight
+
+                scrollTopDelta =
+                    scrollTopPx // lineHeight - buf.view.scrollTop
+            in
+                { buf
+                    | view = { view | scrollTopPx = scrollTopPx }
+                }
+                    |> applyVimAST False
+                        "<mousewheel>"
+                        { count = Nothing
+                        , edit = Just <| Scroll <| V.ScrollBy scrollTopDelta
+                        , register = V.defaultRegister
+                        , modeName = getModeName buf.mode
+                        , recordMacro = Nothing
+                        , recordKeys = ""
+                        }
+
         PressKey key ->
             List.foldl
                 (\key ( buf, cmds ) ->

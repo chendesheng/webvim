@@ -172,6 +172,9 @@ type alias ExMode =
 
 type alias View =
     { scrollTop : Int
+
+    -- TODO: remove scrollTop
+    , scrollTopPx : Int
     , scrollLeft : Int
     , startPosition : Position
     , dataStartPosition : Position
@@ -282,6 +285,7 @@ emptyExBuffer =
 emptyView : View
 emptyView =
     { scrollTop = 0
+    , scrollTopPx = 0
     , scrollLeft = 0
     , startPosition = ( 0, 0 )
     , size = { width = 1, height = 1 }

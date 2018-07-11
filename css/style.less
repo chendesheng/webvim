@@ -57,6 +57,7 @@ html, body {
   font-size: @line-height;
   font-variant-ligatures: common-ligatures;
   font-weight: 400;
+  overflow: hidden;
 }
 
 .vr-editor {
@@ -125,29 +126,25 @@ html, body {
 .gutter.relative-gutter {
   padding: 0 1ch;
   opacity: 0.5;
-  min-width: 2ch;
+  will-change: top;
 }
 
 .lines {
   position: relative;
 }
 
-.gutter {
-  display: flex;
-  flex-direction: column;
-}
-
 .line, .line-number {
   white-space: pre;
   height: 1rem;
   line-height: 1rem;
-  display: flex;
-  align-items: center;
+}
+
+.line {
+  position: absolute;
 }
 
 .line-number {
   text-align: right;
-  display: inline-block;
 }
 
 .line-number-highlight {
@@ -157,6 +154,7 @@ html, body {
 }
 
 .cursor {
+  user-select: none;
   position: absolute;
   width: 1ch;
   opacity: 0.5;
@@ -172,6 +170,7 @@ html, body {
 .guide {
   position: absolute;
   white-space: pre;
+  will-change: left, top;
 }
 
 .column-guide {

@@ -46,4 +46,5 @@ type Msg
     | SearchResult (Result Http.Error String)
     | SetCwd (Result Http.Error String)
     | Boot (Result Http.Error Flags)
+    | MouseWheel Int
     | NoneMessage

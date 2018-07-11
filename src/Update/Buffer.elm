@@ -836,7 +836,18 @@ updateView f buf =
 
 setScrollTop : Int -> Buffer -> Buffer
 setScrollTop n buf =
-    updateView (\v -> { v | scrollTop = n }) buf
+    updateView
+        (\v ->
+            { v
+                | scrollTop = n
+                , scrollTopPx =
+                    if n == v.scrollTopPx // v.lineHeight then
+                        v.scrollTopPx
+                    else
+                        n * buf.view.lineHeight
+            }
+        )
+        buf
 
 
 bestScrollTop : Int -> Int -> B.TextBuffer -> Int -> Int

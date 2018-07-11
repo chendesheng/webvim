@@ -3,6 +3,7 @@ module View exposing (..)
 import Html exposing (..)
 import Html.Lazy exposing (..)
 import Html.Keyed as Keyed
+import Html.Events as Events
 import Model exposing (..)
 import Internal.TextBuffer as B
 import Elm.Array as Array
@@ -17,6 +18,8 @@ import Update.Buffer as Buf
 import Dict exposing (Dict)
 import Helper.Helper exposing (maybeAndThen2)
 import Bitwise as BW
+import Update.Message exposing (Msg(..))
+import Json.Decode as Decode
 
 
 --import Regex exposing (regex)
@@ -54,12 +57,12 @@ translate x y =
     )
 
 
-vrView : Buffer -> Html msg
+vrView : Buffer -> Html Msg
 vrView buf =
     div [ class "vr-editor" ] [ view buf, view buf ]
 
 
-view : Buffer -> Html msg
+view : Buffer -> Html Msg
 view buf =
     let
         { mode, cursor, lines, syntax, continuation, view, history } =
@@ -68,8 +71,11 @@ view buf =
         scrollTop =
             view.scrollTop
 
-        { width, height } =
-            view.size
+        height =
+            view.size.height + 1
+
+        topOffsetPx =
+            Basics.rem view.scrollTopPx view.lineHeight
 
         totalLines =
             B.count lines - 1
@@ -92,7 +98,7 @@ view buf =
                 Nothing ->
                     ( Nothing, scrollTop )
 
-        relativeNumberLine =
+        relativeZeroLine =
             searchRange
                 |> Maybe.map .begin
                 |> Maybe.withDefault cursor
@@ -138,19 +144,29 @@ view buf =
             4
     in
         div [ class "editor" ]
-            ([ div [ class "buffer" ]
+            ([ div
+                [ class "buffer"
+                , Events.on "mousewheel"
+                    (Decode.map
+                        MouseWheel
+                        (Decode.at [ "deltaY" ] Decode.int)
+                    )
+                ]
                 [ renderGutter
+                    topOffsetPx
                     (scrollTop1 + 1)
                     (Basics.min (scrollTop1 + height + 1) totalLines)
                     gutterWidth
                     scrollTop1
-                    relativeNumberLine
-                , lazy2 renderRelativeGutter
-                    (relativeNumberLine - scrollTop1)
-                    (Basics.min (scrollTop1 + height + 1) (totalLines - 1)
-                        - relativeNumberLine
-                    )
-                , div [ class "lines-container" ]
+                    relativeZeroLine
+                , lazy3 renderRelativeGutter
+                    (pack 12 topOffsetPx buf.view.lineHeight)
+                    (pack 12 height (relativeZeroLine - scrollTop1))
+                    (totalLines - scrollTop1)
+                , div
+                    [ class "lines-container"
+                    , style [ ( "top", toString -topOffsetPx ++ "px" ) ]
+                    ]
                     (renderCursorColumn maybeCursor
                         :: renderLineGuide scrollTop1 maybeCursor
                         :: div [ class "ruler" ] []
@@ -688,7 +704,9 @@ renderGutterInner begin end =
                     in
                         ( stri
                         , div
-                            [ class "line-number" ]
+                            [ class "line-number"
+                            , style [ ( "top", rem (i - begin) ) ]
+                            ]
                             [ text stri ]
                         )
                 )
@@ -704,49 +722,71 @@ renderGutterHighlight scrollTop highlightLine =
         [ text <| toString <| highlightLine + 1 ]
 
 
-renderGutter : Int -> Int -> Int -> Int -> Int -> Html msg
-renderGutter begin end totalWidth scrollTop highlightLine =
+renderGutter : Int -> Int -> Int -> Int -> Int -> Int -> Html msg
+renderGutter topOffsetPx begin end totalWidth scrollTop highlightLine =
     div
         [ class "gutter-container"
-        , style [ ( "width", ch <| totalWidth + 1 ) ]
+        , style
+            [ ( "width", ch <| totalWidth + 1 )
+            , ( "top", toString -topOffsetPx ++ "px" )
+            ]
         ]
         [ lazy2 renderGutterInner begin end
         , lazy2 renderGutterHighlight scrollTop highlightLine
         ]
 
 
-renderRelativeGutter : Int -> Int -> Html msg
-renderRelativeGutter topn bottomn =
-    div [ class "gutter-container" ]
-        [ div
-            [ class "gutter"
-            , class "relative-gutter"
-
-            --, style [ ( "width", total |> toString |> String.length |> ch ) ]
-            ]
-            ((List.range 1 topn
-                |> List.reverse
-                |> List.map
-                    (\i ->
-                        div [ class "line-number" ]
-                            [ text <| toString i ]
-                    )
-             )
-                ++ [ div
-                        [ class "line-number"
-                        , class "current-line"
-                        ]
-                        [ text "0" ]
-                   ]
-                ++ (List.range 1 bottomn
-                        |> List.map
-                            (\i ->
-                                div [ class "line-number" ]
-                                    [ text <| toString i ]
-                            )
-                   )
-            )
+renderAllRelativeNumbers : Int -> Int -> Html msg
+renderAllRelativeNumbers low high =
+    div
+        [ class "gutter"
+        , class "relative-gutter"
+        , style [ ( "width", "2ch" ) ]
         ]
+        ((List.range 1 low
+            |> List.reverse
+            |> List.map
+                (\i ->
+                    div [ class "line-number" ]
+                        [ text <| toString i ]
+                )
+         )
+            ++ (List.range 0 (high - 1)
+                    |> List.map
+                        (\i ->
+                            div [ class "line-number" ]
+                                [ text <| toString i ]
+                        )
+               )
+        )
+
+
+renderRelativeGutter : Int -> Int -> Int -> Html msg
+renderRelativeGutter packed packed2 maxLine =
+    let
+        ( topOffsetPx, lineHeight ) =
+            unpack 12 packed
+
+        ( height, zeroLine ) =
+            unpack 12 packed2
+    in
+        div
+            [ class "gutter-container"
+            , style
+                [ ( "top"
+                  , toString
+                        ((zeroLine - height)
+                            * lineHeight
+                            - topOffsetPx
+                        )
+                        ++ "px"
+                  )
+                ]
+            ]
+            [ lazy2 renderAllRelativeNumbers
+                height
+                (Basics.min (maxLine - zeroLine) height)
+            ]
 
 
 renderTokens : List Token -> String -> Int -> List (Html msg)
@@ -791,17 +831,28 @@ renderLinesInner packed lines syntax =
                 |> B.indexedMapLinesToList scrollTop
                     (scrollTop + height)
                     (\n line ->
-                        case Array.get n syntax of
-                            Just tokens ->
-                                ( toString n
-                                , div [ class "line" ]
-                                    (renderTokens tokens line 0)
-                                )
+                        let
+                            top =
+                                ( "top", rem <| n - scrollTop )
+                        in
+                            case Array.get n syntax of
+                                Just tokens ->
+                                    ( toString n
+                                    , div
+                                        [ class "line"
+                                        , style [ top ]
+                                        ]
+                                        (renderTokens tokens line 0)
+                                    )
 
-                            Nothing ->
-                                ( toString n
-                                , div [ class "line" ] [ text line ]
-                                )
+                                Nothing ->
+                                    ( toString n
+                                    , div
+                                        [ class "line"
+                                        , style [ top ]
+                                        ]
+                                        [ text line ]
+                                    )
                     )
             )
 
