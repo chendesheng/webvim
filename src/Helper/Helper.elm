@@ -93,12 +93,20 @@ levenshtein =
 
 isSpace : Char -> Bool
 isSpace c =
-    Char.toCode c < 20 || c == ' '
+    let
+        code =
+            Char.toCode c
+    in
+        code < 20 || code == 32
 
 
 notSpace : Char -> Bool
-notSpace =
-    isSpace >> not
+notSpace c =
+    let
+        code =
+            Char.toCode c
+    in
+        code >= 20 && code /= 32
 
 
 isBetween : Char -> Char -> Char -> Bool
@@ -187,6 +195,7 @@ normalizePath sep path =
         path
             |> String.trim
             |> String.split sep1
+            |> List.filter (String.isEmpty >> not)
             |> String.join sep
 
 

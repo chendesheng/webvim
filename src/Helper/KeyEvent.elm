@@ -108,8 +108,8 @@ decodeKeyboardEvent =
         |> map toKey
 
 
-mapKeyCode : Int -> String
-mapKeyCode keyCode =
+keycodeMap : Dict.Dict Int String
+keycodeMap =
     Dict.fromList
         [ ( 8, "backspace" )
         , ( 9, "tab" )
@@ -223,6 +223,11 @@ mapKeyCode keyCode =
         , ( 61, "=" )
         , ( 173, "-" )
         ]
+
+
+mapKeyCode : Int -> String
+mapKeyCode keyCode =
+    keycodeMap
         |> Dict.get keyCode
         |> Maybe.withDefault ""
 
@@ -237,8 +242,8 @@ mapCtrl key =
         |> Maybe.withDefault key
 
 
-mapShift : String -> String
-mapShift key =
+shiftComboMap : Dict.Dict String String
+shiftComboMap =
     Dict.fromList
         [ ( "s-a", "A" )
         , ( "s-b", "B" )
@@ -288,6 +293,11 @@ mapShift key =
         , ( "s-\\", "|" )
         , ( "s-/", "?" )
         ]
+
+
+mapShift : String -> String
+mapShift key =
+    shiftComboMap
         |> Dict.get key
         |> Maybe.withDefault key
 

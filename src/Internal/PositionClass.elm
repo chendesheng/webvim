@@ -7,7 +7,6 @@ module Internal.PositionClass
         , parserBackwardCharRespectBackslash
         )
 
-import Char
 import Parser as P exposing (Parser, (|.), (|=))
 import Internal.TextBuffer as B
 import Vim.AST
@@ -20,6 +19,7 @@ import Vim.AST
         )
 import Maybe
 import Helper.Helper exposing (isSpace, notSpace, isBetween, word)
+import Regex as Re
 
 
 punctuation : String -> Char -> Bool
@@ -29,7 +29,7 @@ punctuation wordChars char =
 
 spaceInline : Char -> Bool
 spaceInline char =
-    (Char.toCode char < 20 || char == ' ') && char /= '\n'
+    isSpace char && char /= '\n'
 
 
 parserWordStart : String -> Bool -> Parser Int
@@ -407,5 +407,8 @@ findPosition wordChars md mo line pos =
 
 findLineFirst : String -> Int
 findLineFirst line =
-    P.run parserLineFirst line
-        |> Result.withDefault 0
+    line
+        |> Re.find (Re.AtMost 1) (Re.regex "\\S")
+        |> List.head
+        |> Maybe.map .index
+        |> Maybe.withDefault 0
