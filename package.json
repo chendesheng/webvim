@@ -56,7 +56,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run css && npm run eslint && elm format src/ --yes && elm format tests/ --yes && npm run test && npm run release"
+      "pre-commit": "npm run css && npm run test"
     }
   }
 }
