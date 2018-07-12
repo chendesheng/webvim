@@ -253,8 +253,8 @@ syntaxErrorParser =
            )
 
 
-parseElmMakeResponse : String -> Result a String -> Result String (List LintError)
-parseElmMakeResponse sep resp =
+parseElmMakeResponse : String -> String -> Result a String -> Result String (List LintError)
+parseElmMakeResponse sep path resp =
     case Result.mapError toString resp of
         Ok ss ->
             case Re.split (Re.AtMost 1) (Re.regex "\n") ss of
@@ -294,7 +294,23 @@ parseElmMakeResponse sep resp =
 
                             Err _ ->
                                 Ok
-                                    []
+                                    (if
+                                        s
+                                            |> String.trim
+                                            |> String.isEmpty
+                                     then
+                                        []
+                                     else
+                                        [ { file = path
+                                          , tag = Nothing
+                                          , tipe = "error"
+                                          , region = ( ( 0, 0 ), ( 0, 0 ) )
+                                          , subRegion = Nothing
+                                          , overview = ""
+                                          , details = s
+                                          }
+                                        ]
+                                    )
 
                 _ ->
                     Ok []
@@ -310,7 +326,7 @@ parseLintResult :
     -> Result String (List LintError)
 parseLintResult sep path =
     if String.endsWith ".elm" path then
-        parseElmMakeResponse sep
+        parseElmMakeResponse sep path
     else
         (\result ->
             case result of

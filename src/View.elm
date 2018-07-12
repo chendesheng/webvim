@@ -554,9 +554,10 @@ renderTipInner packedCursor scrollTop items =
                     renderDetails
                         (Tuple.first cursor - scrollTop + 1)
                         --(by - scrollTop)
-                        (item.overview
-                            ++ B.lineBreak
-                            ++ item.details
+                        (if String.isEmpty item.overview then
+                            item.details
+                         else
+                            item.overview ++ "\n" ++ item.details
                         )
                 )
             |> Maybe.withDefault (text "")
