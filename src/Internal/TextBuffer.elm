@@ -22,6 +22,7 @@ module Internal.TextBuffer
         , patchCursor
         , mergePatch
         , shiftPositionByPatch
+        , findFirstLine
         )
 
 import Internal.Position exposing (..)
@@ -218,6 +219,30 @@ getFirstLine buf =
     buf
         |> Array.get 0
         |> Maybe.withDefault ""
+
+
+findFirstLineHelper :
+    (String -> Int -> Maybe a)
+    -> List String
+    -> Int
+    -> Maybe a
+findFirstLineHelper pred lines i =
+    case lines of
+        line :: rest ->
+            case pred line i of
+                Just x ->
+                    Just x
+
+                _ ->
+                    findFirstLineHelper pred rest (i + 1)
+
+        _ ->
+            Nothing
+
+
+findFirstLine : (String -> Int -> Maybe a) -> TextBuffer -> Maybe a
+findFirstLine pred (TextBuffer lines) =
+    findFirstLineHelper pred (Array.toList lines) 0
 
 
 

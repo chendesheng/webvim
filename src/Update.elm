@@ -1965,6 +1965,7 @@ update message buf =
                                     buf1.config.pathSeperator
                                     buf1.path
                                     buf1.history.version
+                                    buf1.lines
                             else
                                 Cmd.none
                     in
@@ -1991,7 +1992,7 @@ update message buf =
                     buf.config.pathSeperator
                     buf.path
                     buf.history.version
-                    (B.toString buf.lines)
+                    buf.lines
                 )
             else
                 ( buf, Cmd.none )
@@ -2213,6 +2214,7 @@ editBuffer info buf =
                         newbuf.config.pathSeperator
                         newbuf.path
                         newbuf.history.version
+                        newbuf.lines
                   else
                     Cmd.none
                 , Doc.setTitle newbuf.name

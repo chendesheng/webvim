@@ -207,6 +207,51 @@ sendWriteBuffer url path buf =
         |> Http.send Write
 
 
+cannotFindModuleError : String -> B.TextBuffer -> Parser LintError
+cannotFindModuleError path lines =
+    let
+        findRegion name lines =
+            lines
+                |> B.findFirstLine
+                    (\line i ->
+                        line
+                            |> P.run
+                                (P.succeed identity
+                                    |. P.symbol "import"
+                                    |. P.ignoreUntil name
+                                    |. P.ignore P.oneOrMore isSpace
+                                )
+                            |> Result.toMaybe
+                            |> Maybe.map (always i)
+                    )
+                |> Maybe.map
+                    (\y ->
+                        ( ( y, 0 )
+                        , ( y, ("import " ++ name |> String.length) )
+                        )
+                    )
+                |> Maybe.withDefault ( ( 0, 0 ), ( 0, 0 ) )
+    in
+        (P.succeed
+            identity
+            |. P.symbol "I cannot find module '"
+            |= P.keep P.oneOrMore (\c -> c /= '\'')
+            |. P.keep P.zeroOrMore (always True)
+            |. P.end
+        )
+            |> P.sourceMap
+                (\details name ->
+                    { tipe = "error"
+                    , tag = Nothing
+                    , file = path
+                    , overview = ""
+                    , details = details
+                    , region = findRegion name lines
+                    , subRegion = Nothing
+                    }
+                )
+
+
 syntaxErrorParser : Parser LintError
 syntaxErrorParser =
     P.succeed
@@ -253,8 +298,13 @@ syntaxErrorParser =
            )
 
 
-parseElmMakeResponse : String -> String -> Result a String -> Result String (List LintError)
-parseElmMakeResponse sep path resp =
+parseElmMakeResponse :
+    String
+    -> String
+    -> B.TextBuffer
+    -> Result a String
+    -> Result String (List LintError)
+parseElmMakeResponse sep path lines resp =
     case Result.mapError toString resp of
         Ok ss ->
             case Re.split (Re.AtMost 1) (Re.regex "\n") ss of
@@ -287,7 +337,13 @@ parseElmMakeResponse sep path resp =
                             |> Ok
                     else
                         case
-                            P.run syntaxErrorParser s
+                            P.run
+                                (P.oneOf
+                                    [ syntaxErrorParser
+                                    , cannotFindModuleError path lines
+                                    ]
+                                )
+                                s
                         of
                             Ok item ->
                                 Ok [ { item | file = joinPath sep dir item.file } ]
@@ -322,11 +378,12 @@ parseElmMakeResponse sep path resp =
 parseLintResult :
     String
     -> String
+    -> B.TextBuffer
     -> Result a String
     -> Result String (List LintError)
-parseLintResult sep path =
+parseLintResult sep path lines =
     if String.endsWith ".elm" path then
-        parseElmMakeResponse sep path
+        parseElmMakeResponse sep path lines
     else
         (\result ->
             case result of
@@ -338,20 +395,23 @@ parseLintResult sep path =
         )
 
 
-sendLintProject : String -> String -> String -> Int -> Cmd Msg
-sendLintProject url sep path version =
+sendLintProject : String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
+sendLintProject url sep path version lines =
     Http.getString (url ++ "/lint?path=" ++ path)
-        |> Http.send (parseLintResult sep path >> Lint ( path, version ))
+        |> Http.send (parseLintResult sep path lines >> Lint ( path, version ))
 
 
-sendLintOnTheFly : String -> String -> String -> Int -> String -> Cmd Msg
-sendLintOnTheFly url sep path version buf =
+sendLintOnTheFly : String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
+sendLintOnTheFly url sep path version lines =
     let
         body =
-            Http.stringBody "text/plain" buf
+            Http.stringBody "text/plain" <| B.toString lines
     in
         post (url ++ "/lint?path=" ++ path) body
-            |> Http.send (parseLintResult sep path >> Lint ( path, version ))
+            |> Http.send
+                (parseLintResult sep path lines
+                    >> Lint ( path, version )
+                )
 
 
 unpackClass : Int -> Int -> Int -> Token
