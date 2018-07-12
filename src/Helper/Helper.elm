@@ -304,3 +304,10 @@ arrayInsert i item arr =
     (Array.slice i (Array.length arr) arr)
         |> Array.append (Array.fromList [ item ])
         |> Array.append (Array.slice 0 i arr)
+
+
+rightChar : String -> Maybe Char
+rightChar =
+    String.right 1
+        >> String.uncons
+        >> Maybe.map Tuple.first

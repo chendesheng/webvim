@@ -1525,11 +1525,7 @@ execute count s buf =
             ( buf, sendSearch buf.config.service buf.cwd s )
 
         [ "cd" ] ->
-            let
-                _ =
-                    Debug.log "cwd" buf.cwd
-            in
-                ( Buf.infoMessage buf.cwd buf, Cmd.none )
+            ( Buf.infoMessage buf.cwd buf, Cmd.none )
 
         [ "cd", cwd ] ->
             ( buf, sendCd buf.config.service cwd )
@@ -2125,31 +2121,38 @@ update message buf =
         ListFiles resp ->
             case resp of
                 Ok files ->
-                    case buf.mode of
-                        Ex ({ exbuf } as ex) ->
-                            ( setExbuf buf
-                                ex
-                                (case
-                                    autoCompleteTarget
-                                        (buf.config.pathSeperator
-                                            ++ "-._"
-                                        )
-                                        exbuf
-                                 of
-                                    Just ( pos, word ) ->
-                                        startAutoComplete files
-                                            pos
-                                            word
+                    let
+                        _ =
+                            Debug.log "files" files
+                    in
+                        case buf.mode of
+                            Ex ({ exbuf } as ex) ->
+                                ( setExbuf buf
+                                    ex
+                                    (case
+                                        autoCompleteTarget
+                                            (buf.config.pathSeperator
+                                                ++ "-._"
+                                            )
                                             exbuf
+                                     of
+                                        Just ( pos, word ) ->
+                                            startAutoComplete files
+                                                pos
+                                                word
+                                                exbuf
 
-                                    _ ->
-                                        exbuf
+                                        _ ->
+                                            startAutoComplete files
+                                                exbuf.cursor
+                                                ""
+                                                exbuf
+                                    )
+                                , Cmd.none
                                 )
-                            , Cmd.none
-                            )
 
-                        _ ->
-                            ( buf, Cmd.none )
+                            _ ->
+                                ( buf, Cmd.none )
 
                 Err _ ->
                     ( buf, Cmd.none )

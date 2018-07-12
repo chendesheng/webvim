@@ -7,6 +7,7 @@ import Elm.Array as Array
 import Update.Buffer as Buf
 import Update.Motion exposing (wordStringUnderCursor)
 import Internal.Position exposing (Position)
+import Helper.Helper exposing (word, rightChar)
 
 
 selectAutoComplete : Bool -> Buffer -> Buffer
@@ -151,18 +152,13 @@ filterAutoComplete buf =
                             buf.lines
                                 |> B.substring pos buf.cursor
                                 |> B.toString
-
-                        matches =
-                            if String.endsWith " " target then
-                                []
-                            else if String.length target > 0 then
-                                fuzzyMatch source target
-                            else
-                                []
                     in
-                        if List.isEmpty matches then
-                            Nothing
-                        else
+                        if
+                            target
+                                |> rightChar
+                                |> Maybe.map (word buf.config.wordChars)
+                                |> Maybe.withDefault True
+                        then
                             Just
                                 { auto
                                     | matches =
@@ -170,8 +166,13 @@ filterAutoComplete buf =
                                             { text = target
                                             , matches = []
                                             }
-                                            (Array.fromList matches)
+                                            (target
+                                                |> fuzzyMatch source
+                                                |> Array.fromList
+                                            )
                                 }
+                        else
+                            Nothing
 
                 _ ->
                     Nothing
