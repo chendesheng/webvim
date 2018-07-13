@@ -741,7 +741,7 @@ renderGutterHighlight offset highlightLine =
         [ class "line-number-highlight"
         , style [ ( "top", rem offset ) ]
         ]
-        [ text <| toString <| highlightLine + 1 ]
+        [ text <| toString <| highlightLine ]
 
 
 renderGutter :
