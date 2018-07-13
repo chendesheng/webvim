@@ -32,6 +32,7 @@ module Update.Buffer
         , getStatusBar
         , clearMessage
         , cIndentRules
+        , finalScrollTop
         )
 
 import Internal.Position exposing (..)
@@ -52,6 +53,7 @@ import Model
         , emptyUndo
         , IndentConfig(..)
         , StatusMessage(..)
+        , ExPrefix(..)
         )
 import Internal.TextBuffer as B
     exposing
@@ -1007,3 +1009,30 @@ getStatusBar mode =
             , cursor = Just exbuf.cursor
             , error = False
             }
+
+
+finalScrollTop : Buffer -> Int
+finalScrollTop buf =
+    case buf.mode of
+        Ex { prefix, visual } ->
+            case prefix of
+                ExSearch { match } ->
+                    case match of
+                        Just ( begin, end ) ->
+                            bestScrollTop
+                                (Basics.min
+                                    (Tuple.first begin)
+                                    (Tuple.first end)
+                                )
+                                buf.view.size.height
+                                buf.lines
+                                buf.view.scrollTop
+
+                        _ ->
+                            buf.view.scrollTop
+
+                _ ->
+                    buf.view.scrollTop
+
+        _ ->
+            buf.view.scrollTop

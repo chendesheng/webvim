@@ -45,18 +45,10 @@ debounceLint time =
         |> debounce
 
 
-debounceTokenize : Time -> String -> Int -> Int -> String -> Cmd msg
-debounceTokenize time path version line lines =
+debounceTokenize : Time -> Cmd msg
+debounceTokenize time =
     Encode.object
         [ ( "action", Encode.string "tokenize" )
         , ( "time", Encode.float time )
-        , ( "payload"
-          , Encode.object
-                [ ( "line", Encode.int line )
-                , ( "lines", Encode.string lines )
-                , ( "version", Encode.int version )
-                , ( "path", Encode.string path )
-                ]
-          )
         ]
         |> debounce

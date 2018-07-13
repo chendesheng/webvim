@@ -1357,60 +1357,34 @@ isModeNameVisual name =
 
 tokenizeBuffer : Buffer -> ( Buffer, Cmd Msg )
 tokenizeBuffer buf =
-    ( buf, tokenizeBufferCmd False 0 buf )
+    ( buf, tokenizeBufferCmd buf )
 
 
-tokenizeBufferCmd : Bool -> Int -> Buffer -> Cmd Msg
-tokenizeBufferCmd debounce minBottom buf =
-    if buf.path == "" then
+tokenizeBufferCmd : Buffer -> Cmd Msg
+tokenizeBufferCmd buf =
+    if buf.path == "" && buf.path == "[Find]" then
         Cmd.none
     else
         let
-            height =
-                buf.view.size.height
-
-            minBottom2 =
-                buf.view.scrollTop + 2 * height
-
-            bottom =
-                minBottom
-                    |> max minBottom2
-                    |> min (B.count buf.lines - 1)
-
-            syntaxBottom =
+            begin =
                 buf.syntaxDirtyFrom
 
-            tokenizeCmd line lines =
-                if debounce then
-                    debounceTokenize
-                        100
-                        buf.path
-                        buf.history.version
-                        line
-                        lines
-                else
-                    sendTokenize
-                        buf.config.service
-                        { path = buf.path
-                        , version = buf.history.version
-                        , line = line
-                        , lines = lines
-                        }
+            end =
+                Buf.finalScrollTop buf + 2 * buf.view.size.height
         in
-            if bottom <= syntaxBottom then
-                Cmd.none
+            if begin < end then
+                sendTokenize
+                    buf.config.service
+                    { path = buf.path
+                    , version = buf.history.version
+                    , line = begin
+                    , lines =
+                        buf.lines
+                            |> B.sliceLines begin end
+                            |> B.toString
+                    }
             else
-                buf.lines
-                    |> B.sliceLines
-                        syntaxBottom
-                        -- at least fetch one screen
-                        (if bottom - syntaxBottom < height then
-                            syntaxBottom + height
-                         else
-                            bottom
-                        )
-                    |> B.toString
-                    |> tokenizeCmd syntaxBottom
+                Cmd.none
 
 
 jumpTo : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
@@ -1632,27 +1606,7 @@ applyVimAST replaying key ast buf =
 
         doTokenize oldBuf ( buf, cmds ) =
             if (oldBuf.path == buf.path) || (Buf.isEditing oldBuf buf) then
-                let
-                    newBottom =
-                        case buf.mode of
-                            Ex { prefix, visual } ->
-                                case prefix of
-                                    ExSearch { match } ->
-                                        case match of
-                                            Just ( begin, _ ) ->
-                                                Tuple.first begin
-                                                    + buf.view.size.height
-
-                                            _ ->
-                                                0
-
-                                    _ ->
-                                        0
-
-                            _ ->
-                                0
-                in
-                    ( buf, tokenizeBufferCmd True newBottom buf :: cmds )
+                ( buf, (debounceTokenize 100) :: cmds )
             else
                 ( buf, cmds )
 
@@ -2074,8 +2028,8 @@ update message buf =
             else
                 ( buf, Cmd.none )
 
-        SendTokenize req ->
-            ( buf, sendTokenize buf.config.service req )
+        SendTokenize ->
+            ( buf, tokenizeBufferCmd buf )
 
         ReadTags result ->
             case result of
@@ -2221,7 +2175,7 @@ editBuffer info buf =
                   else
                     Cmd.none
                 , Doc.setTitle newbuf.name
-                , tokenizeBufferCmd False 0 newbuf
+                , tokenizeBufferCmd newbuf
                 ]
             )
 

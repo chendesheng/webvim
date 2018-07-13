@@ -90,13 +90,11 @@ view buf =
                         ( y, x ) ->
                             Just ( y - scrollTop, x )
 
-        ( searchRange, scrollTop1 ) =
-            case incrementSearch scrollTop height mode lines of
-                Just ( r, t ) ->
-                    ( Just r, t )
+        scrollTop1 =
+            Buf.finalScrollTop buf
 
-                Nothing ->
-                    ( Nothing, scrollTop )
+        searchRange =
+            incrementSearchRegion mode
 
         relativeZeroLine =
             searchRange
@@ -190,7 +188,7 @@ view buf =
                     (renderCursorColumn maybeCursor
                         :: renderLineGuide scrollTop1 maybeCursor
                         :: div [ class "ruler" ] []
-                        :: renderVisual scrollTop1 height mode searchRange lines
+                        :: renderVisual scrollTop1 height mode lines
                         ?:: (searchRange
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
@@ -347,36 +345,19 @@ renderStatusBar dirty mode continuation items name =
         ]
 
 
-incrementSearch :
-    Int
-    -> Int
-    -> Mode
-    -> B.TextBuffer
-    -> Maybe ( VisualMode, Int )
-incrementSearch scrollTop height mode lines =
-    (case mode of
+incrementSearchRegion : Mode -> Maybe VisualMode
+incrementSearchRegion mode =
+    case mode of
         Ex { prefix, visual } ->
             case prefix of
                 ExSearch { match } ->
                     case match of
                         Just ( begin, end ) ->
-                            let
-                                by =
-                                    Basics.min
-                                        (Tuple.first begin)
-                                        (Tuple.first end)
-                            in
-                                Just
-                                    ( { tipe = VisualChars
-                                      , begin = begin
-                                      , end = end
-                                      }
-                                    , Buf.bestScrollTop
-                                        by
-                                        height
-                                        lines
-                                        scrollTop
-                                    )
+                            Just
+                                { tipe = VisualChars
+                                , begin = begin
+                                , end = end
+                                }
 
                         _ ->
                             Nothing
@@ -386,17 +367,15 @@ incrementSearch scrollTop height mode lines =
 
         _ ->
             Nothing
-    )
 
 
 renderVisual :
     Int
     -> Int
     -> Mode
-    -> Maybe VisualMode
     -> B.TextBuffer
     -> Maybe (Html msg)
-renderVisual scrollTop height mode searchRange lines =
+renderVisual scrollTop height mode lines =
     case mode of
         Visual visual ->
             Just <| lazy3 renderSelections scrollTop lines visual

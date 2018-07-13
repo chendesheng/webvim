@@ -9,61 +9,9 @@ import View exposing (..)
 import Helper.KeySub exposing (downs)
 import Window exposing (resizes)
 import Helper.Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
-import Json.Decode as Decode exposing (decodeValue)
-import List
 
 
 -- This is the first line written in webvim-elm :)
-
-
-tokenizeRequestParser : Decode.Decoder TokenizeRequest
-tokenizeRequestParser =
-    Decode.map4
-        (\path version line lines ->
-            { path = path
-            , version = version
-            , line = line
-            , lines = lines
-            }
-        )
-        (Decode.field "path" Decode.string)
-        (Decode.field "version" Decode.int)
-        (Decode.field "line" Decode.int)
-        (Decode.field "lines" Decode.string)
-
-
-minLine : List TokenizeRequest -> Maybe TokenizeRequest
-minLine items =
-    case items of
-        [ x ] ->
-            Just x
-
-        x :: xs ->
-            List.foldl
-                (\result current ->
-                    if result.line >= current.line then
-                        current
-                    else
-                        result
-                )
-                x
-                items
-                |> Just
-
-        _ ->
-            Nothing
-
-
-handleTokenizeBounce : DebounceEvent -> Msg
-handleTokenizeBounce event =
-    event.payloads
-        |> List.filterMap
-            (decodeValue tokenizeRequestParser
-                >> Result.toMaybe
-            )
-        |> minLine
-        |> Maybe.map SendTokenize
-        |> Maybe.withDefault NoneMessage
 
 
 toModel : ( Buffer, cmd ) -> ( Model, cmd )
@@ -122,7 +70,7 @@ main =
                                                 SendLint
 
                                             "tokenize" ->
-                                                handleTokenizeBounce event
+                                                SendTokenize
 
                                             _ ->
                                                 NoneMessage

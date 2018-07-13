@@ -81,25 +81,26 @@ app.ports.setTitle.subscribe((title) => {
   document.title = title || 'no name';
 });
 
-let debouncers = {};
+const debouncers = {};
 app.ports.debounce.subscribe(({action, time, payload}) => {
-  const data = debouncers[action] || {};
+  const debouncer = debouncers[action] || {
+    payloads: [],
+  };
+  debouncers[action] = debouncer;
+
   // console.log('debounce', action);
   if (payload !== undefined) {
-    const payloads = data.payloads || [];
-    payloads.push(payload);
-    data.payloads = payloads;
+    debouncer.payloads.push(payload);
   }
 
-  clearTimeout(data.timer);
-  data.timer = setTimeout(() => {
+  clearTimeout(debouncer.timer);
+  debouncer.timer = setTimeout(() => {
     // console.log('send debounced', action);
+    const payloads = debouncer.payloads;
+    debouncer.payloads = [];
     app.ports.onDebounce.send({
       action,
-      payloads: debouncers[action].payloads || [],
+      payloads,
     });
-    debouncers[action].payloads = null;
   }, time);
-
-  debouncers[action] = data;
 });

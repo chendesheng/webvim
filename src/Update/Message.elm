@@ -38,7 +38,7 @@ type Msg
     | ReadClipboard (Result Http.Error ( Bool, Key, AST, String ))
     | WriteClipboard (Result Http.Error ())
     | SendLint
-    | SendTokenize TokenizeRequest
+    | SendTokenize
     | Lint BufferIdentifier (Result String (List LintError))
     | Tokenized BufferIdentifier (Result Http.Error TokenizeResponse)
     | ListFiles (Result String (List String))
