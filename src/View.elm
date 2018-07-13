@@ -148,13 +148,20 @@ view buf =
     in
         div [ class "editor" ]
             ([ div
-                [ class "buffer"
-                , Events.on "mousewheel"
-                    (Decode.map
-                        (Basics.min (2 * lineHeight) >> MouseWheel)
-                        (Decode.at [ "deltaY" ] Decode.int)
-                    )
-                ]
+                ([ class "buffer"
+                 ]
+                    ++ case buf.mode of
+                        Ex _ ->
+                            []
+
+                        _ ->
+                            [ Events.on "mousewheel"
+                                (Decode.map
+                                    (Basics.min (2 * lineHeight) >> MouseWheel)
+                                    (Decode.at [ "deltaY" ] Decode.int)
+                                )
+                            ]
+                )
                 [ renderGutter
                     topOffsetPx
                     gutterWidth
