@@ -13,7 +13,8 @@
     "html": "gulp html",
     "eslint": "eslint tests/gen/gen.js build/*.js src-purs/**/*.js --fix",
     "test": "gulp test",
-    "forever": "forever stop dist/webvim-backend.js && forever start dist/webvim-backend.js --port=9988"
+    "forever": "forever start dist/webvim-backend.js --port=9988",
+    "pull" : "git pull && npm run release && forever stop dist/webvim-backend.js && npm run forever"
   },
   "files": [
     "dist/webvim.html",
