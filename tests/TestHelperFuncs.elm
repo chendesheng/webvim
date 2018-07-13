@@ -77,6 +77,8 @@ suite =
              in
                 [ testUnix "\\d/e/f" "/d/e/f"
                 , testWin "\\d/e\\f  " "\\d\\e\\f"
+                , testWin "\\\\\\d/e\\f  " "\\d\\e\\f"
+                , testWin "\\\\/\\\\d/e\\f  " "\\d\\e\\f"
                 ]
             )
         , describe "nthList"

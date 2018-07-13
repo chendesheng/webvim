@@ -194,8 +194,8 @@ normalizePath sep path =
     in
         path
             |> String.trim
+            |> Re.replace Re.All (Re.regex "[\\\\/]+") (always sep)
             |> String.split sep1
-            |> List.filter (String.isEmpty >> not)
             |> String.join sep
 
 

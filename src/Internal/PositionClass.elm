@@ -408,7 +408,7 @@ findPosition wordChars md mo line pos =
 findLineFirst : String -> Int
 findLineFirst line =
     line
-        |> Re.find (Re.AtMost 1) (Re.regex "\\S")
+        |> Re.find (Re.AtMost 1) (Re.regex "\\S|$|\n")
         |> List.head
         |> Maybe.map .index
         |> Maybe.withDefault 0

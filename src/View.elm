@@ -142,30 +142,40 @@ view buf =
 
         relativeGutterWidth =
             4
+
+        lineHeight =
+            buf.view.lineHeight
     in
         div [ class "editor" ]
             ([ div
                 [ class "buffer"
                 , Events.on "mousewheel"
                     (Decode.map
-                        (Basics.min (2 * view.lineHeight) >> MouseWheel)
+                        (Basics.min (2 * lineHeight) >> MouseWheel)
                         (Decode.at [ "deltaY" ] Decode.int)
                     )
                 ]
                 [ renderGutter
                     topOffsetPx
-                    (scrollTop1 + 1)
-                    (Basics.min (scrollTop1 + height + 1) totalLines)
                     gutterWidth
                     scrollTop1
                     relativeZeroLine
+                    (height + 1)
+                    lineHeight
+                    totalLines
                 , lazy3 renderRelativeGutter
-                    (pack 12 topOffsetPx buf.view.lineHeight)
+                    (pack 12 topOffsetPx lineHeight)
                     (pack 12 height (relativeZeroLine - scrollTop1))
                     (totalLines - scrollTop1)
                 , div
                     [ class "lines-container"
-                    , style [ ( "top", toString -topOffsetPx ++ "px" ) ]
+                    , style
+                        [ ( "top"
+                          , toString
+                                -(topOffsetPx)
+                                ++ "px"
+                          )
+                        ]
                     ]
                     (renderCursorColumn maybeCursor
                         :: renderLineGuide scrollTop1 maybeCursor
@@ -179,6 +189,7 @@ view buf =
                         :: renderLines
                             scrollTop1
                             (height + 1)
+                            lineHeight
                             lines
                             syntax
                         :: renderCursor "" maybeCursor
@@ -554,9 +565,10 @@ renderTipInner packedCursor scrollTop items =
                     renderDetails
                         (Tuple.first cursor - scrollTop + 1)
                         --(by - scrollTop)
-                        (item.overview
-                            ++ B.lineBreak
-                            ++ item.details
+                        (if String.isEmpty item.overview then
+                            item.details
+                         else
+                            item.overview ++ "\n" ++ item.details
                         )
                 )
             |> Maybe.withDefault (text "")
@@ -714,26 +726,50 @@ renderGutterInner begin end =
 
 
 renderGutterHighlight : Int -> Int -> Html ms
-renderGutterHighlight scrollTop highlightLine =
+renderGutterHighlight offset highlightLine =
     div
         [ class "line-number-highlight"
-        , style [ ( "top", rem <| highlightLine - scrollTop ) ]
+        , style [ ( "top", rem offset ) ]
         ]
         [ text <| toString <| highlightLine + 1 ]
 
 
-renderGutter : Int -> Int -> Int -> Int -> Int -> Int -> Html msg
-renderGutter topOffsetPx begin end totalWidth scrollTop highlightLine =
-    div
-        [ class "gutter-container"
-        , style
-            [ ( "width", ch <| totalWidth + 1 )
-            , ( "top", toString -topOffsetPx ++ "px" )
+renderGutter :
+    Int
+    -> Int
+    -> Int
+    -> Int
+    -> Int
+    -> Int
+    -> Int
+    -> Html msg
+renderGutter topOffsetPx totalWidth scrollTop highlightLine height lineHeight totalLines =
+    let
+        n =
+            scrollTop // height
+
+        remTop =
+            Basics.rem scrollTop height
+
+        top =
+            toString
+                (-remTop * lineHeight - topOffsetPx)
+                ++ "px"
+    in
+        div
+            [ class "gutter-container"
+            , style
+                [ ( "width", ch <| totalWidth + 1 )
+                , ( "top", top )
+                ]
             ]
-        ]
-        [ lazy2 renderGutterInner begin end
-        , lazy2 renderGutterHighlight scrollTop highlightLine
-        ]
+            [ lazy2 renderGutterInner
+                (n * height)
+                (Basics.min ((n + 2) * height) (totalLines - 1))
+            , lazy2 renderGutterHighlight
+                (highlightLine - scrollTop + remTop)
+                highlightLine
+            ]
 
 
 renderAllRelativeNumbers : Int -> Int -> Html msg
@@ -822,14 +858,17 @@ renderTokens spans line i =
 renderLinesInner : Int -> B.TextBuffer -> Syntax -> Html msg
 renderLinesInner packed lines syntax =
     let
-        ( scrollTop, height ) =
+        ( n, height ) =
             unpack 12 packed
+
+        scrollTop =
+            n * height
     in
         Keyed.node "div"
             [ class "lines" ]
             (lines
                 |> B.indexedMapLinesToList scrollTop
-                    (scrollTop + height)
+                    (scrollTop + height * 2)
                     (\n line ->
                         let
                             top =
@@ -857,9 +896,24 @@ renderLinesInner packed lines syntax =
             )
 
 
-renderLines : Int -> Int -> B.TextBuffer -> Syntax -> Html msg
-renderLines scrollTop height lines syntax =
-    lazy3 renderLinesInner (pack 12 scrollTop height) lines syntax
+renderLines : Int -> Int -> Int -> B.TextBuffer -> Syntax -> Html msg
+renderLines scrollTop height lineHeight lines syntax =
+    let
+        n =
+            scrollTop // height
+
+        top =
+            toString
+                (-(Basics.rem scrollTop height) * lineHeight)
+                ++ "px"
+    in
+        div
+            [ style
+                [ ( "top", top ) ]
+            , class "lines-scrolling"
+            ]
+            [ lazy3 renderLinesInner (pack 12 n height) lines syntax
+            ]
 
 
 renderAutoCompleteMenu : Bool -> Int -> Int -> AutoComplete -> Html msg

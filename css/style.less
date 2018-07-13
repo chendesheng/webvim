@@ -88,6 +88,7 @@ html, body {
 }
 
 .buffer {
+  user-select: none;
   display: flex;
   flex-direction: row;
   flex-grow: 1;
@@ -131,6 +132,7 @@ html, body {
 
 .lines {
   position: relative;
+  will-change: top;
 }
 
 .line, .line-number {
@@ -151,6 +153,11 @@ html, body {
   position: absolute;
   color: yellow;
   right: 0ch;
+}
+
+.lines-scrolling {
+  position: relative;
+  will-change: top;
 }
 
 .cursor {
