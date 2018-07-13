@@ -157,7 +157,10 @@ view buf =
                         _ ->
                             [ Events.on "mousewheel"
                                 (Decode.map
-                                    (Basics.min (2 * lineHeight) >> MouseWheel)
+                                    (Basics.min (2 * lineHeight)
+                                        >> Basics.max (-2 * lineHeight)
+                                        >> MouseWheel
+                                    )
                                     (Decode.at [ "deltaY" ] Decode.int)
                                 )
                             ]
