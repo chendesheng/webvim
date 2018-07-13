@@ -858,6 +858,7 @@ runOperator count register operator buf =
                 Just ( _, s ) ->
                     ( buf
                     , sendReadTags buf.config.service
+                        buf.config.pathSeperator
                         buf.cwd
                         buf.path
                         (Maybe.withDefault 1 count - 1)

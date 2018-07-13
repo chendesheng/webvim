@@ -667,11 +667,11 @@ sendWriteClipboard url str =
         |> Http.send WriteClipboard
 
 
-ctagsParser : Parser (List Location)
-ctagsParser =
+ctagsParser : String -> Parser (List Location)
+ctagsParser sep =
     P.succeed
         (\path x y ->
-            { cursor = ( y - 1, x ), path = path }
+            { cursor = ( y - 1, x ), path = normalizePath sep path }
         )
         |. P.ignore P.oneOrMore notSpace
         |. P.ignore P.oneOrMore isSpace
@@ -701,8 +701,8 @@ pickClosest path index locs =
         |> Array.get index
 
 
-sendReadTags : String -> String -> String -> Int -> String -> Cmd Msg
-sendReadTags url cwd path index name =
+sendReadTags : String -> String -> String -> String -> Int -> String -> Cmd Msg
+sendReadTags url sep cwd path index name =
     Http.getString (url ++ "/readtags?name=" ++ name ++ "&cwd=" ++ cwd)
         |> Http.send
             (\result ->
@@ -710,7 +710,7 @@ sendReadTags url cwd path index name =
                     |> Result.mapError toString
                     |> Result.andThen
                         (\s ->
-                            P.run ctagsParser s
+                            P.run (ctagsParser sep) s
                                 --|> Debug.log "ctags parse"
                                 |> Result.mapError
                                     (always "parse result error")
