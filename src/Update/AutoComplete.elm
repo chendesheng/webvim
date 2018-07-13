@@ -108,8 +108,14 @@ isAutoCompleteStarted buf =
             False
 
 
-startAutoComplete : List String -> Position -> String -> Buffer -> Buffer
-startAutoComplete source pos word buf =
+startAutoComplete :
+    String
+    -> List String
+    -> Position
+    -> String
+    -> Buffer
+    -> Buffer
+startAutoComplete wordChars source pos word buf =
     case buf.mode of
         Insert insert ->
             { buf
@@ -130,6 +136,7 @@ startAutoComplete source pos word buf =
                                                 }
                                     , select = -1
                                     , scrollTop = 0
+                                    , wordChars = wordChars
                                     }
                         }
             }
@@ -145,7 +152,7 @@ filterAutoComplete buf =
             case autoComplete of
                 Just auto ->
                     let
-                        { pos, source } =
+                        { pos, source, wordChars } =
                             auto
 
                         target =
@@ -156,7 +163,7 @@ filterAutoComplete buf =
                         if
                             target
                                 |> rightChar
-                                |> Maybe.map (word buf.config.wordChars)
+                                |> Maybe.map (word wordChars)
                                 |> Maybe.withDefault True
                         then
                             Just

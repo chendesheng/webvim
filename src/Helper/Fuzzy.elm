@@ -2,6 +2,7 @@ module Helper.Fuzzy exposing (..)
 
 import List
 import String
+import Char
 import Helper.Helper exposing (getLast)
 
 
@@ -11,14 +12,25 @@ type alias FuzzyMatchItem =
     }
 
 
+normalizeSlash : String -> String
+normalizeSlash a =
+    if a == "/" || a == "\\" then
+        "/"
+    else
+        a
+
+
 fuzzyMatchInner : String -> String -> List Int
 fuzzyMatchInner s t =
     let
         smartCaseEqual a b =
-            if String.toLower b == b then
+            if String.any Char.isLower b then
                 String.toLower a == b
             else
                 a == b
+
+        equal a b =
+            smartCaseEqual (normalizeSlash a) (normalizeSlash b)
 
         lenS =
             String.length s
@@ -32,7 +44,7 @@ fuzzyMatchInner s t =
         match delta i j result =
             if i < 0 || j < 0 || i >= lenS || j >= lenT then
                 result
-            else if smartCaseEqual (charAt i s) (charAt j t) then
+            else if equal (charAt i s) (charAt j t) then
                 match delta (i + delta) (j + delta) (i :: result)
             else
                 match delta (i + delta) j result

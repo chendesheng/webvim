@@ -148,6 +148,7 @@ type alias AutoComplete =
     , select : Int
     , scrollTop : Int
     , pos : Position
+    , wordChars : String
     }
 
 

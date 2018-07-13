@@ -805,6 +805,7 @@ runOperator count register operator buf =
                                 Just ( pos, word ) ->
                                     buf
                                         |> startAutoComplete
+                                            buf.config.wordChars
                                             (Buf.toWords word buf)
                                             pos
                                             word
@@ -2123,8 +2124,8 @@ update message buf =
             case resp of
                 Ok files ->
                     let
-                        _ =
-                            Debug.log "files" files
+                        fileNameWordChars =
+                            "/\\-._"
                     in
                         case buf.mode of
                             Ex ({ exbuf } as ex) ->
@@ -2132,19 +2133,21 @@ update message buf =
                                     ex
                                     (case
                                         autoCompleteTarget
-                                            (buf.config.pathSeperator
-                                                ++ "-._"
-                                            )
+                                            fileNameWordChars
                                             exbuf
                                      of
                                         Just ( pos, word ) ->
-                                            startAutoComplete files
+                                            startAutoComplete
+                                                fileNameWordChars
+                                                files
                                                 pos
                                                 word
                                                 exbuf
 
                                         _ ->
-                                            startAutoComplete files
+                                            startAutoComplete
+                                                fileNameWordChars
+                                                files
                                                 exbuf.cursor
                                                 ""
                                                 exbuf
