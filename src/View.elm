@@ -103,8 +103,13 @@ view buf =
                 |> Tuple.first
 
         matchedCursor =
-            Maybe.map (Tuple.mapFirst (\y -> y - scrollTop))
-                buf.view.matchedCursor
+            maybeCursor
+                |> Maybe.andThen
+                    (always
+                        (Maybe.map (Tuple.mapFirst (\y -> y - scrollTop))
+                            buf.view.matchedCursor
+                        )
+                    )
 
         matchedCursor2 =
             case buf.mode of
@@ -168,7 +173,7 @@ view buf =
                     gutterWidth
                     scrollTop1
                     relativeZeroLine
-                    (height + 1)
+                    height
                     lineHeight
                     totalLines
                 , lazy3 renderRelativeGutter
@@ -196,7 +201,7 @@ view buf =
                         ?:: lazy3 renderLint scrollTop1 lines buf.lint.items
                         :: renderLines
                             scrollTop1
-                            (height + 1)
+                            height
                             lineHeight
                             lines
                             syntax
@@ -746,7 +751,7 @@ renderGutter topOffsetPx totalWidth scrollTop highlightLine height lineHeight to
                 ++ "px"
     in
         div
-            [ class "gutter-container"
+            [ class "gutter-container absolute-gutter-container"
             , style
                 [ ( "width", ch <| totalWidth + 1 )
                 , ( "top", top )
