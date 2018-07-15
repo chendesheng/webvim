@@ -5,6 +5,8 @@ const {generateCss} = require('./build/less.config.js');
 const {generateHtml} = require('./build/html.config.js');
 const http = require('http');
 const browserSync = require('browser-sync').create();
+const AsyncLock = require('async-lock');
+const lock = new AsyncLock();
 
 function exec(cmd) {
   return new Promise(function(resolve, reject) {
@@ -18,22 +20,25 @@ function exec(cmd) {
   });
 }
 
-gulp.task('ctags', function() {
-  return exec(['ctags',
-    '-R',
-    '--fields=+n',
-    '--exclude="tests/elm-stuff"',
-    '--exclude="*.json"',
-    '--exclude="elm-stuff/**/tests"',
-    '--exclude="elm-stuff/**/benchmarks"',
-    '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/tests"',
-    '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/benchmarks"',
-    '--exclude="tests/gen/**"',
-    'src',
-    'tests',
-    'elm-stuff/packages',
-    'tests/elm-stuff/packages/elm-community/elm-test',
-  ].join(' '));
+gulp.task('ctags', async function() {
+  return lock.acquire('ctags', function() {
+    return exec(['ctags',
+      '-R',
+      '--fields=+n',
+      '--exclude="tests/elm-stuff"',
+      '--exclude="*.json"',
+      '--exclude="elm-stuff/**/tests"',
+      '--exclude="elm-stuff/**/benchmarks"',
+      '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/tests"',
+      '--exclude='
+      + '"tests/elm-stuff/packages/elm-community/elm-test/**/benchmarks"',
+      '--exclude="tests/gen/**"',
+      'src',
+      'tests',
+      'elm-stuff/packages',
+      'tests/elm-stuff/packages/elm-community/elm-test',
+    ].join(' '));
+  });
 });
 
 gulp.task('genTests', genTests);
@@ -41,7 +46,9 @@ gulp.task('genTests', genTests);
 gulp.task('css', generateCss);
 gulp.task('html', generateHtml);
 gulp.task('js', function() {
-  return exec('elm make src/Main.elm --output dist/elm.js --debug --warn');
+  return lock.acquire('elm make', function() {
+    return exec('elm make src/Main.elm --output dist/elm.js --debug --warn');
+  });
 });
 
 gulp.task('test', async function() {

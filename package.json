@@ -16,8 +16,8 @@
     "forever": "forever start dist/webvim-backend.js --port=9988",
     "forever:stop": "forever stop dist/webvim-backend.js",
     "forever:restart": "forever restart dist/webvim-backend.js",
-    "pull" : "git pull && npm run deploy",
-    "deploy" : "npm run release && npm run forever:restart"
+    "pull": "git pull && npm run deploy",
+    "deploy": "npm run release && npm run forever:restart"
   },
   "files": [
     "dist/webvim.html",
@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "ajv": "^5.0.0",
+    "async-lock": "^1.1.3",
     "bower": "^1.8.4",
     "browser-sync": "^2.24.4",
     "chokidar": "^2.0.3",
