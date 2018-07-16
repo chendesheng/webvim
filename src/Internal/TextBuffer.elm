@@ -436,6 +436,7 @@ applyInsertion pos (TextBuffer s) buf =
                             )
                         -- because of pos < bound, this will never happen
                         |> Maybe.withDefault ( 0, 0 )
+                        |> normalizePos buf
 
         top =
             slice ( 0, 0 ) pos1 buf
@@ -465,6 +466,29 @@ applyInsertion pos (TextBuffer s) buf =
         )
 
 
+normalizePos : Array String -> Position -> Position
+normalizePos lines (( y, x ) as pos) =
+    case Array.get y lines of
+        Just line ->
+            let
+                len =
+                    String.length line
+            in
+                if x >= len then
+                    if String.endsWith lineBreak line then
+                        ( y + 1, 0 )
+                    else
+                        ( y, len )
+                else
+                    pos
+
+        _ ->
+            if pos < ( 0, 0 ) then
+                ( 0, 0 )
+            else
+                boundPosition lines
+
+
 applyDeletion :
     Position
     -> Position
@@ -483,8 +507,13 @@ applyDeletion pos1 pos2 buf =
 
             deleted =
                 slice pos1 pos2 buf |> TextBuffer
+
+            res =
+                top +++ bottom
         in
-            ( Insertion pos1 deleted, top +++ bottom |> TextBuffer )
+            ( Insertion (normalizePos res pos1) deleted
+            , TextBuffer res
+            )
 
 
 {-| apply a patch, returns "reversed" patch and result buf

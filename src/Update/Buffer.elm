@@ -33,6 +33,9 @@ module Update.Buffer
         , clearMessage
         , cIndentRules
         , finalScrollTop
+        , getViewLines
+        , scrollViewLines
+        , fillEmptyViewLines
         )
 
 import Internal.Position exposing (..)
@@ -54,6 +57,7 @@ import Model
         , IndentConfig(..)
         , StatusMessage(..)
         , ExPrefix(..)
+        , ViewLine
         )
 import Internal.TextBuffer as B
     exposing
@@ -85,7 +89,6 @@ import Internal.Syntax
         ( Syntax
         , Token
         , applyPatchToSyntax
-        , applyPatchesToSyntax
         , splitTokens
         )
 import Elm.Array as Array exposing (Array)
@@ -140,18 +143,43 @@ applyPatchesToLintErrors =
         )
 
 
-applyPatches : List Patch -> TextBuffer -> ( TextBuffer, List Patch, Int )
-applyPatches patches lines =
-    List.foldl
-        (\patch ( lines, patches2, miny ) ->
-            let
-                ( patch2, lines2 ) =
-                    applyPatch patch lines
-            in
-                ( lines2, patch2 :: patches2, min miny (minLine patch) )
-        )
-        ( lines, [], 0xFFFFFFFF )
-        patches
+applyPatches :
+    List Patch
+    -> Buffer
+    -> ( TextBuffer, List Patch, Int, Syntax, List (Maybe ViewLine) )
+applyPatches patches buf =
+    let
+        lines =
+            buf.lines
+
+        view =
+            buf.view
+    in
+        List.foldl
+            (\patch ( lines, patches2, miny, syntax, viewLines ) ->
+                let
+                    ( patch2, lines2 ) =
+                        applyPatch patch lines
+
+                    syntax2 =
+                        Tuple.first <| applyPatchToSyntax patch syntax
+                in
+                    ( lines2
+                    , patch2 :: patches2
+                    , min miny (minLine patch)
+                    , syntax2
+                    , applyPatchToViewLines
+                        view.scrollTop
+                        view.size.height
+                        patch2
+                        lines
+                        lines2
+                        syntax2
+                        viewLines
+                    )
+            )
+            ( lines, [], 0xFFFFFFFF, buf.syntax, view.lines )
+            patches
 
 
 {-| for unit testing
@@ -183,6 +211,210 @@ arrayLast arr =
     Array.get (Array.length arr - 1) arr
 
 
+getViewLines :
+    Int
+    -> Int
+    -> B.TextBuffer
+    -> Syntax
+    -> List (Maybe ViewLine)
+getViewLines begin end lines syntax =
+    if begin > end then
+        []
+    else
+        let
+            holes =
+                List.repeat (end - B.count lines) Nothing
+        in
+            B.indexedMapLinesToList
+                begin
+                end
+                (\i s ->
+                    Just
+                        { lineNumber = i
+                        , text = s
+                        , syntax =
+                            Array.get i syntax
+                                |> Maybe.withDefault []
+                        }
+                )
+                lines
+                ++ holes
+
+
+max3 : Int -> Int -> Int -> Int
+max3 a b =
+    max b >> max a
+
+
+patchRegion : Patch -> ( Position, Position )
+patchRegion patch =
+    case patch of
+        Insertion ( by, bx ) s ->
+            let
+                n =
+                    B.count s - 1
+
+                ex_ =
+                    B.getLine n s
+                        |> Maybe.withDefault ""
+                        |> String.length
+
+                ex =
+                    if n == 0 then
+                        bx + ex_
+                    else
+                        ex_
+            in
+                ( ( by, bx )
+                , ( by + n, ex )
+                )
+
+        Deletion b e ->
+            ( b, e )
+
+
+applyPatchToViewLines :
+    Int
+    -> Int
+    -> Patch
+    -> B.TextBuffer
+    -> B.TextBuffer
+    -> Syntax
+    -> List (Maybe ViewLine)
+    -> List (Maybe ViewLine)
+applyPatchToViewLines scrollTop height_ patch oldLines lines syntax viewLines =
+    let
+        height =
+            height_ + 2
+
+        --_ =
+        --Debug.log "scrollTop" scrollTop
+        --_ =
+        --Debug.log "height" height
+        --_ =
+        --Debug.log "patch" patch
+        updateViewLine i viewLine =
+            { viewLine
+                | text =
+                    lines
+                        |> B.getLine i
+                        |> Maybe.withDefault ""
+                , syntax =
+                    syntax
+                        |> Array.get i
+                        |> Maybe.withDefault []
+            }
+
+        ( ( by, bx ), ( ey, ex ) ) =
+            patchRegion patch
+    in
+        case patch of
+            Deletion _ _ ->
+                let
+                    --_ =
+                    --Debug.log "insert" ( ( by, bx ), ( ey, ex ) )
+                    maxLineNumber =
+                        min (scrollTop + height) (B.count lines)
+
+                    --_ =
+                    --Debug.log "maxLineNumber" maxLineNumber
+                    cnt =
+                        ey - by + 1
+
+                    n =
+                        cnt - 1
+
+                    --|> Debug.log "n"
+                    --_ =
+                    --Debug.log "y" by
+                    inserts =
+                        getViewLines
+                            (by + 1)
+                            (by + n + 1)
+                            lines
+                            syntax
+
+                    --|> Debug.log "inserts"
+                in
+                    viewLines
+                        |> List.map
+                            (Maybe.andThen
+                                (\({ lineNumber } as viewLine) ->
+                                    --let
+                                    --_ =
+                                    --Debug.log "lineNumber" lineNumber
+                                    --in
+                                    if lineNumber == by then
+                                        viewLine
+                                            |> updateViewLine by
+                                            |> Just
+                                    else if lineNumber > by then
+                                        if lineNumber + n < maxLineNumber then
+                                            Just
+                                                { viewLine
+                                                    | lineNumber =
+                                                        lineNumber + n
+                                                }
+                                        else
+                                            Nothing
+                                    else
+                                        Just viewLine
+                                )
+                            )
+                        |> fillViewLines inserts
+
+            Insertion _ _ ->
+                let
+                    --_ =
+                    --Debug.log "delete" ( ( by, bx ), ( ey, ex ) )
+                    maxLineNumber =
+                        min (scrollTop + height) (B.count oldLines)
+
+                    --_ =
+                    --Debug.log "maxLineNumber" maxLineNumber
+                    --_ =
+                    --Debug.log "(by,ey)" ( by, ey )
+                    dy =
+                        ey - by
+
+                    inserts =
+                        getViewLines
+                            (max3 (by + 1) (maxLineNumber - dy) scrollTop)
+                            maxLineNumber
+                            lines
+                            syntax
+
+                    --|> Debug.log "inserts"
+                in
+                    viewLines
+                        |> List.map
+                            (Maybe.andThen
+                                (\({ lineNumber } as viewLine) ->
+                                    if by == lineNumber then
+                                        viewLine
+                                            |> updateViewLine by
+                                            |> Just
+                                    else if
+                                        (by < lineNumber)
+                                            && (lineNumber <= ey)
+                                    then
+                                        Nothing
+                                    else if lineNumber > ey then
+                                        if lineNumber - dy < scrollTop then
+                                            Nothing
+                                        else
+                                            Just
+                                                { viewLine
+                                                    | lineNumber =
+                                                        lineNumber - dy
+                                                }
+                                    else
+                                        Just viewLine
+                                )
+                            )
+                        |> fillViewLines inserts
+
+
 {-| batch edit text, keep cursor, save history
 -}
 transaction : List Patch -> Buffer -> Buffer
@@ -200,6 +432,9 @@ transaction patches buf =
 
                         ( syntax, _ ) =
                             applyPatchToSyntax patch buf.syntax
+
+                        view =
+                            buf.view
                     in
                         ( { buf
                             | lines = lines
@@ -212,6 +447,18 @@ transaction patches buf =
                                         |> B.patchCursor
                                         |> Tuple.first
                                     )
+                            , view =
+                                { view
+                                    | lines =
+                                        applyPatchToViewLines
+                                            view.scrollTop
+                                            view.size.height
+                                            patch1
+                                            buf.lines
+                                            lines
+                                            syntax
+                                            view.lines
+                                }
                           }
                         , patch1 :: undo
                         )
@@ -355,11 +602,8 @@ undo buf =
                     history =
                         buf.history
 
-                    ( lines1, patches1, miny ) =
-                        applyPatches undoPatches buf.lines
-
-                    ( syntax, n ) =
-                        applyPatchesToSyntax undoPatches buf.syntax
+                    ( lines1, patches1, miny, syntax, viewLines ) =
+                        applyPatches undoPatches buf
 
                     jumps =
                         applyPatchesToJumps undoPatches buf.jumps
@@ -379,6 +623,9 @@ undo buf =
                             , version = history.version + 1
                             , savePoint = history.savePoint - 1
                         }
+
+                    view =
+                        buf.view
                 in
                     { buf
                         | lines = lines1
@@ -398,6 +645,7 @@ undo buf =
                             { items = lintErrors
                             , count = buf.lint.count
                             }
+                        , view = { view | lines = viewLines }
                     }
             )
         |> Maybe.withDefault buf
@@ -418,11 +666,8 @@ redo buf =
                     history =
                         buf.history
 
-                    ( lines1, patches1, miny ) =
-                        applyPatches redoPatches buf.lines
-
-                    ( syntax, n ) =
-                        applyPatchesToSyntax redoPatches buf.syntax
+                    ( lines1, patches1, miny, syntax, viewLines ) =
+                        applyPatches redoPatches buf
 
                     jumps =
                         applyPatchesToJumps redoPatches buf.jumps
@@ -446,6 +691,9 @@ redo buf =
                             |> List.map B.patchCursor
                             |> List.minimum
                             |> Maybe.withDefault buf.cursor
+
+                    view =
+                        buf.view
                 in
                     { buf
                         | lines = lines1
@@ -465,6 +713,7 @@ redo buf =
                             { items = lintErrors
                             , count = buf.lint.count
                             }
+                        , view = { view | lines = viewLines }
                     }
             )
         |> Maybe.withDefault buf
@@ -836,20 +1085,130 @@ updateView f buf =
         { buf | view = f buf.view }
 
 
+{-| go through viewLines, test base on linenumber
+if current line is removed or is nothing use inserts to fill this line
+-}
+fillViewLines :
+    List (Maybe ViewLine)
+    -> List (Maybe ViewLine)
+    -> List (Maybe ViewLine)
+fillViewLines inserts viewLines =
+    if List.isEmpty inserts then
+        viewLines
+    else
+        let
+            fillInserts viewLines inserts =
+                case inserts of
+                    viewLine :: restInserts ->
+                        viewLine
+                            :: fillViewLines
+                                restInserts
+                                viewLines
+
+                    _ ->
+                        Nothing
+                            :: fillViewLines
+                                []
+                                viewLines
+        in
+            case viewLines of
+                viewLine :: rest ->
+                    case viewLine of
+                        Just { lineNumber } ->
+                            viewLine :: fillViewLines inserts rest
+
+                        _ ->
+                            fillInserts rest inserts
+
+                _ ->
+                    []
+
+
+fillEmptyViewLines : Int -> List (Maybe ViewLine) -> List (Maybe ViewLine)
+fillEmptyViewLines height_ viewLines =
+    let
+        height =
+            height_ + 2
+
+        n =
+            List.length viewLines
+    in
+        if n < height then
+            viewLines ++ List.repeat (height - n) Nothing
+        else
+            viewLines
+
+
+scrollViewLines :
+    B.TextBuffer
+    -> Syntax
+    -> Int
+    -> Int
+    -> Int
+    -> List (Maybe ViewLine)
+    -> List (Maybe ViewLine)
+scrollViewLines lines syntax height_ from to viewLines =
+    let
+        height =
+            height_ + 2
+    in
+        if from == to then
+            viewLines
+        else if
+            (to >= from + height)
+                || (to + height <= from)
+        then
+            getViewLines
+                to
+                (to + height)
+                lines
+                syntax
+        else
+            let
+                inserts =
+                    if from < to then
+                        getViewLines (from + height) (to + height) lines syntax
+                    else
+                        getViewLines to from lines syntax
+            in
+                viewLines
+                    |> List.map
+                        (Maybe.andThen
+                            (\({ lineNumber } as viewLine) ->
+                                if to <= lineNumber && lineNumber < to + height then
+                                    Just viewLine
+                                else
+                                    Nothing
+                            )
+                        )
+                    |> fillViewLines inserts
+
+
 setScrollTop : Int -> Buffer -> Buffer
 setScrollTop n buf =
-    updateView
-        (\v ->
-            { v
-                | scrollTop = n
-                , scrollTopPx =
-                    if n == v.scrollTopPx // v.lineHeight then
-                        v.scrollTopPx
-                    else
-                        n * buf.view.lineHeight
-            }
-        )
+    if n == buf.view.scrollTop then
         buf
+    else
+        updateView
+            (\v ->
+                { v
+                    | scrollTop = n
+                    , scrollTopPx =
+                        if n == v.scrollTopPx // v.lineHeight then
+                            v.scrollTopPx
+                        else
+                            n * buf.view.lineHeight
+                    , lines =
+                        scrollViewLines
+                            buf.lines
+                            buf.syntax
+                            v.size.height
+                            v.scrollTop
+                            n
+                            v.lines
+                }
+            )
+            buf
 
 
 bestScrollTop : Int -> Int -> B.TextBuffer -> Int -> Int

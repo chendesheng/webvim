@@ -122,7 +122,7 @@ invalidPatches =
             , B.fromString "\n\n\n\n"
             )
       , output =
-            ( Insertion ( 2, 1 ) B.empty
+            ( Insertion ( 3, 0 ) B.empty
             , B.fromString "\n\n\n\n"
             )
       }
@@ -144,11 +144,36 @@ fuzzPositionFrom ( y, x ) =
     Fuzz.tuple ( Fuzz.intRange y (y + 1000), Fuzz.intRange x (x + 1000) )
 
 
+fuzzLines : Fuzz.Fuzzer B.TextBuffer
+fuzzLines =
+    Fuzz.string
+        |> Fuzz.andThen
+            (\s ->
+                Fuzz.intRange 0 (String.length s)
+                    |> Fuzz.list
+                    |> Fuzz.map2
+                        (\n poses ->
+                            poses
+                                |> List.take n
+                                |> List.sort
+                                |> List.reverse
+                                |> List.foldl
+                                    (\i res ->
+                                        String.left i res
+                                            ++ "\n"
+                                            ++ String.dropLeft i res
+                                    )
+                                    s
+                                |> B.fromString
+                        )
+                        (Fuzz.intRange 0 10)
+            )
+
+
 fuzzPatch : Fuzz.Fuzzer Patch
 fuzzPatch =
     Fuzz.oneOf
-        [ Fuzz.map B.fromString Fuzz.string
-            |> Fuzz.map2 Insertion fuzzPosition
+        [ Fuzz.map2 Insertion fuzzPosition fuzzLines
         , fuzzPosition
             |> Fuzz.andThen
                 (\pos ->

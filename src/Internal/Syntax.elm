@@ -2,7 +2,6 @@ module Internal.Syntax exposing (..)
 
 import Elm.Array as Array exposing (Array)
 import Internal.TextBuffer as B exposing (Patch(..))
-import Helper.Helper exposing (..)
 import List
 import Internal.Position exposing (Position)
 
@@ -215,26 +214,6 @@ applyPatchToSyntax patch syntax =
 
                     _ ->
                         ( syntax, Just ya )
-
-
-applyPatchesToSyntax :
-    List Patch
-    -> Syntax
-    -> ( Syntax, Maybe Int )
-applyPatchesToSyntax patches syntax =
-    List.foldl
-        (\patch result ->
-            let
-                ( syntax, n ) =
-                    result
-
-                ( newSyntax, newn ) =
-                    applyPatchToSyntax patch syntax
-            in
-                ( newSyntax, minMaybe n newn )
-        )
-        ( syntax, Nothing )
-        patches
 
 
 getToken : Position -> Syntax -> Maybe Token

@@ -2,7 +2,6 @@ module View exposing (..)
 
 import Html exposing (..)
 import Html.Lazy exposing (..)
-import Html.Keyed as Keyed
 import Html.Events as Events
 import Model exposing (..)
 import Internal.TextBuffer as B
@@ -20,10 +19,6 @@ import Helper.Helper exposing (maybeAndThen2)
 import Bitwise as BW
 import Update.Message exposing (Msg(..))
 import Json.Decode as Decode
-
-
---import Regex exposing (regex)
---import Fuzzy exposing (FuzzyMatchItem)
 
 
 pack : Int -> Int -> Int -> Int
@@ -72,7 +67,7 @@ view buf =
             view.scrollTop
 
         height =
-            view.size.height + 1
+            view.size.height + 2
 
         topOffsetPx =
             Basics.rem view.scrollTopPx view.lineHeight
@@ -86,9 +81,7 @@ view buf =
                     Nothing
 
                 _ ->
-                    case cursor of
-                        ( y, x ) ->
-                            Just ( y - scrollTop, x )
+                    Just cursor
 
         scrollTop1 =
             Buf.finalScrollTop buf
@@ -105,11 +98,7 @@ view buf =
         matchedCursor =
             maybeCursor
                 |> Maybe.andThen
-                    (always
-                        (Maybe.map (Tuple.mapFirst (\y -> y - scrollTop))
-                            buf.view.matchedCursor
-                        )
-                    )
+                    (always buf.view.matchedCursor)
 
         matchedCursor2 =
             case buf.mode of
@@ -148,11 +137,18 @@ view buf =
 
         lineHeight =
             buf.view.lineHeight
+
+        scrollingCss =
+            scrollingStyle
+                lineHeight
+                topOffsetPx
+                totalLines
+                height
+                scrollTop1
     in
         div [ class "editor" ]
             ([ div
-                ([ class "buffer"
-                 ]
+                ([ class "buffer" ]
                     ++ case buf.mode of
                         Ex _ ->
                             []
@@ -160,7 +156,10 @@ view buf =
                         _ ->
                             [ Events.on "mousewheel"
                                 (Decode.map
-                                    (Basics.min (2 * lineHeight)
+                                    (toFloat
+                                        >> (*) 1.8
+                                        >> floor
+                                        >> Basics.min (2 * lineHeight)
                                         >> Basics.max (-2 * lineHeight)
                                         >> MouseWheel
                                     )
@@ -169,42 +168,31 @@ view buf =
                             ]
                 )
                 [ renderGutter
-                    topOffsetPx
+                    scrollingCss
                     gutterWidth
-                    scrollTop1
                     relativeZeroLine
-                    height
-                    lineHeight
                     totalLines
-                , lazy3 renderRelativeGutter
-                    (pack 12 topOffsetPx lineHeight)
-                    (pack 12 height (relativeZeroLine - scrollTop1))
+                    view.lines
+                , renderRelativeGutter
+                    lineHeight
+                    topOffsetPx
+                    height
+                    (relativeZeroLine - scrollTop1)
                     (totalLines - scrollTop1)
                 , div
                     [ class "lines-container"
-                    , style
-                        [ ( "top"
-                          , toString
-                                -(topOffsetPx)
-                                ++ "px"
-                          )
-                        ]
+                    , style scrollingCss
                     ]
-                    (renderCursorColumn maybeCursor
-                        :: renderLineGuide scrollTop1 maybeCursor
-                        :: div [ class "ruler" ] []
+                    (renderColumnGuide maybeCursor
+                        :: renderLineGuide maybeCursor
                         :: renderVisual scrollTop1 height mode lines
                         ?:: (searchRange
                                 |> Maybe.map
                                     (lazy3 renderHighlights scrollTop1 lines)
                             )
                         ?:: lazy3 renderLint scrollTop1 lines buf.lint.items
-                        :: renderLines
-                            scrollTop1
-                            height
-                            lineHeight
-                            lines
-                            syntax
+                        :: lazy renderLines view.lines
+                        :: div [ class "ruler" ] []
                         :: renderCursor "" maybeCursor
                         :: renderCursor "matched-cursor" matchedCursor
                         :: renderCursor "matched-cursor" matchedCursor2
@@ -468,8 +456,8 @@ renderCursorColumnInner x =
         []
 
 
-renderCursorColumn : Maybe Position -> Html msg
-renderCursorColumn cursor =
+renderColumnGuide : Maybe Position -> Html msg
+renderColumnGuide cursor =
     case cursor of
         Just ( y, x ) ->
             lazy renderCursorColumnInner x
@@ -488,8 +476,8 @@ renderLineGuideInner y =
         []
 
 
-renderLineGuide : Int -> Maybe Position -> Html msg
-renderLineGuide scrollTop cursor =
+renderLineGuide : Maybe Position -> Html msg
+renderLineGuide cursor =
     case cursor of
         Just ( y, x ) ->
             lazy renderLineGuideInner y
@@ -686,7 +674,7 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
                         (div
                             [ style
                                 [ ( "left", ch b )
-                                , ( "top", rem <| row - scrollTop )
+                                , ( "top", rem row )
                                 , ( "width", ch <| e - b + 1 )
                                 ]
                             ]
@@ -695,75 +683,60 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
                 )
 
 
-renderGutterInner : Int -> Int -> Html msg
-renderGutterInner begin end =
-    Keyed.node "div"
-        [ class "gutter"
-        , class "absolute-gutter"
-        ]
-        (List.range begin end
-            |> List.map
-                (\i ->
-                    let
-                        stri =
-                            toString i
-                    in
-                        ( stri
-                        , div
-                            [ class "line-number"
-                            , style [ ( "top", rem (i - begin) ) ]
-                            ]
-                            [ text stri ]
-                        )
-                )
-        )
-
-
 renderGutterHighlight : Int -> Int -> Html ms
 renderGutterHighlight offset highlightLine =
     div
         [ class "line-number-highlight"
         , style [ ( "top", rem offset ) ]
         ]
-        [ text <| toString <| highlightLine ]
+        [ text <| toString <| (highlightLine + 1) ]
+
+
+renderGutterInner : Int -> Int -> List (Maybe ViewLine) -> Html msg
+renderGutterInner totalLines highlightLine viewLines =
+    div
+        [ class "gutter"
+        , class "absolute-gutter"
+        ]
+        (List.filterMap
+            (Maybe.andThen
+                (\{ lineNumber } ->
+                    if lineNumber < totalLines then
+                        div
+                            ([ classList
+                                [ ( "line-number-highlight"
+                                  , highlightLine == lineNumber
+                                  )
+                                , ( "line-number", True )
+                                ]
+                             , style [ ( "top", rem lineNumber ) ]
+                             ]
+                            )
+                            [ text (toString (lineNumber + 1)) ]
+                            |> Just
+                    else
+                        Nothing
+                )
+            )
+            viewLines
+        )
 
 
 renderGutter :
-    Int
+    List ( String, String )
     -> Int
     -> Int
     -> Int
-    -> Int
-    -> Int
-    -> Int
+    -> List (Maybe ViewLine)
     -> Html msg
-renderGutter topOffsetPx totalWidth scrollTop highlightLine height lineHeight totalLines =
-    let
-        n =
-            scrollTop // height
-
-        remTop =
-            Basics.rem scrollTop height
-
-        top =
-            toString
-                (-remTop * lineHeight - topOffsetPx)
-                ++ "px"
-    in
-        div
-            [ class "gutter-container absolute-gutter-container"
-            , style
-                [ ( "width", ch <| totalWidth + 1 )
-                , ( "top", top )
-                ]
-            ]
-            [ lazy2 renderGutterInner
-                (n * height)
-                (Basics.min ((n + 2) * height) (totalLines - 1))
-            , lazy2 renderGutterHighlight
-                (highlightLine - scrollTop + remTop)
-                highlightLine
-            ]
+renderGutter scrollingCss totalWidth highlightLine totalLines viewLines =
+    div
+        [ class "gutter-container absolute-gutter-container"
+        , style <|
+            ( "width", ch <| totalWidth + 1 )
+                :: scrollingCss
+        ]
+        [ lazy3 renderGutterInner totalLines highlightLine viewLines ]
 
 
 renderAllRelativeNumbers : Int -> Int -> Html msg
@@ -771,7 +744,6 @@ renderAllRelativeNumbers low high =
     div
         [ class "gutter"
         , class "relative-gutter"
-        , style [ ( "width", "2ch" ) ]
         ]
         ((List.range 1 low
             |> List.reverse
@@ -791,32 +763,22 @@ renderAllRelativeNumbers low high =
         )
 
 
-renderRelativeGutter : Int -> Int -> Int -> Html msg
-renderRelativeGutter packed packed2 maxLine =
-    let
-        ( topOffsetPx, lineHeight ) =
-            unpack 12 packed
-
-        ( height, zeroLine ) =
-            unpack 12 packed2
-    in
-        div
-            [ class "gutter-container"
-            , style
-                [ ( "top"
-                  , toString
-                        ((zeroLine - height)
-                            * lineHeight
-                            - topOffsetPx
-                        )
-                        ++ "px"
-                  )
-                ]
+renderRelativeGutter : Int -> Int -> Int -> Int -> Int -> Html msg
+renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
+    div
+        [ class "gutter-container"
+        , class "relative-gutter-container"
+        , style
+            [ ( "top"
+              , toString ((zeroLine - height) * lineHeight - topOffsetPx)
+                    ++ "px"
+              )
             ]
-            [ lazy2 renderAllRelativeNumbers
-                height
-                (Basics.min (maxLine - zeroLine) height)
-            ]
+        ]
+        [ lazy2 renderAllRelativeNumbers
+            height
+            (Basics.min (maxLine - zeroLine) height)
+        ]
 
 
 renderTokens : List Token -> String -> Int -> List (Html msg)
@@ -849,65 +811,31 @@ renderTokens spans line i =
                 []
 
 
-renderLinesInner : Int -> B.TextBuffer -> Syntax -> Html msg
-renderLinesInner packed lines syntax =
-    let
-        ( n, height ) =
-            unpack 12 packed
+scrollingStyle : Int -> Int -> Int -> Int -> Int -> List ( String, String )
+scrollingStyle lineHeight topOffsetPx totalLines height scrollTop =
+    [ ( "top"
+      , toString -(topOffsetPx + scrollTop * lineHeight) ++ "px"
+      )
+    , ( "height", rem (totalLines + height) )
+    ]
 
-        scrollTop =
-            n * height
-    in
-        Keyed.node "div"
-            [ class "lines" ]
-            (lines
-                |> B.indexedMapLinesToList scrollTop
-                    (scrollTop + height * 2)
-                    (\n line ->
-                        let
-                            top =
-                                ( "top", rem <| n - scrollTop )
-                        in
-                            case Array.get n syntax of
-                                Just tokens ->
-                                    ( toString n
-                                    , div
-                                        [ class "line"
-                                        , style [ top ]
-                                        ]
-                                        (renderTokens tokens line 0)
-                                    )
 
-                                Nothing ->
-                                    ( toString n
-                                    , div
-                                        [ class "line"
-                                        , style [ top ]
-                                        ]
-                                        [ text line ]
-                                    )
-                    )
+renderLines : List (Maybe ViewLine) -> Html msg
+renderLines viewLines =
+    div
+        [ class "lines" ]
+        (List.filterMap
+            (Maybe.map
+                (\viewLine ->
+                    div
+                        [ class "line"
+                        , style [ ( "top", rem viewLine.lineNumber ) ]
+                        ]
+                        (renderTokens viewLine.syntax viewLine.text 0)
+                )
             )
-
-
-renderLines : Int -> Int -> Int -> B.TextBuffer -> Syntax -> Html msg
-renderLines scrollTop height lineHeight lines syntax =
-    let
-        n =
-            scrollTop // height
-
-        top =
-            toString
-                (-(Basics.rem scrollTop height) * lineHeight)
-                ++ "px"
-    in
-        div
-            [ style
-                [ ( "top", top ) ]
-            , class "lines-scrolling"
-            ]
-            [ lazy3 renderLinesInner (pack 12 n height) lines syntax
-            ]
+            viewLines
+        )
 
 
 renderAutoCompleteMenu : Bool -> Int -> Int -> AutoComplete -> Html msg

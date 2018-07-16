@@ -42,7 +42,7 @@ import String
 import Update.Service exposing (..)
 import Update.Yank exposing (yank)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
-import Elm.Array as Array
+import Elm.Array as Array exposing (Array)
 import Helper.Document as Doc
 import Internal.Jumps
     exposing
@@ -194,10 +194,32 @@ updateMode modeName buf =
                 buf.mode
             else
                 initMode buf modeName
+
+        buf1 =
+            { buf | mode = newMode }
+
+        view =
+            buf1.view
+
+        scrollFrom =
+            Buf.finalScrollTop buf
+
+        scrollTo =
+            Buf.finalScrollTop buf1
     in
-        { buf
-            | mode = newMode
-            , last = { last | motionFailed = False }
+        { buf1
+            | last = { last | motionFailed = False }
+            , view =
+                { view
+                    | lines =
+                        Buf.scrollViewLines
+                            buf1.lines
+                            buf1.syntax
+                            view.size.height
+                            scrollFrom
+                            scrollTo
+                            view.lines
+                }
         }
 
 
@@ -301,10 +323,32 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
 
                                 _ ->
                                     { buf | last = { last | ex = "" } }
+
+                    buf2 =
+                        Buf.setMode
+                            (Ex { ex | prefix = prefix1 })
+                            buf1
+
+                    scrollFrom =
+                        Buf.finalScrollTop buf1
+
+                    scrollTo =
+                        Buf.finalScrollTop buf2
                 in
-                    Buf.setMode
-                        (Ex { ex | prefix = prefix1 })
-                        buf1
+                    buf2
+                        |> Buf.updateView
+                            (\view ->
+                                { view
+                                    | lines =
+                                        Buf.scrollViewLines
+                                            buf2.lines
+                                            buf2.syntax
+                                            view.size.height
+                                            scrollFrom
+                                            scrollTo
+                                            view.lines
+                                }
+                            )
 
         Insert _ ->
             let
@@ -565,10 +609,10 @@ runOperator count register operator buf =
                                     y
 
                                 V.ScrollToBottom ->
-                                    y - buf.view.size.height + 1
+                                    y - buf.view.size.height - 2 + 1
 
                                 V.ScrollToMiddle ->
-                                    y - buf.view.size.height // 2
+                                    y - (buf.view.size.height - 2) // 2
                     in
                         Buf.setScrollTop (scope y1) buf
             in
@@ -1176,6 +1220,15 @@ newBuffer info buf =
 
         ( lines, syntax ) =
             Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
+
+        height =
+            buf.view.size.height
+
+        scrollTop =
+            Buf.bestScrollTop (Tuple.first cursor)
+                height
+                lines
+                0
     in
         { buf
             | lines = lines
@@ -1189,18 +1242,15 @@ newBuffer info buf =
                 { emptyView
                     | size = buf.view.size
                     , lineHeight = buf.view.lineHeight
-                    , scrollTopPx =
-                        (Buf.bestScrollTop (Tuple.first cursor)
-                            buf.view.size.height
+                    , scrollTopPx = scrollTop * buf.view.lineHeight
+                    , scrollTop = scrollTop
+                    , lines =
+                        Buf.getViewLines
+                            scrollTop
+                            (scrollTop + height + 2)
                             lines
-                            0
-                        )
-                            * buf.view.lineHeight
-                    , scrollTop =
-                        Buf.bestScrollTop (Tuple.first cursor)
-                            buf.view.size.height
-                            lines
-                            0
+                            syntax
+                            |> Buf.fillEmptyViewLines height
                 }
             , cursor = cursor
             , lint = { items = [], count = 0 }
@@ -1674,10 +1724,31 @@ onTokenized buf resp =
 
                         view =
                             buf.view
+
+                        updateViewLineSyntax ({ lineNumber } as viewLine) =
+                            if
+                                (begin <= lineNumber)
+                                    && (lineNumber < Array.length syntax1)
+                            then
+                                case Array.get lineNumber syntax1 of
+                                    Just tokens ->
+                                        { viewLine | syntax = tokens }
+
+                                    _ ->
+                                        viewLine
+                            else
+                                viewLine
                       in
                         { buf
                             | syntax = syntax1
                             , syntaxDirtyFrom = Array.length syntax1
+                            , view =
+                                { view
+                                    | lines =
+                                        view.lines
+                                            |> List.map
+                                                (Maybe.map updateViewLineSyntax)
+                                }
                         }
                             |> pairCursor
                     , Cmd.none
@@ -1810,23 +1881,35 @@ update message buf =
                 |> Tuple.mapSecond (List.reverse >> Cmd.batch)
 
         Resize size ->
-            buf
-                |> Buf.updateView
-                    (\view ->
-                        { view
-                            | size =
-                                { width =
-                                    size.width
-
-                                --, height = 30
-                                , height =
-                                    (size.height // buf.view.lineHeight)
-                                        - buf.view.statusbarHeight
-                                }
-                        }
-                    )
-                |> cursorScope
-                |> tokenizeBuffer
+            let
+                newHeight =
+                    getViewHeight size.height
+                        buf.view.lineHeight
+                        buf.view.statusbarHeight
+            in
+                buf
+                    |> Buf.updateView
+                        (\view ->
+                            { view
+                                | size =
+                                    { width =
+                                        size.width
+                                    , height = newHeight
+                                    }
+                                , lines =
+                                    Buf.getViewLines
+                                        view.scrollTop
+                                        (min
+                                            (view.scrollTop + newHeight + 2)
+                                            (B.count buf.lines - 1)
+                                        )
+                                        buf.lines
+                                        buf.syntax
+                                        |> Buf.fillEmptyViewLines newHeight
+                            }
+                        )
+                    |> cursorScope
+                    |> tokenizeBuffer
 
         ReadClipboard result ->
             case result of
@@ -1977,7 +2060,9 @@ update message buf =
                                                 then
                                                     buf.path
                                                 else
-                                                    item.file
+                                                    normalizePath
+                                                        buf.config.pathSeperator
+                                                        item.file
                                             , region =
                                                 let
                                                     ( b, e_ ) =
@@ -2010,7 +2095,8 @@ update message buf =
                                     { items = items1
                                     , count = List.length items1
                                     }
-                                , locationList = lintErrorToLocationList items1
+                                , locationList =
+                                    lintErrorToLocationList items1
                               }
                             , Cmd.none
                             )
@@ -2186,6 +2272,11 @@ initCommand =
     sendBoot
 
 
+getViewHeight : Int -> Int -> Int -> Int
+getViewHeight heightPx lineHeightPx statusBarHeight =
+    heightPx // lineHeightPx - statusBarHeight
+
+
 init : Flags -> ( Buffer, Cmd Msg )
 init flags =
     let
@@ -2195,6 +2286,9 @@ init flags =
         { activeBuffer, registers, height, pathSeperator } =
             flags
 
+        viewHeight =
+            getViewHeight height lineHeight emptyBuffer.view.statusbarHeight
+
         cwd1 =
             if String.isEmpty cwd then
                 "."
@@ -2202,7 +2296,13 @@ init flags =
                 cwd
 
         view =
-            emptyBuffer.view
+            { emptyView
+                | lineHeight = lineHeight
+                , size =
+                    { width = 1
+                    , height = viewHeight
+                    }
+            }
 
         activeBuf =
             activeBuffer
@@ -2221,19 +2321,7 @@ init flags =
             editBuffer
                 activeBuf
                 { emptyBuffer
-                    | view =
-                        { view
-                            | lineHeight = lineHeight
-                            , size =
-                                { width =
-                                    0
-
-                                --, height = 30
-                                , height =
-                                    (height // lineHeight)
-                                        - emptyBuffer.view.statusbarHeight
-                                }
-                        }
+                    | view = view
                     , cwd = cwd1
                     , path = activeBuf.path
                     , jumps = jumps

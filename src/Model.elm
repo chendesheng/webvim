@@ -171,6 +171,13 @@ type alias ExMode =
     }
 
 
+type alias ViewLine =
+    { lineNumber : Int
+    , text : String
+    , syntax : List Token
+    }
+
+
 type alias View =
     { scrollTop : Int
 
@@ -186,6 +193,8 @@ type alias View =
     , lineHeight : Int
     , showTip : Bool
     , matchedCursor : Maybe Position
+    , lines :
+        List (Maybe ViewLine)
     }
 
 
@@ -295,6 +304,14 @@ emptyView =
     , lineHeight = 21
     , showTip = False
     , matchedCursor = Nothing
+    , lines =
+        [ Just
+            { lineNumber = 0
+            , text = "\n"
+            , syntax = []
+            }
+        , Just { lineNumber = 1, text = "", syntax = [] }
+        ]
     }
 
 

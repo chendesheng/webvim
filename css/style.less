@@ -100,6 +100,7 @@ html, body {
 .lines-container {
   flex: 1;
   position: relative;
+  will-change: transform;
 }
 
 .ruler {
@@ -115,25 +116,24 @@ html, body {
   user-select: none;
   margin-right: @gutter-lines-spacing;
   position: relative;
+  will-change: transform;
 }
 .absolute-gutter-container {
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='#888'>~</text></svg>"); 
   background-repeat: repeat-y;
-  height: 200%;
+}
+.relative-gutter-container {
+  opacity: 0.5;
+  width: 3ch;
+  padding-right: 1ch;
 }
 
-.gutter.absolute-gutter {
-  padding: 0 0 0 1ch;
-}
-.gutter.relative-gutter {
-  padding: 0 1ch;
-  opacity: 0.5;
-  will-change: top;
+.absolute-gutter {
+  position: relative;
 }
 
 .lines {
   position: relative;
-  will-change: top;
 }
 
 .line, .line-number {
@@ -147,18 +147,20 @@ html, body {
 }
 
 .line-number {
+  width: 100%;
   text-align: right;
 }
 
-.line-number-highlight {
+.absolute-gutter .line-number {
   position: absolute;
+}
+
+.line-number-highlight {
   color: yellow;
-  right: 0ch;
 }
 
 .lines-scrolling {
   position: relative;
-  will-change: top;
 }
 
 .cursor {
@@ -178,7 +180,6 @@ html, body {
 .guide {
   position: absolute;
   white-space: pre;
-  will-change: left, top;
 }
 
 .column-guide {
