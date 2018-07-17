@@ -1810,15 +1810,20 @@ pairCursor : Buffer -> Buffer
 pairCursor buf =
     Buf.updateView
         (\view ->
-            { view
-                | matchedCursor =
-                    pairBracketAt
-                        buf.view.scrollTop
-                        (buf.view.scrollTop + buf.view.size.height)
-                        buf.lines
-                        buf.syntax
-                        (pairSource buf)
-            }
+            let
+                cursor =
+                    pairSource buf
+            in
+                { view
+                    | matchedCursor =
+                        cursor
+                            |> pairBracketAt
+                                buf.view.scrollTop
+                                (buf.view.scrollTop + buf.view.size.height)
+                                buf.lines
+                                buf.syntax
+                            |> Maybe.map ((,) cursor)
+                }
         )
         buf
 

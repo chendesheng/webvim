@@ -95,29 +95,6 @@ view buf =
                 |> Maybe.withDefault cursor
                 |> Tuple.first
 
-        matchedCursor =
-            maybeCursor
-                |> Maybe.andThen
-                    (always buf.view.matchedCursor)
-
-        matchedCursor2 =
-            case buf.mode of
-                Insert _ ->
-                    maybeAndThen2
-                        (\cursor matchedCursor ->
-                            if cursor > matchedCursor then
-                                case cursor of
-                                    ( y, x ) ->
-                                        Just ( y, Basics.max 0 (x - 1) )
-                            else
-                                Nothing
-                        )
-                        maybeCursor
-                        matchedCursor
-
-                _ ->
-                    Nothing
-
         showTip =
             case buf.mode of
                 Insert _ ->
@@ -204,13 +181,11 @@ view buf =
                         :: lazy renderLines view.lines
                         :: div [ class "ruler" ] []
                         :: renderCursor "" maybeCursor
-                        :: renderCursor "matched-cursor" matchedCursor
-                        :: renderCursor "matched-cursor" matchedCursor2
                         :: renderTip
                             buf.lint.items
                             maybeCursor
                             showTip
-                        ?:: []
+                        ?:: renderMatchedCursor mode cursor buf.view.matchedCursor
                     )
                 ]
              , renderStatusBar
@@ -330,6 +305,30 @@ renderStatusBarLeft mode =
                 ]
             , renderCursor "" statusBar.cursor
             ]
+
+
+renderMatchedCursor :
+    Mode
+    -> Position
+    -> Maybe ( Position, Position )
+    -> List (Html msg)
+renderMatchedCursor mode cursor matchedCursor =
+    case mode of
+        Ex _ ->
+            []
+
+        _ ->
+            case matchedCursor of
+                Just ( a, b ) ->
+                    [ a, b ]
+                        |> List.filter ((/=) cursor)
+                        |> List.map
+                            (\( y, x ) ->
+                                renderCursorInner "matched-cursor" y x
+                            )
+
+                _ ->
+                    []
 
 
 renderStatusBar : Bool -> Mode -> String -> List LintError -> String -> Html msg

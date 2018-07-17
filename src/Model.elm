@@ -192,7 +192,7 @@ type alias View =
     -- pixel height of a line
     , lineHeight : Int
     , showTip : Bool
-    , matchedCursor : Maybe Position
+    , matchedCursor : Maybe ( Position, Position )
     , lines :
         List (Maybe ViewLine)
     }
