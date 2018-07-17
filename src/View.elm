@@ -145,6 +145,19 @@ view buf =
                 totalLines
                 height
                 scrollTop1
+
+        mouseWheel lineHeight =
+            Events.on "mousewheel"
+                (Decode.map
+                    (toFloat
+                        >> (*) 1.8
+                        >> floor
+                        >> Basics.min (2 * lineHeight)
+                        >> Basics.max (-2 * lineHeight)
+                        >> MouseWheel
+                    )
+                    (Decode.at [ "deltaY" ] Decode.int)
+                )
     in
         div [ class "editor" ]
             ([ div
@@ -153,19 +166,16 @@ view buf =
                         Ex _ ->
                             []
 
+                        Insert { autoComplete } ->
+                            case autoComplete of
+                                Just _ ->
+                                    []
+
+                                _ ->
+                                    [ mouseWheel lineHeight ]
+
                         _ ->
-                            [ Events.on "mousewheel"
-                                (Decode.map
-                                    (toFloat
-                                        >> (*) 1.8
-                                        >> floor
-                                        >> Basics.min (2 * lineHeight)
-                                        >> Basics.max (-2 * lineHeight)
-                                        >> MouseWheel
-                                    )
-                                    (Decode.at [ "deltaY" ] Decode.int)
-                                )
-                            ]
+                            [ mouseWheel lineHeight ]
                 )
                 [ renderGutter
                     scrollingCss
@@ -196,18 +206,9 @@ view buf =
                         :: renderCursor "" maybeCursor
                         :: renderCursor "matched-cursor" matchedCursor
                         :: renderCursor "matched-cursor" matchedCursor2
-                        :: renderTip scrollTop1
+                        :: renderTip
                             buf.lint.items
-                            (Maybe.map
-                                (\cur ->
-                                    let
-                                        ( y, x ) =
-                                            cur
-                                    in
-                                        ( y + scrollTop1, x )
-                                )
-                                maybeCursor
-                            )
+                            maybeCursor
                             showTip
                         ?:: []
                     )
@@ -240,6 +241,8 @@ view buf =
                                     autoComplete
                                         |> Maybe.map
                                             (renderAutoCompleteMenu
+                                                lineHeight
+                                                topOffsetPx
                                                 True
                                                 scrollTop
                                                 (gutterWidth
@@ -255,6 +258,8 @@ view buf =
                             case autoComplete of
                                 Just auto ->
                                     [ renderAutoCompleteMenu
+                                        lineHeight
+                                        topOffsetPx
                                         False
                                         scrollTop
                                         (gutterWidth + relativeGutterWidth)
@@ -509,10 +514,10 @@ renderSelections scrollTop lines { tipe, begin, end } =
 
 
 renderTipInner : Int -> Int -> List LintError -> Html msg
-renderTipInner packedCursor scrollTop items =
+renderTipInner y x items =
     let
         cursor =
-            unpack 20 packedCursor
+            ( y, x )
 
         distanceFrom ( y, x ) { region } =
             let
@@ -521,13 +526,18 @@ renderTipInner packedCursor scrollTop items =
             in
                 ( abs (y1 - y), abs (x1 - x) )
 
-        renderDetails top details =
+        renderDetails ( y, x ) details =
             div
                 [ style
-                    [ ( "top", rem top ) ]
+                    [ ( "top", rem <| y + 1 )
+                    , ( "left", ch x )
+                    ]
                 , class "tip"
                 ]
-                [ text details ]
+                [ div
+                    [ class "tip-content" ]
+                    [ text details ]
+                ]
     in
         items
             |> List.filter
@@ -538,15 +548,14 @@ renderTipInner packedCursor scrollTop items =
                                 item.region
                                 item.subRegion
                     in
-                        cursor >= begin && cursor <= end
+                        begin <= cursor && cursor <= end
                 )
             |> List.sortBy (distanceFrom cursor)
             |> List.head
             |> Maybe.map
                 (\item ->
                     renderDetails
-                        (Tuple.first cursor - scrollTop + 1)
-                        --(by - scrollTop)
+                        cursor
                         (if String.isEmpty item.overview then
                             item.details
                          else
@@ -557,17 +566,16 @@ renderTipInner packedCursor scrollTop items =
 
 
 renderTip :
-    Int
-    -> List LintError
+    List LintError
     -> Maybe Position
     -> Bool
     -> Maybe (Html msg)
-renderTip scrollTop items maybeCursor showTip =
+renderTip items maybeCursor showTip =
     if showTip then
         maybeCursor
             |> Maybe.map
                 (\( y, x ) ->
-                    lazy3 renderTipInner (pack 20 y x) scrollTop items
+                    lazy3 renderTipInner y x items
                 )
     else
         Nothing
@@ -838,8 +846,15 @@ renderLines viewLines =
         )
 
 
-renderAutoCompleteMenu : Bool -> Int -> Int -> AutoComplete -> Html msg
-renderAutoCompleteMenu isEx viewScrollTop gutterWidth auto =
+renderAutoCompleteMenu :
+    Int
+    -> Int
+    -> Bool
+    -> Int
+    -> Int
+    -> AutoComplete
+    -> Html msg
+renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth auto =
     let
         { matches, select, scrollTop, pos } =
             auto
@@ -894,7 +909,14 @@ renderAutoCompleteMenu isEx viewScrollTop gutterWidth auto =
                     else
                         [ style
                             [ ( "left", ch (x + gutterWidth) )
-                            , ( "top", rem (y + 1 - viewScrollTop) )
+                            , ( "top"
+                              , toString
+                                    ((y + 1 - viewScrollTop)
+                                        * lineHeight
+                                        - topOffsetPx
+                                    )
+                                    ++ "px"
+                              )
                             ]
                         ]
                    )
