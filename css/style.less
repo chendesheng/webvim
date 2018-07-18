@@ -81,6 +81,7 @@ html, body {
 
 
 .editor {
+  user-select: none;
   height: 100%;
   font-size: @font-size;
   display: flex;
@@ -88,7 +89,6 @@ html, body {
 }
 
 .buffer {
-  user-select: none;
   display: flex;
   flex-direction: row;
   flex-grow: 1;
@@ -250,6 +250,7 @@ html, body {
   position: absolute;
   border-radius: 2px;
   opacity: 0.9;
+  max-width: 40ch;
 }
 
 .tip-content {

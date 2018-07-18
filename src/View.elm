@@ -182,6 +182,7 @@ view buf =
                         :: div [ class "ruler" ] []
                         :: renderCursor "" maybeCursor
                         :: renderTip
+                            buf.view.size.width
                             buf.lint.items
                             maybeCursor
                             showTip
@@ -513,10 +514,10 @@ renderSelections scrollTop lines { tipe, begin, end } =
 
 
 renderTipInner : Int -> Int -> List LintError -> Html msg
-renderTipInner y x items =
+renderTipInner width packed items =
     let
         cursor =
-            ( y, x )
+            unpack 16 packed
 
         distanceFrom ( y, x ) { region } =
             let
@@ -529,7 +530,9 @@ renderTipInner y x items =
             div
                 [ style
                     [ ( "top", rem <| y + 1 )
-                    , ( "left", ch x )
+
+                    -- FIXME: hard code character width
+                    , ( "left", ch (Basics.min x (width // 9 - 40)) )
                     ]
                 , class "tip"
                 ]
@@ -565,16 +568,17 @@ renderTipInner y x items =
 
 
 renderTip :
-    List LintError
+    Int
+    -> List LintError
     -> Maybe Position
     -> Bool
     -> Maybe (Html msg)
-renderTip items maybeCursor showTip =
+renderTip width items maybeCursor showTip =
     if showTip then
         maybeCursor
             |> Maybe.map
                 (\( y, x ) ->
-                    lazy3 renderTipInner y x items
+                    lazy3 renderTipInner width (pack 16 y x) items
                 )
     else
         Nothing
