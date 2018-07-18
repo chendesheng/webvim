@@ -27,10 +27,10 @@ tempfile =
     Path.concat [tempdir, "912ec803b2ce49e4a541068d495ab570.txt"]
 
 
-findProjectDir :: String -> Aff (Maybe String)
-findProjectDir path = do
+findProjectDir :: String -> String -> Aff (Maybe String)
+findProjectDir projectFile path = do
     let dir = Path.dirname path
-        file = Path.concat [dir, "elm-package.json"]
+        file = Path.concat [dir, projectFile]
 
     exists <- (FS.exists file)
     if exists then
@@ -38,14 +38,14 @@ findProjectDir path = do
         else if dir == path then
             pure Nothing
         else
-            findProjectDir dir
+            findProjectDir projectFile dir
 
 elmLint :: Request -> Response -> String -> Aff Unit
 elmLint req resp path = do
   let inputStream = requestAsStream req
       outputStream = responseAsStream resp
   absolutePath <- FS.realpath $ Path.normalize path
-  cwd <- findProjectDir absolutePath
+  cwd <- findProjectDir "elm-package.json" absolutePath
   void $ affLog ("elmLint: " <> absolutePath <> " in " <> show cwd)
   result <- execAsync cwd ("elm-make "
                           <> absolutePath
@@ -67,12 +67,15 @@ eslint req resp path = do
       formatter = [currentdir, "../eslint-json-formatter.js"]
                   # Path.concat 
                   # Path.normalize
-      eslintCmd = if isWindows then "eslint.cmd" else "eslint"
   absolutePath <- FS.realpath $ Path.normalize path
+  cwd <- findProjectDir "package.json" absolutePath
+  let eslintCmd = if isWindows
+                    then "node_modules\\.bin\\eslint.cmd"
+                    else "./node_modules/.bin/eslint"
   affLog formatter
   affLog "eslint"
   result <- execAsync
-              Nothing
+              cwd
               (Str.joinWith 
                 " "
                 [ eslintCmd
@@ -89,7 +92,7 @@ elmLintOnTheFly req resp path = do
   let inputStream = requestAsStream req
       outputStream = responseAsStream resp
   absolutePath <- FS.realpath $ Path.normalize path
-  cwd <- findProjectDir $ absolutePath
+  cwd <- findProjectDir "elm-package.json" absolutePath
   void $ affLog ("elmLintOnTheFly: " <> absolutePath <> " in " <> show cwd)
   liftEffect $ do
       fileStream <- createWriteStream tempfile
@@ -113,13 +116,16 @@ eslintOnTheFly req resp path = do
       formatter = [currentdir, "../eslint-json-formatter.js"]
                   # Path.concat 
                   # Path.normalize
-      eslintCmd = if isWindows then "eslint.cmd" else "eslint"
   absolutePath <- FS.realpath $ Path.normalize path
+  cwd <- findProjectDir "package.json" absolutePath
+  let eslintCmd = if isWindows
+                    then "node_modules\\.bin\\eslint.cmd"
+                    else "./node_modules/.bin/eslint"
   affLog formatter
   affLog eslintCmd
   affLog "eslintOnTheFly"
   result <- execAsync
-              Nothing
+              cwd
               (Str.joinWith 
                 " "
                 [ eslintCmd
