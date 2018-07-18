@@ -547,25 +547,38 @@ runMotion count md mo buf =
                                     |> Buf.cursorLineFirst buf.lines
 
                         _ ->
-                            let
-                                ( y, x ) =
-                                    buf.cursor
-                            in
-                                buf.lines
-                                    |> B.getLine y
-                                    |> Maybe.andThen
-                                        (String.dropLeft x
-                                            >> P.run bracketsParser
-                                            >> Result.toMaybe
-                                            >> Maybe.map (\dx -> ( y, x + dx ))
-                                        )
-                                    |> Maybe.andThen
-                                        (pairBracketAt
-                                            0
-                                            (Array.length buf.syntax)
-                                            buf.lines
-                                            buf.syntax
-                                        )
+                            case buf.view.matchedCursor of
+                                Just ( a, b ) ->
+                                    if buf.cursor == a then
+                                        Just b
+                                    else if buf.cursor == b then
+                                        Just a
+                                    else
+                                        Nothing
+
+                                _ ->
+                                    let
+                                        ( y, x ) =
+                                            buf.cursor
+                                    in
+                                        buf.lines
+                                            |> B.getLine y
+                                            |> Maybe.andThen
+                                                (String.dropLeft x
+                                                    >> P.run bracketsParser
+                                                    >> Result.toMaybe
+                                                    >> Maybe.map
+                                                        (\dx ->
+                                                            ( y, x + dx )
+                                                        )
+                                                )
+                                            |> Maybe.andThen
+                                                (pairBracketAt
+                                                    0
+                                                    (Array.length buf.syntax)
+                                                    buf.lines
+                                                    buf.syntax
+                                                )
 
                 V.Paragraph ->
                     let
