@@ -159,6 +159,15 @@ type alias MotionOption =
     }
 
 
+emptyMotionOption : MotionOption
+emptyMotionOption =
+    { forward = False
+    , inclusive = False
+    , crossLine = False
+    , linewise = False
+    }
+
+
 motionOption : String -> MotionOption
 motionOption s =
     if s == ">]+=" then
@@ -252,11 +261,7 @@ motionOption s =
         , linewise = False
         }
     else
-        { forward = False
-        , inclusive = False
-        , crossLine = False
-        , linewise = False
-        }
+        emptyMotionOption
 
 
 type MotionData

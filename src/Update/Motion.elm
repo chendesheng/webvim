@@ -418,7 +418,10 @@ runMotion count md mo buf =
                 V.BufferBottom ->
                     case count of
                         Just n ->
-                            Buf.cursorLineFirst buf.lines (n - 1)
+                            (n - 1)
+                                |> max 0
+                                |> min (B.count buf.lines - 2)
+                                |> Buf.cursorLineFirst buf.lines
 
                         _ ->
                             Buf.cursorLineFirst buf.lines (B.count buf.lines - 2)

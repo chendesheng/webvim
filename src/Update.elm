@@ -789,7 +789,7 @@ runOperator count register operator buf =
                         ex.exbuf.lines
                             |> B.toString
                             |> String.dropLeft 1
-                            |> flip (execute count)
+                            |> flip (execute count register)
                                 { buf | mode = Ex { ex | exbuf = exbuf1 } }
 
                 _ ->
@@ -1516,9 +1516,13 @@ editTestBuffer path buf =
         |> flip update buf
 
 
-execute : Maybe Int -> String -> Buffer -> ( Buffer, Cmd Msg )
-execute count s buf =
-    case String.split " " s of
+execute : Maybe Int -> String -> String -> Buffer -> ( Buffer, Cmd Msg )
+execute count register s buf =
+    case
+        s
+            |> String.trim
+            |> String.split " "
+    of
         [ "e", path ] ->
             -- for unit testing
             if path == "*Test*" then
@@ -1555,6 +1559,17 @@ execute count s buf =
 
         [ "cd", cwd ] ->
             ( buf, sendCd buf.config.service cwd )
+
+        [ s ] ->
+            case String.toInt s of
+                Ok n ->
+                    runOperator (Just n)
+                        register
+                        (V.Move V.BufferBottom V.emptyMotionOption)
+                        buf
+
+                _ ->
+                    ( buf, Cmd.none )
 
         _ ->
             ( buf, Cmd.none )

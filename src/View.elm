@@ -15,7 +15,6 @@ import String
 import Elm.Array exposing (Array)
 import Update.Buffer as Buf
 import Dict exposing (Dict)
-import Helper.Helper exposing (maybeAndThen2)
 import Bitwise as BW
 import Update.Message exposing (Msg(..))
 import Json.Decode as Decode
