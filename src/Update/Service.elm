@@ -574,8 +574,8 @@ sendTokenizeTask url { path, line, lines } =
         body =
             Http.stringBody "text/plain" lines
     in
-        if path == "" || path == "[Find]" then
-            Task.succeed (TokenizeSuccess 0 Array.empty)
+        if String.isEmpty lines || String.isEmpty path || path == "[Find]" then
+            Task.succeed (TokenizeSuccess line Array.empty)
         else
             tokenizeResponseDecoder line
                 |> Http.post
