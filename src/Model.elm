@@ -304,7 +304,10 @@ emptyView =
     , lineHeight = 21
     , showTip = False
     , matchedCursor = Nothing
-    , lines = []
+    , lines =
+        [ Just { lineNumber = 0, text = "\n", syntax = [] }
+        , Just { lineNumber = 1, text = "", syntax = [] }
+        ]
     }
 
 

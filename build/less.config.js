@@ -18,6 +18,7 @@ async function convert(inputFilename, outputFilename) {
     const output = await less.render(data, {
       plugins: [autoPrefixPlugin, cleanCSSPlugin],
       filename: inputFilename,
+      ieCompat: false,
     });
     await fs.writeFile(outputFilename, output.css);
     console.log(`[${new Date()}]: ${outputFilename} has been saved.`);

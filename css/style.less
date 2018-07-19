@@ -1,29 +1,10 @@
-@import '../node_modules/@fortawesome/fontawesome-free-webfonts/less/fontawesome';
-
-@fa-font-path: '../node_modules/@fortawesome/fontawesome-free-webfonts/webfonts';
-
-@font-face {
-  font-family: 'Font Awesome 5 Free';
-  font-style: normal;
-  font-weight: 400;
-  src: url('@{fa-font-path}/fa-regular-400.eot');
-  src: url('@{fa-font-path}/fa-regular-400.eot?#iefix') format('embedded-opentype'),
-    url('@{fa-font-path}/fa-regular-400.woff2') format('woff2'),
-    url('@{fa-font-path}/fa-regular-400.woff') format('woff'),
-    url('@{fa-font-path}/fa-regular-400.ttf') format('truetype'),
-    url('@{fa-font-path}/fa-regular-400.svg#fontawesome') format('svg');
-}
+@import './iosevka.less';
 
 @font-face {
   font-family: 'Font Awesome 5 Free Solid';
   font-style: normal;
   font-weight: 900;
-  src: url('@{fa-font-path}/fa-solid-900.eot');
-  src: url('@{fa-font-path}/fa-solid-900.eot?#iefix') format('embedded-opentype'),
-       url('@{fa-font-path}/fa-solid-900.woff2') format('woff2'),
-       url('@{fa-font-path}/fa-solid-900.woff') format('woff'),
-       url('@{fa-font-path}/fa-solid-900.ttf') format('truetype'),
-       url('@{fa-font-path}/fa-solid-900.svg#fontawesome') format('svg');
+  src: data-uri('data:font/woff2;base64', '../node_modules/@fortawesome/fontawesome-free-webfonts/webfonts/fa-solid-900.woff2') format('woff2');
 }
 
 .fa,
@@ -33,17 +14,27 @@
 }
 
 
-.far {
-  font-family: 'Font Awesome 5 Free';
-  font-weight: 400;
+.fa, .fab, .fal, .far, .fas {
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+.fa-times-circle:before {
+  content: "\f057";
+}
+
+.fa-exclamation-triangle:before {
+  content: "\f071";
 }
 
 @statusbar-height: 1.2rem;
 @statusbar-background: lighten(#1b1d1e, 15%);
 @gutter-lines-spacing: 0ch;
-@font-family: iosevka, menlo, consolas;
+@font-family: iosevka web, menlo, consolas;
 @line-height: 25px;
-//@line-height: 10px;
 @font-size: 18px;
 
 @ruler: 80ch;
