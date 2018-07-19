@@ -1919,10 +1919,7 @@ update message buf =
                                 , lines =
                                     Buf.getViewLines
                                         view.scrollTop
-                                        (min
-                                            (view.scrollTop + newHeight + 2)
-                                            (B.count buf.lines - 1)
-                                        )
+                                        (view.scrollTop + newHeight + 2)
                                         buf.lines
                                         buf.syntax
                                         |> Buf.fillEmptyViewLines newHeight
