@@ -245,8 +245,8 @@ const registry = new Registry({
       return new Promise(function(resolve, reject) {
         fs.readFile(grammar.path, 'utf8', function(err, content) {
           if (err) {
-            console.log('Laod grammar failed:', grammar.path);
-            reject('Laod grammar failed:', grammar.path);
+            console.log('Load grammar failed:', grammar.path);
+            reject('Load grammar failed:', grammar.path);
           } else {
             resolve(parseRawGrammar(content, grammar.path));
           }
