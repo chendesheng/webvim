@@ -114,7 +114,7 @@ searchFiles :: Response -> String -> String -> Aff Unit
 searchFiles resp cwd s = do
   affLog ("searchFiles: " <> s <> " in " <> show cwd)
   let outputStream = responseAsStream resp
-  result <- execAsync (Just cwd) ("ag --nocolor --vimgrep " <> s) Nothing
+  result <- execAsync (Just cwd) ("rg --vimgrep " <> s) Nothing
   affWriteStdout outputStream result
 
 

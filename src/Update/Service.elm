@@ -570,23 +570,16 @@ sendTokenizeTask :
     -> TokenizeRequest
     -> Task Http.Error TokenizeResponse
 sendTokenizeTask url { path, line, lines } =
-    let
-        body =
-            Http.stringBody "text/plain" lines
-    in
-        if String.isEmpty lines || String.isEmpty path || path == "[Find]" then
-            Task.succeed (TokenizeSuccess line Array.empty)
-        else
-            tokenizeResponseDecoder line
-                |> Http.post
-                    (url
-                        ++ "/tokenize?path="
-                        ++ path
-                        ++ "&line="
-                        ++ (toString line)
-                    )
-                    body
-                |> Http.toTask
+    tokenizeResponseDecoder line
+        |> Http.post
+            (url
+                ++ "/tokenize?path="
+                ++ path
+                ++ "&line="
+                ++ (toString line)
+            )
+            (Http.stringBody "text/plain" lines)
+        |> Http.toTask
 
 
 sendTokenize : String -> TokenizeRequest -> Cmd Msg
