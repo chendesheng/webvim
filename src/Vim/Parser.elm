@@ -725,6 +725,24 @@ operator isVisual isTemp =
                 [ textObject Select
                 , motion True Move (gKey Move <| P.oneOf [])
                 ]
+
+        replace =
+            readKeyAndThen "r"
+                [ PushKey "r" ]
+                (P.map
+                    (\key ->
+                        case keyToChar key of
+                            Just ch ->
+                                [ PushOperator <| Replace ch
+                                , PushKey ("r" ++ ch)
+                                , PushComplete
+                                ]
+
+                            _ ->
+                                []
+                    )
+                    keyParser
+                )
     in
         P.oneOf
             ((if isVisual then
@@ -752,6 +770,7 @@ operator isVisual isTemp =
                         |> Delete
                         |> PushOperator
                     ]
+                , replace
                 ]
               else
                 [ defineInsert "i" []
@@ -853,22 +872,7 @@ operator isVisual isTemp =
                    , define "J" (Join True)
                    , define "p" (Put True)
                    , define "P" (Put False)
-                   , readKeyAndThen "r"
-                        [ PushKey "r" ]
-                        (P.map
-                            (\key ->
-                                case keyToChar key of
-                                    Just ch ->
-                                        [ PushOperator <| Replace ch
-                                        , PushKey ("r" ++ ch)
-                                        , PopKey
-                                        ]
-
-                                    _ ->
-                                        []
-                            )
-                            keyParser
-                        )
+                   , replace
                    , define "." RepeatLastOperator
                         |> dontRecord
                    , gOperator

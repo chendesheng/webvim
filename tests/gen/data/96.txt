@@ -1,0 +1,22 @@
+{
+||      abc
+        ^
+-- Normal --
+}
+
+> i<c-o>rd
+
+{
+||      dbc
+        ^
+-- Insert --
+}
+
+> a
+
+{
+||      adbc
+         ^
+-- Insert --
+}
+

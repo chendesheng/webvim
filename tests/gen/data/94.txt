@@ -1,0 +1,29 @@
+{
+||      abc
+        ^
+-- Normal --
+}
+
+> vlrc
+
+{
+||      ccc
+        ^
+-- Normal --
+}
+
+> u
+
+{
+||      abc
+        ^
+-- Normal --
+}
+
+> <c-r>
+
+{
+||      ccc
+        ^
+-- Normal --
+}

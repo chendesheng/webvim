@@ -1,0 +1,25 @@
+{
+||      abc
+        ^
+|       def
+-- Normal --
+}
+
+> vjre
+
+{
+||      eee
+        ^
+|       eef
+-- Normal --
+}
+
+> Vjre
+
+{
+||      eee
+        ^
+|       eee
+-- Normal --
+}
+

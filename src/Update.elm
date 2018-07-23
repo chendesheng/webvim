@@ -486,6 +486,37 @@ clearExBufAutoComplete exbuf =
     }
 
 
+replaceChar : String -> Buffer -> Buffer
+replaceChar ch buf =
+    let
+        ( y, x ) =
+            buf.cursor
+    in
+        buf
+            |> Buf.transaction
+                [ Deletion buf.cursor ( y, x + 1 ) ]
+            |> insert (V.TextLiteral ch)
+
+
+replaceRegion : String -> Position -> Position -> Buffer -> Buffer
+replaceRegion ch b e buf =
+    let
+        s =
+            buf.lines
+                |> B.sliceRegion b e
+                |> B.toString
+                |> Re.replace Re.All (Re.regex "[^\x0D\n]") (always ch)
+                |> B.fromString
+    in
+        buf
+            |> Buf.setCursor b False
+            |> Buf.transaction
+                [ Deletion b e
+                , Insertion b s
+                ]
+            |> Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True
+
+
 runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator count register operator buf =
     case operator of
@@ -803,22 +834,34 @@ runOperator count register operator buf =
         Replace ch ->
             case buf.mode of
                 Normal _ ->
-                    let
-                        ( y, x ) =
-                            buf.cursor
-                    in
-                        buf
-                            |> Buf.transaction
-                                [ Deletion buf.cursor ( y, x + 1 ) ]
-                            |> insert (V.TextLiteral ch)
-                            |> cmdNone
+                    buf
+                        |> replaceChar ch
+                        |> cmdNone
 
-                --|> Buf.setCursor buf.cursor True
                 TempNormal ->
-                    ( buf, Cmd.none )
+                    buf
+                        |> replaceChar ch
+                        |> (\buf ->
+                                let
+                                    ( y, x ) =
+                                        buf.cursor
+                                in
+                                    Buf.setCursor ( y, max 0 (x - 1) ) True buf
+                           )
+                        |> cmdNone
 
-                Visual visual ->
-                    ( buf, Cmd.none )
+                Visual _ ->
+                    let
+                        regions =
+                            operatorRanges count (V.VisualRange False) buf
+                                |> List.reverse
+                    in
+                        ( List.foldl
+                            (\( b, e ) buf -> replaceRegion ch b e buf)
+                            buf
+                            regions
+                        , Cmd.none
+                        )
 
                 _ ->
                     ( buf, Cmd.none )
