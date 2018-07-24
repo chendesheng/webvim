@@ -1411,9 +1411,14 @@ tokenizeBuffer buf =
     ( buf, tokenizeBufferCmd buf )
 
 
+isTempBuffer : String -> Bool
+isTempBuffer path =
+    String.isEmpty path || path == "[Search]"
+
+
 tokenizeBufferCmd : Buffer -> Cmd Msg
 tokenizeBufferCmd buf =
-    if buf.path == "" && buf.path == "[Find]" then
+    if isTempBuffer buf.path then
         Cmd.none
     else
         let
@@ -1422,8 +1427,18 @@ tokenizeBufferCmd buf =
 
             end =
                 Buf.finalScrollTop buf + 2 * buf.view.size.height
+
+            lines =
+                if begin < end then
+                    buf.lines
+                        |> B.sliceLines begin end
+                        |> B.toString
+                else
+                    ""
         in
-            if begin < end then
+            if String.isEmpty lines then
+                Cmd.none
+            else
                 sendTokenize
                     buf.config.service
                     { path = buf.path
@@ -1434,8 +1449,6 @@ tokenizeBufferCmd buf =
                             |> B.sliceLines begin end
                             |> B.toString
                     }
-            else
-                Cmd.none
 
 
 jumpTo : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
@@ -1475,10 +1488,13 @@ jumpToPath : Bool -> String -> Maybe Position -> Buffer -> ( Buffer, Cmd Msg )
 jumpToPath isSaveJump path_ overrideCursor buf =
     let
         path =
-            resolvePath
-                buf.config.pathSeperator
-                buf.cwd
+            if isTempBuffer path_ then
                 path_
+            else
+                resolvePath
+                    buf.config.pathSeperator
+                    buf.cwd
+                    path_
 
         info =
             buf.buffers
@@ -1991,30 +2007,6 @@ update message buf =
                         syntaxBottom =
                             buf.syntaxDirtyFrom
 
-                        tokenizeCmd buf =
-                            let
-                                requireBottom =
-                                    buf.view.scrollTop
-                                        + (2 * buf.view.size.height)
-
-                                lines =
-                                    buf.lines
-                                        |> B.sliceLines
-                                            buf.syntaxDirtyFrom
-                                            requireBottom
-                                        |> B.toString
-                            in
-                                if buf.syntaxDirtyFrom < requireBottom then
-                                    sendTokenize
-                                        buf.config.service
-                                        { path = buf.path
-                                        , version = buf.history.version
-                                        , line = buf.syntaxDirtyFrom
-                                        , lines = lines
-                                        }
-                                else
-                                    Cmd.none
-
                         lintCmd buf =
                             if buf1.config.lint then
                                 sendLintProject buf1.config.service
@@ -2029,7 +2021,7 @@ update message buf =
                         , Cmd.batch
                             [ Doc.setTitle buf1.name
                             , lintCmd buf1
-                            , tokenizeCmd buf1
+                            , tokenizeBufferCmd buf1
                             ]
                         )
 
@@ -2168,7 +2160,7 @@ update message buf =
             case result of
                 Ok s ->
                     jumpTo True
-                        { path = "[Find]"
+                        { path = "[Search]"
                         , version = 0
                         , cursor = ( 0, 0 )
                         , content = Just ( B.fromString s, Array.empty )
