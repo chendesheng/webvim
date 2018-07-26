@@ -639,6 +639,11 @@ operator isVisual isTemp =
         define =
             defineHelper identity
 
+        ignoreKey key =
+            (P.succeed []
+                |. P.symbol key
+            )
+
         startInsert key =
             P.oneOf
                 [ P.succeed
@@ -763,11 +768,7 @@ operator isVisual isTemp =
 
         jumps =
             P.oneOf
-                [ define "<c-o>" (JumpHistory False)
-                    |> dontRecord
-                , define "<tab>" (JumpHistory True)
-                    |> dontRecord
-                , define "<c-u>" (JumpByView -0.5)
+                [ define "<c-u>" (JumpByView -0.5)
                     |> dontRecord
                 , define "<c-d>" (JumpByView 0.5)
                     |> dontRecord
@@ -820,6 +821,8 @@ operator isVisual isTemp =
                     |> completeAndThen (popComplete >> popKey)
                 , jumps
                     |> completeAndThen (popComplete >> popKey)
+                , ignoreKey "<c-o>"
+                , ignoreKey "<tab>"
                 , P.succeed [ PushOperator VisualSwitchEnd ]
                     |. P.symbol "o"
                 , P.succeed [ PushOperator VisualSwitchEnd ]
@@ -856,6 +859,10 @@ operator isVisual isTemp =
                 , defineInsert "o" [ OpenNewLine True |> PushOperator ]
                 , defineInsert "O" [ OpenNewLine False |> PushOperator ]
                 , jumps
+                , define "<c-o>" (JumpHistory False)
+                    |> dontRecord
+                , define "<tab>" (JumpHistory True)
+                    |> dontRecord
                 , define "D"
                     (motionOption ">)$-"
                         |> MotionRange LineEnd
