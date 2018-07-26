@@ -11,6 +11,16 @@ import Regex as Re exposing (regex)
 --    start feeling that I should just list all results by hand
 
 
+mapHead : (a -> a) -> List a -> List a
+mapHead map items =
+    case items of
+        head :: tail ->
+            map head :: tail
+
+        _ ->
+            items
+
+
 keyToChar : String -> Maybe String
 keyToChar key =
     case key of
@@ -331,6 +341,44 @@ gOperator =
                 , PushComplete
                 ]
                 |. P.symbol key
+
+        defineCaseOperator key changeCase =
+            readKeyAndThen key
+                [ PushKey <| "g" ++ key ]
+                (P.oneOf
+                    [ (CaseOperator changeCase
+                        |> operatorVisualRange key
+                        |> P.map
+                            (mapHead
+                                (\item ->
+                                    case item of
+                                        PushKey key ->
+                                            PushKey ("g" ++ key)
+
+                                        _ ->
+                                            item
+                                )
+                            )
+                      )
+                    , (CaseOperator changeCase
+                        |> operatorRange key
+                        |> P.map ((::) (PushKey <| "g" ++ key))
+                      )
+                    ]
+                )
+                |> completeAndThen
+                    (\modeDelta ->
+                        let
+                            escaped =
+                                isEscaped modeDelta
+                        in
+                            if escaped then
+                                modeDelta
+                                    |> popKey
+                                    |> dontRecord
+                            else
+                                popKey modeDelta
+                    )
     in
         gKey Move <|
             P.oneOf
@@ -341,6 +389,9 @@ gOperator =
                     |> dontRecord
                 , define "f"
                     (PushOperator JumpToFile)
+                , defineCaseOperator "u" LowerCase
+                , defineCaseOperator "U" UpperCase
+                , defineCaseOperator "~" SwapCase
                 ]
 
 
@@ -496,6 +547,83 @@ alwaysRecord =
         )
 
 
+operatorRange :
+    Key
+    -> (OperatorRange -> Operator)
+    -> Parser ModeDelta
+operatorRange key map =
+    let
+        toOperator md mo =
+            MotionRange md mo |> map
+
+        define ch md mo =
+            P.succeed
+                ([ toOperator md mo
+                    |> PushOperator
+                 , PushKey ch
+                 , PushComplete
+                 ]
+                )
+                |. P.symbol ch
+
+        motionParser =
+            motion False
+                toOperator
+                (gKey toOperator <|
+                    -- gugu
+                    if key == "u" || key == "U" || key == "~" then
+                        (P.succeed
+                            [ TextObject Line True
+                                |> map
+                                |> PushOperator
+                            , PushComplete
+                            ]
+                            |. P.symbol key
+                        )
+                    else
+                        P.oneOf []
+                )
+
+        textObjectParser =
+            textObject
+                (\obj around ->
+                    TextObject obj around |> map
+                )
+    in
+        if key == "c" then
+            P.oneOf
+                -- w/W behavior differently in change operator
+                [ define "w" WordEdge <| motionOption ">)$-"
+                , define "W" WORDEdge <| motionOption ">)$-"
+                , textObjectParser
+                , motionParser
+                ]
+        else
+            P.oneOf
+                -- w/W behavior differently in change operator
+                [ define "w" WordStart <| motionOption ">)$-"
+                , define "W" WORDStart <| motionOption ">)$-"
+                , textObjectParser
+                , motionParser
+                ]
+
+
+operatorVisualRange :
+    Key
+    -> (OperatorRange -> Operator)
+    -> Parser ModeDelta
+operatorVisualRange key map =
+    readKeysAndThen
+        [ "v", "V", "<c-v>" ]
+        (\key1 -> [ PushKey (key ++ key1) ])
+        (\key1 ->
+            (P.map
+                ((::) (PushKey (key ++ key1)))
+                (operatorRange key <| (visualAfterOperator key1) >> map)
+            )
+        )
+
+
 operator : Bool -> Bool -> Parser ModeDelta
 operator isVisual isTemp =
     let
@@ -528,64 +656,6 @@ operator isVisual isTemp =
             )
                 |> P.map ((++) (op ++ [ PushKey key ]))
                 |> completeAndThen popKey
-
-        operatorRange :
-            Key
-            -> (OperatorRange -> Operator)
-            -> Parser ModeDelta
-        operatorRange key map =
-            let
-                toOperator md mo =
-                    MotionRange md mo |> map
-
-                define ch md mo =
-                    P.succeed
-                        ([ toOperator md mo
-                            |> PushOperator
-                         , PushKey ch
-                         , PushComplete
-                         ]
-                        )
-                        |. P.symbol ch
-
-                motionParser =
-                    motion False
-                        toOperator
-                        (gKey toOperator <| P.oneOf [])
-
-                textObjectParser =
-                    textObject
-                        (\obj around ->
-                            TextObject obj around |> map
-                        )
-            in
-                if key == "c" then
-                    P.oneOf
-                        -- w/W behavior differently in change operator
-                        [ define "w" WordEdge <| motionOption ">)$-"
-                        , define "W" WORDEdge <| motionOption ">)$-"
-                        , textObjectParser
-                        , motionParser
-                        ]
-                else
-                    P.oneOf
-                        -- w/W behavior differently in change operator
-                        [ define "w" WordStart <| motionOption ">)$-"
-                        , define "W" WORDStart <| motionOption ">)$-"
-                        , textObjectParser
-                        , motionParser
-                        ]
-
-        operatorVisualRange key map =
-            readKeysAndThen
-                [ "v", "V", "<c-v>" ]
-                (\key1 -> [ PushKey (key ++ key1) ])
-                (\key1 ->
-                    (P.map
-                        ((::) (PushKey (key ++ key1)))
-                        (operatorRange key <| (visualAfterOperator key1) >> map)
-                    )
-                )
 
         defineOperator key op opop =
             (if isVisual then

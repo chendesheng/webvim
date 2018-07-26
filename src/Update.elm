@@ -56,6 +56,7 @@ import Internal.Jumps
 import Update.Range exposing (operatorRanges, shrinkRight)
 import Update.AutoComplete exposing (..)
 import Internal.Position exposing (Position)
+import Update.CaseOperator exposing (applyCaseOperator)
 
 
 stringToPrefix : String -> ExPrefix
@@ -1163,6 +1164,9 @@ runOperator count register operator buf =
                         )
                     |> Maybe.withDefault buf
                     |> cmdNone
+
+        CaseOperator changeCase range ->
+            ( applyCaseOperator count changeCase range buf, Cmd.none )
 
         _ ->
             ( buf, Cmd.none )

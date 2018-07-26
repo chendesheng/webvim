@@ -74,11 +74,18 @@ type ScrollPosition
     | ScrollToTop
 
 
+type ChangeCase
+    = LowerCase
+    | UpperCase
+    | SwapCase
+
+
 type Operator
     = Move MotionData MotionOption
     | Select TextObject Bool -- visual mode
     | Delete OperatorRange
     | Yank OperatorRange
+    | CaseOperator ChangeCase OperatorRange
     | Put Bool
     | Indent Bool OperatorRange
     | Join Bool -- J/gJ collapse spaces if argument is true

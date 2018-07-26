@@ -1,0 +1,22 @@
+{
+||      ABC DEF 123#$%
+        ^
+-- Normal --
+}
+
+> gugu
+
+{
+||      abc def 123#$%
+        ^
+-- Normal --
+}
+
+> gUgU
+
+{
+||      ABC DEF 123#$%
+        ^
+-- Normal --
+}
+

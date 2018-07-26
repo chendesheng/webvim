@@ -1,0 +1,38 @@
+{
+||      ABC
+        ^
+-- Normal --
+}
+
+> guw
+
+{
+||      abc
+        ^
+-- Normal --
+}
+
+> gUw
+
+{
+||      ABC
+        ^
+-- Normal --
+}
+
+> gul
+
+{
+||      aBC
+        ^
+-- Normal --
+}
+
+> g~w
+
+{
+||      Abc
+        ^
+-- Normal --
+}
+

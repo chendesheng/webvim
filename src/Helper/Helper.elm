@@ -311,3 +311,13 @@ rightChar =
     String.right 1
         >> String.uncons
         >> Maybe.map Tuple.first
+
+
+swapCase : Char -> Char
+swapCase ch =
+    if Char.isUpper ch then
+        Char.toLower ch
+    else if Char.isLower ch then
+        Char.toUpper ch
+    else
+        ch
