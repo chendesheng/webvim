@@ -844,6 +844,12 @@ operator isVisual isTemp =
                         |> PushOperator
                     ]
                 , replace
+                , define "u"
+                    (VisualRange False |> CaseOperator LowerCase)
+                , define "U"
+                    (VisualRange False |> CaseOperator UpperCase)
+                , define "~"
+                    (VisualRange False |> CaseOperator SwapCase)
                 ]
               else
                 [ defineInsert "i" []
