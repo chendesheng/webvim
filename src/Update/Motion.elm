@@ -613,6 +613,16 @@ runMotion count md mo buf =
                         _ ->
                             findPositionDefault count md mo buf
 
+                V.NextLineFirst ->
+                    let
+                        n =
+                            Maybe.withDefault 1 count
+
+                        y =
+                            Tuple.first buf.cursor
+                    in
+                        Buf.cursorLineFirst buf.lines (y + n)
+
                 _ ->
                     findPositionDefault count md mo buf
 

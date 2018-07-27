@@ -303,3 +303,4 @@ type MotionData
     | MatchPair -- %
     | RepeatMatchChar
     | MatchString StringType
+    | NextLineFirst -- <cr>

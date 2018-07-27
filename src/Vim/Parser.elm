@@ -492,6 +492,7 @@ motion isVisual map gMotion =
              , define "N" (MatchString LastSavedString) <| motionOption "<)+-"
              , define "*" (MatchString WordUnderCursor) <| motionOption ">)+-"
              , define "#" (MatchString WordUnderCursor) <| motionOption "<)+-"
+             , define "<cr>" NextLineFirst <| motionOption ">]+="
              , gMotion
              ]
             )
