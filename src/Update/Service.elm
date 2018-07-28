@@ -153,33 +153,59 @@ sendReadBuffer url tokenizeLines tabSize info =
                     lines =
                         B.fromStringExpandTabs tabSize 0 s
                 in
-                    sendTokenizeTask url
-                        { path = info.path
-                        , version = 0
-                        , line = 0
-                        , lines =
-                            lines
-                                |> B.sliceLines 0 tokenizeLines
-                                |> B.toString
-                        }
-                        |> Task.map
-                            (\res ->
-                                case res of
-                                    TokenizeSuccess _ syntax ->
-                                        ( lines, syntax )
+                    if info.syntax then
+                        sendTokenizeTask url
+                            { path = info.path
+                            , version = 0
+                            , line = 0
+                            , lines =
+                                lines
+                                    |> B.sliceLines 0 tokenizeLines
+                                    |> B.toString
+                            }
+                            |> Task.map
+                                (\res ->
+                                    case res of
+                                        TokenizeSuccess _ syntax ->
+                                            { syntax = True
+                                            , content = ( lines, syntax )
+                                            }
 
-                                    _ ->
-                                        ( lines, Array.empty )
-                            )
-                        |> Task.onError
-                            (\_ ->
-                                Task.succeed ( lines, Array.empty )
-                            )
+                                        TokenizeError s ->
+                                            if s == "noextension" then
+                                                { syntax = False
+                                                , content = ( lines, Array.empty )
+                                                }
+                                            else
+                                                { syntax = True
+                                                , content = ( lines, Array.empty )
+                                                }
+
+                                        _ ->
+                                            { syntax = True
+                                            , content = ( lines, Array.empty )
+                                            }
+                                )
+                            |> Task.onError
+                                (\_ ->
+                                    Task.succeed
+                                        { syntax = True
+                                        , content = ( lines, Array.empty )
+                                        }
+                                )
+                    else
+                        Task.succeed
+                            { syntax = False
+                            , content = ( lines, Array.empty )
+                            }
             )
         |> Task.attempt
             (Result.map
-                (\res ->
-                    { info | content = Just res }
+                (\{ syntax, content } ->
+                    { info
+                        | content = Just content
+                        , syntax = syntax
+                    }
                 )
                 >> Read
             )

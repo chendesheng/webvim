@@ -63,6 +63,7 @@ bufferInfoEncoder info =
             , info.cursor |> Tuple.second |> Encode.int
             ]
       )
+    , ( "syntax", Encode.bool info.syntax )
     ]
         |> Encode.object
 
@@ -76,12 +77,13 @@ bufferInfoToString info =
 
 bufferInfoDecoder : Decode.Decoder BufferInfo
 bufferInfoDecoder =
-    Decode.map3
-        (\path version cursor ->
+    Decode.map4
+        (\path version cursor syntax ->
             { path = path
             , version = version
             , cursor = cursor
             , content = Nothing
+            , syntax = syntax
             }
         )
         (Decode.field "path" Decode.string)
@@ -97,6 +99,7 @@ bufferInfoDecoder =
                             ( 0, 0 )
                 )
         )
+        (Decode.field "syntax" Decode.bool)
 
 
 type alias Key =
@@ -108,6 +111,17 @@ type alias BufferInfo =
     , cursor : Position
     , content : Maybe ( B.TextBuffer, Syntax )
     , version : Int
+    , syntax : Bool
+    }
+
+
+emptyBufferInfo : BufferInfo
+emptyBufferInfo =
+    { path = ""
+    , cursor = ( 0, 0 )
+    , content = Nothing
+    , version = 0
+    , syntax = True
     }
 
 
@@ -311,26 +325,6 @@ emptyView =
     }
 
 
-encodeBuffer : Buffer -> Encode.Value
-encodeBuffer buf =
-    let
-        ( y, x ) =
-            buf.cursor
-    in
-        Encode.object
-            [ ( "path", Encode.string buf.path )
-            , ( "cursor"
-              , Encode.list <|
-                    [ Encode.int y
-                    , Encode.int x
-                    ]
-              )
-            , ( "scrollTop"
-              , Encode.int buf.view.scrollTop
-              )
-            ]
-
-
 type IndentConfig
     = AutoIndent -- same indent as last line
     | IndentRules
@@ -348,6 +342,7 @@ type alias BufferConfig =
     , service : String
     , pathSeperator : String
     , indent : IndentConfig
+    , syntax : Bool
     }
 
 
@@ -360,6 +355,7 @@ defaultBufferConfig =
     , service = ""
     , pathSeperator = "/"
     , indent = AutoIndent
+    , syntax = True
     }
 
 

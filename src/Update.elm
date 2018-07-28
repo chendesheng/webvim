@@ -1284,6 +1284,7 @@ newBuffer info buf =
                 { config
                     | service = buf.config.service
                     , pathSeperator = buf.config.pathSeperator
+                    , syntax = info.syntax
                 }
             , view =
                 { emptyView
@@ -1465,7 +1466,7 @@ isTempBuffer path =
 
 tokenizeBufferCmd : Buffer -> Cmd Msg
 tokenizeBufferCmd buf =
-    if isTempBuffer buf.path then
+    if isTempBuffer buf.path || not buf.config.syntax then
         Cmd.none
     else
         let
@@ -1554,10 +1555,9 @@ jumpToPath isSaveJump path_ overrideCursor buf =
                         }
                     )
                 |> Maybe.withDefault
-                    { path = path
-                    , version = 0
-                    , cursor = Maybe.withDefault ( 0, 0 ) overrideCursor
-                    , content = Nothing
+                    { emptyBufferInfo
+                        | path = path
+                        , cursor = Maybe.withDefault ( 0, 0 ) overrideCursor
                     }
     in
         jumpTo isSaveJump info buf
@@ -1566,14 +1566,13 @@ jumpToPath isSaveJump path_ overrideCursor buf =
 editTestBuffer : String -> Buffer -> ( Buffer, Cmd Msg )
 editTestBuffer path buf =
     Ok
-        { content =
-            Just
-                ( B.fromString B.lineBreak
-                , Array.empty
-                )
-        , path = path
-        , version = 0
-        , cursor = ( 0, 0 )
+        { emptyBufferInfo
+            | content =
+                Just
+                    ( B.fromString B.lineBreak
+                    , Array.empty
+                    )
+            , path = path
         }
         |> Read
         |> flip update buf
@@ -1847,12 +1846,17 @@ onTokenized buf resp =
                         }
 
                 TokenizeError s ->
-                    ( { buf
-                        | syntax = Array.empty
-                        , syntaxDirtyFrom = 0
-                      }
-                    , Cmd.none
-                    )
+                    let
+                        config =
+                            buf.config
+                    in
+                        ( { buf
+                            | syntax = Array.empty
+                            , syntaxDirtyFrom = 0
+                            , config = { config | syntax = False }
+                          }
+                        , Cmd.none
+                        )
 
         Err _ ->
             ( buf, Cmd.none )
@@ -2021,17 +2025,19 @@ update message buf =
                                         ( B.fromString B.lineBreak
                                         , Array.empty
                                         )
+                                , syntax = True
                                 }
                                 buf
 
                         _ ->
                             ( buf, Cmd.none )
 
-                Err Http.NetworkError ->
-                    ( buf, Cmd.none )
-
                 _ ->
-                    ( buf, Cmd.none )
+                    ( Buf.errorMessage
+                        ("read " ++ shortPath buf ++ " failed")
+                        buf
+                    , Cmd.none
+                    )
 
         Write result ->
             case result of
@@ -2207,10 +2213,10 @@ update message buf =
             case result of
                 Ok s ->
                     jumpTo True
-                        { path = "[Search]"
-                        , version = 0
-                        , cursor = ( 0, 0 )
-                        , content = Just ( B.fromString s, Array.empty )
+                        { emptyBufferInfo
+                            | path = "[Search]"
+                            , content = Just ( B.fromString s, Array.empty )
+                            , syntax = False
                         }
                         buf
 
@@ -2291,6 +2297,7 @@ editBuffer info buf =
                                         Just
                                             ( buf.lines, buf.syntax )
                                     , cursor = buf.cursor
+                                    , syntax = buf.config.syntax
                                     }
                             )
                         , registers =
@@ -2363,12 +2370,7 @@ init flags =
         activeBuf =
             activeBuffer
                 |> Decode.decodeValue bufferInfoDecoder
-                |> Result.withDefault
-                    { path = ""
-                    , version = 0
-                    , content = Nothing
-                    , cursor = ( 0, 0 )
-                    }
+                |> Result.withDefault emptyBufferInfo
 
         jumps =
             emptyBuffer.jumps

@@ -975,6 +975,7 @@ saveActiveBuffer path version cursor =
     , version = version
     , cursor = cursor
     , content = Nothing
+    , syntax = True
     }
         |> bufferInfoToString
         |> renderSessionStorageItem "activeBuffer"
