@@ -389,8 +389,8 @@ jumpLastBuffer buf =
             ( buf, Cmd.none )
 
 
-jumpToTag : Maybe Int -> Buffer -> ( Buffer, Cmd Msg )
-jumpToTag count buf =
+startJumpToTag : Maybe Int -> Buffer -> ( Buffer, Cmd Msg )
+startJumpToTag count buf =
     case
         wordStringUnderCursor
             buf.config.wordChars

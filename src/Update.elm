@@ -608,7 +608,7 @@ runOperator count register operator buf =
             jumpLastBuffer buf
 
         JumpToTag ->
-            jumpToTag count buf
+            startJumpToTag count buf
 
         JumpBackFromTag ->
             case buf.last.jumpToTag of
@@ -1178,12 +1178,7 @@ update message buf =
                         ( buf1, cmd ) =
                             handleKeypress False key buf
                     in
-                        ( buf1
-                        , if cmd == Cmd.none then
-                            cmds
-                          else
-                            cmd :: cmds
-                        )
+                        ( buf1, cmd :: cmds )
                 )
                 ( buf, [] )
                 (keymap buf.mode key)
@@ -1206,79 +1201,10 @@ update message buf =
             ( buf, Cmd.none )
 
         Read result ->
-            case result of
-                Ok info ->
-                    editBuffer info buf
-
-                Err (Http.BadStatus resp) ->
-                    case resp.status.code of
-                        404 ->
-                            jumpTo True
-                                { emptyBufferInfo
-                                    | path = resp.body
-                                    , content =
-                                        Just
-                                            ( B.fromString B.lineBreak
-                                            , Array.empty
-                                            )
-                                }
-                                buf
-
-                        _ ->
-                            ( buf, Cmd.none )
-
-                _ ->
-                    ( Buf.errorMessage
-                        ("read " ++ Buf.shortPath buf ++ " failed")
-                        buf
-                    , Cmd.none
-                    )
+            onRead result buf
 
         Write result ->
-            case result of
-                Ok patches ->
-                    let
-                        -- TODO: add an unified `patch` function for buffer
-                        buf1 =
-                            buf
-                                |> Buf.transaction patches
-                                |> Buf.commit
-                                |> Buf.updateSavePoint
-                                -- keep cursor position
-                                |> Buf.setCursor buf.cursor True
-                                |> correctCursor
-                                |> scrollToCursor
-                                |> pairCursor
-                                |> Buf.infoMessage
-                                    (Buf.shortPath buf ++ " Written")
-
-                        syntaxBottom =
-                            buf.syntaxDirtyFrom
-
-                        lintCmd buf =
-                            if buf1.config.lint then
-                                sendLintProject buf1.config.service
-                                    buf1.config.pathSeperator
-                                    buf1.path
-                                    buf1.history.version
-                                    buf1.lines
-                            else
-                                Cmd.none
-                    in
-                        ( buf1
-                        , Cmd.batch
-                            [ Doc.setTitle buf1.name
-                            , lintCmd buf1
-                            , tokenizeBufferCmd buf1
-                            ]
-                        )
-
-                _ ->
-                    ( Buf.errorMessage
-                        (Buf.shortPath buf ++ " save error")
-                        buf
-                    , Cmd.none
-                    )
+            onWrite result buf
 
         SendLint ->
             if buf.config.lint then
@@ -1293,21 +1219,8 @@ update message buf =
             else
                 ( buf, Cmd.none )
 
-        Lint ( path, version ) resp ->
-            if
-                (path == buf.path)
-                    && (version == buf.history.version)
-            then
-                ( case resp of
-                    Ok items ->
-                        applyLintItems items buf
-
-                    _ ->
-                        buf
-                , Cmd.none
-                )
-            else
-                ( buf, Cmd.none )
+        Lint id resp ->
+            ( onLint id resp buf, Cmd.none )
 
         Tokenized ( path, version ) resp ->
             if
@@ -1322,47 +1235,10 @@ update message buf =
             ( buf, tokenizeBufferCmd buf )
 
         ReadTags result ->
-            case result of
-                Ok loc ->
-                    let
-                        last =
-                            buf.last
-
-                        saveLastJumpToTag buf =
-                            { buf
-                                | last =
-                                    { last
-                                        | jumpToTag =
-                                            Just
-                                                { path = buf.path
-                                                , cursor = buf.cursor
-                                                }
-                                    }
-                            }
-                    in
-                        buf
-                            |> Buf.clearMessage
-                            |> saveLastJumpToTag
-                            |> jumpToLocation True loc
-
-                _ ->
-                    ( Buf.errorMessage "tag not found" buf
-                    , Cmd.none
-                    )
+            onReadTags result buf
 
         SearchResult result ->
-            case result of
-                Ok s ->
-                    jumpTo True
-                        { emptyBufferInfo
-                            | path = "[Search]"
-                            , content = Just ( B.fromString s, Array.empty )
-                            , syntax = False
-                        }
-                        buf
-
-                _ ->
-                    ( buf, Cmd.none )
+            onSearch result buf
 
         ListFiles resp ->
             case resp of
@@ -1377,6 +1253,69 @@ update message buf =
 
         _ ->
             ( buf, Cmd.none )
+
+
+onLint : BufferIdentifier -> Result a (List LintError) -> Buffer -> Buffer
+onLint ( path, version ) resp buf =
+    if
+        (path == buf.path)
+            && (version == buf.history.version)
+    then
+        case resp of
+            Ok items ->
+                applyLintItems items buf
+
+            _ ->
+                buf
+    else
+        buf
+
+
+onSearch : Result a String -> Buffer -> ( Buffer, Cmd Msg )
+onSearch result buf =
+    case result of
+        Ok s ->
+            jumpTo True
+                { emptyBufferInfo
+                    | path = "[Search]"
+                    , content = Just ( B.fromString s, Array.empty )
+                    , syntax = False
+                }
+                buf
+
+        _ ->
+            ( buf, Cmd.none )
+
+
+onReadTags : Result String Location -> Buffer -> ( Buffer, Cmd Msg )
+onReadTags result buf =
+    case result of
+        Ok loc ->
+            let
+                last =
+                    buf.last
+
+                saveLastJumpToTag buf =
+                    { buf
+                        | last =
+                            { last
+                                | jumpToTag =
+                                    Just
+                                        { path = buf.path
+                                        , cursor = buf.cursor
+                                        }
+                            }
+                    }
+            in
+                buf
+                    |> Buf.clearMessage
+                    |> saveLastJumpToTag
+                    |> jumpToLocation True loc
+
+        _ ->
+            ( Buf.errorMessage "tag not found" buf
+            , Cmd.none
+            )
 
 
 onResize : Size -> Buffer -> ( Buffer, Cmd Msg )
@@ -1407,6 +1346,85 @@ onResize size buf =
                 )
             |> cursorScope
             |> tokenizeBuffer
+
+
+onRead : Result Http.Error BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
+onRead result buf =
+    case result of
+        Ok info ->
+            editBuffer info buf
+
+        Err (Http.BadStatus resp) ->
+            case resp.status.code of
+                404 ->
+                    jumpTo True
+                        { emptyBufferInfo
+                            | path = resp.body
+                            , content =
+                                Just
+                                    ( B.fromString B.lineBreak
+                                    , Array.empty
+                                    )
+                        }
+                        buf
+
+                _ ->
+                    ( buf, Cmd.none )
+
+        _ ->
+            ( Buf.errorMessage
+                ("read " ++ Buf.shortPath buf ++ " failed")
+                buf
+            , Cmd.none
+            )
+
+
+onWrite : Result Http.Error (List Patch) -> Buffer -> ( Buffer, Cmd Msg )
+onWrite result buf =
+    case result of
+        Ok patches ->
+            let
+                -- TODO: add an unified `patch` function for buffer
+                buf1 =
+                    buf
+                        |> Buf.transaction patches
+                        |> Buf.commit
+                        |> Buf.updateSavePoint
+                        -- keep cursor position
+                        |> Buf.setCursor buf.cursor True
+                        |> correctCursor
+                        |> scrollToCursor
+                        |> pairCursor
+                        |> Buf.infoMessage
+                            (Buf.shortPath buf ++ " Written")
+
+                syntaxBottom =
+                    buf.syntaxDirtyFrom
+
+                lintCmd buf =
+                    if buf1.config.lint then
+                        sendLintProject buf1.config.service
+                            buf1.config.pathSeperator
+                            buf1.path
+                            buf1.history.version
+                            buf1.lines
+                    else
+                        Cmd.none
+            in
+                ( buf1
+                , Cmd.batch
+                    [ Doc.setTitle buf1.name
+                    , lintCmd buf1
+                    , tokenizeBufferCmd buf1
+                    ]
+                )
+
+        _ ->
+            ( Buf.errorMessage
+                (Buf.shortPath buf ++ " save error")
+                buf
+            , Cmd.none
+            )
 
 
 listFiles : List String -> Buffer -> Buffer
