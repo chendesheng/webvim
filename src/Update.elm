@@ -2,7 +2,6 @@ module Update exposing (update, init, initCommand, initMode)
 
 import Http
 import Internal.Brackets exposing (pairBracket, pairBracketAt)
-import Char
 import Task
 import Update.Keymap exposing (keymap)
 import Window as Win exposing (Size)
@@ -32,13 +31,8 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Update.Motion exposing (..)
 import Update.Delete exposing (..)
 import Update.Insert exposing (..)
-import Internal.PositionClass exposing (findLineFirst)
 import Regex as Re
 import Internal.TextObject exposing (expandTextObject)
-import Result
-import List
-import Tuple
-import String
 import Update.Service exposing (..)
 import Update.Yank exposing (yank)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
@@ -57,6 +51,9 @@ import Update.Range exposing (operatorRanges, shrinkRight)
 import Update.AutoComplete exposing (..)
 import Internal.Position exposing (Position)
 import Update.CaseOperator exposing (applyCaseOperator)
+import Update.Replace exposing (applyReplace)
+import Update.Indent exposing (applyIndent)
+import Update.Increase exposing (increaseNumber)
 
 
 stringToPrefix : String -> ExPrefix
@@ -487,37 +484,6 @@ clearExBufAutoComplete exbuf =
     }
 
 
-replaceChar : String -> Buffer -> Buffer
-replaceChar ch buf =
-    let
-        ( y, x ) =
-            buf.cursor
-    in
-        buf
-            |> Buf.transaction
-                [ Deletion buf.cursor ( y, x + 1 ) ]
-            |> insert (V.TextLiteral ch)
-
-
-replaceRegion : String -> Position -> Position -> Buffer -> Buffer
-replaceRegion ch b e buf =
-    let
-        s =
-            buf.lines
-                |> B.sliceRegion b e
-                |> B.toString
-                |> Re.replace Re.All (Re.regex "[^\x0D\n]") (always ch)
-                |> B.fromString
-    in
-        buf
-            |> Buf.setCursor b False
-            |> Buf.transaction
-                [ Deletion b e
-                , Insertion b s
-                ]
-            |> Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True
-
-
 runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator count register operator buf =
     case operator of
@@ -833,39 +799,7 @@ runOperator count register operator buf =
                 |> cmdNone
 
         Replace ch ->
-            case buf.mode of
-                Normal _ ->
-                    buf
-                        |> replaceChar ch
-                        |> cmdNone
-
-                TempNormal ->
-                    buf
-                        |> replaceChar ch
-                        |> (\buf ->
-                                let
-                                    ( y, x ) =
-                                        buf.cursor
-                                in
-                                    Buf.setCursor ( y, max 0 (x - 1) ) True buf
-                           )
-                        |> cmdNone
-
-                Visual _ ->
-                    let
-                        regions =
-                            operatorRanges count (V.VisualRange False) buf
-                                |> List.reverse
-                    in
-                        ( List.foldl
-                            (\( b, e ) buf -> replaceRegion ch b e buf)
-                            buf
-                            regions
-                        , Cmd.none
-                        )
-
-                _ ->
-                    ( buf, Cmd.none )
+            ( applyReplace count ch buf, Cmd.none )
 
         ToggleTip ->
             buf
@@ -1005,165 +939,10 @@ runOperator count register operator buf =
                     ( buf, Cmd.none )
 
         Indent forward range ->
-            let
-                genPatches y =
-                    if forward then
-                        buf.lines
-                            |> B.getLine y
-                            |> Maybe.map
-                                (\s ->
-                                    " "
-                                        |> String.repeat
-                                            (if String.length s > 1 then
-                                                buf.config.tabSize
-                                             else
-                                                0
-                                            )
-                                        |> B.fromString
-                                        |> Insertion ( y, 0 )
-                                )
-                            |> Maybe.withDefault (Insertion ( y, 0 ) B.empty)
-                    else
-                        let
-                            size =
-                                buf.lines
-                                    |> B.getLine y
-                                    |> Maybe.map findLineFirst
-                                    |> Maybe.withDefault 0
-                                    |> min
-                                        buf.config.tabSize
-                        in
-                            Deletion
-                                ( y, 0 )
-                                ( y, size )
-
-                lineNumbers =
-                    buf
-                        |> operatorRanges count range
-                        |> List.concatMap
-                            (\rg ->
-                                let
-                                    ( begin, end ) =
-                                        rg
-
-                                    ( y, x ) =
-                                        end
-                                in
-                                    List.range
-                                        (Tuple.first begin)
-                                        (y
-                                            |> ((+)
-                                                    (if x == 0 then
-                                                        -1
-                                                     else
-                                                        0
-                                                    )
-                                               )
-                                            |> max 0
-                                        )
-                            )
-            in
-                case lineNumbers of
-                    y :: _ ->
-                        let
-                            buf1 =
-                                Buf.transaction
-                                    (List.map genPatches lineNumbers)
-                                    buf
-                        in
-                            ( Buf.gotoLine y buf1, Cmd.none )
-
-                    _ ->
-                        ( buf, Cmd.none )
+            ( applyIndent count forward range buf, Cmd.none )
 
         IncreaseNumber larger ->
-            let
-                ( y, x ) =
-                    buf.cursor
-
-                delta =
-                    if larger then
-                        Maybe.withDefault 1 count
-                    else
-                        -(Maybe.withDefault 1 count)
-
-                numParser =
-                    P.succeed
-                        (\pre s ->
-                            ( String.length pre
-                            , String.length s
-                            , s
-                                |> String.toInt
-                                |> Result.withDefault 0
-                            )
-                        )
-                        |= P.keep P.zeroOrMore (Char.isDigit >> not)
-                        |= P.keep P.oneOrMore Char.isDigit
-            in
-                buf.lines
-                    |> B.getLine y
-                    |> Maybe.andThen
-                        (\line ->
-                            line
-                                |> String.slice x -1
-                                |> P.run numParser
-                                |> Result.toMaybe
-                                |> Maybe.map
-                                    (\res ->
-                                        let
-                                            ( dx, len, n ) =
-                                                res
-
-                                            isNegative =
-                                                String.slice
-                                                    (x + dx - 1)
-                                                    (x + dx)
-                                                    line
-                                                    == "-"
-
-                                            dx1 =
-                                                if isNegative then
-                                                    dx - 1
-                                                else
-                                                    dx
-
-                                            n1 =
-                                                if isNegative then
-                                                    -n
-                                                else
-                                                    n
-
-                                            len1 =
-                                                if isNegative then
-                                                    len + 1
-                                                else
-                                                    len
-
-                                            cursor =
-                                                ( y, x + dx1 )
-
-                                            patches =
-                                                [ Deletion cursor
-                                                    ( y
-                                                    , x + dx1 + len1
-                                                    )
-                                                , n1
-                                                    |> ((+) delta)
-                                                    |> toString
-                                                    |> B.fromString
-                                                    |> Insertion cursor
-                                                ]
-                                        in
-                                            buf
-                                                |> Buf.transaction
-                                                    patches
-                                                |> Buf.setCursor
-                                                    cursor
-                                                    True
-                                    )
-                        )
-                    |> Maybe.withDefault buf
-                    |> cmdNone
+            ( increaseNumber count larger buf, Cmd.none )
 
         CaseOperator changeCase range ->
             ( applyCaseOperator count changeCase range buf, Cmd.none )
@@ -2286,8 +2065,7 @@ editBuffer info buf =
                 newBuffer
                     info
                     { buf
-                        | jumps = buf.jumps
-                        , buffers =
+                        | buffers =
                             (buf.buffers
                                 |> Dict.remove info.path
                                 |> Dict.insert buf.path

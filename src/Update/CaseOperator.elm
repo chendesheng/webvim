@@ -2,7 +2,7 @@ module Update.CaseOperator exposing (applyCaseOperator)
 
 import Vim.AST as V exposing (Operator(..), ChangeCase(..))
 import Model exposing (..)
-import Update.Range exposing (operatorRanges, shrinkRight)
+import Update.Range exposing (operatorRanges)
 import Helper.Helper exposing (swapCase, getLast)
 import Char exposing (toUpper, toLower)
 import Update.Buffer as Buf
