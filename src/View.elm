@@ -17,6 +17,7 @@ import Update.Buffer as Buf
 import Dict exposing (Dict)
 import Bitwise as BW
 import Update.Message exposing (Msg(..))
+import Update.Range exposing (visualRegions)
 import Json.Decode as Decode
 
 
@@ -638,6 +639,9 @@ renderRange :
     -> List (Html msg)
 renderRange scrollTop tipe begin end lines excludeLineBreak =
     let
+        regions =
+            visualRegions False tipe begin end lines
+
         ( by, bx ) =
             Basics.min begin end
 
@@ -646,7 +650,7 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
     in
         List.range by ey
             |> List.filter (\i -> i >= scrollTop && i < scrollTop + 50)
-            |> List.map
+            |> List.filterMap
                 (\row ->
                     let
                         maxcol =
@@ -657,39 +661,47 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
                                     0
                                   )
 
-                        ( b_, e_ ) =
+                        maybeRegion =
                             case tipe of
                                 VisualLine ->
-                                    ( 0, maxcol )
+                                    Just ( 0, maxcol )
 
                                 VisualBlock ->
-                                    ( bx, ex )
+                                    let
+                                        bx1 =
+                                            Basics.min bx ex
+
+                                        ex1 =
+                                            Basics.max bx ex
+                                    in
+                                        if bx1 > maxcol then
+                                            Nothing
+                                        else
+                                            Just ( bx1, Basics.min maxcol ex1 )
 
                                 _ ->
                                     if by == ey then
-                                        ( bx, ex )
+                                        Just ( bx, ex )
                                     else if row == by then
-                                        ( bx, maxcol )
+                                        Just ( bx, maxcol )
                                     else if row == ey then
-                                        ( 0, ex )
+                                        Just ( 0, ex )
                                     else
-                                        ( 0, maxcol )
-
-                        e =
-                            Basics.min maxcol e_
-
-                        b =
-                            Basics.min maxcol b_
+                                        Just ( 0, maxcol )
                     in
-                        (div
-                            [ style
-                                [ ( "left", ch b )
-                                , ( "top", rem row )
-                                , ( "width", ch <| e - b + 1 )
-                                ]
-                            ]
-                            []
-                        )
+                        Maybe.map
+                            (\( bx, ex ) ->
+                                (div
+                                    [ style
+                                        [ ( "left", ch bx )
+                                        , ( "top", rem row )
+                                        , ( "width", ch <| ex - bx + 1 )
+                                        ]
+                                    ]
+                                    []
+                                )
+                            )
+                            maybeRegion
                 )
 
 

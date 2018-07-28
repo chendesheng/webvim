@@ -3,7 +3,7 @@ module Update.CaseOperator exposing (applyCaseOperator)
 import Vim.AST as V exposing (Operator(..), ChangeCase(..))
 import Model exposing (..)
 import Update.Range exposing (operatorRanges, shrinkRight)
-import Helper.Helper exposing (swapCase)
+import Helper.Helper exposing (swapCase, getLast)
 import Char exposing (toUpper, toLower)
 import Update.Buffer as Buf
 import Internal.TextBuffer as B exposing (Patch(..))
@@ -17,38 +17,46 @@ applyCaseOperator :
     -> Buffer
 applyCaseOperator count changeCase range buf =
     let
-        region =
+        regions =
             operatorRanges count range buf
-                |> List.head
+
+        setCursor regions buf =
+            case getLast regions of
+                Just ( b, e ) ->
+                    Buf.setCursor b True buf
+
+                _ ->
+                    buf
     in
-        case region of
-            Just ( begin, end ) ->
-                let
-                    s =
-                        buf.lines
-                            |> B.sliceRegion begin end
-                            |> B.toString
+        regions
+            |> List.foldl
+                (\( b, e ) buf ->
+                    let
+                        s =
+                            buf.lines
+                                |> B.sliceRegion b e
+                                |> B.toString
 
-                    replaceChar map buf =
-                        buf
-                            |> Buf.transaction
-                                [ Deletion begin end
-                                , s
-                                    |> String.map map
-                                    |> B.fromString
-                                    |> Insertion begin
-                                ]
-                            |> Buf.setCursor buf.cursor True
-                in
-                    case changeCase of
-                        LowerCase ->
-                            replaceChar toLower buf
+                        replaceChar map buf =
+                            buf
+                                |> Buf.transaction
+                                    [ Deletion b e
+                                    , s
+                                        |> String.map map
+                                        |> B.fromString
+                                        |> Insertion b
+                                    ]
+                                |> Buf.setCursor buf.cursor True
+                    in
+                        case changeCase of
+                            LowerCase ->
+                                replaceChar toLower buf
 
-                        UpperCase ->
-                            replaceChar toUpper buf
+                            UpperCase ->
+                                replaceChar toUpper buf
 
-                        SwapCase ->
-                            replaceChar swapCase buf
-
-            _ ->
+                            SwapCase ->
+                                replaceChar swapCase buf
+                )
                 buf
+            |> setCursor regions

@@ -14,6 +14,7 @@ module Internal.TextBuffer
         , mapLines
         , Patch(..)
         , toString
+        , lineMaxColumn
         , getLineMaxColumn
         , mapLinesToList
         , indexedMapLinesToList
@@ -570,23 +571,26 @@ expandTabs n firstLineOffset s =
             (firstLineOffset :: List.repeat (List.length lines - 1) 0)
 
 
+lineMaxColumn : String -> Int
+lineMaxColumn s =
+    let
+        len =
+            String.length s
+
+        lenLineBreak =
+            String.length lineBreak
+    in
+        if String.right lenLineBreak s == lineBreak then
+            len - lenLineBreak
+        else
+            len
+
+
 getLineMaxColumn : Int -> TextBuffer -> Int
 getLineMaxColumn y lines =
-    getLine y lines
-        |> Maybe.map
-            (\s ->
-                let
-                    len =
-                        String.length s
-
-                    lenLineBreak =
-                        String.length lineBreak
-                in
-                    if String.right lenLineBreak s == lineBreak then
-                        len - lenLineBreak
-                    else
-                        len
-            )
+    lines
+        |> getLine y
+        |> Maybe.map lineMaxColumn
         |> Maybe.withDefault 0
 
 

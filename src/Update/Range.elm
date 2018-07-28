@@ -5,6 +5,7 @@ import Vim.AST as V exposing (Operator(..))
 import Internal.Position exposing (Position, positionMin)
 import Internal.TextObject exposing (expandTextObject)
 import Update.Motion exposing (..)
+import Internal.TextBuffer as B
 
 
 isLinewise : V.OperatorRange -> Mode -> Bool
@@ -34,7 +35,92 @@ isLinewise range mode =
             textObject == V.Line && around
 
 
-operatorRanges : Maybe Int -> V.OperatorRange -> Buffer -> List ( Position, Position )
+visualRegions :
+    Bool
+    -> V.VisualType
+    -> Position
+    -> Position
+    -> B.TextBuffer
+    -> List ( Position, Position )
+visualRegions linewise tipe begin end lines =
+    let
+        b =
+            min begin end
+
+        e =
+            max begin end
+
+        ( ey, ex ) =
+            e
+
+        ( by, bx ) =
+            b
+
+        bx1 =
+            min bx ex
+
+        ex1 =
+            max bx ex
+    in
+        if linewise then
+            [ ( ( by, 0 )
+              , ( ey + 1
+                , 0
+                )
+              )
+            ]
+        else
+            case tipe of
+                V.VisualLine ->
+                    [ ( ( by, 0 )
+                      , ( ey + 1
+                        , 0
+                        )
+                      )
+                    ]
+
+                V.VisualChars ->
+                    [ ( b
+                      , ( ey
+                        , ex1 + 1
+                        )
+                      )
+                    ]
+
+                V.VisualBlock ->
+                    List.range by ey
+                        |> List.filterMap
+                            (\i ->
+                                lines
+                                    |> B.getLine i
+                                    |> Maybe.andThen
+                                        (\line ->
+                                            let
+                                                maxcol =
+                                                    B.lineMaxColumn line
+
+                                                bx2 =
+                                                    min bx1 maxcol
+                                            in
+                                                if bx2 > maxcol then
+                                                    Nothing
+                                                else
+                                                    Just
+                                                        ( ( i, bx2 )
+                                                        , ( i
+                                                          , min (ex1 + 1) maxcol
+                                                          )
+                                                        )
+                                        )
+                            )
+                        |> List.reverse
+
+
+operatorRanges :
+    Maybe Int
+    -> V.OperatorRange
+    -> Buffer
+    -> List ( Position, Position )
 operatorRanges count range buf =
     case range of
         V.MotionRange md mo ->
@@ -80,43 +166,7 @@ operatorRanges count range buf =
         V.VisualRange linewise ->
             case buf.mode of
                 Visual { tipe, begin, end } ->
-                    let
-                        begin1 =
-                            min begin end
-
-                        end1 =
-                            max begin end
-
-                        ( endy, endx ) =
-                            end1
-
-                        getRange linewise =
-                            if linewise then
-                                [ ( ( Tuple.first begin1, 0 )
-                                  , ( endy + 1
-                                    , 0
-                                    )
-                                  )
-                                ]
-                            else
-                                [ ( begin1
-                                  , ( endy
-                                    , endx + 1
-                                    )
-                                  )
-                                ]
-                    in
-                        getRange
-                            (case tipe of
-                                V.VisualLine ->
-                                    True
-
-                                V.VisualBlock ->
-                                    False
-
-                                _ ->
-                                    linewise
-                            )
+                    visualRegions linewise tipe begin end buf.lines
 
                 _ ->
                     []

@@ -12,7 +12,7 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
 import Update.Motion exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
-import List
+import Helper.Helper exposing (getLast)
 
 
 deleteOperator : Maybe Int -> V.OperatorRange -> Buffer -> List Patch
@@ -75,9 +75,19 @@ delete count register rg buf =
                                 buf
 
                 patches ->
-                    buf
-                        |> Buf.transaction patches
-                        |> f
+                    let
+                        setCursor buf =
+                            case getLast patches of
+                                Just (Deletion b e) ->
+                                    Buf.setCursor b True buf
+
+                                _ ->
+                                    buf
+                    in
+                        buf
+                            |> Buf.transaction patches
+                            |> setCursor
+                            |> f
     in
         case buf.mode of
             Ex ({ exbuf } as ex) ->

@@ -87,73 +87,48 @@ formatBuffer buf =
                 Visual { tipe, begin, end } ->
                     let
                         ( by, bx ) =
-                            if begin > end then
-                                end
-                            else
-                                begin
+                            Basics.min begin end
 
                         ( ey, ex ) =
-                            if begin > end then
-                                begin
-                            else
-                                end
+                            Basics.max begin end
                     in
-                        case tipe of
-                            VisualBlock ->
-                                List.range by ey
-                                    |> List.filterMap
-                                        (\y ->
-                                            case B.getLine y buf.lines of
-                                                Just s ->
-                                                    if bx >= String.length s then
-                                                        Nothing
-                                                    else
-                                                        Just ( y, ( bx, ex ) )
+                        List.range by ey
+                            |> List.filterMap
+                                (\row ->
+                                    let
+                                        maxcol =
+                                            B.getLineMaxColumn row buf.lines
+
+                                        maybeRegion =
+                                            case tipe of
+                                                VisualLine ->
+                                                    Just ( 0, maxcol )
+
+                                                VisualBlock ->
+                                                    let
+                                                        bx1 =
+                                                            Basics.min bx ex
+
+                                                        ex1 =
+                                                            Basics.max bx ex
+                                                    in
+                                                        if bx1 > maxcol then
+                                                            Nothing
+                                                        else
+                                                            Just ( bx1, Basics.min maxcol ex1 )
 
                                                 _ ->
-                                                    Nothing
-                                        )
-
-                            VisualLine ->
-                                List.range by ey
-                                    |> List.map
-                                        (\y ->
-                                            case B.getLine y buf.lines of
-                                                Just s ->
-                                                    ( y
-                                                    , ( 0, String.length s - 1 )
-                                                    )
-
-                                                _ ->
-                                                    ( y, ( 0, 0 ) )
-                                        )
-
-                            _ ->
-                                List.range by ey
-                                    |> List.map
-                                        (\y ->
-                                            let
-                                                b =
-                                                    if y == by then
-                                                        bx
+                                                    if by == ey then
+                                                        Just ( bx, ex )
+                                                    else if row == by then
+                                                        Just ( bx, maxcol )
+                                                    else if row == ey then
+                                                        Just ( 0, ex )
                                                     else
-                                                        0
-
-                                                e =
-                                                    if y == ey then
-                                                        ex
-                                                    else
-                                                        (buf.lines
-                                                            |> B.getLine y
-                                                            |> Maybe.map
-                                                                String.length
-                                                            |> Maybe.withDefault
-                                                                0
-                                                        )
-                                                            - 1
-                                            in
-                                                ( y, ( b, e ) )
-                                        )
+                                                        Just ( 0, maxcol )
+                                    in
+                                        Maybe.map ((,) row) maybeRegion
+                                )
 
                 _ ->
                     case buf.cursor of
