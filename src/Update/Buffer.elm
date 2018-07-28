@@ -36,6 +36,8 @@ module Update.Buffer
         , getViewLines
         , scrollViewLines
         , fillEmptyViewLines
+        , switchVisualEnd
+        , shortPath
         )
 
 import Internal.Position exposing (..)
@@ -93,7 +95,7 @@ import Internal.Syntax
         )
 import Elm.Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
-import Helper.Helper exposing (parseWords)
+import Helper.Helper exposing (parseWords, relativePath)
 import Regex as Re
 
 
@@ -1395,3 +1397,26 @@ finalScrollTop buf =
 
         _ ->
             buf.view.scrollTop
+
+
+switchVisualEnd : Buffer -> Buffer
+switchVisualEnd buf =
+    case buf.mode of
+        Visual { tipe, begin, end } ->
+            buf
+                |> setMode
+                    (Visual
+                        { tipe = tipe
+                        , begin = end
+                        , end = begin
+                        }
+                    )
+                |> setCursor begin True
+
+        _ ->
+            buf
+
+
+shortPath : Buffer -> String
+shortPath buf =
+    relativePath buf.config.pathSeperator buf.cwd buf.path

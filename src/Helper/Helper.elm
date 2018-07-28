@@ -321,3 +321,11 @@ swapCase ch =
         Char.toUpper ch
     else
         ch
+
+
+floorFromZero : Float -> Int
+floorFromZero n =
+    if n < 0 then
+        ceiling n
+    else
+        floor n

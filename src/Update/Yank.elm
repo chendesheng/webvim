@@ -1,13 +1,13 @@
-module Update.Yank exposing (..)
+module Update.Yank exposing (yank, put)
 
 import Model exposing (RegisterText(..), Buffer, Mode(..))
 import Vim.AST as V exposing (Operator(..))
 import Update.Range exposing (operatorRanges, isLinewise)
-import Update.Buffer exposing (setRegister)
+import Update.Buffer as Buf
 import Internal.TextBuffer as B
-import String
 import Update.Message exposing (..)
 import Update.Service exposing (sendWriteClipboard)
+import Dict
 
 
 yank : Maybe Int -> String -> V.OperatorRange -> Buffer -> ( Buffer, Cmd Msg )
@@ -42,8 +42,8 @@ yank count register range buf =
                 Cmd.none
     in
         ( buf
-            |> setRegister "0" txt
-            |> setRegister
+            |> Buf.setRegister "0" txt
+            |> Buf.setRegister
                 (if register == "+" then
                     "\""
                  else
@@ -52,3 +52,35 @@ yank count register range buf =
                 txt
         , cmd
         )
+
+
+put : String -> Bool -> Buffer -> Buffer
+put register forward buf =
+    let
+        removeRegister reg buf =
+            { buf | registers = Dict.remove reg buf.registers }
+    in
+        Dict.get register buf.registers
+            |> Maybe.map
+                (\s ->
+                    case buf.mode of
+                        Ex ({ exbuf } as ex) ->
+                            buf
+                                |> Buf.setMode
+                                    (Ex
+                                        { ex
+                                            | exbuf =
+                                                Buf.putString
+                                                    forward
+                                                    s
+                                                    exbuf
+                                        }
+                                    )
+                                |> removeRegister "+"
+
+                        _ ->
+                            buf
+                                |> Buf.putString forward s
+                                |> removeRegister "+"
+                )
+            |> Maybe.withDefault buf

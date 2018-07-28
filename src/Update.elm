@@ -1,7 +1,6 @@
 module Update exposing (update, init, initCommand, initMode)
 
 import Http
-import Internal.Brackets exposing (pairBracket, pairBracketAt)
 import Task
 import Update.Keymap exposing (keymap)
 import Window as Win exposing (Size)
@@ -13,12 +12,7 @@ import Vim.AST exposing (AST)
 import Helper.Helper
     exposing
         ( fromListBy
-        , filename
         , safeRegex
-        , isSpace
-        , notSpace
-        , resolvePath
-        , relativePath
         , normalizePath
         , nthList
         )
@@ -27,33 +21,24 @@ import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
 import Dict exposing (Dict)
-import Parser as P exposing ((|.), (|=), Parser)
 import Update.Motion exposing (..)
 import Update.Delete exposing (..)
 import Update.Insert exposing (..)
 import Regex as Re
-import Internal.TextObject exposing (expandTextObject)
 import Update.Service exposing (..)
-import Update.Yank exposing (yank)
+import Update.Yank exposing (yank, put)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
 import Elm.Array as Array exposing (Array)
 import Helper.Document as Doc
-import Internal.Jumps
-    exposing
-        ( saveJump
-        , jumpForward
-        , jumpBackward
-        , Jumps
-        , Location
-        , currentLocation
-        )
-import Update.Range exposing (operatorRanges, shrinkRight)
+import Internal.Jumps exposing (Location)
 import Update.AutoComplete exposing (..)
-import Internal.Position exposing (Position)
 import Update.CaseOperator exposing (applyCaseOperator)
 import Update.Replace exposing (applyReplace)
 import Update.Indent exposing (applyIndent)
 import Update.Increase exposing (increaseNumber)
+import Update.Select exposing (select)
+import Update.Cursor exposing (..)
+import Update.Jump exposing (..)
 
 
 stringToPrefix : String -> ExPrefix
@@ -390,27 +375,6 @@ setContinuation s buf =
     { buf | continuation = s }
 
 
-floorFromZero : Float -> Int
-floorFromZero n =
-    if n < 0 then
-        ceiling n
-    else
-        floor n
-
-
-expandVisual :
-    comparable
-    -> comparable
-    -> comparable
-    -> comparable
-    -> ( comparable, comparable )
-expandVisual begin end a b =
-    if begin < end then
-        ( (min a begin), (max b end) )
-    else
-        ( (max b begin), (min a end) )
-
-
 cmdNone : Buffer -> ( Buffer, Cmd Msg )
 cmdNone buf =
     ( buf, Cmd.none )
@@ -426,44 +390,6 @@ correctLines buf =
             buf
     else
         buf
-
-
-correctCursor : Buffer -> Buffer
-correctCursor buf =
-    Buf.setCursor
-        (correctPosition buf.cursor False buf.lines)
-        False
-        buf
-
-
-correctPosition : Position -> Bool -> B.TextBuffer -> Position
-correctPosition pos excludeLineBreak lines =
-    let
-        ( y, x ) =
-            pos
-
-        y1 =
-            0
-                |> max (B.count lines - 2)
-                |> min y
-
-        maxcol =
-            B.getLineMaxColumn y1 lines
-                - (if excludeLineBreak then
-                    String.length B.lineBreak
-                   else
-                    0
-                  )
-
-        x1 =
-            maxcol
-                |> max 0
-                |> min x
-    in
-        if y1 == y && x == x1 then
-            pos
-        else
-            ( y1, x1 )
 
 
 clearExBufAutoComplete : Buffer -> Buffer
@@ -484,6 +410,62 @@ clearExBufAutoComplete exbuf =
     }
 
 
+scroll : Maybe Int -> V.ScrollPosition -> Buffer -> Buffer
+scroll count value buf =
+    -- TODO: scroll in visual mode
+    let
+        scope n =
+            n
+                |> max 0
+                |> min (B.count buf.lines - 1)
+
+        setCursor buf =
+            case count of
+                Just n ->
+                    case value of
+                        V.ScrollBy _ ->
+                            buf
+
+                        _ ->
+                            Buf.setCursor
+                                ( scope (n - 1)
+                                , Tuple.second buf.cursor
+                                )
+                                False
+                                buf
+
+                _ ->
+                    buf
+
+        scrollInner buf =
+            let
+                y =
+                    Tuple.first buf.cursor
+
+                y1 =
+                    case value of
+                        V.ScrollBy n ->
+                            count
+                                |> Maybe.withDefault 1
+                                |> ((*) n)
+                                |> ((+) buf.view.scrollTop)
+
+                        V.ScrollToTop ->
+                            y
+
+                        V.ScrollToBottom ->
+                            y - buf.view.size.height - 2 + 1
+
+                        V.ScrollToMiddle ->
+                            y - (buf.view.size.height - 2) // 2
+            in
+                Buf.setScrollTop (scope y1) buf
+    in
+        buf
+            |> setCursor
+            |> scrollInner
+
+
 runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator count register operator buf =
     case operator of
@@ -491,134 +473,13 @@ runOperator count register operator buf =
             motion count md mo buf
 
         Select textobj around ->
-            case buf.mode of
-                Visual { tipe, begin, end } ->
-                    case tipe of
-                        V.VisualChars ->
-                            (if begin == end then
-                                begin
-                             else if buf.cursor == max begin end then
-                                Tuple.mapSecond ((+) 1) (max begin end)
-                             else
-                                Tuple.mapSecond (flip (-) 1) (min begin end)
-                            )
-                                |> expandTextObject buf.config.wordChars
-                                    buf.view.scrollTop
-                                    buf.view.size.height
-                                    buf.syntax
-                                    textobj
-                                    around
-                                    buf.lines
-                                |> Maybe.map
-                                    (\rg ->
-                                        let
-                                            ( a, b ) =
-                                                shrinkRight rg
-
-                                            begin1 =
-                                                if begin == end then
-                                                    min a b
-                                                else
-                                                    a
-                                                        |> min b
-                                                        |> min begin
-                                                        |> min end
-
-                                            end1 =
-                                                if begin == end then
-                                                    max a b
-                                                else
-                                                    a
-                                                        |> max b
-                                                        |> max begin
-                                                        |> max end
-                                        in
-                                            if
-                                                (buf.cursor == min begin end)
-                                                    && (begin /= end)
-                                            then
-                                                buf
-                                                    |> Buf.setCursor begin1 True
-                                                    |> setVisualEnd begin1
-                                                    |> setVisualBegin end1
-                                            else
-                                                buf
-                                                    |> Buf.setCursor end1 True
-                                                    |> setVisualEnd end1
-                                                    |> setVisualBegin begin1
-                                    )
-                                |> Maybe.withDefault buf
-                                |> cmdNone
-
-                        _ ->
-                            ( buf, Cmd.none )
-
-                _ ->
-                    ( buf, Cmd.none )
+            ( select count textobj around buf, Cmd.none )
 
         Scroll value ->
-            -- TODO: scroll in visual mode
-            let
-                scope n =
-                    n
-                        |> max 0
-                        |> min (B.count buf.lines - 1)
-
-                setCursor buf =
-                    case count of
-                        Just n ->
-                            let
-                                y =
-                                    scope (n - 1)
-
-                                x =
-                                    Tuple.second buf.cursor
-                            in
-                                case value of
-                                    V.ScrollToTop ->
-                                        Buf.setCursor ( y, x ) False buf
-
-                                    V.ScrollToBottom ->
-                                        Buf.setCursor ( y, x ) False buf
-
-                                    V.ScrollToMiddle ->
-                                        Buf.setCursor ( y, x ) False buf
-
-                                    _ ->
-                                        buf
-
-                        _ ->
-                            buf
-
-                scroll buf =
-                    let
-                        y =
-                            Tuple.first buf.cursor
-
-                        y1 =
-                            case value of
-                                V.ScrollBy n ->
-                                    count
-                                        |> Maybe.withDefault 1
-                                        |> ((*) n)
-                                        |> ((+) buf.view.scrollTop)
-
-                                V.ScrollToTop ->
-                                    y
-
-                                V.ScrollToBottom ->
-                                    y - buf.view.size.height - 2 + 1
-
-                                V.ScrollToMiddle ->
-                                    y - (buf.view.size.height - 2) // 2
-                    in
-                        Buf.setScrollTop (scope y1) buf
-            in
-                buf
-                    |> setCursor
-                    |> scroll
-                    |> cursorScope
-                    |> cmdNone
+            buf
+                |> scroll count value
+                |> cursorScope
+                |> cmdNone
 
         InsertString s ->
             case s of
@@ -641,9 +502,7 @@ runOperator count register operator buf =
             yank count register rg buf
 
         Undo ->
-            buf
-                |> Buf.undo
-                |> cmdNone
+            ( Buf.undo buf, Cmd.none )
 
         Redo ->
             buf
@@ -662,91 +521,10 @@ runOperator count register operator buf =
                 |> cmdNone
 
         JumpByView factor ->
-            let
-                forward =
-                    factor > 0
-
-                view =
-                    buf.view
-
-                height =
-                    view.size.height
-
-                lineScope row =
-                    row
-                        |> max 0
-                        |> min (B.count buf.lines - 1)
-
-                scrollScope scrollTop n =
-                    let
-                        newn =
-                            scrollTop + n
-
-                        maxy =
-                            B.count buf.lines - 1
-                    in
-                        if forward then
-                            if (newn + height) > maxy then
-                                max (maxy - height) 0
-                            else
-                                newn
-                        else
-                            (if newn < height then
-                                0
-                             else
-                                newn
-                            )
-
-                n =
-                    floorFromZero (toFloat height * factor)
-
-                y =
-                    lineScope (Tuple.first buf.cursor + n)
-
-                scrollTop =
-                    scrollScope view.scrollTop n
-            in
-                case Buf.cursorLineFirst buf.lines y of
-                    Just cursor ->
-                        buf
-                            |> Buf.setCursor cursor True
-                            |> setVisualEnd cursor
-                            |> Buf.setScrollTop scrollTop
-                            |> cmdNone
-
-                    Nothing ->
-                        ( buf, Cmd.none )
+            ( jumpByView factor buf, Cmd.none )
 
         Put forward ->
-            let
-                removeRegister reg buf =
-                    { buf | registers = Dict.remove reg buf.registers }
-            in
-                Dict.get register buf.registers
-                    |> Maybe.map
-                        (\s ->
-                            case buf.mode of
-                                Ex ({ exbuf } as ex) ->
-                                    buf
-                                        |> Buf.setMode
-                                            (Ex
-                                                { ex
-                                                    | exbuf =
-                                                        Buf.putString
-                                                            forward
-                                                            s
-                                                            exbuf
-                                                }
-                                            )
-                                        |> removeRegister "+"
-
-                                _ ->
-                                    buf
-                                        |> Buf.putString forward s
-                                        |> removeRegister "+"
-                        )
-                    |> Maybe.withDefault buf
-                    |> cmdNone
+            ( put register forward buf, Cmd.none )
 
         RepeatLastOperator ->
             replayKeys buf.dotRegister buf
@@ -758,53 +536,35 @@ runOperator count register operator buf =
             replayKeys buf.last.ex buf
 
         VisualSwitchEnd ->
-            case buf.mode of
-                Visual { tipe, begin, end } ->
-                    buf
-                        |> Buf.setMode
-                            (Visual
-                                { tipe = tipe
-                                , begin = end
-                                , end = begin
-                                }
-                            )
-                        |> Buf.setCursor begin True
-                        |> cmdNone
-
-                _ ->
-                    ( buf, Cmd.none )
+            ( Buf.switchVisualEnd buf, Cmd.none )
 
         Execute ->
             case buf.mode of
                 Ex ex ->
-                    let
-                        exbuf =
-                            ex.exbuf
-
-                        exbuf1 =
-                            clearExBufAutoComplete exbuf
-                    in
-                        ex.exbuf.lines
-                            |> B.toString
-                            |> String.dropLeft 1
-                            |> flip (execute count register)
-                                { buf | mode = Ex { ex | exbuf = exbuf1 } }
+                    ex.exbuf.lines
+                        |> B.toString
+                        |> String.dropLeft 1
+                        |> flip (execute count register)
+                            { buf
+                                | mode =
+                                    Ex
+                                        { ex
+                                            | exbuf =
+                                                clearExBufAutoComplete ex.exbuf
+                                        }
+                            }
 
                 _ ->
                     ( buf, Cmd.none )
 
         Join collapseSpaces ->
-            buf
-                |> join count collapseSpaces
-                |> cmdNone
+            ( join count collapseSpaces buf, Cmd.none )
 
         Replace ch ->
             ( applyReplace count ch buf, Cmd.none )
 
         ToggleTip ->
-            buf
-                |> Buf.setShowTip (not buf.view.showTip)
-                |> cmdNone
+            ( Buf.setShowTip (not buf.view.showTip) buf, Cmd.none )
 
         SelectAutoComplete forward ->
             case buf.mode of
@@ -842,53 +602,13 @@ runOperator count register operator buf =
                     ( buf, Cmd.none )
 
         JumpHistory isForward ->
-            let
-                jumps =
-                    if isForward then
-                        jumpForward buf.jumps
-                    else
-                        jumpBackward
-                            { path = buf.path
-                            , cursor = buf.cursor
-                            }
-                            buf.jumps
-            in
-                case currentLocation jumps of
-                    Just loc ->
-                        jumpToLocation False
-                            loc
-                            { buf | jumps = jumps }
-
-                    _ ->
-                        ( buf, Cmd.none )
+            jumpHistory isForward buf
 
         JumpLastBuffer ->
-            case Dict.get "#" buf.registers of
-                Just reg ->
-                    jumpToPath True (registerString reg) Nothing buf
-
-                _ ->
-                    ( buf, Cmd.none )
+            jumpLastBuffer buf
 
         JumpToTag ->
-            case
-                wordStringUnderCursor
-                    buf.config.wordChars
-                    buf.lines
-                    buf.cursor
-            of
-                Just ( _, s ) ->
-                    ( buf
-                    , sendReadTags buf.config.service
-                        buf.config.pathSeperator
-                        buf.cwd
-                        buf.path
-                        (Maybe.withDefault 1 count - 1)
-                        s
-                    )
-
-                _ ->
-                    ( buf, Cmd.none )
+            jumpToTag count buf
 
         JumpBackFromTag ->
             case buf.last.jumpToTag of
@@ -899,44 +619,7 @@ runOperator count register operator buf =
                     ( buf, Cmd.none )
 
         JumpToFile ->
-            case wORDStringUnderCursor buf of
-                Just ( _, s ) ->
-                    let
-                        locationParser =
-                            P.succeed
-                                (\path ints ->
-                                    ( path
-                                    , case ints of
-                                        y :: x :: _ ->
-                                            ( y - 1, x - 1 )
-
-                                        [ y ] ->
-                                            ( y - 1, 0 )
-
-                                        _ ->
-                                            ( 0, 0 )
-                                    )
-                                )
-                                |= P.keep P.oneOrMore (\c -> notSpace c && (c /= ':'))
-                                |= ((P.succeed identity
-                                        |. P.symbol ":"
-                                        |= P.oneOf
-                                            [ P.int
-                                            , P.succeed 1
-                                            ]
-                                    )
-                                        |> P.repeat P.zeroOrMore
-                                   )
-                    in
-                        case P.run locationParser s of
-                            Ok ( path, cursor ) ->
-                                jumpToPath True path (Just cursor) buf
-
-                            _ ->
-                                ( buf, Cmd.none )
-
-                _ ->
-                    ( buf, Cmd.none )
+            jumpToFile buf
 
         Indent forward range ->
             ( applyIndent count forward range buf, Cmd.none )
@@ -949,147 +632,6 @@ runOperator count register operator buf =
 
         _ ->
             ( buf, Cmd.none )
-
-
-{-| scroll to ensure pos it is insdie viewport
--}
-scrollTo : Int -> Buffer -> Buffer
-scrollTo y ({ view, lines } as buf) =
-    let
-        miny =
-            view.scrollTop
-
-        maxy =
-            miny + view.size.height - 1
-
-        scrollTop =
-            if miny > y then
-                y
-            else if y > maxy then
-                y - maxy + miny
-            else
-                buf.view.scrollTop
-    in
-        Buf.setScrollTop scrollTop buf
-
-
-scrollToCursor : Buffer -> Buffer
-scrollToCursor buf =
-    scrollTo (Tuple.first buf.cursor) buf
-
-
-{-| move cursor ensure cursor is insdie viewport
--}
-cursorScope : Buffer -> Buffer
-cursorScope ({ view, cursor, lines } as buf) =
-    let
-        ( y, x ) =
-            cursor
-
-        scrollTop =
-            if Basics.rem view.scrollTopPx buf.view.lineHeight > 0 then
-                view.scrollTop + 1
-            else
-                view.scrollTop
-
-        maxy =
-            min
-                (scrollTop + view.size.height - 1)
-                (max 0 (B.count lines - 2))
-
-        miny =
-            min scrollTop maxy
-
-        y1 =
-            y |> min maxy |> max miny
-
-        x1 =
-            lines
-                |> B.getLine y
-                |> Maybe.map
-                    (\line ->
-                        (String.length line - 2)
-                            |> min x
-                            |> max 0
-                    )
-                |> Maybe.withDefault 0
-    in
-        if y == y1 then
-            if x == x1 then
-                buf
-            else
-                Buf.setCursor ( y1, x1 ) True buf
-        else
-            case Buf.cursorLineFirst lines y1 of
-                Just cursor ->
-                    buf
-                        |> Buf.setCursor cursor True
-                        |> setVisualEnd cursor
-
-                _ ->
-                    buf
-
-
-newBuffer : BufferInfo -> Buffer -> Buffer
-newBuffer info buf =
-    let
-        { cursor, path, version, content } =
-            info
-
-        ( name, ext ) =
-            filename path
-
-        config =
-            Buf.configs
-                |> Dict.get ext
-                |> Maybe.withDefault defaultBufferConfig
-
-        ( lines, syntax ) =
-            Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
-
-        height =
-            buf.view.size.height
-
-        scrollTop =
-            Buf.bestScrollTop (Tuple.first cursor)
-                height
-                lines
-                0
-    in
-        { buf
-            | lines = lines
-            , mode = Normal { message = EmptyMessage }
-            , config =
-                { config
-                    | service = buf.config.service
-                    , pathSeperator = buf.config.pathSeperator
-                    , syntax = info.syntax
-                }
-            , view =
-                { emptyView
-                    | size = buf.view.size
-                    , lineHeight = buf.view.lineHeight
-                    , scrollTopPx = scrollTop * buf.view.lineHeight
-                    , scrollTop = scrollTop
-                    , lines =
-                        Buf.getViewLines
-                            scrollTop
-                            (scrollTop + height + 2)
-                            lines
-                            syntax
-                            |> Buf.fillEmptyViewLines height
-                }
-            , cursor = cursor
-            , lint = { items = [], count = 0 }
-            , cursorColumn = Tuple.second cursor
-            , path = path
-            , name = name ++ ext
-            , history = { emptyBufferHistory | version = version }
-            , syntax = syntax
-            , syntaxDirtyFrom = Array.length syntax
-        }
-            |> correctCursor
-            |> scrollToCursor
 
 
 isExEditing : Operator -> Bool
@@ -1221,125 +763,6 @@ replayKeys s buf =
               }
             , cmd
             )
-
-
-isModeNameVisual : V.ModeName -> Bool
-isModeNameVisual name =
-    case name of
-        V.ModeNameVisual _ ->
-            True
-
-        _ ->
-            False
-
-
-tokenizeBuffer : Buffer -> ( Buffer, Cmd Msg )
-tokenizeBuffer buf =
-    ( buf, tokenizeBufferCmd buf )
-
-
-isTempBuffer : String -> Bool
-isTempBuffer path =
-    String.isEmpty path || path == "[Search]"
-
-
-tokenizeBufferCmd : Buffer -> Cmd Msg
-tokenizeBufferCmd buf =
-    if isTempBuffer buf.path || not buf.config.syntax then
-        Cmd.none
-    else
-        let
-            begin =
-                buf.syntaxDirtyFrom
-
-            end =
-                Buf.finalScrollTop buf + 2 * buf.view.size.height
-
-            lines =
-                if begin < end then
-                    buf.lines
-                        |> B.sliceLines begin end
-                        |> B.toString
-                else
-                    ""
-        in
-            if String.isEmpty lines then
-                Cmd.none
-            else
-                sendTokenize
-                    buf.config.service
-                    { path = buf.path
-                    , version = buf.history.version
-                    , line = begin
-                    , lines =
-                        buf.lines
-                            |> B.sliceLines begin end
-                            |> B.toString
-                    }
-
-
-jumpTo : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-jumpTo isSaveJump info buf =
-    let
-        { path, cursor } =
-            info
-
-        jumps =
-            if isSaveJump then
-                saveJump { path = buf.path, cursor = buf.cursor } buf.jumps
-            else
-                buf.jumps
-    in
-        if path == buf.path then
-            { buf | jumps = jumps }
-                |> Buf.setCursor cursor True
-                |> Buf.setScrollTop
-                    (Buf.bestScrollTop (Tuple.first cursor)
-                        buf.view.size.height
-                        buf.lines
-                        buf.view.scrollTop
-                    )
-                |> tokenizeBuffer
-        else
-            editBuffer
-                info
-                { buf | jumps = jumps }
-
-
-jumpToLocation : Bool -> Location -> Buffer -> ( Buffer, Cmd Msg )
-jumpToLocation isSaveJump { path, cursor } buf =
-    jumpToPath isSaveJump path (Just cursor) buf
-
-
-jumpToPath : Bool -> String -> Maybe Position -> Buffer -> ( Buffer, Cmd Msg )
-jumpToPath isSaveJump path_ overrideCursor buf =
-    let
-        path =
-            if isTempBuffer path_ then
-                path_
-            else
-                resolvePath
-                    buf.config.pathSeperator
-                    buf.cwd
-                    path_
-
-        info =
-            buf.buffers
-                |> Dict.get path
-                |> Maybe.map
-                    (\info ->
-                        { info
-                            | cursor =
-                                Maybe.withDefault info.cursor overrideCursor
-                        }
-                    )
-                |> Maybe.withDefault
-                    { emptyBufferInfo
-                        | path = path
-                        , cursor = Maybe.withDefault ( 0, 0 ) overrideCursor
-                    }
-    in
-        jumpTo isSaveJump info buf
 
 
 editTestBuffer : String -> Buffer -> ( Buffer, Cmd Msg )
@@ -1563,10 +986,7 @@ applyVimAST replaying key ast buf =
             |> Tuple.mapSecond Cmd.batch
 
 
-onTokenized :
-    Buffer
-    -> Result error TokenizeResponse
-    -> ( Buffer, Cmd Msg )
+onTokenized : Buffer -> Result error TokenizeResponse -> ( Buffer, Cmd Msg )
 onTokenized buf resp =
     case resp of
         Ok payload ->
@@ -1641,6 +1061,65 @@ onTokenized buf resp =
             ( buf, Cmd.none )
 
 
+applyLintItems : List LintError -> Buffer -> Buffer
+applyLintItems items buf =
+    let
+        normalizeFile file =
+            if
+                String.isEmpty file
+                    || (String.endsWith buf.path file)
+                    || String.endsWith
+                        "912ec803b2ce49e4a541068d495ab570.txt"
+                        file
+            then
+                buf.path
+            else
+                normalizePath buf.config.pathSeperator file
+
+        normalizeRegion region =
+            let
+                ( b, e_ ) =
+                    region
+
+                -- make inclusive
+                e =
+                    if b == e_ then
+                        e_
+                    else
+                        Tuple.mapSecond
+                            (\x -> (x - 1))
+                            e_
+            in
+                ( correctPosition
+                    b
+                    True
+                    buf.lines
+                , correctPosition
+                    e
+                    True
+                    buf.lines
+                )
+
+        items1 =
+            List.map
+                (\item ->
+                    { item
+                        | file = normalizeFile item.file
+                        , region = normalizeRegion item.region
+                    }
+                )
+                items
+    in
+        { buf
+            | lint =
+                { items = items1
+                , count = List.length items1
+                }
+            , locationList =
+                lintErrorToLocationList items1
+        }
+
+
 lintErrorToLocationList : List LintError -> List Location
 lintErrorToLocationList items =
     List.map
@@ -1655,78 +1134,42 @@ lintErrorToLocationList items =
         items
 
 
-pairSource : Buffer -> Position
-pairSource buf =
-    case buf.mode of
-        Insert _ ->
-            buf.cursor
-                |> Tuple.mapSecond
-                    (\x -> Basics.max 0 (x - 1))
+onMouseWheel : Int -> Buffer -> ( Buffer, Cmd Msg )
+onMouseWheel delta buf =
+    let
+        view =
+            buf.view
 
-        _ ->
-            buf.cursor
+        scrollTopPx =
+            (view.scrollTopPx + delta)
+                |> max 0
+                |> min ((B.count buf.lines - 2) * buf.view.lineHeight)
 
+        lineHeight =
+            buf.view.lineHeight
 
-pairCursor : Buffer -> Buffer
-pairCursor buf =
-    Buf.updateView
-        (\view ->
-            let
-                cursor =
-                    pairSource buf
-            in
-                { view
-                    | matchedCursor =
-                        cursor
-                            |> pairBracketAt
-                                buf.view.scrollTop
-                                (buf.view.scrollTop + buf.view.size.height)
-                                buf.lines
-                                buf.syntax
-                            |> Maybe.map ((,) cursor)
+        scrollTopDelta =
+            scrollTopPx // lineHeight - buf.view.scrollTop
+    in
+        { buf
+            | view = { view | scrollTopPx = scrollTopPx }
+        }
+            |> applyVimAST False
+                "<mousewheel>"
+                { count = Nothing
+                , edit = Just <| Scroll <| V.ScrollBy scrollTopDelta
+                , register = V.defaultRegister
+                , modeName = getModeName buf.mode
+                , recordMacro = Nothing
+                , recordKeys = ""
                 }
-        )
-        buf
-
-
-shortPath : Buffer -> String
-shortPath buf =
-    relativePath buf.config.pathSeperator
-        buf.cwd
-        buf.path
 
 
 update : Msg -> Buffer -> ( Buffer, Cmd Msg )
 update message buf =
     case message of
         MouseWheel delta ->
-            let
-                view =
-                    buf.view
-
-                scrollTopPx =
-                    (view.scrollTopPx + delta)
-                        |> max 0
-                        |> min ((B.count buf.lines - 2) * buf.view.lineHeight)
-
-                lineHeight =
-                    buf.view.lineHeight
-
-                scrollTopDelta =
-                    scrollTopPx // lineHeight - buf.view.scrollTop
-            in
-                { buf
-                    | view = { view | scrollTopPx = scrollTopPx }
-                }
-                    |> applyVimAST False
-                        "<mousewheel>"
-                        { count = Nothing
-                        , edit = Just <| Scroll <| V.ScrollBy scrollTopDelta
-                        , register = V.defaultRegister
-                        , modeName = getModeName buf.mode
-                        , recordMacro = Nothing
-                        , recordKeys = ""
-                        }
+            onMouseWheel delta buf
 
         PressKey key ->
             List.foldl
@@ -1747,32 +1190,7 @@ update message buf =
                 |> Tuple.mapSecond (List.reverse >> Cmd.batch)
 
         Resize size ->
-            let
-                newHeight =
-                    getViewHeight size.height
-                        buf.view.lineHeight
-                        buf.view.statusbarHeight
-            in
-                buf
-                    |> Buf.updateView
-                        (\view ->
-                            { view
-                                | size =
-                                    { width =
-                                        size.width
-                                    , height = newHeight
-                                    }
-                                , lines =
-                                    Buf.getViewLines
-                                        view.scrollTop
-                                        (view.scrollTop + newHeight + 2)
-                                        buf.lines
-                                        buf.syntax
-                                        |> Buf.fillEmptyViewLines newHeight
-                            }
-                        )
-                    |> cursorScope
-                    |> tokenizeBuffer
+            onResize size buf
 
         ReadClipboard result ->
             case result of
@@ -1796,15 +1214,13 @@ update message buf =
                     case resp.status.code of
                         404 ->
                             jumpTo True
-                                { path = resp.body
-                                , version = 0
-                                , cursor = ( 0, 0 )
-                                , content =
-                                    Just
-                                        ( B.fromString B.lineBreak
-                                        , Array.empty
-                                        )
-                                , syntax = True
+                                { emptyBufferInfo
+                                    | path = resp.body
+                                    , content =
+                                        Just
+                                            ( B.fromString B.lineBreak
+                                            , Array.empty
+                                            )
                                 }
                                 buf
 
@@ -1813,7 +1229,7 @@ update message buf =
 
                 _ ->
                     ( Buf.errorMessage
-                        ("read " ++ shortPath buf ++ " failed")
+                        ("read " ++ Buf.shortPath buf ++ " failed")
                         buf
                     , Cmd.none
                     )
@@ -1834,7 +1250,7 @@ update message buf =
                                 |> scrollToCursor
                                 |> pairCursor
                                 |> Buf.infoMessage
-                                    (shortPath buf ++ " Written")
+                                    (Buf.shortPath buf ++ " Written")
 
                         syntaxBottom =
                             buf.syntaxDirtyFrom
@@ -1859,7 +1275,7 @@ update message buf =
 
                 _ ->
                     ( Buf.errorMessage
-                        (shortPath buf ++ " save error")
+                        (Buf.shortPath buf ++ " save error")
                         buf
                     , Cmd.none
                     )
@@ -1882,68 +1298,14 @@ update message buf =
                 (path == buf.path)
                     && (version == buf.history.version)
             then
-                case resp of
+                ( case resp of
                     Ok items ->
-                        let
-                            items1 =
-                                List.map
-                                    (\item ->
-                                        { item
-                                            | file =
-                                                if
-                                                    String.isEmpty item.file
-                                                        || String.endsWith
-                                                            buf.path
-                                                            item.file
-                                                        || String.endsWith
-                                                            "912ec803b2ce49e4a541068d495ab570.txt"
-                                                            item.file
-                                                then
-                                                    buf.path
-                                                else
-                                                    normalizePath
-                                                        buf.config.pathSeperator
-                                                        item.file
-                                            , region =
-                                                let
-                                                    ( b, e_ ) =
-                                                        item.region
+                        applyLintItems items buf
 
-                                                    -- make inclusive
-                                                    e =
-                                                        if b == e_ then
-                                                            e_
-                                                        else
-                                                            Tuple.mapSecond
-                                                                (\x -> (x - 1))
-                                                                e_
-                                                in
-                                                    ( correctPosition
-                                                        b
-                                                        True
-                                                        buf.lines
-                                                    , correctPosition
-                                                        e
-                                                        True
-                                                        buf.lines
-                                                    )
-                                        }
-                                    )
-                                    items
-                        in
-                            ( { buf
-                                | lint =
-                                    { items = items1
-                                    , count = List.length items1
-                                    }
-                                , locationList =
-                                    lintErrorToLocationList items1
-                              }
-                            , Cmd.none
-                            )
-
-                    Err _ ->
-                        ( buf, Cmd.none )
+                    _ ->
+                        buf
+                , Cmd.none
+                )
             else
                 ( buf, Cmd.none )
 
@@ -2005,40 +1367,7 @@ update message buf =
         ListFiles resp ->
             case resp of
                 Ok files ->
-                    let
-                        fileNameWordChars =
-                            "/\\-._"
-                    in
-                        case buf.mode of
-                            Ex ({ exbuf } as ex) ->
-                                ( setExbuf buf
-                                    ex
-                                    (case
-                                        autoCompleteTarget
-                                            fileNameWordChars
-                                            exbuf
-                                     of
-                                        Just ( pos, word ) ->
-                                            startAutoComplete
-                                                fileNameWordChars
-                                                files
-                                                pos
-                                                word
-                                                exbuf
-
-                                        _ ->
-                                            startAutoComplete
-                                                fileNameWordChars
-                                                files
-                                                exbuf.cursor
-                                                ""
-                                                exbuf
-                                    )
-                                , Cmd.none
-                                )
-
-                            _ ->
-                                ( buf, Cmd.none )
+                    ( listFiles files buf, Cmd.none )
 
                 Err _ ->
                     ( buf, Cmd.none )
@@ -2050,62 +1379,65 @@ update message buf =
             ( buf, Cmd.none )
 
 
-editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-editBuffer info buf =
-    if info.path /= "" && info.content == Nothing then
-        ( buf
-        , sendReadBuffer buf.config.service
-            (Tuple.first info.cursor + buf.view.size.height * 2)
-            buf.config.tabSize
-            info
-        )
-    else
-        let
-            newbuf =
-                newBuffer
-                    info
-                    { buf
-                        | buffers =
-                            (buf.buffers
-                                |> Dict.remove info.path
-                                |> Dict.insert buf.path
-                                    { path = buf.path
-                                    , version = buf.history.version
-                                    , content =
-                                        Just
-                                            ( buf.lines, buf.syntax )
-                                    , cursor = buf.cursor
-                                    , syntax = buf.config.syntax
-                                    }
-                            )
-                        , registers =
-                            buf.registers
-                                |> Dict.insert "%" (Text info.path)
-                                |> (\regs ->
-                                        if buf.path == info.path then
-                                            regs
-                                        else
-                                            Dict.insert
-                                                "#"
-                                                (Text buf.path)
-                                                regs
-                                   )
+onResize : Size -> Buffer -> ( Buffer, Cmd Msg )
+onResize size buf =
+    let
+        newHeight =
+            getViewHeight size.height
+                buf.view.lineHeight
+                buf.view.statusbarHeight
+    in
+        buf
+            |> Buf.updateView
+                (\view ->
+                    { view
+                        | size =
+                            { width =
+                                size.width
+                            , height = newHeight
+                            }
+                        , lines =
+                            Buf.getViewLines
+                                view.scrollTop
+                                (view.scrollTop + newHeight + 2)
+                                buf.lines
+                                buf.syntax
+                                |> Buf.fillEmptyViewLines newHeight
                     }
-        in
-            ( newbuf
-            , Cmd.batch
-                [ if newbuf.config.lint then
-                    sendLintProject newbuf.config.service
-                        newbuf.config.pathSeperator
-                        newbuf.path
-                        newbuf.history.version
-                        newbuf.lines
-                  else
-                    Cmd.none
-                , Doc.setTitle newbuf.name
-                , tokenizeBufferCmd newbuf
-                ]
-            )
+                )
+            |> cursorScope
+            |> tokenizeBuffer
+
+
+listFiles : List String -> Buffer -> Buffer
+listFiles files buf =
+    let
+        fileNameWordChars =
+            "/\\-._"
+    in
+        case buf.mode of
+            Ex ({ exbuf } as ex) ->
+                setExbuf buf
+                    ex
+                    (case autoCompleteTarget fileNameWordChars exbuf of
+                        Just ( pos, word ) ->
+                            startAutoComplete fileNameWordChars
+                                files
+                                pos
+                                word
+                                exbuf
+
+                        _ ->
+                            startAutoComplete
+                                fileNameWordChars
+                                files
+                                exbuf.cursor
+                                ""
+                                exbuf
+                    )
+
+            _ ->
+                buf
 
 
 initCommand : Flags -> Cmd Msg
