@@ -253,24 +253,40 @@ view buf =
 
 renderLintStatus : List LintError -> Html msg
 renderLintStatus items =
-    div [ class "lint-status" ]
-        [ span []
-            [ i [ class "fas fa-times-circle" ] []
-            , items
+    let
+        errors =
+            items
                 |> List.filter (.tipe >> ((/=) "warning"))
                 |> List.length
-                |> toString
-                |> text
-            ]
-        , span []
-            [ i [ class "fas fa-exclamation-triangle" ] []
-            , items
+
+        warnings =
+            items
                 |> List.filter (.tipe >> ((==) "warning"))
                 |> List.length
-                |> toString
-                |> text
+    in
+        div
+            [ class "lint-status" ]
+            [ span
+                [ classList
+                    [ ( "highlight-errors-icon", errors > 0 ) ]
+                ]
+                [ i
+                    [ class "fas fa-times-circle" ]
+                    []
+                , errors
+                    |> toString
+                    |> text
+                ]
+            , span
+                [ classList [ ( "highlight-warnings-icon", warnings > 0 ) ] ]
+                [ i
+                    [ class "fas fa-exclamation-triangle" ]
+                    []
+                , warnings
+                    |> toString
+                    |> text
+                ]
             ]
-        ]
 
 
 renderStatusBarRight : String -> String -> List LintError -> Html msg
