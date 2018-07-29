@@ -39,6 +39,7 @@ import Update.Increase exposing (increaseNumber)
 import Update.Select exposing (select)
 import Update.Cursor exposing (..)
 import Update.Jump exposing (..)
+import Update.Range exposing (visualRegions)
 
 
 stringToPrefix : String -> ExPrefix
@@ -91,6 +92,13 @@ initMode { cursor, mode } modeName =
             Insert
                 { autoComplete = Nothing
                 , startCursor = cursor
+                , visual =
+                    case mode of
+                        Visual visual ->
+                            Just visual
+
+                        _ ->
+                            Nothing
                 }
 
         V.ModeNameEx prefix ->
@@ -178,8 +186,23 @@ updateMode modeName buf =
             else
                 initMode buf modeName
 
+        setCursor newMode buf =
+            if oldModeName == V.ModeNameVisual V.VisualBlock then
+                case newMode of
+                    Insert { startCursor } ->
+                        if startCursor /= buf.cursor then
+                            Buf.setCursor startCursor True buf
+                        else
+                            buf
+
+                    _ ->
+                        buf
+            else
+                buf
+
         buf1 =
             { buf | mode = newMode }
+                |> setCursor newMode
 
         view =
             buf1.view
@@ -221,8 +244,97 @@ isLineDeltaMotion op =
             False
 
 
-modeChanged : Bool -> Key -> V.ModeName -> Bool -> Buffer -> Buffer
-modeChanged replaying key oldModeName lineDeltaMotion buf =
+repeatInserts : Mode -> Buffer -> List Patch
+repeatInserts oldMode buf =
+    case oldMode of
+        Insert { startCursor, visual } ->
+            case visual of
+                Just ({ tipe, begin, end } as visual) ->
+                    if
+                        (startCursor < buf.cursor)
+                            && (Tuple.first startCursor == Tuple.first buf.cursor)
+                    then
+                        case tipe of
+                            V.VisualBlock ->
+                                let
+                                    ( by, bx ) =
+                                        begin
+
+                                    ( ey, ex ) =
+                                        end
+
+                                    minY =
+                                        min by ey
+
+                                    maxY =
+                                        max by ey
+
+                                    minX =
+                                        min bx ex
+
+                                    inserts =
+                                        (B.sliceRegion startCursor
+                                            ( Tuple.first buf.cursor
+                                            , Tuple.second buf.cursor + 1
+                                            )
+                                            buf.lines
+                                        )
+
+                                    ( _, col ) =
+                                        startCursor
+                                in
+                                    if col <= minX then
+                                        buf.lines
+                                            |> visualRegions False
+                                                tipe
+                                                begin
+                                                end
+                                            |> List.tail
+                                            |> Maybe.withDefault []
+                                            |> List.map
+                                                (\( ( y, _ ), _ ) -> y)
+                                            |> List.reverse
+                                            |> List.map
+                                                (\y ->
+                                                    Insertion ( y, col ) inserts
+                                                )
+                                    else
+                                        List.range (minY + 1) maxY
+                                            |> List.reverse
+                                            |> List.map
+                                                (\y ->
+                                                    let
+                                                        maxcol =
+                                                            B.getLineMaxColumn y buf.lines
+                                                    in
+                                                        if col > maxcol then
+                                                            Insertion
+                                                                ( y, maxcol )
+                                                                (inserts
+                                                                    |> B.toString
+                                                                    |> ((++) <| String.repeat (col - maxcol) " ")
+                                                                    |> B.fromString
+                                                                )
+                                                        else
+                                                            Insertion
+                                                                ( y, col )
+                                                                inserts
+                                                )
+
+                            _ ->
+                                []
+                    else
+                        []
+
+                _ ->
+                    []
+
+        _ ->
+            []
+
+
+modeChanged : Bool -> Key -> Mode -> Bool -> Buffer -> Buffer
+modeChanged replaying key oldMode lineDeltaMotion buf =
     case buf.mode of
         Normal _ ->
             let
@@ -230,15 +342,22 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                     buf.cursor
 
                 cursor =
-                    if oldModeName == V.ModeNameInsert then
-                        ( y, max (x - 1) 0 )
-                    else
-                        ( y
-                        , if B.getLineMaxColumn y buf.lines > x then
-                            x
-                          else
-                            max (x - 1) 0
-                        )
+                    case oldMode of
+                        Insert data ->
+                            ( y, max (x - 1) 0 )
+
+                        _ ->
+                            ( y
+                            , if B.getLineMaxColumn y buf.lines > x then
+                                x
+                              else
+                                max (x - 1) 0
+                            )
+
+                insert buf =
+                    Buf.transaction
+                        (repeatInserts oldMode buf)
+                        buf
 
                 changeColumn =
                     if lineDeltaMotion then
@@ -247,10 +366,9 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                         cursor /= buf.cursor
             in
                 buf
-                    |> Buf.setCursor
-                        cursor
-                        changeColumn
+                    |> Buf.setCursor cursor changeColumn
                     |> Buf.cancelLastIndent
+                    |> insert
                     |> Buf.commit
 
         TempNormal ->
@@ -298,8 +416,8 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                         if replaying || key == "<exbuf>" then
                             buf
                         else
-                            case oldModeName of
-                                V.ModeNameEx _ ->
+                            case oldMode of
+                                Ex _ ->
                                     { buf
                                         | last = { last | ex = last.ex ++ key }
                                     }
@@ -333,7 +451,7 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                                 }
                             )
 
-        Insert _ ->
+        (Insert { visual }) as data ->
             let
                 last =
                     buf.last
@@ -342,14 +460,17 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                     if replaying || key == "<inserts>" then
                         last.inserts
                     else
-                        case oldModeName of
-                            V.ModeNameInsert ->
+                        case oldMode of
+                            Insert _ ->
                                 last.inserts ++ key
 
                             _ ->
                                 ""
             in
-                { buf | last = { last | inserts = inserts } }
+                { buf
+                    | last =
+                        { last | inserts = inserts }
+                }
 
         Visual _ ->
             let
@@ -360,8 +481,8 @@ modeChanged replaying key oldModeName lineDeltaMotion buf =
                     if replaying || key == "<visual>" then
                         last.visual
                     else
-                        case oldModeName of
-                            V.ModeNameVisual _ ->
+                        case oldMode of
+                            Visual _ ->
                                 last.visual ++ key
 
                             _ ->
@@ -630,8 +751,63 @@ runOperator count register operator buf =
         CaseOperator changeCase range ->
             ( applyCaseOperator count changeCase range buf, Cmd.none )
 
+        ColumnInsert append ->
+            ( columnInsert append buf, Cmd.none )
+
         _ ->
             ( buf, Cmd.none )
+
+
+columnInsert : Bool -> Buffer -> Buffer
+columnInsert prepend buf =
+    case buf.mode of
+        Visual { tipe, begin, end } ->
+            case tipe of
+                V.VisualBlock ->
+                    let
+                        ( by, bx ) =
+                            begin
+
+                        ( ey, ex ) =
+                            end
+
+                        minY =
+                            min by ey
+
+                        minX =
+                            min bx ex
+                    in
+                        if prepend then
+                            Buf.setCursor ( minY, minX ) True buf
+                        else
+                            let
+                                x =
+                                    max bx ex + 1
+
+                                maxcol =
+                                    B.getLineMaxColumn minY buf.lines
+
+                                patches =
+                                    if maxcol < x then
+                                        -- fill spaces
+                                        [ Insertion
+                                            ( minY, maxcol )
+                                            (B.fromString <|
+                                                String.repeat (x - maxcol) " "
+                                            )
+                                        ]
+                                    else
+                                        []
+                            in
+                                buf
+                                    |> Buf.transaction patches
+                                    |> Buf.setCursor ( minY, x ) True
+
+                _ ->
+                    buf
+
+        _ ->
+            buf
 
 
 isExEditing : Operator -> Bool
@@ -896,15 +1072,19 @@ applyVimAST replaying key ast buf =
             ast
 
         -- |> Debug.log key
-        oldModeName =
+        oldMode =
             -- For now the put operator is implemented as
             --   1) Start insert mode
             --   2) Put string
             --   3) Back to normal mode
             if modeName == V.ModeNameNormal && isEnterInsertMode edit then
-                V.ModeNameInsert
+                Insert
+                    { autoComplete = Nothing
+                    , startCursor = buf.cursor
+                    , visual = Nothing
+                    }
             else
-                getModeName buf.mode
+                buf.mode
 
         saveDotRegister replaying buf =
             if replaying then
@@ -973,7 +1153,7 @@ applyVimAST replaying key ast buf =
             |> Tuple.mapFirst
                 (updateMode modeName
                     >> correctLines
-                    >> modeChanged replaying key oldModeName lineDeltaMotion
+                    >> modeChanged replaying key oldMode lineDeltaMotion
                     >> correctCursor
                     >> scrollToCursor
                     >> saveDotRegister replaying

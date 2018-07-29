@@ -844,6 +844,10 @@ operator isVisual isTemp =
                         |> Delete
                         |> PushOperator
                     ]
+                , defineInsert "I"
+                    [ PushOperator <| ColumnInsert True ]
+                , defineInsert "A"
+                    [ PushOperator <| ColumnInsert False ]
                 , replace
                 , define "u"
                     (VisualRange False |> CaseOperator LowerCase)

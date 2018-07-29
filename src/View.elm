@@ -653,7 +653,7 @@ renderRange :
     -> B.TextBuffer
     -> Bool
     -> List (Html msg)
-renderRange scrollTop tipe begin end lines excludeLineBreak =
+renderRange scrollTop tipe begin end lines excludeLineBreak_ =
     let
         regions =
             visualRegions False tipe begin end lines
@@ -663,6 +663,12 @@ renderRange scrollTop tipe begin end lines excludeLineBreak =
 
         ( ey, ex ) =
             Basics.max begin end
+
+        excludeLineBreak =
+            if tipe == VisualBlock then
+                True
+            else
+                excludeLineBreak_
     in
         List.range by ey
             |> List.filter (\i -> i >= scrollTop && i < scrollTop + 50)

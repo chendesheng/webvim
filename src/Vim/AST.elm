@@ -113,6 +113,7 @@ type Operator
     | ToggleTip
     | SelectAutoComplete Bool
     | IncreaseNumber Bool
+    | ColumnInsert Bool -- visual mode I/A
 
 
 type StringType

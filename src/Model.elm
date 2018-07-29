@@ -172,6 +172,7 @@ type Mode
     | Insert
         { autoComplete : Maybe AutoComplete
         , startCursor : Position -- cursor position when enter insert mode
+        , visual : Maybe VisualMode
         }
     | TempNormal
     | Ex ExMode
@@ -301,6 +302,7 @@ emptyExBuffer =
             Insert
                 { autoComplete = Nothing
                 , startCursor = ( 0, 0 )
+                , visual = Nothing
                 }
         , lines = B.empty
     }

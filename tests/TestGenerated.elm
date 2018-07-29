@@ -292,6 +292,7 @@ parseMode cursor statusBar =
         Insert
             { autoComplete = Nothing
             , startCursor = cursor
+            , visual = Nothing
             }
     else if
         String.startsWith

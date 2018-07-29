@@ -98,22 +98,18 @@ visualRegions linewise tipe begin end lines =
                                             let
                                                 maxcol =
                                                     B.lineMaxColumn line
-
-                                                bx2 =
-                                                    min bx1 maxcol
                                             in
-                                                if bx2 > maxcol then
+                                                if bx1 > maxcol then
                                                     Nothing
                                                 else
                                                     Just
-                                                        ( ( i, bx2 )
+                                                        ( ( i, bx1 )
                                                         , ( i
                                                           , min (ex1 + 1) maxcol
                                                           )
                                                         )
                                         )
                             )
-                        |> List.reverse
 
 
 operatorRanges :
@@ -166,7 +162,9 @@ operatorRanges count range buf =
         V.VisualRange linewise ->
             case buf.mode of
                 Visual { tipe, begin, end } ->
-                    visualRegions linewise tipe begin end buf.lines
+                    buf.lines
+                        |> visualRegions linewise tipe begin end
+                        |> List.reverse
 
                 _ ->
                     []

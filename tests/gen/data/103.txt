@@ -1,0 +1,21 @@
+{
+|       abc def
+|       11 abc
+|        22
+||       rr def
+              ^
+-- Normal --
+}
+
+> <c-v>kkkhI12<esc>
+
+{
+||      abc d12ef
+              ^
+|       11 ab12c
+|        22
+|        rr d12ef
+-- Normal --
+}
+
+
