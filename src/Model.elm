@@ -189,7 +189,7 @@ type alias ExMode =
 type alias ViewLine =
     { lineNumber : Int
     , text : String
-    , syntax : List Token
+    , tokens : List Token
     }
 
 
@@ -321,8 +321,8 @@ emptyView =
     , showTip = False
     , matchedCursor = Nothing
     , lines =
-        [ Just { lineNumber = 0, text = "\n", syntax = [] }
-        , Just { lineNumber = 1, text = "", syntax = [] }
+        [ Just { lineNumber = 0, text = "\n", tokens = [] }
+        , Just { lineNumber = 1, text = "", tokens = [] }
         ]
     }
 

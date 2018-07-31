@@ -234,7 +234,7 @@ getViewLines begin end lines syntax =
                     Just
                         { lineNumber = i
                         , text = s
-                        , syntax =
+                        , tokens =
                             Array.get i syntax
                                 |> Maybe.withDefault []
                         }
@@ -301,7 +301,7 @@ applyPatchToViewLines scrollTop height_ patch oldLines lines syntax viewLines =
                     lines
                         |> B.getLine i
                         |> Maybe.withDefault ""
-                , syntax =
+                , tokens =
                     syntax
                         |> Array.get i
                         |> Maybe.withDefault []

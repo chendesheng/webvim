@@ -875,7 +875,7 @@ renderLines viewLines =
                         [ class "line"
                         , style [ ( "top", rem viewLine.lineNumber ) ]
                         ]
-                        (renderTokens viewLine.syntax viewLine.text 0)
+                        (renderTokens viewLine.tokens viewLine.text 0)
                 )
             )
             viewLines

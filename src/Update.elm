@@ -1188,7 +1188,7 @@ onTokenized buf resp =
                             then
                                 case Array.get lineNumber syntax1 of
                                     Just tokens ->
-                                        { viewLine | syntax = tokens }
+                                        { viewLine | tokens = tokens }
 
                                     _ ->
                                         viewLine
