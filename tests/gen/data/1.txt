@@ -7,6 +7,7 @@
 # '-' : visual selected
 # '~' : tail empty lines, fill view height
 # '>' : input keys
+# '<' : apply patches (- delete or + insert)
 # line before buffer end is status bar
 #   status bar contains mode name or ex buffer
 # empty buffer (a line break will be inserted by default): 

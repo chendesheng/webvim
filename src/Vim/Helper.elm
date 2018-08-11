@@ -5,7 +5,7 @@ import Char
 import String
 import List
 import Result
-import Helper.Helper exposing (getLast)
+import Helper.Helper exposing (getLast, notSpace)
 import Vim.AST
     exposing
         ( ModeDelta
@@ -430,8 +430,8 @@ escapedChar =
         -- escape '<' and '\'
         [ P.succeed identity
             |. ignoreChar ((==) '\\')
-            |= keepChar (\ch -> ch == '<' || ch == '\\')
-        , keepChar (\ch -> ch /= '<')
+            |= keepChar (\ch -> notSpace ch && (ch == '<' || ch == '\\'))
+        , keepChar (\ch -> notSpace ch && ch /= '<')
         ]
 
 

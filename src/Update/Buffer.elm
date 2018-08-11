@@ -510,25 +510,53 @@ updateCursor patch patch1 cursor =
                 cursor
             else
                 case patch1 of
-                    Deletion from to ->
-                        positionSub to from
-                            |> positionAdd cursor
+                    Deletion b e ->
+                        let
+                            ( by, bx ) =
+                                b
+
+                            ( ey, ex ) =
+                                e
+
+                            ( y, x ) =
+                                cursor
+                        in
+                            ( y + (ey - by)
+                            , if Tuple.first pos == y then
+                                x + (ex - bx)
+                              else
+                                x
+                            )
 
                     _ ->
                         cursor
 
-        Deletion from to ->
+        Deletion b e ->
             case patch1 of
                 Insertion _ s ->
                     if isEmpty s then
                         cursor
-                    else if cursor < from then
+                    else if cursor < b then
                         cursor
-                    else if from <= cursor && cursor < to then
-                        from
+                    else if b <= cursor && cursor < e then
+                        b
                     else
-                        positionSub to from
-                            |> positionSub cursor
+                        let
+                            ( by, bx ) =
+                                b
+
+                            ( ey, ex ) =
+                                e
+
+                            ( y, x ) =
+                                cursor
+                        in
+                            ( y - (ey - by)
+                            , if ey == y then
+                                x - (ex - bx)
+                              else
+                                x
+                            )
 
                 Deletion _ _ ->
                     cursor

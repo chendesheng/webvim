@@ -9,7 +9,7 @@ import Update.Message exposing (Msg(..))
 import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Helper exposing (keyParser)
 import Vim.AST exposing (ModeName(..), VisualType(..))
-import Helper.Helper exposing (getLast, arrayInsert)
+import Helper.Helper exposing (getLast, arrayInsert, isSpace)
 import Internal.Position exposing (Position)
 import Regex as Re
 import Elm.Array as Array
@@ -25,21 +25,39 @@ log prefix f obj =
         obj
 
 
-handleKeys : List Key -> Buffer -> Buffer
-handleKeys keys buf =
-    keys
-        |> List.map PressKey
-        |> List.foldl
-            (\msg buf ->
-                update msg buf
-                    |> Tuple.first
-            )
-            buf
+type TestInput
+    = InputKey String
+    | ApplyPatch Patch
 
 
-keysParser : Parser (List String)
-keysParser =
-    P.repeat P.zeroOrMore keyParser
+showTestInput : TestInput -> String
+showTestInput input =
+    case input of
+        InputKey key ->
+            key
+
+        ApplyPatch patch ->
+            case patch of
+                Insertion pos s ->
+                    "+" ++ toString pos ++ " \"" ++ B.toString s ++ "\""
+
+                Deletion b e ->
+                    "-" ++ toString b ++ " " ++ toString e
+
+
+handleKeys : List TestInput -> Buffer -> Buffer
+handleKeys inputs buf =
+    List.foldl
+        (\input buf ->
+            case input of
+                InputKey key ->
+                    update (PressKey key) buf |> Tuple.first
+
+                ApplyPatch patch ->
+                    Buf.transaction [ patch ] buf
+        )
+        buf
+        inputs
 
 
 emptyInsertMode : { autoComplete : Maybe a, startCursor : Position }
@@ -199,7 +217,7 @@ type alias TestCase =
     { init : Buffer
     , tests :
         List
-            { input : List String
+            { input : List TestInput
             , result : String
             }
     }
@@ -404,6 +422,65 @@ isVisible line =
         || String.startsWith "~" line
 
 
+ignoreSpaces : Parser ()
+ignoreSpaces =
+    P.ignore P.zeroOrMore
+        (\c -> isSpace c && c /= '\n' && c /= '\x0D')
+
+
+pressKeysParser : Parser (List TestInput)
+pressKeysParser =
+    P.succeed (List.map InputKey)
+        |. P.ignoreUntil "\n>"
+        |. ignoreSpaces
+        |= P.repeat P.zeroOrMore keyParser
+
+
+positionParser : Parser ( Int, Int )
+positionParser =
+    P.succeed (,)
+        |. P.symbol "("
+        |. ignoreSpaces
+        |= P.int
+        |. ignoreSpaces
+        |. P.symbol ","
+        |. ignoreSpaces
+        |= P.int
+        |. ignoreSpaces
+        |. P.symbol ")"
+
+
+insertPatchParser : Parser Patch
+insertPatchParser =
+    P.succeed Insertion
+        |. P.symbol "+"
+        |. ignoreSpaces
+        |= positionParser
+        |. ignoreSpaces
+        |. P.symbol "\""
+        |= (P.keep P.zeroOrMore ((/=) '"')
+                |> P.map B.fromString
+           )
+        |. P.symbol "\""
+        |. ignoreSpaces
+
+
+deletePatchParser : Parser Patch
+deletePatchParser =
+    P.succeed Deletion
+        |. P.symbol "-"
+        |. ignoreSpaces
+        |= positionParser
+        |. ignoreSpaces
+        |= positionParser
+        |. ignoreSpaces
+
+
+applyPatchParser : Parser Patch -> Parser TestInput
+applyPatchParser p =
+    P.map ApplyPatch p
+
+
 testDataParser : Parser TestCase
 testDataParser =
     P.succeed
@@ -477,19 +554,25 @@ testDataParser =
                     )
            )
         |= P.repeat P.oneOrMore
-            (P.succeed (\keys result -> { input = keys, result = result })
-                |. P.ignoreUntil "\n>"
-                |= (P.ignoreUntil "\n"
-                        |> P.source
-                        |> P.andThen
-                            (\s ->
-                                s
-                                    |> String.trim
-                                    |> P.run keysParser
-                                    |> Result.withDefault []
-                                    |> P.succeed
+            (P.succeed
+                (\input result ->
+                    { input = input
+                    , result = result
+                    }
+                )
+                |= P.oneOf
+                    [ pressKeysParser
+                    , (P.succeed identity
+                        |. P.ignoreUntil "\n<"
+                        |. ignoreSpaces
+                        |= P.repeat P.oneOrMore
+                            (P.oneOf
+                                [ applyPatchParser insertPatchParser
+                                , applyPatchParser deletePatchParser
+                                ]
                             )
-                   )
+                      )
+                    ]
                 |. P.ignoreUntil "\n{"
                 |= (P.ignoreUntil "\n}"
                         |> P.source
@@ -501,10 +584,10 @@ testDataParser =
 scanlInputs :
     List
         { a
-            | input : List String
+            | input : List b
             , result : String
         }
-    -> List { input : List String, result : String }
+    -> List { input : List b, result : String }
 scanlInputs tests =
     tests
         |> List.foldl
@@ -534,8 +617,12 @@ genTest name data =
                             (name
                                 ++ "."
                                 ++ toString (i + 1)
-                                ++ "> "
-                                ++ String.join "" input
+                                ++ " ["
+                                ++ (input
+                                        |> List.map showTestInput
+                                        |> String.join ", "
+                                   )
+                                ++ "]"
                             )
                         <|
                             \_ ->
@@ -546,7 +633,7 @@ genTest name data =
                     )
                 |> describe name
 
-        Err _ ->
+        Err err ->
             test name <|
                 \_ ->
-                    Expect.fail "invalid test data"
+                    Expect.fail <| "parse test data error: " ++ toString err

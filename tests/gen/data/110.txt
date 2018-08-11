@@ -1,0 +1,21 @@
+{
+|       abc def
+|       11 abc
+|        22
+||       rr def
+              ^
+-- Normal --
+}
+
+< + (0,0) "" - (0,0) (0,1)
+
+{
+|       bc def
+|       11 abc
+|        22
+||       rr def
+              ^
+-- Normal --
+}
+
+
