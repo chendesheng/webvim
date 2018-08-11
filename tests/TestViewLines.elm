@@ -26,7 +26,7 @@ resize buf =
 
 ignoreSyntax : ViewLine -> ViewLine
 ignoreSyntax viewLine =
-    { viewLine | syntax = [] }
+    { viewLine | tokens = [] }
 
 
 applyPatches : List Patch -> Expectation
