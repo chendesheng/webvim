@@ -21,7 +21,7 @@ import Regex as Re exposing (regex)
 import Internal.Jumps exposing (saveJump)
 import Update.Message exposing (Msg(..))
 import Internal.TextObject exposing (wordUnderCursor, wORDUnderCursor)
-import Helper.Helper exposing (repeatfn)
+import Helper.Helper exposing (repeatfn, safeRegex)
 import Internal.Brackets exposing (pairBracketAt, bracketsParser)
 import Parser as P
 import Elm.Array as Array
@@ -251,12 +251,12 @@ gotoMatchedString count mo buf =
                             else
                                 not forward
 
-                        re =
+                        maybeRe =
                             s
-                                |> Re.regex
-                                |> Re.caseInsensitive
+                                |> safeRegex
+                                |> Maybe.map Re.caseInsensitive
 
-                        findNext cursor =
+                        findNext re cursor =
                             Maybe.map Tuple.first
                                 (matchString forward1
                                     re
@@ -264,10 +264,14 @@ gotoMatchedString count mo buf =
                                     buf.lines
                                 )
                     in
-                        repeatfn
-                            (Maybe.withDefault 1 count)
-                            findNext
-                            buf.cursor
+                        Maybe.andThen
+                            (\re ->
+                                repeatfn
+                                    (Maybe.withDefault 1 count)
+                                    (findNext re)
+                                    buf.cursor
+                            )
+                            maybeRe
 
                 _ ->
                     Nothing
