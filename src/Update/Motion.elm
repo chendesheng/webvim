@@ -336,7 +336,7 @@ matchStringInner forward re (( y, x ) as start) lines =
                         matchStringInner forward re ( y - 1, -1 ) lines
 
                     Just (( a, b ) as rg) ->
-                        if a <= start && start < b then
+                        if a <= start && start <= b then
                             matchStringInner forward re ( y - 1, -1 ) lines
                         else
                             Just rg
