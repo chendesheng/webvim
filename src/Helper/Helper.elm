@@ -61,6 +61,23 @@ filename s =
             ( "", "" )
 
 
+findIndex : (a -> Bool) -> List a -> Maybe Int
+findIndex =
+    let
+        findIndexHelper i pred list =
+            case list of
+                [] ->
+                    Nothing
+
+                first :: rest ->
+                    if pred first then
+                        Just i
+                    else
+                        findIndexHelper (i + 1) pred rest
+    in
+        findIndexHelper 0
+
+
 repeatfn : number -> (a -> Maybe a) -> a -> Maybe a
 repeatfn n f =
     let

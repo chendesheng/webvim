@@ -9,7 +9,7 @@ import Update.Message exposing (Msg(..))
 import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Helper exposing (keyParser)
 import Vim.AST exposing (ModeName(..), VisualType(..))
-import Helper.Helper exposing (getLast, arrayInsert, isSpace)
+import Helper.Helper exposing (getLast, arrayInsert, isSpace, findIndex)
 import Internal.Position exposing (Position)
 import Regex as Re
 import Elm.Array as Array
@@ -311,21 +311,6 @@ parseCursor lines =
         |> Maybe.withDefault ( 0, 0 )
 
 
-parseScrollTop : List String -> Int
-parseScrollTop textLines =
-    textLines
-        |> List.indexedMap
-            (\i line ->
-                if String.startsWith "||" line then
-                    Just i
-                else
-                    Nothing
-            )
-        |> List.filterMap identity
-        |> List.head
-        |> Maybe.withDefault 0
-
-
 parseMode : Position -> String -> Mode
 parseMode cursor statusBar =
     if
@@ -563,7 +548,9 @@ testDataParser =
                                     parseCursor lines
 
                                 scrollTop =
-                                    parseScrollTop textLines
+                                    textLines
+                                        |> findIndex (String.startsWith "||")
+                                        |> Maybe.withDefault 0
 
                                 mode =
                                     lines

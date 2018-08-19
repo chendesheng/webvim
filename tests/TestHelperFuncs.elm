@@ -136,4 +136,18 @@ suite =
                 , testFilename "a/b\\c.d.e" ( "c.d", ".e" )
                 ]
             )
+        , describe "findIndex"
+            (let
+                testFindIndex arr i result =
+                    test ("find " ++ toString i ++ " in " ++ toString arr)
+                        (\_ ->
+                            Expect.equal result <| findIndex ((==) i) arr
+                        )
+             in
+                [ testFindIndex [] 0 Nothing
+                , testFindIndex [ 0 ] 0 <| Just 0
+                , testFindIndex [ 1, 2 ] 0 Nothing
+                , testFindIndex [ 1, 2 ] 1 <| Just 0
+                ]
+            )
         ]
