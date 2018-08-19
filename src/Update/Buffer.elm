@@ -321,21 +321,25 @@ applyPatchToViewLines scrollTop height_ patch oldLines lines syntax viewLines =
                     maxLineNumber =
                         min (scrollTop + height) (B.count lines)
 
-                    --_ =
-                    --Debug.log "maxLineNumber" maxLineNumber
                     cnt =
                         ey - by + 1
 
                     n =
                         cnt - 1
 
-                    --|> Debug.log "n"
                     --_ =
-                    --Debug.log "y" by
+                    --    Debug.log "maxLineNumber" maxLineNumber
+                    --_ =
+                    --    Debug.log "cnt" cnt
+                    --_ =
+                    --    Debug.log "n" n
+                    insertStart =
+                        max scrollTop by
+
                     inserts =
                         getViewLines
-                            (by + 1)
-                            (by + n + 1)
+                            (insertStart + 1)
+                            (insertStart + 1 + n)
                             lines
                             syntax
 
@@ -349,11 +353,11 @@ applyPatchToViewLines scrollTop height_ patch oldLines lines syntax viewLines =
                                     --_ =
                                     --Debug.log "lineNumber" lineNumber
                                     --in
-                                    if lineNumber == by then
+                                    if lineNumber == insertStart then
                                         viewLine
-                                            |> updateViewLine by
+                                            |> updateViewLine insertStart
                                             |> Just
-                                    else if lineNumber > by then
+                                    else if lineNumber > insertStart then
                                         if lineNumber + n < maxLineNumber then
                                             Just
                                                 { viewLine

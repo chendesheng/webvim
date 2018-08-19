@@ -1,0 +1,21 @@
+##only
+{
+|       aa
+|       bb
+||      cc
+        ^
+~
+-- Normal --
+}
+
+< + (0,0) "dd\n"
+
+{
+|       dd
+|       aa
+||      bb
+||      cc
+        ^
+-- Normal --
+}
+
