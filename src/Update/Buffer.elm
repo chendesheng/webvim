@@ -336,10 +336,11 @@ applyPatchToViewLines scrollTop height_ patch oldLines lines syntax viewLines =
                     insertStart =
                         max scrollTop by
 
+                    --|> Debug.log "insertStart"
                     inserts =
                         getViewLines
-                            (insertStart + 1)
-                            (insertStart + 1 + n)
+                            insertStart
+                            (insertStart + cnt)
                             lines
                             syntax
 
@@ -354,9 +355,7 @@ applyPatchToViewLines scrollTop height_ patch oldLines lines syntax viewLines =
                                     --Debug.log "lineNumber" lineNumber
                                     --in
                                     if lineNumber == insertStart then
-                                        viewLine
-                                            |> updateViewLine insertStart
-                                            |> Just
+                                        Nothing
                                     else if lineNumber > insertStart then
                                         if lineNumber + n < maxLineNumber then
                                             Just
