@@ -26,34 +26,46 @@ function format(code) {
   });
 }
 
-function prefixCommand(content) {
-  if (/^\s*##skip/.test(content)) {
-    return 'skip <| ';
-  } else if (/^\s*##only/.test(content)) {
-    return 'only <| ';
-  }
-  return '';
+function isSkip(content) {
+  return /^\s*##skip/.test(content);
 }
 
-exports.genTests = async function() {
-  const dirs = await fs.readdir(path.join(__dirname, 'data'));
-  const code = dirs.map(function(f) {
+function isOnly(content) {
+  return /^\s*##only/.test(content);
+}
+
+function genCode(files) {
+  const tests = files.map(function(f) {
     const {name, ext} = path.parse(f);
     if (ext === '.txt') {
-      const content = fs.readFileSync(
-        path.join(__dirname, 'data', f),
-        {
-          encoding: 'utf8',
-        });
-      const prefix = prefixCommand(content);
-      return `${prefix}genTest "${name}" (${genLines(content)})`;
+      return {
+        name,
+        content: fs.readFileSync(
+          path.join(__dirname, 'data', f),
+          {
+            encoding: 'utf8',
+          }),
+      };
     }
-    return '';
-  }).filter(function(s) {
-    return s.length > 0;
-  }).join('\n   , ');
+    return {
+      name,
+      content: '##skip',
+    };
+  }).filter(({content}) => !isSkip(content));
 
-  // console.log(code);
+  const gen = ({name, content}) => `genTest "${name}" (${genLines(content)})`;
+
+  const onlyTest = tests.find(({content}) => isOnly(content));
+  if (onlyTest) {
+    return gen(onlyTest);
+  }
+
+  return tests.map(gen).join('\n   , ');
+}
+
+
+exports.genTests = async function() {
+  const files = await fs.readdir(path.join(__dirname, 'data'));
   await fs.writeFile(path.join(__dirname, '../TestData.elm'), format(`
 module TestData exposing(..)
 import Test exposing (..)
@@ -62,7 +74,7 @@ import TestGenerated exposing (genTest)
 suite : Test
 suite =
     describe "test generated" <|
-        [${code}
+        [${genCode(files)}
         ]
 `));
   console.log(`${new Date()} TestData.elm has been saved`);

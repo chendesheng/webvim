@@ -65,11 +65,6 @@ emptyInsertMode =
     { autoComplete = Nothing, startCursor = ( 0, 0 ) }
 
 
-dataToBuffer : String -> Buffer
-dataToBuffer s =
-    emptyBuffer
-
-
 formatBuffer : Buffer -> String
 formatBuffer buf =
     let
@@ -87,12 +82,34 @@ formatBuffer buf =
         ( y, x ) =
             buf.cursor
 
+        --_ =
+        --    Debug.log "buf.view" buf.view
+        --_ =
+        --    Debug.log "buf.lines" buf.lines
+        --_ =
+        --    Debug.log "middle" middle
+        --_ =
+        --    Debug.log "middle1" middle1
         middle =
-            buf.lines
-                |> B.sliceLines buf.view.scrollTop
-                    (buf.view.scrollTop + buf.view.size.height)
-                |> B.mapLines (addPrefix "||      ")
+            buf.view.lines
+                |> List.sortBy
+                    (\viewLine ->
+                        case viewLine of
+                            Just line ->
+                                line.lineNumber
 
+                            _ ->
+                                0
+                    )
+                |> List.filterMap (Maybe.map <| .text >> addPrefix "||      ")
+                |> List.take buf.view.size.height
+                |> Array.fromList
+
+        --middle1 =
+        --    buf.lines
+        --        |> B.sliceLines buf.view.scrollTop
+        --            (buf.view.scrollTop + buf.view.size.height)
+        --        |> B.mapLines (addPrefix "||      ")
         bottom =
             buf.lines
                 |> B.sliceLines
@@ -192,17 +209,17 @@ formatBuffer buf =
                 |> Array.toList
 
         emptyLines =
-            "~\n"
-                |> List.repeat
-                    (Basics.max
-                        (buf.view.size.height
-                            - (lines
-                                |> List.filter isVisible
-                                |> List.length
-                              )
-                        )
-                        0
+            List.repeat
+                (Basics.max
+                    (buf.view.size.height
+                        - (lines
+                            |> List.filter isVisible
+                            |> List.length
+                          )
                     )
+                    0
+                )
+                "~\n"
     in
         buf.mode
             |> Buf.getStatusBar
@@ -224,10 +241,18 @@ type alias TestCase =
 
 
 newBuffer : Mode -> Position -> Int -> Int -> String -> Buffer
-newBuffer mode cursor height scrollTop lines =
+newBuffer mode cursor height scrollTop text =
     let
         view =
             emptyBuffer.view
+
+        lines =
+            B.fromString
+                (if String.endsWith B.lineBreak text then
+                    text
+                 else
+                    text ++ B.lineBreak
+                )
     in
         { emptyBuffer
             | cursor = cursor
@@ -240,14 +265,15 @@ newBuffer mode cursor height scrollTop lines =
                         , height = height
                         }
                     , scrollTop = scrollTop
+                    , lines =
+                        Buf.getViewLines
+                            scrollTop
+                            (scrollTop + height + 2)
+                            lines
+                            emptyBuffer.syntax
+                            |> Buf.fillEmptyViewLines height
                 }
-            , lines =
-                B.fromString
-                    (if String.endsWith B.lineBreak lines then
-                        lines
-                     else
-                        lines ++ B.lineBreak
-                    )
+            , lines = lines
         }
 
 

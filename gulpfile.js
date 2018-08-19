@@ -79,7 +79,8 @@ gulp.task('default', function() {
   gulp.watch(['src/**/*.elm'],
     watchOptions, gulp.parallel('js', 'ctags'));
   gulp.watch(['tests/**/*.elm'], gulp.parallel('ctags'));
-  gulp.watch(['tests/gen/data/*.*'], watchOptions, gulp.parallel('genTests'));
+  gulp.watch(['tests/gen/data/*.*', 'tests/gen/gen.js'],
+    watchOptions, gulp.parallel('genTests'));
 });
 
 

@@ -156,6 +156,9 @@ applyPatches patches buf =
 
         view =
             buf.view
+
+        scrollTop =
+            finalScrollTop buf
     in
         List.foldl
             (\patch ( lines, patches2, miny, syntax, viewLines ) ->
@@ -171,7 +174,7 @@ applyPatches patches buf =
                     , min miny (minLine patch)
                     , syntax2
                     , applyPatchToViewLines
-                        view.scrollTop
+                        scrollTop
                         view.size.height
                         patch2
                         lines
@@ -422,6 +425,9 @@ applyPatchToViewLines scrollTop height_ patch oldLines lines syntax viewLines =
 transaction : List Patch -> Buffer -> Buffer
 transaction patches buf =
     let
+        scrollTop =
+            finalScrollTop buf
+
         ( buf1, undo ) =
             List.foldl
                 (\patch ( buf, undo ) ->
@@ -437,6 +443,15 @@ transaction patches buf =
 
                         view =
                             buf.view
+
+                        --_ =
+                        --    Debug.log "patch1" patch1
+                        --_ =
+                        --    Debug.log "buf.lines" buf.lines
+                        --_ =
+                        --    Debug.log "lines" lines
+                        --_ =
+                        --    Debug.log "view" view
                     in
                         ( { buf
                             | lines = lines
@@ -453,13 +468,15 @@ transaction patches buf =
                                 { view
                                     | lines =
                                         applyPatchToViewLines
-                                            view.scrollTop
+                                            scrollTop
                                             view.size.height
                                             patch1
                                             buf.lines
                                             lines
                                             syntax
                                             view.lines
+
+                                    --|> Debug.log "view.lines after"
                                 }
                           }
                         , patch1 :: undo
@@ -1123,35 +1140,25 @@ fillViewLines :
     -> List (Maybe ViewLine)
     -> List (Maybe ViewLine)
 fillViewLines inserts viewLines =
-    if List.isEmpty inserts then
-        viewLines
-    else
-        let
-            fillInserts viewLines inserts =
-                case inserts of
-                    viewLine :: restInserts ->
-                        viewLine
-                            :: fillViewLines
-                                restInserts
-                                viewLines
-
-                    _ ->
-                        Nothing
-                            :: fillViewLines
-                                []
-                                viewLines
-        in
-            case viewLines of
-                viewLine :: rest ->
-                    case viewLine of
-                        Just { lineNumber } ->
-                            viewLine :: fillViewLines inserts rest
-
-                        _ ->
-                            fillInserts rest inserts
+    case viewLines of
+        viewLine :: restViewLines ->
+            case viewLine of
+                Just _ ->
+                    viewLine :: fillViewLines inserts restViewLines
 
                 _ ->
-                    []
+                    case inserts of
+                        insert :: restInserts ->
+                            insert
+                                :: fillViewLines
+                                    restInserts
+                                    restViewLines
+
+                        _ ->
+                            viewLines
+
+        _ ->
+            []
 
 
 fillEmptyViewLines : Int -> List (Maybe ViewLine) -> List (Maybe ViewLine)

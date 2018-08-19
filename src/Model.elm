@@ -323,6 +323,7 @@ emptyView =
     , lines =
         [ Just { lineNumber = 0, text = "\n", tokens = [] }
         , Just { lineNumber = 1, text = "", tokens = [] }
+        , Nothing
         ]
     }
 
