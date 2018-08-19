@@ -8,7 +8,7 @@ normalKeyMap : Key -> List Key
 normalKeyMap key =
     (case key of
         "<c-p>" ->
-            ":e "
+            ":e<space>"
 
         "<c-,>" ->
             ":f "
