@@ -251,7 +251,7 @@ repeatInserts oldMode buf =
             case visual of
                 Just ({ tipe, begin, end } as visual) ->
                     if
-                        (startCursor < buf.cursor)
+                        (startCursor <= buf.cursor)
                             && (Tuple.first startCursor == Tuple.first buf.cursor)
                     then
                         case tipe of
