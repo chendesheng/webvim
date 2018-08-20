@@ -11,7 +11,7 @@ normalKeyMap key =
             ":e<space>"
 
         "<c-,>" ->
-            ":f "
+            ":f<space>"
 
         "<c-s>" ->
             ":w<cr>"
