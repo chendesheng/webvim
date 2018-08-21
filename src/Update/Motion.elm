@@ -285,6 +285,11 @@ matchRegion y m =
     )
 
 
+insideRegion : Position -> ( Position, Position ) -> Bool
+insideRegion pos ( b, e ) =
+    b == e && b == pos || b <= pos && pos < e
+
+
 matchStringForward :
     Re.Regex
     -> Position
@@ -301,10 +306,10 @@ matchStringForward re cursor (( y, x ) as start) lines =
             of
                 m :: rest ->
                     let
-                        (( b, e ) as region) =
+                        region =
                             matchRegion y m
                     in
-                        if b <= cursor && cursor < e then
+                        if insideRegion cursor region then
                             case rest of
                                 m1 :: _ ->
                                     Just <| matchRegion y m1
@@ -348,10 +353,10 @@ matchStringBackward re cursor end lines =
                 of
                     m :: rest ->
                         let
-                            (( b, e ) as region) =
+                            region =
                                 matchRegion y m
                         in
-                            if b <= cursor && cursor < e then
+                            if insideRegion cursor region then
                                 case rest of
                                     m1 :: _ ->
                                         Just <| matchRegion y m1

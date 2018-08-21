@@ -1,0 +1,43 @@
+{
+||      aa aa
+        ^
+|       aa
+-- Normal --
+}
+
+> *
+
+{
+||      aa aa
+           ^
+|       aa
+/\\baa\\b
+}
+
+> l#
+
+{
+||      aa aa
+        ^
+|       aa
+?\\baa\\b
+}
+
+> l*
+
+{
+||      aa aa
+           ^
+|       aa
+/\\baa\\b
+}
+
+> *
+
+{
+|       aa aa
+||      aa
+        ^
+/\\baa\\b
+}
+

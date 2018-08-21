@@ -377,6 +377,7 @@ parseMode cursor statusBar =
                 ExSearch
                     { forward = True
                     , match = Nothing
+                    , highlights = []
                     }
             , exbuf =
                 emptyExBuffer
@@ -393,6 +394,7 @@ parseMode cursor statusBar =
                 ExSearch
                     { forward = False
                     , match = Nothing
+                    , highlights = []
                     }
             , exbuf =
                 emptyExBuffer
