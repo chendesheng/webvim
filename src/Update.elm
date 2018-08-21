@@ -46,10 +46,10 @@ stringToPrefix : String -> ExPrefix
 stringToPrefix prefix =
     case prefix of
         "/" ->
-            ExSearch { forward = True, match = Nothing }
+            ExSearch { forward = True, match = Nothing, highlights = [] }
 
         "?" ->
-            ExSearch { forward = False, match = Nothing }
+            ExSearch { forward = False, match = Nothing, highlights = [] }
 
         "=" ->
             ExEval
@@ -402,6 +402,12 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                                                     matchString forward
                                                         re
                                                         buf.cursor
+                                                        buf.lines
+                                                , highlights =
+                                                    matchAllStrings
+                                                        re
+                                                        scrollFrom
+                                                        (scrollFrom + buf.view.size.height)
                                                         buf.lines
                                             }
 

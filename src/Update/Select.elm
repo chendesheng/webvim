@@ -2,10 +2,10 @@ module Update.Select exposing (select)
 
 import Vim.AST as V exposing (Operator(..), ChangeCase(..))
 import Model exposing (..)
-import Update.Range exposing (operatorRanges, shrinkRight)
 import Update.Buffer as Buf
 import Internal.TextObject exposing (expandTextObject)
 import Update.Motion exposing (..)
+import Internal.Position exposing (excludeRight)
 
 
 select : Maybe Int -> V.TextObject -> Bool -> Buffer -> Buffer
@@ -30,7 +30,7 @@ select count textobj around buf =
                     (\rg ->
                         let
                             ( a, b ) =
-                                shrinkRight rg
+                                excludeRight rg
 
                             begin1 =
                                 if begin == end then

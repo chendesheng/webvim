@@ -144,6 +144,7 @@ type ExPrefix
     = ExSearch
         { forward : Bool
         , match : Maybe ( Position, Position ) -- increment cursor position
+        , highlights : List ( Position, Position )
         }
     | ExCommand
     | ExEval
@@ -208,8 +209,7 @@ type alias View =
     , lineHeight : Int
     , showTip : Bool
     , matchedCursor : Maybe ( Position, Position )
-    , lines :
-        List (Maybe ViewLine)
+    , lines : List (Maybe ViewLine)
     }
 
 

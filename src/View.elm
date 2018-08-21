@@ -91,7 +91,7 @@ view buf =
 
         relativeZeroLine =
             searchRange
-                |> Maybe.map .begin
+                |> Maybe.map (Tuple.first >> .begin)
                 |> Maybe.withDefault cursor
                 |> Tuple.first
 
@@ -175,7 +175,9 @@ view buf =
                         :: renderVisual scrollTop1 height mode lines
                         ?:: (searchRange
                                 |> Maybe.map
-                                    (lazy3 renderHighlights scrollTop1 lines)
+                                    (\( m, ms ) ->
+                                        renderHighlights scrollTop1 lines m ms
+                                    )
                             )
                         ?:: lazy3 renderLint scrollTop1 lines buf.lint.items
                         :: lazy renderLines view.lines
@@ -359,19 +361,28 @@ renderStatusBar dirty mode continuation items name =
         ]
 
 
-incrementSearchRegion : Mode -> Maybe VisualMode
+incrementSearchRegion : Mode -> Maybe ( VisualMode, List VisualMode )
 incrementSearchRegion mode =
     case mode of
         Ex { prefix, visual } ->
             case prefix of
-                ExSearch { match } ->
+                ExSearch { match, highlights } ->
                     case match of
                         Just ( begin, end ) ->
                             Just
-                                { tipe = VisualChars
-                                , begin = begin
-                                , end = end
-                                }
+                                ( { tipe = VisualChars
+                                  , begin = begin
+                                  , end = end
+                                  }
+                                , List.map
+                                    (\( b, e ) ->
+                                        { tipe = VisualChars
+                                        , begin = b
+                                        , end = e
+                                        }
+                                    )
+                                    highlights
+                                )
 
                         _ ->
                             Nothing
@@ -511,11 +522,17 @@ renderHighlights :
     Int
     -> B.TextBuffer
     -> VisualMode
+    -> List VisualMode
     -> Html msg
-renderHighlights scrollTop lines { tipe, begin, end } =
+renderHighlights scrollTop lines match highlights =
     div
         [ class "highlights" ]
-        (renderRange scrollTop tipe begin end lines False)
+        (List.concatMap
+            (\{ tipe, begin, end } ->
+                (renderRange scrollTop tipe begin end lines False)
+            )
+            (match :: highlights)
+        )
 
 
 renderSelections :

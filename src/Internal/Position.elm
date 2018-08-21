@@ -81,3 +81,8 @@ regionDecoder =
     Decode.map2 (,)
         (Decode.field "start" positionDecoder)
         (Decode.field "end" positionDecoder)
+
+
+excludeRight : ( Position, Position ) -> ( Position, Position )
+excludeRight ( p1, ( y, x ) ) =
+    ( p1, ( y, max 0 (x - 1) ) )
