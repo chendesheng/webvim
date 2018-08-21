@@ -6,6 +6,7 @@ module Update.Motion
         , runMotion
         , motion
         , matchString
+        , matchAllStrings
         , wordStringUnderCursor
         , wORDStringUnderCursor
         )
@@ -14,7 +15,7 @@ import Model exposing (..)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
-import Internal.Position exposing (Position, positionMin)
+import Internal.Position exposing (Position, excludeRight)
 import String
 import Internal.PositionClass exposing (..)
 import Regex as Re exposing (regex)
@@ -277,72 +278,118 @@ gotoMatchedString count mo buf =
                     Nothing
 
 
-lastItemOf : (a -> Bool) -> List a -> Maybe a
-lastItemOf pred list =
-    let
-        lastItemOfHelper : (a -> Bool) -> Maybe a -> List a -> Maybe a
-        lastItemOfHelper pred prevItem list =
-            case list of
-                x :: xs ->
-                    if pred x then
-                        lastItemOfHelper pred (Just x) xs
-                    else
-                        prevItem
-
-                _ ->
-                    prevItem
-    in
-        lastItemOfHelper pred Nothing list
+matchRegion : Int -> Re.Match -> ( Position, Position )
+matchRegion y m =
+    ( ( y, m.index )
+    , ( y, m.index + String.length m.match )
+    )
 
 
-matchStringInner :
-    Bool
-    -> Re.Regex
+matchStringForward :
+    Re.Regex
+    -> Position
     -> Position
     -> B.TextBuffer
     -> Maybe ( Position, Position )
-matchStringInner forward re (( y, x ) as start) lines =
+matchStringForward re cursor (( y, x ) as start) lines =
     case B.getLine y lines of
         Just line ->
-            if forward then
-                let
-                    s =
-                        String.dropLeft (x + 1) line
-                in
-                    case Re.find (Re.AtMost 1) re s of
-                        [ m ] ->
-                            Just
-                                ( ( y, m.index + x + 1 )
-                                , ( y, m.index + String.length m.match + x )
-                                )
+            case
+                line
+                    |> Re.find Re.All re
+                    |> List.filter (\m -> ( y, m.index ) >= start)
+            of
+                m :: rest ->
+                    let
+                        (( b, e ) as region) =
+                            matchRegion y m
+                    in
+                        if b <= cursor && cursor < e then
+                            case rest of
+                                m1 :: _ ->
+                                    Just <| matchRegion y m1
 
-                        _ ->
-                            matchStringInner forward re ( y + 1, -1 ) lines
-            else
-                case
-                    Re.find Re.All re line
-                        |> lastItemOf
-                            (\m ->
-                                x < 0 || m.index < x
-                            )
-                        |> Maybe.map
-                            (\m ->
-                                ( ( y, m.index )
-                                , ( y, m.index + String.length m.match - 1 )
-                                )
-                            )
-                of
-                    Nothing ->
-                        matchStringInner forward re ( y - 1, -1 ) lines
-
-                    Just (( a, b ) as rg) ->
-                        if a <= start && start <= b then
-                            matchStringInner forward re ( y - 1, -1 ) lines
+                                _ ->
+                                    matchStringForward re cursor ( y + 1, 0 ) lines
                         else
-                            Just rg
+                            Just region
+
+                _ ->
+                    matchStringForward re cursor ( y + 1, 0 ) lines
 
         _ ->
             Nothing
+
+
+matchStringBackward :
+    Re.Regex
+    -> Position
+    -> Position
+    -> B.TextBuffer
+    -> Maybe ( Position, Position )
+matchStringBackward re cursor end lines =
+    let
+        x =
+            Tuple.second end
+
+        y =
+            if x == 0 then
+                Tuple.first end - 1
+            else
+                Tuple.first end
+    in
+        case B.getLine y lines of
+            Just line ->
+                case
+                    line
+                        |> Re.find Re.All re
+                        |> List.filter (\m -> ( y, m.index ) < end)
+                        |> List.reverse
+                of
+                    m :: rest ->
+                        let
+                            (( b, e ) as region) =
+                                matchRegion y m
+                        in
+                            if b <= cursor && cursor < e then
+                                case rest of
+                                    m1 :: _ ->
+                                        Just <| matchRegion y m1
+
+                                    _ ->
+                                        matchStringBackward re cursor ( y, 0 ) lines
+                            else
+                                Just region
+
+                    _ ->
+                        matchStringBackward re cursor ( y, 0 ) lines
+
+            _ ->
+                Nothing
+
+
+matchAllStrings :
+    Re.Regex
+    -> Int
+    -> Int
+    -> B.TextBuffer
+    -> List ( Position, Position )
+matchAllStrings re begin end lines =
+    lines
+        |> B.indexedMapLinesToList begin
+            end
+            (\i line ->
+                line
+                    |> Re.find Re.All re
+                    |> List.map
+                        (\m ->
+                            excludeRight
+                                ( ( i, m.index )
+                                , ( i, m.index + String.length m.match )
+                                )
+                        )
+            )
+        |> List.concat
 
 
 matchString :
@@ -352,9 +399,15 @@ matchString :
     -> B.TextBuffer
     -> Maybe ( Position, Position )
 matchString forward re pos lines =
-    case matchStringInner forward re pos lines of
+    case
+        (if forward then
+            matchStringForward re pos pos lines
+         else
+            matchStringBackward re pos pos lines
+        )
+    of
         Just res ->
-            Just res
+            Just <| excludeRight res
 
         _ ->
             let
@@ -365,15 +418,17 @@ matchString forward re pos lines =
                     B.count lines
             in
                 if forward then
-                    matchStringInner forward
-                        re
+                    matchStringForward re
                         ( 0, -1 )
+                        ( 0, 0 )
                         (B.sliceLines 0 (y + 1) lines)
+                        |> Maybe.map excludeRight
                     --|> Debug.log "search hit bottom"
                 else
-                    matchStringInner forward
+                    matchStringBackward
                         re
-                        ( n - y - 1, -1 )
+                        ( n - y, 0 )
+                        ( n - y, 0 )
                         (B.sliceLines y n lines)
                         |> Maybe.map
                             (\rg ->
@@ -381,7 +436,7 @@ matchString forward re pos lines =
                                     ( ( y1, x1 ), ( y2, x2 ) ) =
                                         rg
                                 in
-                                    ( ( y1 + y, x1 ), ( y2 + y, x2 ) )
+                                    excludeRight ( ( y1 + y, x1 ), ( y2 + y, x2 ) )
                             )
 
 
