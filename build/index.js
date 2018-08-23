@@ -75,10 +75,15 @@ const applyCss = (url) => {
 applyCss(`${flags.service}/css?theme=${getTheme() || 'Solarized Dark'}`);
 
 // console.log("flags", flags);
-const app = Elm.Main.fullscreen(flags);
+const app = Elm.Main.init({
+  flags,
+});
 
-app.ports.setTitle.subscribe((title) => {
-  document.title = title || 'no name';
+document.addEventListener('keydown', function(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  app.ports.onKeyDown.send(event);
 });
 
 const debouncers = {};

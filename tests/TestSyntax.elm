@@ -3,7 +3,7 @@ module TestSyntax exposing (..)
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Internal.Syntax exposing (..)
-import Elm.Array as Array exposing (Array)
+import Array as Array exposing (Array)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Helper.Helper exposing (..)
 

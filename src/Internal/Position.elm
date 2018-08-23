@@ -78,7 +78,7 @@ endPositionDecoder =
 
 regionDecoder : Decode.Decoder ( Position, Position )
 regionDecoder =
-    Decode.map2 (,)
+    Decode.map2 Tuple.pair
         (Decode.field "start" positionDecoder)
         (Decode.field "end" positionDecoder)
 

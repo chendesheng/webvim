@@ -5,10 +5,13 @@ import Update.Message exposing (..)
 import Platform as P
 import Update exposing (..)
 import Html
-import View exposing (..)
-import Helper.KeySub exposing (downs)
-import Window exposing (resizes)
+import View exposing (page)
+import Browser.Events exposing (onResize)
+import Browser
 import Helper.Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
+import Helper.KeyEvent exposing (decodeKeyboardEvent)
+import Helper.Document exposing (onKeyDown)
+import Json.Decode as Decode
 
 
 -- This is the first line written in webvim-elm :)
@@ -21,20 +24,23 @@ toModel =
 
 main : Program Flags Model Msg
 main =
-    Html.programWithFlags
-        { init = (initCommand >> ((,) Booting))
+    Browser.application
+        { init = (\flags _ _ -> ( Booting, initCommand flags ))
         , view =
             (\model ->
                 case model of
                     Booting ->
-                        Html.text ""
+                        { title = "Initializing"
+                        , body = [ Html.text "" ]
+                        }
 
                     Crashed err ->
-                        Html.text err
+                        { title = "Oopse"
+                        , body = [ Html.text err ]
+                        }
 
                     Ready buf ->
-                        --vrView buf
-                        view buf
+                        page buf
             )
         , update =
             (\msg model ->
@@ -44,7 +50,7 @@ main =
                             |> toModel
 
                     Boot (Err err) ->
-                        ( Crashed ("boot failed: " ++ toString err), Cmd.none )
+                        ( Crashed ("boot failed: " ++ err), Cmd.none )
 
                     _ ->
                         case model of
@@ -58,8 +64,12 @@ main =
         , subscriptions =
             \_ ->
                 Sub.batch
-                    [ downs PressKey
-                    , resizes Resize
+                    [ onKeyDown
+                        (Decode.decodeValue decodeKeyboardEvent
+                            >> Result.map PressKey
+                            >> Result.withDefault NoneMessage
+                        )
+                    , onResize (\w h -> Resize { width = w, height = h })
                     , onDebounce <|
                         decodeEvent
                             (\resp ->
@@ -79,4 +89,6 @@ main =
                                         NoneMessage
                             )
                     ]
+        , onUrlRequest = always NoneMessage
+        , onUrlChange = always NoneMessage
         }

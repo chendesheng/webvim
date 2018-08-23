@@ -3,7 +3,7 @@ module TestHelperFuncs exposing (..)
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Helper.Helper exposing (..)
-import Elm.Array as Array exposing (Array)
+import Array as Array exposing (Array)
 
 
 suite : Test

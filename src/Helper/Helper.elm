@@ -2,23 +2,22 @@ module Helper.Helper exposing (..)
 
 import Dict exposing (Dict)
 import Regex as Re exposing (Regex)
-import Native.Doc
 import Char
 import Parser as P exposing ((|.), (|=))
-import Elm.Array as Array exposing (Array)
+import Array as Array exposing (Array)
 
 
 getLast : List a -> Maybe a
-getLast xs =
-    case xs of
+getLast list =
+    case list of
         [] ->
             Nothing
 
-        [ x ] ->
-            Just x
+        [ item ] ->
+            Just item
 
-        x :: xs ->
-            getLast xs
+        _ :: rest ->
+            getLast rest
 
 
 minMaybe : Maybe Int -> Maybe Int -> Maybe Int
@@ -42,7 +41,7 @@ filename : String -> ( String, String )
 filename s =
     case
         s
-            |> Re.split Re.All (Re.regex "[/\\\\]")
+            |> Re.split (regex "[/\\\\]")
             |> getLast
             |> Maybe.map (String.split "." >> List.reverse)
             |> Maybe.withDefault []
@@ -97,15 +96,7 @@ repeatfn n f =
 
 safeRegex : String -> Maybe Regex
 safeRegex s =
-    if Native.Doc.checkRegex s then
-        Just (Re.regex s)
-    else
-        Nothing
-
-
-levenshtein : String -> String -> Int
-levenshtein =
-    Native.Doc.levenshtein
+    Re.fromString s
 
 
 isSpace : Char -> Bool
@@ -143,21 +134,46 @@ word wordChars char =
         || String.any ((==) char) wordChars
 
 
+oneOrMore : (Char -> Bool) -> P.Parser ()
+oneOrMore pred =
+    P.chompIf pred
+        |. P.chompWhile pred
+
+
+keepOneOrMore : (Char -> Bool) -> P.Parser String
+keepOneOrMore pred =
+    P.getChompedString (oneOrMore pred)
+
+
 parseWords : String -> String -> List String
-parseWords wordChars s =
-    s
-        |> P.run
-            (P.oneOf
-                [ P.keep P.oneOrMore
-                    (word wordChars)
-                , P.keep P.oneOrMore
-                    (word wordChars >> not)
-                    |> P.map (always "")
-                ]
-                |> P.repeat P.oneOrMore
-            )
-        |> Result.withDefault []
-        |> List.filter (\s -> String.length s >= 2)
+parseWords wordChars str =
+    let
+        isWordChars =
+            word wordChars
+    in
+        str
+            |> P.run
+                (P.loop []
+                    (\words ->
+                        P.oneOf
+                            [ P.succeed (P.Loop words)
+                                |. oneOrMore (not << isWordChars)
+                            , P.succeed
+                                (\s ->
+                                    P.Loop
+                                        (if String.length s >= 2 then
+                                            s :: words
+                                         else
+                                            words
+                                        )
+                                )
+                                |= keepOneOrMore isWordChars
+                            , P.succeed (P.Done words)
+                                |. P.end
+                            ]
+                    )
+                )
+            |> Result.withDefault []
 
 
 maybeAndThen2 : (a -> b -> Maybe c) -> Maybe a -> Maybe b -> Maybe c
@@ -174,7 +190,7 @@ isAbsolutePath sep =
     if sep == "/" then
         String.startsWith "/"
     else
-        Re.contains (Re.regex "^[a-zA-Z]:\\\\")
+        Re.contains (regex "^[a-zA-Z]:\\\\")
 
 
 joinPath : String -> String -> String -> String
@@ -200,6 +216,38 @@ dropWhile pred items =
             items
 
 
+regex : String -> Re.Regex
+regex s =
+    if s == "" then
+        Re.never
+    else
+        s
+            |> Re.fromString
+            |> Maybe.withDefault Re.never
+
+
+regexWith : Re.Options -> String -> Maybe Re.Regex
+regexWith option s =
+    if s == "" then
+        Nothing
+    else
+        Re.fromStringWith option s
+
+
+escapeRegex : String -> String
+escapeRegex =
+    let
+        re =
+            regexWith
+                { caseInsensitive = False
+                , multiline = True
+                }
+                "[-\\/\\\\^$*+?.()|[\\]{}]"
+                |> Maybe.withDefault Re.never
+    in
+        Re.replace re (\{ match } -> "\\" ++ match)
+
+
 normalizePath : String -> String -> String
 normalizePath sep path =
     let
@@ -211,7 +259,7 @@ normalizePath sep path =
     in
         path
             |> String.trim
-            |> Re.replace Re.All (Re.regex "[\\\\/]+") (always sep)
+            |> Re.replace (regex "[\\\\/]+") (always sep)
             |> String.split sep1
             |> String.join sep
 
@@ -291,7 +339,7 @@ relativePath sep from to =
                 _ ->
                     ( a, b, ancestors )
 
-        ( fromParts, toParts, ancestors ) =
+        ( fromParts, toParts, _ ) =
             commonAncestors
                 (String.split sep from)
                 (String.split sep to)

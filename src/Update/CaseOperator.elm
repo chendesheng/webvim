@@ -20,25 +20,25 @@ applyCaseOperator count changeCase range buf =
         regions =
             operatorRanges count range buf
 
-        setCursor regions buf =
-            case getLast regions of
+        setCursor regions_ buf_ =
+            case getLast regions_ of
                 Just ( b, e ) ->
-                    Buf.setCursor b True buf
+                    Buf.setCursor b True buf_
 
                 _ ->
-                    buf
+                    buf_
     in
         regions
             |> List.foldl
-                (\( b, e ) buf ->
+                (\( b, e ) buf1 ->
                     let
                         s =
-                            buf.lines
+                            buf1.lines
                                 |> B.sliceRegion b e
                                 |> B.toString
 
-                        replaceChar map buf =
-                            buf
+                        replaceChar map buf_ =
+                            buf_
                                 |> Buf.transaction
                                     [ Deletion b e
                                     , s
@@ -46,17 +46,17 @@ applyCaseOperator count changeCase range buf =
                                         |> B.fromString
                                         |> Insertion b
                                     ]
-                                |> Buf.setCursor buf.cursor True
+                                |> Buf.setCursor buf_.cursor True
                     in
                         case changeCase of
                             LowerCase ->
-                                replaceChar toLower buf
+                                replaceChar toLower buf1
 
                             UpperCase ->
-                                replaceChar toUpper buf
+                                replaceChar toUpper buf1
 
                             SwapCase ->
-                                replaceChar swapCase buf
+                                replaceChar swapCase buf1
                 )
                 buf
             |> setCursor regions

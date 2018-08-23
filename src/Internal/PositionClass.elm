@@ -18,7 +18,16 @@ import Vim.AST
         , motionOption
         )
 import Maybe
-import Helper.Helper exposing (isSpace, notSpace, isBetween, word)
+import Helper.Helper
+    exposing
+        ( isSpace
+        , notSpace
+        , isBetween
+        , word
+        , regex
+        , oneOrMore
+        , keepOneOrMore
+        )
 import Regex as Re
 
 
@@ -36,31 +45,35 @@ parserWordStart : String -> Bool -> Parser Int
 parserWordStart wordChars crossLine =
     P.succeed
         (sumLength3 -1)
-        |= P.oneOf
-            [ P.keep P.oneOrMore (word wordChars)
-            , P.keep P.oneOrMore (punctuation wordChars)
-            , P.keep P.oneOrMore isSpace
-            ]
-        |= P.keep P.zeroOrMore isSpace
-        |= P.oneOf
-            ([ P.keep (P.Exactly 1) (word wordChars)
-             , P.keep (P.Exactly 1) (punctuation wordChars)
-             ]
-                ++ (if crossLine then
-                        []
-                    else
-                        [ P.end |> P.map (always "") ]
-                   )
+        |= P.getChompedString
+            (P.oneOf
+                [ oneOrMore (word wordChars)
+                , oneOrMore (punctuation wordChars)
+                , oneOrMore isSpace
+                ]
             )
+        |= (P.getChompedString <| P.chompWhile isSpace)
+        |= (P.getChompedString <|
+                P.oneOf
+                    ([ P.chompIf (word wordChars)
+                     , P.chompIf (punctuation wordChars)
+                     ]
+                        ++ (if crossLine then
+                                []
+                            else
+                                [ P.end ]
+                           )
+                    )
+           )
 
 
 parserLineFirst : Parser Int
 parserLineFirst =
     P.succeed
         (sumLength1 0)
-        |= P.keep P.zeroOrMore spaceInline
+        |= P.getChompedString (P.chompWhile spaceInline)
         |. P.oneOf
-            [ P.ignore (P.Exactly 1) (spaceInline >> not)
+            [ P.chompIf (spaceInline >> not)
             , P.end
             ]
 
@@ -69,16 +82,18 @@ parserWordEnd : String -> Parser Int
 parserWordEnd wordChars =
     P.succeed
         (sumLength2 0)
-        |. P.keep (P.Exactly 1) (always True)
-        |= P.keep P.zeroOrMore isSpace
-        |= P.oneOf
-            [ P.keep P.oneOrMore (word wordChars)
-            , P.keep P.oneOrMore (punctuation wordChars)
-            ]
+        |. P.chompIf (always True)
+        |= P.getChompedString (P.chompWhile isSpace)
+        |= (P.oneOf
+                [ oneOrMore (word wordChars)
+                , oneOrMore (punctuation wordChars)
+                ]
+                |> P.getChompedString
+           )
         |. P.oneOf
-            [ P.ignore (P.Exactly 1) (word wordChars)
-            , P.ignore (P.Exactly 1) (punctuation wordChars)
-            , P.ignore (P.Exactly 1) isSpace
+            [ P.chompIf (word wordChars)
+            , P.chompIf (punctuation wordChars)
+            , P.chompIf isSpace
             , P.end
             ]
 
@@ -87,19 +102,22 @@ parserWORDStart : Bool -> Parser Int
 parserWORDStart crossLine =
     P.succeed
         (sumLength3 -1)
-        |= P.oneOf
-            [ P.keep P.oneOrMore notSpace
-            , P.keep P.oneOrMore isSpace
-            ]
-        |= P.keep P.zeroOrMore isSpace
-        |= (if crossLine then
-                P.keep (P.Exactly 1) notSpace
-            else
-                P.oneOf
-                    [ P.keep (P.Exactly 1) notSpace
-                    , P.end |> P.map (always "")
-                    ]
+        |= (P.oneOf
+                [ oneOrMore notSpace
+                , oneOrMore isSpace
+                ]
+                |> P.getChompedString
            )
+        |= P.getChompedString (P.chompIf isSpace)
+        |= P.getChompedString
+            (if crossLine then
+                P.chompIf notSpace
+             else
+                P.oneOf
+                    [ P.chompIf notSpace
+                    , P.end
+                    ]
+            )
 
 
 sumLength1 : Int -> String -> Int
@@ -124,18 +142,20 @@ parserWordEdge : String -> Parser Int
 parserWordEdge wordChars =
     let
         divider pred =
-            P.keep P.oneOrMore pred
+            oneOrMore pred
                 |. P.oneOf
-                    [ P.keep (P.Exactly 1) (pred >> not)
-                    , P.end |> P.map (always "")
+                    [ P.chompIf (pred >> not)
+                    , P.end
                     ]
     in
         P.succeed String.length
-            |= P.oneOf
-                [ divider spaceInline
-                , divider (word wordChars)
-                , divider (punctuation wordChars)
-                ]
+            |= (P.oneOf
+                    [ divider spaceInline
+                    , divider (word wordChars)
+                    , divider (punctuation wordChars)
+                    ]
+                    |> P.getChompedString
+               )
 
 
 parserWordAround : String -> Parser Int
@@ -148,15 +168,15 @@ parserWORDAround =
     P.oneOf
         [ P.succeed
             (sumLength1 -1)
-            |= P.keep P.oneOrMore spaceInline
+            |= keepOneOrMore spaceInline
             |. P.oneOf
-                [ P.ignore (P.Exactly 1) (spaceInline >> not)
+                [ P.chompIf (spaceInline >> not)
                 , P.end
                 ]
         , P.succeed
             (sumLength2 -1)
-            |= P.keep P.oneOrMore notSpace
-            |= P.keep P.zeroOrMore spaceInline
+            |= keepOneOrMore notSpace
+            |= P.getChompedString (P.chompWhile spaceInline)
         ]
 
 
@@ -166,10 +186,10 @@ parserWORDEdge =
         divider pred =
             P.succeed
                 String.length
-                |= P.keep P.oneOrMore pred
+                |= keepOneOrMore pred
                 |. P.oneOf
-                    [ P.keep (P.Exactly 1) (pred >> not)
-                    , P.end |> P.map (always "")
+                    [ P.chompIf (pred >> not)
+                    , P.end
                     ]
     in
         P.oneOf
@@ -182,11 +202,11 @@ parserWORDEnd : Parser Int
 parserWORDEnd =
     P.succeed
         (sumLength2 0)
-        |. P.keep (P.Exactly 1) (always True)
-        |= P.keep P.zeroOrMore isSpace
-        |= P.keep P.oneOrMore notSpace
+        |. P.chompIf (always True)
+        |= P.getChompedString (P.chompWhile isSpace)
+        |= keepOneOrMore notSpace
         |. P.oneOf
-            [ P.ignore (P.Exactly 1) isSpace
+            [ P.chompIf isSpace
             , P.end
             ]
 
@@ -195,40 +215,42 @@ parserChar : Char -> Parser Int
 parserChar ch =
     P.succeed
         (sumLength2 0)
-        |= P.keep (P.Exactly 1) (always True)
-        |= P.keep P.zeroOrMore ((/=) ch)
-        |. P.ignore (P.Exactly 1) ((==) ch)
+        |= P.getChompedString (P.chompIf (always True))
+        |= P.getChompedString (P.chompWhile ((/=) ch))
+        |. P.chompIf ((==) ch)
 
 
 parserBeforeChar : Char -> Parser Int
 parserBeforeChar ch =
     P.succeed String.length
-        |. P.ignore (P.Exactly 1) (always True)
-        |= P.keep P.zeroOrMore ((/=) ch)
-        |. P.ignore (P.Exactly 1) ((==) ch)
+        |. P.chompIf (always True)
+        |= P.getChompedString (P.chompWhile ((/=) ch))
+        |. P.chompIf ((==) ch)
 
 
 parserForwardCharRespectBackslash : Char -> Parser Int
 parserForwardCharRespectBackslash ch =
     P.succeed
         (+)
-        |= (P.succeed String.length
-                |= P.keep P.zeroOrMore (\c -> c /= '\\' && c /= ch)
+        |= (P.succeed (\b e -> e - b)
+                |= P.getOffset
+                |. P.chompWhile (\c -> c /= '\\' && c /= ch)
+                |= P.getOffset
            )
         |= P.oneOf
             [ P.succeed ((+) 2)
-                |. P.ignore (P.Exactly 1) ((==) '\\')
-                |. P.ignore (P.Exactly 1) (always True)
+                |. P.chompIf ((==) '\\')
+                |. P.chompIf (always True)
                 |= P.lazy (\_ -> parserForwardCharRespectBackslash ch)
             , P.succeed 0
-                |. P.ignore (P.Exactly 1) ((==) ch)
+                |. P.chompIf ((==) ch)
             ]
 
 
 ignoreFirstChar : Parser Int -> Parser Int
 ignoreFirstChar p =
     P.succeed ((+) 1)
-        |. P.ignore (P.Exactly 1) (always True)
+        |. P.chompIf (always True)
         |= p
 
 
@@ -236,13 +258,15 @@ parserBackwardCharRespectBackslash : Char -> Parser Int
 parserBackwardCharRespectBackslash ch =
     P.succeed
         (+)
-        |= (P.succeed String.length
-                |= P.keep P.zeroOrMore ((/=) ch)
+        |= (P.succeed (\b e -> e - b)
+                |= P.getOffset
+                |. P.chompWhile ((/=) ch)
+                |= P.getOffset
            )
-        |. P.ignore (P.Exactly 1) ((==) ch)
+        |. P.chompIf ((==) ch)
         |= P.oneOf
             [ P.succeed ((+) 2)
-                |. P.ignore (P.Exactly 1) ((==) '\\')
+                |. P.chompIf ((==) '\\')
                 |= P.lazy (\_ -> parserBackwardCharRespectBackslash ch)
             , P.succeed 0
             ]
@@ -252,7 +276,7 @@ findPositionBackward :
     String
     -> MotionData
     -> String
-    -> Result P.Error Int
+    -> Result (List P.DeadEnd) Int
 findPositionBackward wordChars md line =
     let
         parser =
@@ -286,14 +310,14 @@ findPositionBackward wordChars md line =
                         ch
                             |> String.uncons
                             |> Maybe.map (Tuple.first >> p)
-                            |> Maybe.withDefault (P.fail "invalid char")
+                            |> Maybe.withDefault (P.problem "invalid char")
 
                 QuoteChar ch ->
                     parserBackwardCharRespectBackslash ch
                         |> ignoreFirstChar
 
                 _ ->
-                    P.fail "unknown position md"
+                    P.problem "unknown position md"
     in
         line
             |> String.reverse
@@ -306,7 +330,7 @@ findPositionForward :
     -> MotionData
     -> Bool
     -> String
-    -> Result P.Error Int
+    -> Result (List P.DeadEnd) Int
 findPositionForward wordChars md crossLine line =
     let
         parser =
@@ -340,13 +364,13 @@ findPositionForward wordChars md crossLine line =
                         ch
                             |> String.uncons
                             |> Maybe.map (Tuple.first >> p)
-                            |> Maybe.withDefault (P.fail "invalid char")
+                            |> Maybe.withDefault (P.problem "invalid char")
 
                 QuoteChar ch ->
                     parserForwardCharRespectBackslash ch
 
                 _ ->
-                    P.fail "unknown motion data "
+                    P.problem "unknown motion data "
     in
         P.run parser line
 
@@ -408,7 +432,7 @@ findPosition wordChars md mo line pos =
 findLineFirst : String -> Int
 findLineFirst line =
     line
-        |> Re.find (Re.AtMost 1) (Re.regex "\\S|$|\n")
+        |> Re.findAtMost 1 (regex "\\S|$|\n")
         |> List.head
         |> Maybe.map .index
         |> Maybe.withDefault 0

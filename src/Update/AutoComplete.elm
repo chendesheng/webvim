@@ -3,7 +3,7 @@ module Update.AutoComplete exposing (..)
 import Model exposing (Buffer, AutoComplete, Mode(..))
 import Internal.TextBuffer as B
 import Helper.Fuzzy exposing (..)
-import Elm.Array as Array
+import Array as Array
 import Update.Buffer as Buf
 import Update.Motion exposing (wordStringUnderCursor)
 import Internal.Position exposing (Position)
@@ -21,13 +21,14 @@ selectAutoComplete forward buf =
                             auto
 
                         newSelect =
-                            (select
-                                + if forward then
-                                    1
-                                  else
-                                    -1
-                            )
-                                % Array.length matches
+                            modBy
+                                (Array.length matches)
+                                (select
+                                    + if forward then
+                                        1
+                                      else
+                                        -1
+                                )
 
                         targetSelected =
                             newSelect == Array.length matches - 1

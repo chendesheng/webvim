@@ -1,13 +1,12 @@
 module Update.Message exposing (..)
 
-import Window exposing (Size)
 import Result
 import Http
 import Internal.Syntax exposing (Token, Syntax)
 import Vim.AST exposing (AST)
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer as B exposing (Patch)
-import Model exposing (Key, LintError, BufferInfo, Flags)
+import Model exposing (Key, LintError, BufferInfo, Flags, Size)
 
 
 type alias BufferIdentifier =
@@ -34,17 +33,24 @@ type Msg
     = PressKey Key -- buffer id, key
     | Resize Size
     | Read (Result Http.Error BufferInfo)
-    | Write (Result Http.Error (List Patch))
-    | ReadClipboard (Result Http.Error ( Bool, Key, AST, String ))
-    | WriteClipboard (Result Http.Error ())
+    | Write (Result String (List Patch))
+    | ReadClipboard
+        (Result Http.Error
+            { replaying : Bool
+            , key : Key
+            , ast : AST
+            , s : String
+            }
+        )
+    | WriteClipboard (Result String ())
     | SendLint
     | SendTokenize
     | Lint BufferIdentifier (Result String (List LintError))
-    | Tokenized BufferIdentifier (Result Http.Error TokenizeResponse)
+    | Tokenized BufferIdentifier (Result String TokenizeResponse)
     | ListFiles (Result String (List String))
     | ReadTags (Result String Location)
-    | SearchResult (Result Http.Error String)
-    | SetCwd (Result Http.Error String)
-    | Boot (Result Http.Error Flags)
+    | SearchResult (Result String String)
+    | SetCwd (Result String String)
+    | Boot (Result String Flags)
     | MouseWheel Int
     | NoneMessage

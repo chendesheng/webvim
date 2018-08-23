@@ -1,4 +1,6 @@
 port module Helper.Document exposing (..)
 
+import Json.Encode as Encode
 
-port setTitle : String -> Cmd msg
+
+port onKeyDown : (Encode.Value -> msg) -> Sub msg

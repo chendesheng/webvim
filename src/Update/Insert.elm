@@ -9,6 +9,7 @@ import Internal.PositionClass exposing (findPosition, findLineFirst)
 import String
 import Update.Motion exposing (wordStringUnderCursor)
 import Regex as Re
+import Helper.Helper exposing (regex)
 
 
 getString : Buffer -> V.StringType -> String
@@ -70,14 +71,14 @@ insert s buf =
                 if str == B.lineBreak then
                     if buf.last.indent > 0 then
                         let
-                            keepLastIndent indent buf =
-                                buf
+                            keepLastIndent indent buf_ =
+                                buf_
                                     |> Buf.transaction
                                         [ indent
                                             |> repeatSpace
                                             |> B.fromString
                                             |> Insertion
-                                                ( Tuple.first buf.cursor, 0 )
+                                                ( Tuple.first buf_.cursor, 0 )
                                         ]
                                     |> Buf.setLastIndent indent
                         in
@@ -131,34 +132,34 @@ autoIndent buf =
                 |> Maybe.map
                     (\line ->
                         let
-                            indent =
+                            indent_ =
                                 findLineFirst line
                         in
-                            if indent > 0 then
-                                [ Deletion ( y, 0 ) ( y, indent ) ]
+                            if indent_ > 0 then
+                                [ Deletion ( y, 0 ) ( y, indent_ ) ]
                             else
                                 []
                     )
                 |> Maybe.withDefault []
 
-        saveLastIndent buf =
+        saveLastIndent buf_ =
             let
-                ( y, x ) =
-                    buf.cursor
+                ( y_, _ ) =
+                    buf_.cursor
 
                 isBlank =
-                    Re.contains (Re.regex "\\S")
+                    Re.contains (regex "\\S")
                         >> not
             in
                 if
-                    buf.lines
-                        |> B.getLine y
+                    buf_.lines
+                        |> B.getLine y_
                         |> Maybe.map isBlank
                         |> Maybe.withDefault False
                 then
-                    Buf.setLastIndent indent buf
+                    Buf.setLastIndent indent buf_
                 else
-                    buf
+                    buf_
     in
         buf
             |> Buf.transaction (deleteIndent ++ [ insertIndent ])

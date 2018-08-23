@@ -1,6 +1,6 @@
 module Internal.Syntax exposing (..)
 
-import Elm.Array as Array exposing (Array)
+import Array as Array exposing (Array)
 import Internal.TextBuffer as B exposing (Patch(..))
 import List
 import Internal.Position exposing (Position)
@@ -38,7 +38,7 @@ type alias Syntax =
 
 
 splitTokens : Int -> List Token -> ( List Token, List Token )
-splitTokens x tokens =
+splitTokens x_ tokens_ =
     let
         splitTokensHelper x left tokens =
             case tokens of
@@ -66,7 +66,7 @@ splitTokens x tokens =
                 _ ->
                     ( [], [] )
     in
-        splitTokensHelper x [] tokens
+        splitTokensHelper x_ [] tokens_
 
 
 applyPatchToSyntax : Patch -> Syntax -> ( Syntax, Maybe Int )
@@ -77,8 +77,8 @@ applyPatchToSyntax patch syntax =
                 x
                 (\token -> { token | length = token.length + len })
 
-        insert ( y, x ) lines syntax =
-            case Array.get y syntax of
+        insert ( y, x ) lines syntax_ =
+            case Array.get y syntax_ of
                 Just tokens ->
                     let
                         ( left, right ) =
@@ -86,8 +86,8 @@ applyPatchToSyntax patch syntax =
 
                         { tipe, classname } =
                             (case List.head left of
-                                Just x ->
-                                    x
+                                Just x_ ->
+                                    x_
 
                                 _ ->
                                     right
@@ -99,11 +99,11 @@ applyPatchToSyntax patch syntax =
                                             }
                             )
 
-                        expand tokens n =
-                            case tokens of
-                                x :: xs ->
-                                    ({ x | length = x.length + n }
-                                        :: xs
+                        expand tokens_ n =
+                            case tokens_ of
+                                first :: rest ->
+                                    ({ first | length = first.length + n }
+                                        :: rest
                                     )
 
                                 _ ->
@@ -145,9 +145,9 @@ applyPatchToSyntax patch syntax =
                         bottom =
                             Array.slice (y + 1) (Array.length syntax) syntax
                     in
-                        top
-                            |> flip Array.append middle
-                            |> flip Array.append bottom
+                        bottom
+                            |> Array.append middle
+                            |> Array.append top
 
                 _ ->
                     lines
@@ -196,12 +196,15 @@ applyPatchToSyntax patch syntax =
                                                             ++ right
                                                         )
                                                )
-                                            |> flip Array.append
-                                                (Array.slice
-                                                    (yb + 1)
-                                                    (Array.length syntax)
-                                                    syntax
-                                                )
+                                            |> (\toappend ->
+                                                    Array.append
+                                                        toappend
+                                                        (Array.slice
+                                                            (yb + 1)
+                                                            (Array.length syntax)
+                                                            syntax
+                                                        )
+                                               )
                                         , Just ya
                                         )
 
@@ -223,13 +226,13 @@ getToken ( y, x ) syntax =
     of
         Just tokens ->
             let
-                getTokenHelper tokens x =
-                    case tokens of
+                getTokenHelper tokens_ x_ =
+                    case tokens_ of
                         token :: rest ->
-                            if x < token.length then
+                            if x_ < token.length then
                                 Just token
                             else
-                                getTokenHelper rest (x - token.length)
+                                getTokenHelper rest (x_ - token.length)
 
                         _ ->
                             Nothing
@@ -258,22 +261,22 @@ iterateTokens forward fn lines syntax ( y, x ) lineLimit init =
             -> String
             -> List Token
             -> ( a, Bool )
-        iterateTokensHelper fn init ( y, x1 ) line tokens =
+        iterateTokensHelper fn_ init_ ( y_, x1 ) line tokens =
             case tokens of
                 token :: restTokens ->
                     let
-                        x =
+                        x_ =
                             if x1 == -1 then
                                 String.length line
                             else
                                 x1
 
                         res =
-                            fn
-                                ( y, x )
+                            fn_
+                                ( y_, x_ )
                                 line
                                 token
-                                init
+                                init_
 
                         ( next, stop ) =
                             res
@@ -282,19 +285,19 @@ iterateTokens forward fn lines syntax ( y, x ) lineLimit init =
                             res
                         else
                             iterateTokensHelper
-                                fn
+                                fn_
                                 next
-                                ( y
+                                ( y_
                                 , if forward then
-                                    x + token.length
+                                    x_ + token.length
                                   else
-                                    x - token.length
+                                    x_ - token.length
                                 )
                                 line
                                 restTokens
 
                 _ ->
-                    ( init, False )
+                    ( init_, False )
 
         result =
             Maybe.map2

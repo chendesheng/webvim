@@ -3,19 +3,12 @@ module Update exposing (update, init, initCommand, initMode)
 import Http
 import Task
 import Update.Keymap exposing (keymap)
-import Window as Win exposing (Size)
 import Json.Decode as Decode
 import Model exposing (..)
 import Update.Message exposing (..)
 import Vim.Helper exposing (parseKeys, escapeKey)
 import Vim.AST exposing (AST)
-import Helper.Helper
-    exposing
-        ( fromListBy
-        , safeRegex
-        , normalizePath
-        , nthList
-        )
+import Helper.Helper exposing (fromListBy, normalizePath, nthList, regexWith)
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
@@ -28,8 +21,7 @@ import Regex as Re
 import Update.Service exposing (..)
 import Update.Yank exposing (yank, put)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
-import Elm.Array as Array exposing (Array)
-import Helper.Document as Doc
+import Array as Array exposing (Array)
 import Internal.Jumps exposing (Location)
 import Update.AutoComplete exposing (..)
 import Update.CaseOperator exposing (applyCaseOperator)
@@ -186,19 +178,19 @@ updateMode modeName buf =
             else
                 initMode buf modeName
 
-        setCursor newMode buf =
+        setCursor mode buf_ =
             if oldModeName == V.ModeNameVisual V.VisualBlock then
-                case newMode of
+                case mode of
                     Insert { startCursor } ->
-                        if startCursor /= buf.cursor then
-                            Buf.setCursor startCursor True buf
+                        if startCursor /= buf_.cursor then
+                            Buf.setCursor startCursor True buf_
                         else
-                            buf
+                            buf_
 
                     _ ->
-                        buf
+                        buf_
             else
-                buf
+                buf_
 
         buf1 =
             { buf | mode = newMode }
@@ -249,7 +241,7 @@ repeatInserts oldMode buf =
     case oldMode of
         Insert { startCursor, visual } ->
             case visual of
-                Just ({ tipe, begin, end } as visual) ->
+                Just { tipe, begin, end } ->
                     if
                         (startCursor <= buf.cursor)
                             && (Tuple.first startCursor == Tuple.first buf.cursor)
@@ -354,10 +346,10 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                                 max (x - 1) 0
                             )
 
-                insert buf =
+                insert buf_ =
                     Buf.transaction
-                        (repeatInserts oldMode buf)
-                        buf
+                        (repeatInserts oldMode buf_)
+                        buf_
 
                 changeColumn =
                     if lineDeltaMotion then
@@ -388,15 +380,17 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                     prefix1 =
                         case prefix of
                             ExSearch ({ forward } as search) ->
-                                case
-                                    exbuf.lines
-                                        |> B.toString
-                                        |> String.dropLeft 1
-                                        |> safeRegex
-                                        |> Maybe.map Re.caseInsensitive
-                                of
-                                    Just re ->
-                                        ExSearch
+                                ExSearch <|
+                                    case
+                                        exbuf.lines
+                                            |> B.toString
+                                            |> String.dropLeft 1
+                                            |> regexWith
+                                                { caseInsensitive = True
+                                                , multiline = False
+                                                }
+                                    of
+                                        Just re ->
                                             { search
                                                 | match =
                                                     matchString forward
@@ -411,9 +405,8 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                                                         buf.lines
                                             }
 
-                                    _ ->
-                                        ExSearch
-                                            { search | match = Nothing }
+                                        _ ->
+                                            { search | match = Nothing, highlights = [] }
 
                             _ ->
                                 prefix
@@ -546,28 +539,28 @@ scroll count value buf =
                 |> max 0
                 |> min (B.count buf.lines - 1)
 
-        setCursor buf =
+        setCursor buf_ =
             case count of
                 Just n ->
                     case value of
                         V.ScrollBy _ ->
-                            buf
+                            buf_
 
                         _ ->
                             Buf.setCursor
                                 ( scope (n - 1)
-                                , Tuple.second buf.cursor
+                                , Tuple.second buf_.cursor
                                 )
                                 False
-                                buf
+                                buf_
 
                 _ ->
-                    buf
+                    buf_
 
-        scrollInner buf =
+        scrollInner buf_ =
             let
                 y =
-                    Tuple.first buf.cursor
+                    Tuple.first buf_.cursor
 
                 y1 =
                     case value of
@@ -575,18 +568,18 @@ scroll count value buf =
                             count
                                 |> Maybe.withDefault 1
                                 |> ((*) n)
-                                |> ((+) buf.view.scrollTop)
+                                |> ((+) buf_.view.scrollTop)
 
                         V.ScrollToTop ->
                             y
 
                         V.ScrollToBottom ->
-                            y - buf.view.size.height - 2 + 1
+                            y - buf_.view.size.height - 2 + 1
 
                         V.ScrollToMiddle ->
-                            y - (buf.view.size.height - 2) // 2
+                            y - (buf_.view.size.height - 2) // 2
             in
-                Buf.setScrollTop (scope y1) buf
+                Buf.setScrollTop (scope y1) buf_
     in
         buf
             |> setCursor
@@ -628,7 +621,7 @@ runOperator count register operator buf =
         Yank rg ->
             yank count register rg buf
 
-        Undo ->
+        V.Undo ->
             ( Buf.undo buf, Cmd.none )
 
         Redo ->
@@ -671,15 +664,20 @@ runOperator count register operator buf =
                     ex.exbuf.lines
                         |> B.toString
                         |> String.dropLeft 1
-                        |> flip (execute count register)
-                            { buf
-                                | mode =
-                                    Ex
-                                        { ex
-                                            | exbuf =
-                                                clearExBufAutoComplete ex.exbuf
-                                        }
-                            }
+                        |> (\s ->
+                                execute count
+                                    register
+                                    s
+                                    { buf
+                                        | mode =
+                                            Ex
+                                                { ex
+                                                    | exbuf =
+                                                        clearExBufAutoComplete
+                                                            ex.exbuf
+                                                }
+                                    }
+                           )
 
                 _ ->
                     ( buf, Cmd.none )
@@ -929,12 +927,12 @@ replayKeys s buf =
 
             ( buf1, cmd ) =
                 List.foldl
-                    (\key ( buf, cmd ) ->
+                    (\key ( buf_, cmd_ ) ->
                         let
-                            ( buf1, cmd1 ) =
-                                handleKeypress True key buf
+                            ( buf__, cmd1 ) =
+                                handleKeypress True key buf_
                         in
-                            ( buf1, Cmd.batch [ cmd, cmd1 ] )
+                            ( buf__, Cmd.batch [ cmd_, cmd1 ] )
                     )
                     ( buf, Cmd.none )
                     keys
@@ -959,13 +957,13 @@ editTestBuffer path buf =
             , path = path
         }
         |> Read
-        |> flip update buf
+        |> (\msg -> update msg buf)
 
 
 execute : Maybe Int -> String -> String -> Buffer -> ( Buffer, Cmd Msg )
-execute count register s buf =
+execute count register str buf =
     case
-        s
+        str
             |> String.trim
             |> String.split " "
     of
@@ -1008,7 +1006,7 @@ execute count register s buf =
 
         [ s ] ->
             case String.toInt s of
-                Ok n ->
+                Just n ->
                     runOperator (Just n)
                         register
                         (V.Move V.BufferBottom V.emptyMotionOption)
@@ -1092,67 +1090,54 @@ applyVimAST replaying key ast buf =
             else
                 buf.mode
 
-        saveDotRegister replaying buf =
-            if replaying then
-                buf
+        saveDotRegister replaying_ buf_ =
+            if replaying_ then
+                buf_
             else
                 case recordKeys of
                     "" ->
-                        buf
+                        buf_
 
                     s ->
-                        { buf | dotRegister = s }
+                        { buf_ | dotRegister = s }
 
         lineDeltaMotion =
             edit
                 |> Maybe.map isLineDeltaMotion
                 |> Maybe.withDefault False
 
-        setMatchedCursor oldBuf buf =
+        setMatchedCursor oldBuf buf_ =
             if
-                (pairSource oldBuf /= pairSource buf)
-                    || (oldBuf.view.scrollTop /= buf.view.scrollTop)
-                    || (oldBuf.view.size /= buf.view.size)
-                    || (oldBuf.lines /= buf.lines)
-                    || (oldBuf.syntax /= buf.syntax)
+                (pairSource oldBuf /= pairSource buf_)
+                    || (oldBuf.view.scrollTop /= buf_.view.scrollTop)
+                    || (oldBuf.view.size /= buf_.view.size)
+                    || (oldBuf.lines /= buf_.lines)
+                    || (oldBuf.syntax /= buf_.syntax)
             then
-                pairCursor buf
+                pairCursor buf_
             else
-                buf
+                buf_
 
-        doTokenize oldBuf ( buf, cmds ) =
-            if (oldBuf.path == buf.path) || (Buf.isEditing oldBuf buf) then
-                ( buf, (debounceTokenize 100) :: cmds )
+        doTokenize oldBuf ( buf_, cmds ) =
+            if (oldBuf.path == buf_.path) || (Buf.isEditing oldBuf buf_) then
+                ( buf_, (debounceTokenize 100) :: cmds )
             else
-                ( buf, cmds )
+                ( buf_, cmds )
 
-        doSetTitle oldBuf ( buf, cmds ) =
-            if Buf.isDirty oldBuf /= Buf.isDirty buf then
-                let
-                    prefix =
-                        if Buf.isDirty buf then
-                            "• "
-                        else
-                            ""
-                in
-                    ( buf, Doc.setTitle (prefix ++ buf.name) :: cmds )
-            else
-                ( buf, cmds )
-
-        doLint oldBuf ( buf, cmds ) =
-            if Buf.isEditing oldBuf buf then
+        doLint oldBuf ( buf_, cmds ) =
+            if Buf.isEditing oldBuf buf_ then
                 let
                     delay =
-                        case buf.mode of
+                        case buf_.mode of
                             Insert _ ->
                                 500
 
                             _ ->
                                 0
                 in
-                    ( buf, debounceLint delay :: cmds )
+                    ( buf_, debounceLint delay :: cmds )
             else
-                ( buf, cmds )
+                ( buf_, cmds )
     in
         buf
             |> applyEdit count edit register
@@ -1167,7 +1152,6 @@ applyVimAST replaying key ast buf =
                 )
             |> Tuple.mapSecond List.singleton
             |> doLint buf
-            |> doSetTitle buf
             |> doTokenize buf
             |> Tuple.mapSecond Cmd.batch
 
@@ -1182,7 +1166,7 @@ onTokenized buf resp =
                         syntax1 =
                             buf.syntax
                                 |> Array.slice 0 begin
-                                |> flip Array.append syntax
+                                |> (\s -> Array.append s syntax)
 
                         view =
                             buf.view
@@ -1255,7 +1239,7 @@ applyLintItems items buf =
                 String.isEmpty file
                     || (String.endsWith buf.path file)
                     || String.endsWith
-                        "912ec803b2ce49e4a541068d495ab570.txt"
+                        "912ec803b2ce49e4a541068d495ab570.elm"
                         file
             then
                 buf.path
@@ -1359,10 +1343,10 @@ update message buf =
 
         PressKey key ->
             List.foldl
-                (\key ( buf, cmds ) ->
+                (\key_ ( buf_, cmds ) ->
                     let
                         ( buf1, cmd ) =
-                            handleKeypress False key buf
+                            handleKeypress False key_ buf_
                     in
                         ( buf1, cmd :: cmds )
                 )
@@ -1375,7 +1359,7 @@ update message buf =
 
         ReadClipboard result ->
             case result of
-                Ok ( replaying, key, ast, s ) ->
+                Ok { replaying, key, ast, s } ->
                     buf
                         |> Buf.setRegister "+" (Text s)
                         |> applyVimAST replaying key ast
@@ -1481,14 +1465,14 @@ onReadTags result buf =
                 last =
                     buf.last
 
-                saveLastJumpToTag buf =
-                    { buf
+                saveLastJumpToTag buf_ =
+                    { buf_
                         | last =
                             { last
                                 | jumpToTag =
                                     Just
-                                        { path = buf.path
-                                        , cursor = buf.cursor
+                                        { path = buf_.path
+                                        , cursor = buf_.cursor
                                         }
                             }
                     }
@@ -1565,7 +1549,7 @@ onRead result buf =
             )
 
 
-onWrite : Result Http.Error (List Patch) -> Buffer -> ( Buffer, Cmd Msg )
+onWrite : Result a (List Patch) -> Buffer -> ( Buffer, Cmd Msg )
 onWrite result buf =
     case result of
         Ok patches ->
@@ -1587,7 +1571,7 @@ onWrite result buf =
                 syntaxBottom =
                     buf.syntaxDirtyFrom
 
-                lintCmd buf =
+                lintCmd =
                     if buf1.config.lint then
                         sendLintProject buf1.config.service
                             buf1.config.pathSeperator
@@ -1599,8 +1583,7 @@ onWrite result buf =
             in
                 ( buf1
                 , Cmd.batch
-                    [ Doc.setTitle buf1.name
-                    , lintCmd buf1
+                    [ lintCmd
                     , tokenizeBufferCmd buf1
                     ]
                 )
@@ -1714,8 +1697,5 @@ init flags =
                     |> Result.withDefault []
                     |> fromListBy .path
           }
-        , Cmd.batch <|
-            [ Task.perform Resize Win.size
-            , cmd
-            ]
+        , cmd
         )

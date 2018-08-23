@@ -47,7 +47,7 @@ gulp.task('css', generateCss);
 gulp.task('html', generateHtml);
 gulp.task('js', function() {
   return lock.acquire('elm make', function() {
-    return exec('elm make src/Main.elm --output dist/elm.js --debug --warn');
+    return exec('elm make src/Main.elm --output dist/elm.js');
   });
 });
 

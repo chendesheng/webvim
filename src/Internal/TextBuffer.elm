@@ -28,7 +28,7 @@ module Internal.TextBuffer
         )
 
 import Internal.Position exposing (..)
-import Elm.Array as Array exposing (Array)
+import Array as Array exposing (Array)
 import String
 import List
 
@@ -297,13 +297,13 @@ fromStringHelper s =
 
 
 fromStringList : List String -> Array String
-fromStringList s =
-    if List.isEmpty s then
+fromStringList str =
+    if List.isEmpty str then
         Array.empty
     else
         let
             buf =
-                Array.fromList s
+                Array.fromList str
 
             lastLine =
                 Array.length buf - 1
@@ -344,6 +344,10 @@ append buf1 buf2 =
             buf2
                 |> Array.set 0 (lastLine1 ++ firstLine2)
                 |> Array.append (Array.slice 0 (Array.length buf1 - 1) buf1)
+
+
+flip f a b =
+    f b a
 
 
 {-| slice from a TextBuffer, right side exclusive
@@ -423,16 +427,16 @@ applyInsertion pos (TextBuffer s) buf =
                 ( 0, 0 )
             else
                 let
-                    ( y, x ) =
+                    ( py, px ) =
                         pos
                 in
-                    Array.get y buf
+                    Array.get py buf
                         |> Maybe.map
                             (\line ->
-                                if String.length line <= x then
+                                if String.length line <= px then
                                     -- because of pos < bound,
                                     -- y is not last line
-                                    ( y + 1, 0 )
+                                    ( py + 1, 0 )
                                 else
                                     pos
                             )
@@ -461,9 +465,9 @@ applyInsertion pos (TextBuffer s) buf =
                     0
                   )
             )
-        , top
-            +++ s
-            +++ bottom
+        , bottom
+            |> append s
+            |> append top
             |> TextBuffer
         )
 
@@ -511,7 +515,7 @@ applyDeletion pos1 pos2 buf =
                 slice pos1 pos2 buf |> TextBuffer
 
             res =
-                top +++ bottom
+                append top bottom
         in
             ( Insertion (normalizePos res pos1) deleted
             , TextBuffer res
@@ -530,16 +534,11 @@ applyPatch patch (TextBuffer buf) =
             applyDeletion pos1 pos2 buf
 
 
-(+++) : Array String -> Array String -> Array String
-(+++) =
-    append
-
-
 expandTabs : Int -> Int -> String -> List String
-expandTabs n firstLineOffset s =
+expandTabs n firstLineOffset str =
     let
         lines =
-            String.split lineBreak s
+            String.split lineBreak str
     in
         List.map2
             (\line start ->
@@ -547,7 +546,7 @@ expandTabs n firstLineOffset s =
                     tabIndexes =
                         String.indexes "\t" line
 
-                    ( s, lastTabIndex ) =
+                    ( res, lastTabIndex ) =
                         List.foldl
                             (\i ( s, lasti ) ->
                                 let
@@ -555,7 +554,7 @@ expandTabs n firstLineOffset s =
                                         s ++ String.slice lasti i line
 
                                     cnt =
-                                        n - (String.length s1 + start) % n
+                                        n - modBy n (String.length s1 + start)
 
                                     tabs =
                                         String.repeat cnt " "
@@ -565,7 +564,7 @@ expandTabs n firstLineOffset s =
                             ( "", 0 )
                             tabIndexes
                 in
-                    s ++ String.dropLeft lastTabIndex line
+                    res ++ String.dropLeft lastTabIndex line
             )
             lines
             (firstLineOffset :: List.repeat (List.length lines - 1) 0)

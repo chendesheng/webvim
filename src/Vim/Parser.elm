@@ -4,7 +4,8 @@ import Vim.AST exposing (..)
 import Vim.Helper exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Register exposing (..)
-import Regex as Re exposing (regex)
+import Regex as Re
+import Helper.Helper exposing (regex)
 
 
 -- This parser is crazy, too much edge cases,
@@ -352,8 +353,8 @@ gOperator =
                             (mapHead
                                 (\item ->
                                     case item of
-                                        PushKey key ->
-                                            PushKey ("g" ++ key)
+                                        PushKey gkey ->
+                                            PushKey ("g" ++ gkey)
 
                                         _ ->
                                             item
@@ -715,7 +716,7 @@ operator isVisual isTemp =
                         let
                             modeDelta =
                                 [ PushCount cnt
-                                , PushKey (toString cnt)
+                                , PushKey (String.fromInt cnt)
                                 ]
                         in
                             (P.oneOf
@@ -1000,7 +1001,7 @@ visual =
             , P.symbol "V"
             , P.symbol "<c-v>"
             ]
-            |> P.source
+            |> P.getChompedString
             |> P.andThen
                 (\key ->
                     P.oneOf
@@ -1024,7 +1025,7 @@ visual =
                                     , P.symbol "<esc>"
                                     , P.end
                                     ]
-                                    |> P.source
+                                    |> P.getChompedString
                                )
                         , P.succeed
                             ((++)
@@ -1066,7 +1067,7 @@ macro isVisual =
                             ]
                             |> dontRecord
                     else
-                        P.fail ("unknown register: " ++ key)
+                        P.problem ("unknown register: " ++ key)
                 )
             |> P.andThen
                 (\modeDelta ->
@@ -1087,7 +1088,7 @@ macro isVisual =
 
 containsOnlyDigits : String -> Bool
 containsOnlyDigits =
-    Re.find (Re.AtMost 1) (regex "[^\\d]")
+    Re.findAtMost 1 (regex "[^\\d]")
         >> List.isEmpty
 
 
@@ -1098,8 +1099,9 @@ parse lastKeys key =
     else
         let
             keys =
-                lastKeys
+                (lastKeys
                     ++ escapeKey key
+                )
 
             --|> Debug.log "keys"
             modeDelta =
@@ -1118,13 +1120,13 @@ parse lastKeys key =
               , recordKeys =
                     if String.isEmpty continuation then
                         let
-                            keys =
+                            keys_ =
                                 aggregateRecordKeys modeDelta
                         in
                             if containsOnlyDigits keys then
                                 ""
                             else
-                                keys
+                                keys_
                         --|> Debug.log "recordKeys"
                     else
                         ""

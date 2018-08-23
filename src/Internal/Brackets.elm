@@ -1,6 +1,6 @@
 module Internal.Brackets exposing (..)
 
-import Regex as Re exposing (Regex, regex)
+import Regex as Re exposing (Regex)
 import Internal.Syntax
     exposing
         ( Syntax
@@ -13,6 +13,7 @@ import Internal.Syntax
 import Internal.TextBuffer as B exposing (TextBuffer)
 import Internal.Position exposing (Position)
 import Parser as P exposing ((|.), (|=), Parser)
+import Helper.Helper exposing (regex)
 
 
 isBracket : Char -> Bool
@@ -24,8 +25,10 @@ isBracket c =
 bracketsParser : Parser Int
 bracketsParser =
     P.succeed String.length
-        |= P.keep P.zeroOrMore (isBracket >> not)
-        |. P.keep (P.Exactly 1) isBracket
+        |= (P.chompWhile (isBracket >> not)
+                |> P.getChompedString
+           )
+        |. P.chompIf isBracket
 
 
 bracket : String -> Maybe ( String, Regex, Bool )
@@ -79,13 +82,13 @@ pairBracket top bottom lines syntax ( y, x ) c =
                         let
                             --_ =
                             --Debug.log "iterateTokens" ( forward, pos, line, token, blance )
-                            ( y, x ) =
+                            ( y_, x_ ) =
                                 pos
 
-                            matchBracket blance begin s =
+                            matchBracket blance_ begin s =
                                 case
                                     s
-                                        |> Re.find (Re.AtMost 1) regexBrackets
+                                        |> Re.findAtMost 1 regexBrackets
                                         |> List.head
                                     --|> Debug.log "matchBracket"
                                 of
@@ -93,14 +96,14 @@ pairBracket top bottom lines syntax ( y, x ) c =
                                         let
                                             blance1 =
                                                 if toMatch == match then
-                                                    blance - 1
+                                                    blance_ - 1
                                                 else
-                                                    blance + 1
+                                                    blance_ + 1
                                         in
                                             if blance1 == 0 then
                                                 ( ( blance1
                                                   , Just
-                                                        ( y
+                                                        ( y_
                                                         , begin
                                                             + if forward then
                                                                 index
@@ -126,12 +129,12 @@ pairBracket top bottom lines syntax ( y, x ) c =
                             if tokenType == token.tipe then
                                 line
                                     |> (if forward then
-                                            String.slice x (x + token.length)
+                                            String.slice x_ (x_ + token.length)
                                         else
-                                            String.slice (x - token.length) x
+                                            String.slice (x_ - token.length) x_
                                                 >> String.reverse
                                        )
-                                    |> matchBracket blance x
+                                    |> matchBracket blance x_
                             else
                                 ( ( blance, Nothing ), False )
                     )

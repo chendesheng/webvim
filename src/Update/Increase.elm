@@ -5,6 +5,7 @@ import Char exposing (toUpper, toLower)
 import Update.Buffer as Buf
 import Internal.TextBuffer as B exposing (Patch(..))
 import Parser as P exposing ((|.), (|=), Parser)
+import Helper.Helper exposing (keepOneOrMore)
 
 
 numParser : Parser ( Int, Int, Int )
@@ -15,11 +16,11 @@ numParser =
             , String.length s
             , s
                 |> String.toInt
-                |> Result.withDefault 0
+                |> Maybe.withDefault 0
             )
         )
-        |= P.keep P.zeroOrMore (Char.isDigit >> not)
-        |= P.keep P.oneOrMore Char.isDigit
+        |= P.getChompedString (P.chompWhile (Char.isDigit >> not))
+        |= keepOneOrMore Char.isDigit
 
 
 increaseNumber : Maybe Int -> Bool -> Buffer -> Buffer
@@ -83,7 +84,7 @@ increaseNumber count larger buf =
                                             )
                                         , n1
                                             |> ((+) delta)
-                                            |> toString
+                                            |> String.fromInt
                                             |> B.fromString
                                             |> Insertion cursor
                                         ]

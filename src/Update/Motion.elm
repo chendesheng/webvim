@@ -18,14 +18,14 @@ import Update.Buffer as Buf
 import Internal.Position exposing (Position, excludeRight)
 import String
 import Internal.PositionClass exposing (..)
-import Regex as Re exposing (regex)
+import Regex as Re
 import Internal.Jumps exposing (saveJump)
 import Update.Message exposing (Msg(..))
 import Internal.TextObject exposing (wordUnderCursor, wORDUnderCursor)
-import Helper.Helper exposing (repeatfn, safeRegex)
+import Helper.Helper exposing (repeatfn, regex, regexWith, escapeRegex)
 import Internal.Brackets exposing (pairBracketAt, bracketsParser)
 import Parser as P
-import Elm.Array as Array
+import Array as Array
 
 
 setVisualBegin : Position -> Buffer -> Buffer
@@ -95,9 +95,9 @@ setVisualEnd pos buf =
 wholeWord : String -> String
 wholeWord s =
     if Re.contains (regex "\\w") s then
-        "\\b" ++ Re.escape s ++ "\\b"
+        "\\b" ++ escapeRegex s ++ "\\b"
     else
-        Re.escape s
+        escapeRegex s
 
 
 saveMotion : V.MotionData -> V.MotionOption -> Buffer -> Buffer -> Buffer
@@ -177,11 +177,11 @@ findPositionInBuffer :
     -> Maybe Position
 findPositionInBuffer md mo y x wordChars lines =
     let
-        findPositionInBufferInner md mo y x target line wordChars lines =
-            case findPosition wordChars md mo target x of
+        findPositionInBufferInner y_ x_ target line =
+            case findPosition wordChars md mo target x_ of
                 Just x1 ->
                     Just
-                        ( y
+                        ( y_
                         , if mo.forward then
                             x1 - (String.length target - String.length line)
                           else
@@ -191,32 +191,24 @@ findPositionInBuffer md mo y x wordChars lines =
                 Nothing ->
                     if mo.crossLine then
                         if mo.forward then
-                            case B.getLine (y + 1) lines of
+                            case B.getLine (y_ + 1) lines of
                                 Just nextLine ->
                                     findPositionInBufferInner
-                                        md
-                                        mo
-                                        (y + 1)
-                                        x
+                                        (y_ + 1)
+                                        x_
                                         (target ++ nextLine)
                                         nextLine
-                                        wordChars
-                                        lines
 
                                 _ ->
                                     Nothing
                         else
-                            case B.getLine (y - 1) lines of
+                            case B.getLine (y_ - 1) lines of
                                 Just nextLine ->
                                     findPositionInBufferInner
-                                        md
-                                        mo
-                                        (y - 1)
-                                        (x + String.length nextLine)
+                                        (y_ - 1)
+                                        (x_ + String.length nextLine)
                                         (nextLine ++ target)
                                         nextLine
-                                        wordChars
-                                        lines
 
                                 _ ->
                                     Nothing
@@ -225,7 +217,7 @@ findPositionInBuffer md mo y x wordChars lines =
     in
         case B.getLine y lines of
             Just line ->
-                findPositionInBufferInner md mo y x line line wordChars lines
+                findPositionInBufferInner y x line line
 
             _ ->
                 Nothing
@@ -253,26 +245,26 @@ gotoMatchedString count mo buf =
                                 not forward
 
                         maybeRe =
-                            s
-                                |> safeRegex
-                                |> Maybe.map Re.caseInsensitive
+                            regexWith
+                                { caseInsensitive = True, multiline = False }
+                                s
 
                         findNext re cursor =
-                            Maybe.map Tuple.first
-                                (matchString forward1
+                            Maybe.map Tuple.first <|
+                                matchString forward1
                                     re
                                     cursor
                                     buf.lines
-                                )
                     in
-                        Maybe.andThen
-                            (\re ->
+                        case maybeRe of
+                            Just re ->
                                 repeatfn
                                     (Maybe.withDefault 1 count)
                                     (findNext re)
                                     buf.cursor
-                            )
-                            maybeRe
+
+                            _ ->
+                                Nothing
 
                 _ ->
                     Nothing
@@ -301,7 +293,7 @@ matchStringForward re cursor (( y, x ) as start) lines =
         Just line ->
             case
                 line
-                    |> Re.find Re.All re
+                    |> Re.find re
                     |> List.filter (\m -> ( y, m.index ) >= start)
             of
                 m :: rest ->
@@ -347,7 +339,7 @@ matchStringBackward re cursor end lines =
             Just line ->
                 case
                     line
-                        |> Re.find Re.All re
+                        |> Re.find re
                         |> List.filter (\m -> ( y, m.index ) < end)
                         |> List.reverse
                 of
@@ -385,7 +377,7 @@ matchAllStrings re begin end lines =
             end
             (\i line ->
                 line
-                    |> Re.find Re.All re
+                    |> Re.find re
                     |> List.map
                         (\m ->
                             excludeRight
@@ -460,15 +452,15 @@ runMotion count md mo buf =
         Nothing
     else
         let
-            bottomLine buf =
+            bottomLine buf_ =
                 (min
-                    (B.count buf.lines - 1)
-                    (buf.view.scrollTop + buf.view.size.height)
+                    (B.count buf_.lines - 1)
+                    (buf_.view.scrollTop + buf_.view.size.height)
                 )
                     - 1
 
-            middleLine buf =
-                (bottomLine buf + buf.view.scrollTop) // 2
+            middleLine buf_ =
+                (bottomLine buf_ + buf_.view.scrollTop) // 2
         in
             case md of
                 V.BufferTop ->
@@ -572,15 +564,18 @@ runMotion count md mo buf =
                                 |> Maybe.andThen
                                     (\res ->
                                         let
-                                            ( begin, str ) =
+                                            ( begin, str_ ) =
                                                 res
 
-                                            re =
-                                                wholeWord str
-                                                    |> Re.regex
-                                                    |> Re.caseInsensitive
+                                            maybeRe =
+                                                regexWith
+                                                    { caseInsensitive = True
+                                                    , multiline = False
+                                                    }
+                                                <|
+                                                    wholeWord str_
 
-                                            findNext cursor =
+                                            findNext re cursor =
                                                 Maybe.map Tuple.first
                                                     (matchString mo.forward
                                                         re
@@ -588,10 +583,17 @@ runMotion count md mo buf =
                                                         buf.lines
                                                     )
                                         in
-                                            repeatfn
-                                                (Maybe.withDefault 1 count)
-                                                findNext
-                                                buf.cursor
+                                            case maybeRe of
+                                                Just re ->
+                                                    repeatfn
+                                                        (Maybe.withDefault 1
+                                                            count
+                                                        )
+                                                        (findNext re)
+                                                        buf.cursor
+
+                                                _ ->
+                                                    Nothing
                                     )
 
                         _ ->
@@ -606,7 +608,7 @@ runMotion count md mo buf =
                             in
                                 n
                                     |> toFloat
-                                    |> flip (/) 100
+                                    |> (\x -> x / 100)
                                     |> (*) (toFloat cnt)
                                     |> ceiling
                                     |> (\x -> x - 1)
@@ -836,8 +838,8 @@ isSaveColumn md =
 saveCursorBeforeJump : V.MotionData -> Position -> Buffer -> Buffer
 saveCursorBeforeJump md cursorAfter buf =
     let
-        isJump md =
-            case md of
+        isJump md_ =
+            case md_ of
                 V.BufferTop ->
                     True
 

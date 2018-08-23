@@ -17,6 +17,7 @@ import Internal.TextBuffer
         ( Patch
         , shiftPositionByPatch
         )
+import String exposing (fromInt)
 
 
 type alias Location =
@@ -46,20 +47,20 @@ jumpsToString { backwards, forwards } =
                 ( y, x ) =
                     cursor
             in
-                path ++ ":" ++ toString y ++ ":" ++ toString x
+                path ++ ":" ++ fromInt y ++ ":" ++ fromInt x
 
         joinStr s1 s2 =
             s1 ++ "\n\t\t↑\n" ++ s2
 
-        backwardsToString backwards =
+        backwardsToString backwards_ =
             List.foldl (\loc res -> joinStr res (locationToString loc))
                 ""
-                backwards
+                backwards_
 
-        forwardsToString backwards =
+        forwardsToString forwards_ =
             List.foldl (\loc res -> joinStr (locationToString loc) res)
                 ""
-                forwards
+                forwards_
     in
         backwards
             |> backwardsToString

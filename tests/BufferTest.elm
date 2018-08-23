@@ -15,7 +15,7 @@ import Model
 import Internal.TextBuffer as B exposing (Patch(..))
 import TextBuffer exposing (..)
 import Internal.Syntax exposing (TokenType(..), iterateTokens)
-import Elm.Array as Array
+import Array as Array
 import Internal.Brackets exposing (pairBracketAt)
 
 

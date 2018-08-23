@@ -57,8 +57,8 @@ yank count register range buf =
 put : String -> Bool -> Buffer -> Buffer
 put register forward buf =
     let
-        removeRegister reg buf =
-            { buf | registers = Dict.remove reg buf.registers }
+        removeRegister reg buf_ =
+            { buf_ | registers = Dict.remove reg buf_.registers }
     in
         Dict.get register buf.registers
             |> Maybe.map

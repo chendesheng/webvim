@@ -24,7 +24,7 @@ import Data.String as Str
 
 tempfile :: String
 tempfile =
-    Path.concat [tempdir, "912ec803b2ce49e4a541068d495ab570.txt"]
+    Path.concat [tempdir, "912ec803b2ce49e4a541068d495ab570.elm"]
 
 
 findProjectDir :: String -> String -> Aff (Maybe String)
@@ -45,11 +45,11 @@ elmLint req resp path = do
   let inputStream = requestAsStream req
       outputStream = responseAsStream resp
   absolutePath <- FS.realpath $ Path.normalize path
-  cwd <- findProjectDir "elm-package.json" absolutePath
+  cwd <- findProjectDir "elm.json" absolutePath
   void $ affLog ("elmLint: " <> absolutePath <> " in " <> show cwd)
-  result <- execAsync cwd ("elm-make "
+  result <- execAsync cwd ("elm make "
                           <> absolutePath
-                          <> "  --yes --warn --report=json --output=/dev/null"
+                          <> " --report=json --output=/dev/null"
                           )
                           Nothing
   stdoutStr <- affBufferToString result.stdout
@@ -92,14 +92,14 @@ elmLintOnTheFly req resp path = do
   let inputStream = requestAsStream req
       outputStream = responseAsStream resp
   absolutePath <- FS.realpath $ Path.normalize path
-  cwd <- findProjectDir "elm-package.json" absolutePath
+  cwd <- findProjectDir "elm.json" absolutePath
   void $ affLog ("elmLintOnTheFly: " <> absolutePath <> " in " <> show cwd)
   liftEffect $ do
       fileStream <- createWriteStream tempfile
       void $ pipe inputStream fileStream
-  result <- execAsync cwd ("elm-make "
+  result <- execAsync cwd ("elm make "
                           <> tempfile
-                          <> "  --yes --warn --report=json --output=/dev/null"
+                          <> " --report=json --output=/dev/null"
                           )
                           Nothing
   stdoutStr <- affBufferToString result.stdout

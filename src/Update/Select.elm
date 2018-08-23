@@ -17,7 +17,7 @@ select count textobj around buf =
              else if buf.cursor == max begin end then
                 Tuple.mapSecond ((+) 1) (max begin end)
              else
-                Tuple.mapSecond (flip (-) 1) (min begin end)
+                Tuple.mapSecond (\n -> n - 1) (min begin end)
             )
                 |> expandTextObject buf.config.wordChars
                     buf.view.scrollTop

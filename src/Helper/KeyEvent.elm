@@ -105,7 +105,15 @@ decodeKeyboardEvent =
         (field "metaKey" bool)
         (field "repeat" bool)
         (field "shiftKey" bool)
-        |> map toKey
+        |> andThen
+            (\e ->
+                case toKey e of
+                    "" ->
+                        fail "empty key"
+
+                    key ->
+                        succeed key
+            )
 
 
 keycodeMap : Dict.Dict Int String
@@ -306,7 +314,8 @@ toKey : KeyboardEvent -> String
 toKey { ctrlKey, altKey, shiftKey, keyCode } =
     let
         key =
-            mapKeyCode keyCode
+            mapKeyCode (Debug.log "keyCode" keyCode)
+                |> Debug.log "mapKeyCode"
 
         quote k =
             if String.length k > 1 then

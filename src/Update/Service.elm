@@ -9,7 +9,7 @@ import Update.Message
         , BufferIdentifier
         )
 import Json.Decode as Decode exposing (decodeString)
-import Elm.Array as Array
+import Array as Array
 import Bitwise as Bit
 import Internal.Syntax exposing (Token, TokenType(..))
 import List
@@ -18,11 +18,13 @@ import Char
 import Vim.AST exposing (AST)
 import Helper.Helper
     exposing
-        ( levenshtein
-        , isSpace
+        ( isSpace
         , notSpace
         , joinPath
         , normalizePath
+        , regex
+        , oneOrMore
+        , keepOneOrMore
         )
 import Internal.TextBuffer as B
 import Internal.Jumps exposing (Location)
@@ -53,7 +55,7 @@ eslintResultDecoder =
                 |> Decode.andThen
                     (\start ->
                         Decode.map
-                            ((,) start)
+                            (Tuple.pair start)
                             endPositionDecoder
                             |> Decode.maybe
                             |> Decode.map (Maybe.withDefault ( start, start ))
@@ -171,8 +173,8 @@ sendReadBuffer url tokenizeLines tabSize info =
                                             , content = ( lines, syntax )
                                             }
 
-                                        TokenizeError s ->
-                                            if s == "noextension" then
+                                        TokenizeError err ->
+                                            if err == "noextension" then
                                                 { syntax = False
                                                 , content = ( lines, Array.empty )
                                                 }
@@ -230,22 +232,28 @@ sendWriteBuffer url path buf =
         |> Http.post
             (url ++ "/write?path=" ++ path)
             (Http.stringBody "text/plain" <| B.toString buf.lines)
-        |> Http.send Write
+        |> Http.send
+            (\res ->
+                Write <|
+                    Result.mapError errorMessage res
+            )
 
 
 cannotFindModuleError : String -> B.TextBuffer -> Parser LintError
 cannotFindModuleError path lines =
     let
-        findRegion name lines =
-            lines
+        findRegion name lines_ =
+            lines_
                 |> B.findFirstLine
                     (\line i ->
                         line
                             |> P.run
                                 (P.succeed identity
                                     |. P.symbol "import"
-                                    |. P.ignoreUntil name
-                                    |. P.ignore P.oneOrMore isSpace
+                                    |. P.chompUntil name
+                                    |. P.symbol name
+                                    |. P.chompIf isSpace
+                                    |. P.chompWhile isSpace
                                 )
                             |> Result.toMaybe
                             |> Maybe.map (always i)
@@ -261,12 +269,12 @@ cannotFindModuleError path lines =
         (P.succeed
             identity
             |. P.symbol "I cannot find module '"
-            |= P.keep P.oneOrMore (\c -> c /= '\'')
-            |. P.keep P.zeroOrMore (always True)
+            |= keepOneOrMore (\c -> c /= '\'')
+            |. P.chompWhile (always True)
             |. P.end
         )
-            |> P.sourceMap
-                (\details name ->
+            |> P.mapChompedString
+                (\name details ->
                     { tipe = "error"
                     , tag = Nothing
                     , file = path
@@ -287,7 +295,7 @@ syntaxErrorParser =
                     y - 1
 
                 x1 =
-                    x - (toString y1 ++ "| " |> String.length)
+                    x - (String.fromInt y1 ++ "| " |> String.length)
             in
                 { tipe = "error"
                 , tag = Just tag
@@ -298,28 +306,28 @@ syntaxErrorParser =
                 , subRegion = Nothing
                 }
         )
-        |. P.ignore P.oneOrMore (\c -> c == '-' || c == ' ')
-        |= ((P.succeed identity
-                |. P.keep P.oneOrMore Char.isUpper
-                |. P.keep P.oneOrMore ((==) ' ')
-                |. P.keep P.oneOrMore Char.isUpper
-            )
-                |> P.source
+        |. oneOrMore (\c -> c == '-' || c == ' ')
+        |= (oneOrMore Char.isUpper
+                |. oneOrMore ((==) ' ')
+                |. oneOrMore Char.isUpper
+                |> P.getChompedString
            )
-        |. P.ignore P.oneOrMore (\c -> c == '-' || c == ' ')
-        |= P.keep P.oneOrMore ((/=) '\n')
-        |= (P.keep P.zeroOrMore (Char.isDigit >> not)
-                |> P.source
+        |. oneOrMore (\c -> c == '-' || c == ' ')
+        |= keepOneOrMore ((/=) '\n')
+        |= (P.chompWhile (Char.isDigit >> not)
+                |> P.getChompedString
                 |> P.map String.trim
            )
-        |= (P.keep P.oneOrMore Char.isDigit
-                |> P.map (String.toInt >> Result.withDefault 0)
+        |= (keepOneOrMore Char.isDigit
+                |> P.map (String.toInt >> Maybe.withDefault 0)
            )
-        |. P.ignoreUntil "\n"
-        |= (P.keep P.zeroOrMore ((/=) '^') |> P.source |> P.map String.length)
-        |. P.ignoreUntil "\n"
-        |= (P.keep P.zeroOrMore (always True)
-                |> P.source
+        |. P.chompUntil "\n"
+        |. P.symbol "\n"
+        |= (P.chompWhile ((/=) '^') |> P.getChompedString |> P.map String.length)
+        |. P.chompUntil "\n"
+        |. P.symbol "\n"
+        |= (P.chompWhile (always True)
+                |> P.getChompedString
                 |> P.map String.trim
            )
 
@@ -328,12 +336,12 @@ parseElmMakeResponse :
     String
     -> String
     -> B.TextBuffer
-    -> Result a String
+    -> Result Http.Error String
     -> Result String (List LintError)
 parseElmMakeResponse sep path lines resp =
-    case Result.mapError toString resp of
+    case resp of
         Ok ss ->
-            case Re.split (Re.AtMost 1) (Re.regex "\n") ss of
+            case Re.splitAtMost 1 (regex "\n") ss of
                 [ dir, s ] ->
                     if String.trim s == "Successfully generated /dev/null" then
                         Ok []
@@ -398,14 +406,14 @@ parseElmMakeResponse sep path lines resp =
                     Ok []
 
         Err err ->
-            Err err
+            Err (errorMessage err)
 
 
 parseLintResult :
     String
     -> String
     -> B.TextBuffer
-    -> Result a String
+    -> Result Http.Error String
     -> Result String (List LintError)
 parseLintResult sep path lines =
     if String.endsWith ".elm" path then
@@ -415,9 +423,10 @@ parseLintResult sep path lines =
             case result of
                 Ok s ->
                     decodeString eslintResultDecoder s
+                        |> Result.mapError Decode.errorToString
 
                 Err err ->
-                    Err <| toString err
+                    Err <| errorMessage err
         )
 
 
@@ -512,7 +521,7 @@ unpackClass startIndex endIndex n =
                 |> Bit.shiftRightZfBy token_type_offset
     in
         { length = endIndex - startIndex
-        , classname = "mtk" ++ (toString foreground) ++ fontStyle
+        , classname = "mtk" ++ (String.fromInt foreground) ++ fontStyle
         , tipe =
             case tokenType of
                 1 ->
@@ -537,11 +546,11 @@ tokensParser =
                 let
                     ( indexes, classes ) =
                         tokens
-                            |> List.map2 (,)
+                            |> List.map2 Tuple.pair
                                 (List.range 0 <|
                                     List.length tokens
                                 )
-                            |> List.partition (Tuple.first >> \n -> n % 2 == 0)
+                            |> List.partition (Tuple.first >> \n -> modBy 2 n == 0)
                             |> (\item ->
                                     let
                                         ( a, b ) =
@@ -594,7 +603,7 @@ tokenizeResponseDecoder n =
 sendTokenizeTask :
     String
     -> TokenizeRequest
-    -> Task Http.Error TokenizeResponse
+    -> Task String TokenizeResponse
 sendTokenizeTask url { path, line, lines } =
     tokenizeResponseDecoder line
         |> Http.post
@@ -602,10 +611,11 @@ sendTokenizeTask url { path, line, lines } =
                 ++ "/tokenize?path="
                 ++ path
                 ++ "&line="
-                ++ (toString line)
+                ++ (String.fromInt line)
             )
             (Http.stringBody "text/plain" lines)
         |> Http.toTask
+        |> Task.mapError errorMessage
 
 
 sendTokenize : String -> TokenizeRequest -> Cmd Msg
@@ -644,7 +654,7 @@ sendTokenizeLine url req =
         (sendTokenize url req)
 
 
-parseFileList : String -> Result a String -> Result String (List String)
+parseFileList : String -> Result Http.Error String -> Result String (List String)
 parseFileList sep resp =
     case resp of
         Ok s ->
@@ -654,7 +664,7 @@ parseFileList sep resp =
                 |> Ok
 
         Err err ->
-            Err <| toString err
+            Err <| errorMessage err
 
 
 sendListFiles : String -> String -> String -> Cmd Msg
@@ -667,7 +677,14 @@ sendReadClipboard : Bool -> Key -> String -> AST -> Cmd Msg
 sendReadClipboard replaying key url op =
     Http.getString (url ++ "/clipboard")
         |> Http.send
-            (Result.map (\s -> ( replaying, key, op, s ))
+            (Result.map
+                (\s ->
+                    { replaying = replaying
+                    , key = key
+                    , ast = op
+                    , s = s
+                    }
+                )
                 >> ReadClipboard
             )
 
@@ -683,39 +700,49 @@ sendWriteClipboard url str =
         , timeout = Nothing
         , withCredentials = False
         }
-        |> Http.send WriteClipboard
+        |> Http.send
+            (\result ->
+                WriteClipboard <|
+                    Result.mapError errorMessage result
+            )
 
 
 ctagsParser : String -> Parser (List Location)
 ctagsParser sep =
-    P.succeed
-        (\path x y ->
-            { cursor = ( y - 1, x ), path = normalizePath sep path }
+    P.loop []
+        (\locations ->
+            P.oneOf
+                [ P.succeed
+                    (\path x y ->
+                        P.Loop ({ cursor = ( y - 1, x ), path = normalizePath sep path } :: locations)
+                    )
+                    |. oneOrMore notSpace
+                    |. oneOrMore isSpace
+                    |= keepOneOrMore notSpace
+                    |= (P.succeed String.length
+                            |. P.chompUntil "/^"
+                            |. P.symbol "/^"
+                            |= P.oneOf
+                                [ keepOneOrMore isSpace
+                                , P.succeed ""
+                                ]
+                       )
+                    |. P.chompUntil "line:"
+                    |. P.symbol "line:"
+                    |= P.int
+                    |. P.chompUntil "\n"
+                    |. P.symbol "\n"
+                    |. P.chompWhile isSpace
+                , P.succeed (P.Done locations)
+                    |. P.end
+                ]
         )
-        |. P.ignore P.oneOrMore notSpace
-        |. P.ignore P.oneOrMore isSpace
-        |= P.keep P.oneOrMore notSpace
-        |= (P.succeed String.length
-                |. P.ignoreUntil "/^"
-                |= P.oneOf
-                    [ P.keep P.oneOrMore isSpace
-                    , P.succeed ""
-                    ]
-           )
-        |. P.ignoreUntil "line:"
-        |= P.int
-        |. P.ignoreUntil "\n"
-        |. P.ignore P.zeroOrMore isSpace
-        |> P.repeat P.oneOrMore
 
 
 pickClosest : String -> Int -> List Location -> Maybe Location
 pickClosest path index locs =
     locs
-        |> List.sortBy
-            (\loc ->
-                levenshtein path loc.path
-            )
+        |> List.sortBy .path
         |> Array.fromList
         |> Array.get index
 
@@ -726,7 +753,7 @@ sendReadTags url sep cwd path index name =
         |> Http.send
             (\result ->
                 result
-                    |> Result.mapError toString
+                    |> Result.mapError errorMessage
                     |> Result.andThen
                         (\s ->
                             P.run (ctagsParser sep) s
@@ -748,13 +775,21 @@ sendReadTags url sep cwd path index name =
 sendSearch : String -> String -> String -> Cmd Msg
 sendSearch url cwd s =
     Http.getString (url ++ "/search?s=" ++ s ++ "&cwd=" ++ cwd)
-        |> Http.send SearchResult
+        |> Http.send
+            (\res ->
+                SearchResult <|
+                    Result.mapError errorMessage res
+            )
 
 
 sendCd : String -> String -> Cmd Msg
 sendCd url cwd =
     Http.getString (url ++ "/cd?cwd=" ++ cwd)
-        |> Http.send SetCwd
+        |> Http.send
+            (\res ->
+                SetCwd <|
+                    Result.mapError errorMessage res
+            )
 
 
 bootDecoder : Flags -> Decode.Decoder Flags
@@ -777,4 +812,27 @@ bootDecoder flags =
 sendBoot : Flags -> Cmd Msg
 sendBoot ({ service } as flags) =
     Http.get (service ++ "/boot") (bootDecoder flags)
-        |> Http.send Boot
+        |> Http.send
+            (\result ->
+                Boot <|
+                    Result.mapError errorMessage result
+            )
+
+
+errorMessage : Http.Error -> String
+errorMessage err =
+    case err of
+        Http.BadUrl s ->
+            "BadUrl: " ++ s
+
+        Http.Timeout ->
+            "Timeout"
+
+        Http.NetworkError ->
+            "NetworkError"
+
+        Http.BadStatus { status } ->
+            "NetworkError: " ++ String.fromInt status.code
+
+        Http.BadPayload s _ ->
+            "BadPayload: " ++ s

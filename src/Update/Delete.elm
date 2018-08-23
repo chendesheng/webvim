@@ -43,48 +43,48 @@ deleteOperator count range buf =
 delete : Maybe Int -> String -> V.OperatorRange -> Buffer -> Buffer
 delete count register rg buf =
     let
-        updateCursorColumn buf =
-            { buf | cursorColumn = Tuple.second buf.cursor }
+        updateCursorColumn buf_ =
+            { buf_ | cursorColumn = Tuple.second buf_.cursor }
 
         linewise =
             isLinewise rg buf.mode
 
-        deleteAnd f buf =
-            case deleteOperator count rg buf of
+        deleteAnd f buf_ =
+            case deleteOperator count rg buf_ of
                 [] ->
                     let
                         last =
-                            buf.last
+                            buf_.last
 
-                        setMotionFailed buf =
-                            { buf | last = { last | motionFailed = True } }
+                        setMotionFailed buf__ =
+                            { buf__ | last = { last | motionFailed = True } }
                     in
                         case rg of
                             V.MotionRange md _ ->
                                 case md of
                                     V.MatchString _ ->
-                                        setMotionFailed buf
+                                        setMotionFailed buf_
 
                                     V.MatchChar _ _ ->
-                                        setMotionFailed buf
+                                        setMotionFailed buf_
 
                                     _ ->
-                                        buf
+                                        buf_
 
                             _ ->
-                                buf
+                                buf_
 
                 patches ->
                     let
-                        setCursor buf =
+                        setCursor buf__ =
                             case getLast patches of
                                 Just (Deletion b e) ->
-                                    Buf.setCursor b True buf
+                                    Buf.setCursor b True buf__
 
                                 _ ->
-                                    buf
+                                    buf__
                     in
-                        buf
+                        buf_
                             |> Buf.transaction patches
                             |> setCursor
                             |> f

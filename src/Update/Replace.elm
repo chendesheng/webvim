@@ -8,6 +8,7 @@ import Internal.Position exposing (Position)
 import Update.Insert exposing (..)
 import Update.Range exposing (operatorRanges)
 import Regex as Re
+import Helper.Helper exposing (regex)
 
 
 replaceChar : String -> Buffer -> Buffer
@@ -29,7 +30,7 @@ replaceRegion ch b e buf =
             buf.lines
                 |> B.sliceRegion b e
                 |> B.toString
-                |> Re.replace Re.All (Re.regex "[^\x0D\n]") (always ch)
+                |> Re.replace (regex "[^\u{000D}\n]") (always ch)
                 |> B.fromString
     in
         buf
@@ -51,12 +52,12 @@ applyReplace count ch buf =
         TempNormal ->
             buf
                 |> replaceChar ch
-                |> (\buf ->
+                |> (\buf_ ->
                         let
                             ( y, x ) =
-                                buf.cursor
+                                buf_.cursor
                         in
-                            Buf.setCursor ( y, max 0 (x - 1) ) True buf
+                            Buf.setCursor ( y, max 0 (x - 1) ) True buf_
                    )
 
         Visual _ ->
@@ -66,7 +67,7 @@ applyReplace count ch buf =
                         |> List.reverse
             in
                 List.foldl
-                    (\( b, e ) buf -> replaceRegion ch b e buf)
+                    (\( b, e ) -> replaceRegion ch b e )
                     buf
                     regions
 

@@ -12,7 +12,7 @@ import Vim.AST exposing (ModeName(..), VisualType(..))
 import Helper.Helper exposing (getLast, arrayInsert, isSpace, findIndex)
 import Internal.Position exposing (Position)
 import Regex as Re
-import Elm.Array as Array
+import Array as Array
 import Update.Buffer as Buf
 
 

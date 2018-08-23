@@ -20,8 +20,7 @@ import Update.Buffer as Buf
 import Dict exposing (Dict)
 import Parser as P exposing ((|.), (|=), Parser)
 import Update.Service exposing (..)
-import Elm.Array as Array exposing (Array)
-import Helper.Document as Doc
+import Array as Array exposing (Array)
 import Internal.Jumps
     exposing
         ( saveJump
@@ -135,10 +134,10 @@ jumpToPath isSaveJump path_ overrideCursor buf =
             buf.buffers
                 |> Dict.get path
                 |> Maybe.map
-                    (\info ->
-                        { info
+                    (\info_ ->
+                        { info_
                             | cursor =
-                                Maybe.withDefault info.cursor overrideCursor
+                                Maybe.withDefault info_.cursor overrideCursor
                         }
                     )
                 |> Maybe.withDefault
@@ -202,7 +201,6 @@ editBuffer info buf =
                         newbuf.lines
                   else
                     Cmd.none
-                , Doc.setTitle newbuf.name
                 , tokenizeBufferCmd newbuf
                 ]
             )
@@ -287,10 +285,10 @@ jumpByView factor buf =
                 |> max 0
                 |> min (B.count buf.lines - 1)
 
-        scrollScope scrollTop n =
+        scrollScope scrollTop_ n_ =
             let
                 newn =
-                    scrollTop + n
+                    scrollTop_ + n_
 
                 maxy =
                     B.count buf.lines - 1
@@ -327,6 +325,11 @@ jumpByView factor buf =
                 buf
 
 
+isPathChar : Char -> Bool
+isPathChar c =
+    notSpace c && (c /= ':')
+
+
 locationParser : Parser Location
 locationParser =
     P.succeed
@@ -344,15 +347,24 @@ locationParser =
                         ( 0, 0 )
             }
         )
-        |= P.keep P.oneOrMore (\c -> notSpace c && (c /= ':'))
-        |= ((P.succeed identity
-                |. P.symbol ":"
-                |= P.oneOf
-                    [ P.int
-                    , P.succeed 1
-                    ]
-            )
-                |> P.repeat P.zeroOrMore
+        |= (P.chompIf isPathChar
+                |. P.chompWhile isPathChar
+                |> P.getChompedString
+           )
+        |= (P.loop []
+                (\locations ->
+                    P.oneOf
+                        [ (P.succeed (\loc -> P.Loop (loc :: locations))
+                            |. P.symbol ":"
+                            |= P.oneOf
+                                [ P.int
+                                , P.succeed 1
+                                ]
+                          )
+                        , P.succeed (P.Done locations)
+                            |. P.end
+                        ]
+                )
            )
 
 

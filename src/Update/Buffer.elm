@@ -93,9 +93,9 @@ import Internal.Syntax
         , applyPatchToSyntax
         , splitTokens
         )
-import Elm.Array as Array exposing (Array)
+import Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
-import Helper.Helper exposing (parseWords, relativePath)
+import Helper.Helper exposing (parseWords, relativePath, regex)
 import Regex as Re
 
 
@@ -148,7 +148,12 @@ applyPatchesToLintErrors =
 applyPatches :
     List Patch
     -> Buffer
-    -> ( TextBuffer, List Patch, Int, Syntax, List (Maybe ViewLine) )
+    ->
+        { lines : TextBuffer
+        , patches : List Patch
+        , syntax : Syntax
+        , viewLines : List (Maybe ViewLine)
+        }
 applyPatches patches buf =
     let
         lines =
@@ -161,29 +166,33 @@ applyPatches patches buf =
             finalScrollTop buf
     in
         List.foldl
-            (\patch ( lines, patches2, miny, syntax, viewLines ) ->
+            (\patch args ->
                 let
                     ( patch2, lines2 ) =
-                        applyPatch patch lines
+                        applyPatch patch args.lines
 
                     syntax2 =
-                        Tuple.first <| applyPatchToSyntax patch syntax
+                        Tuple.first <| applyPatchToSyntax patch args.syntax
                 in
-                    ( lines2
-                    , patch2 :: patches2
-                    , min miny (minLine patch)
-                    , syntax2
-                    , applyPatchToViewLines
-                        scrollTop
-                        view.size.height
-                        patch2
-                        lines
-                        lines2
-                        syntax2
-                        viewLines
-                    )
+                    { lines = lines2
+                    , patches = patch2 :: args.patches
+                    , syntax = syntax2
+                    , viewLines =
+                        applyPatchToViewLines
+                            scrollTop
+                            view.size.height
+                            patch2
+                            lines
+                            lines2
+                            syntax2
+                            args.viewLines
+                    }
             )
-            ( lines, [], 0xFFFFFFFF, buf.syntax, view.lines )
+            { lines = lines
+            , patches = []
+            , syntax = buf.syntax
+            , viewLines = view.lines
+            }
             patches
 
 
@@ -431,21 +440,21 @@ transaction patches buf =
         scrollTop =
             finalScrollTop buf
 
-        ( buf1, undo ) =
+        ( buf1, undoPatchs ) =
             List.foldl
-                (\patch ( buf, undo ) ->
+                (\patch ( buf_, undoPatches_ ) ->
                     let
                         ( patch1, lines ) =
-                            applyPatch patch buf.lines
+                            applyPatch patch buf_.lines
 
                         cursor =
-                            updateCursor patch patch1 buf.cursor
+                            updateCursor patch patch1 buf_.cursor
 
                         ( syntax, _ ) =
-                            applyPatchToSyntax patch buf.syntax
+                            applyPatchToSyntax patch buf_.syntax
 
                         view =
-                            buf.view
+                            buf_.view
 
                         --_ =
                         --    Debug.log "patch1" patch1
@@ -456,13 +465,13 @@ transaction patches buf =
                         --_ =
                         --    Debug.log "view" view
                     in
-                        ( { buf
+                        ( { buf_
                             | lines = lines
                             , cursor = cursor
                             , syntax = syntax
                             , syntaxDirtyFrom =
                                 min
-                                    buf.syntaxDirtyFrom
+                                    buf_.syntaxDirtyFrom
                                     (patch
                                         |> B.patchCursor
                                         |> Tuple.first
@@ -474,7 +483,7 @@ transaction patches buf =
                                             scrollTop
                                             view.size.height
                                             patch1
-                                            buf.lines
+                                            buf_.lines
                                             lines
                                             syntax
                                             view.lines
@@ -482,7 +491,7 @@ transaction patches buf =
                                     --|> Debug.log "view.lines after"
                                 }
                           }
-                        , patch1 :: undo
+                        , patch1 :: undoPatches_
                         )
                 )
                 ( buf, [] )
@@ -491,14 +500,14 @@ transaction patches buf =
         --_ =
         --    Debug.log "patches" patches
         --_ =
-        --    Debug.log "undo" undo
+        --    Debug.log "undoPatchs" undoPatchs
     in
-        if List.isEmpty undo then
+        if List.isEmpty undoPatchs then
             buf
         else
             let
                 history =
-                    addPending buf.cursor undo buf1.history
+                    addPending buf.cursor undoPatchs buf1.history
 
                 --_ =
                 --    Debug.log "history" history
@@ -644,15 +653,15 @@ undo buf =
     buf.history.undoes
         |> List.head
         |> Maybe.map
-            (\undo ->
+            (\undo_ ->
                 let
                     undoPatches =
-                        undo.patches
+                        undo_.patches
 
                     history =
                         buf.history
 
-                    ( lines1, patches1, miny, syntax, viewLines ) =
+                    res =
                         applyPatches undoPatches buf
 
                     jumps =
@@ -669,7 +678,7 @@ undo buf =
                                 List.tail undoes
                                     |> Maybe.withDefault []
                             , pending = emptyUndo
-                            , redoes = { undo | patches = patches1 } :: redoes
+                            , redoes = { undo_ | patches = res.patches } :: redoes
                             , version = history.version + 1
                             , savePoint = history.savePoint - 1
                         }
@@ -678,10 +687,10 @@ undo buf =
                         buf.view
                 in
                     { buf
-                        | lines = lines1
-                        , cursor = undo.cursor
-                        , cursorColumn = Tuple.second undo.cursor
-                        , syntax = syntax
+                        | lines = res.lines
+                        , cursor = undo_.cursor
+                        , cursorColumn = Tuple.second undo_.cursor
+                        , syntax = res.syntax
                         , syntaxDirtyFrom =
                             undoPatches
                                 |> List.map B.patchCursor
@@ -695,7 +704,7 @@ undo buf =
                             { items = lintErrors
                             , count = buf.lint.count
                             }
-                        , view = { view | lines = viewLines }
+                        , view = { view | lines = res.viewLines }
                     }
             )
         |> Maybe.withDefault buf
@@ -708,15 +717,15 @@ redo buf =
     buf.history.redoes
         |> List.head
         |> Maybe.map
-            (\redo ->
+            (\redo_ ->
                 let
                     redoPatches =
-                        redo.patches
+                        redo_.patches
 
                     history =
                         buf.history
 
-                    ( lines1, patches1, miny, syntax, viewLines ) =
+                    res =
                         applyPatches redoPatches buf
 
                     jumps =
@@ -727,7 +736,7 @@ redo buf =
 
                     redoHistory { undoes, redoes } =
                         { history
-                            | undoes = { redo | patches = patches1 } :: undoes
+                            | undoes = { redo_ | patches = res.patches } :: undoes
                             , pending = emptyUndo
                             , redoes =
                                 List.tail redoes
@@ -737,7 +746,7 @@ redo buf =
                         }
 
                     cursor =
-                        patches1
+                        res.patches
                             |> List.map B.patchCursor
                             |> List.minimum
                             |> Maybe.withDefault buf.cursor
@@ -746,10 +755,10 @@ redo buf =
                         buf.view
                 in
                     { buf
-                        | lines = lines1
+                        | lines = res.lines
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
-                        , syntax = syntax
+                        , syntax = res.syntax
                         , syntaxDirtyFrom =
                             redoPatches
                                 |> List.map B.patchCursor
@@ -763,7 +772,7 @@ redo buf =
                             { items = lintErrors
                             , count = buf.lint.count
                             }
-                        , view = { view | lines = viewLines }
+                        , view = { view | lines = res.viewLines }
                     }
             )
         |> Maybe.withDefault buf
@@ -897,18 +906,18 @@ putString forward text buf =
                                     , Just ( y, findLineFirst s + 1 )
                                     )
 
-        getLastDeletedTo buf =
-            case getLastPatch buf of
-                Just patch ->
-                    case patch of
+        getLastDeletedTo buf_ =
+            case getLastPatch buf_ of
+                Just patch_ ->
+                    case patch_ of
                         Deletion _ to ->
                             to
 
                         _ ->
-                            buf.cursor
+                            buf_.cursor
 
                 _ ->
-                    buf.cursor
+                    buf_.cursor
     in
         buf
             |> setLastIndent 0
@@ -933,10 +942,10 @@ cIndentRules :
     , increaseNext : Re.Regex
     }
 cIndentRules =
-    { increase = Re.regex "^.*\\{[^}\\\"']*$"
-    , decrease = Re.regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
+    { increase = regex "^.*\\{[^}\\\"']*$"
+    , decrease = regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
     , increaseNext =
-        Re.regex "^(?!.*;\\s*//).*[^\\s;{}]\\s*$"
+        regex "^(?!.*;\\s*//).*[^\\s;{}]\\s*$"
     }
 
 
@@ -1016,13 +1025,13 @@ configs =
                 , indent =
                     IndentRules
                         { increase =
-                            Re.regex
+                            regex
                                 ("(^[(]?let$)|(^[(]?if)"
                                     ++ "|(^then$)|(^else(\\s|$))|(=$)"
                                     ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
                                 )
-                        , decrease = Re.regex "^(then|else( if)?|of|in)"
-                        , increaseNext = Re.regex "![\\s\\S]"
+                        , decrease = regex "^(then|else( if)?|of|in)"
+                        , increaseNext = regex "![\\s\\S]"
                         }
             }
           )
@@ -1046,14 +1055,14 @@ configs =
                 , indent =
                     IndentRules
                         { increase =
-                            Re.regex
+                            regex
                                 ("(^[(]?let$)|(^[(]?if)"
                                     ++ "|(^then$)|(^else(\\s|$))|(=$)"
                                     ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
                                     ++ "|(^when)|(\\sdo$)"
                                 )
-                        , decrease = Re.regex "^(then|else( if)?|of|in)"
-                        , increaseNext = Re.regex "![\\s\\S]"
+                        , decrease = regex "^(then|else( if)?|of|in)"
+                        , increaseNext = regex "![\\s\\S]"
                         }
             }
           )
@@ -1097,7 +1106,7 @@ cursorLineFirst : B.TextBuffer -> Int -> Maybe Position
 cursorLineFirst lines y =
     lines
         |> B.getLine y
-        |> Maybe.map (findLineFirst >> ((,) y))
+        |> Maybe.map (findLineFirst >> (Tuple.pair y))
 
 
 gotoLine : Int -> Buffer -> Buffer
@@ -1151,8 +1160,8 @@ fillViewLines inserts viewLines =
 
                 _ ->
                     case inserts of
-                        insert :: restInserts ->
-                            insert
+                        first :: restInserts ->
+                            first
                                 :: fillViewLines
                                     restInserts
                                     restViewLines

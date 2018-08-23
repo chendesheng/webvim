@@ -41,9 +41,9 @@ isBetween low high char =
 
 countParser : Parser Int
 countParser =
-    (P.source <|
-        P.ignore (P.Exactly 1) (isBetween '1' '9')
-            |. P.ignore P.zeroOrMore Char.isDigit
+    (P.getChompedString <|
+        P.chompIf (isBetween '1' '9')
+            |. P.chompWhile Char.isDigit
     )
         |> P.andThen
             (\s ->
@@ -52,26 +52,26 @@ countParser =
                         String.toInt s
                 in
                     case n of
-                        Ok n ->
+                        Just n_ ->
                             -- prevent too large count
-                            if n > 2 ^ 30 then
-                                P.fail "too large count"
+                            if n_ > 2 ^ 30 then
+                                P.problem "too large count"
                             else
-                                P.succeed n
+                                P.succeed n_
 
                         _ ->
-                            P.fail "not a valid count"
+                            P.problem "not a valid count"
             )
 
 
 ignoreChar : (Char -> Bool) -> Parser ()
-ignoreChar pred =
-    P.ignore (P.Exactly 1) pred
+ignoreChar =
+    P.chompIf
 
 
 keepChar : (Char -> Bool) -> Parser String
-keepChar pred =
-    P.keep (P.Exactly 1) pred
+keepChar =
+    P.chompIf >> P.getChompedString
 
 
 dropLast : List a -> List a
@@ -90,11 +90,6 @@ dropLast l =
 tuple : a -> b -> ( a, b )
 tuple a b =
     ( a, b )
-
-
-tupleFlip : b -> a -> ( a, b )
-tupleFlip =
-    flip tuple
 
 
 mapTuple : (a -> a1) -> (b -> b1) -> ( a, b ) -> ( a1, b1 )
@@ -130,7 +125,7 @@ readKeysAndThen :
 readKeysAndThen keys partialResult nextOps =
     (P.oneOf
         (List.map P.symbol keys)
-        |> P.source
+        |> P.getChompedString
     )
         |> P.andThen
             (\key ->
@@ -260,13 +255,13 @@ popKey modeDelta =
 
 
 pushComplete : ModeDelta -> ModeDelta
-pushComplete =
-    flip (++) [ PushComplete ]
+pushComplete delta =
+    delta ++ [ PushComplete ]
 
 
 popComplete : ModeDelta -> ModeDelta
-popComplete =
-    flip (++) [ PopComplete ]
+popComplete delta =
+    delta ++ [ PopComplete ]
 
 
 makePushKeys : String -> String -> ModeDelta
@@ -439,13 +434,27 @@ keyParser : Parser Key
 keyParser =
     P.oneOf
         [ escapedChar
-        , (P.symbol "<" |. P.ignoreUntil ">")
-            |> P.source
+        , P.symbol "<"
+            |. P.chompUntil ">"
+            |. P.symbol ">"
+            |> P.getChompedString
         ]
 
 
 parseKeys : String -> Maybe (List Key)
-parseKeys s =
-    s
-        |> P.run (P.repeat P.oneOrMore keyParser)
-        |> Result.toMaybe
+parseKeys =
+    P.run
+        (P.loop []
+            (\keys ->
+                P.oneOf
+                    [ P.succeed (\key -> P.Loop (key :: keys))
+                        |= keyParser
+                    , if List.isEmpty keys then
+                        P.problem "no keys"
+                      else
+                        P.succeed (P.Done <| List.reverse keys)
+                            |. P.end
+                    ]
+            )
+        )
+        >> Result.toMaybe

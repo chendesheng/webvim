@@ -12,7 +12,7 @@ import Vim.AST
         , Direction(..)
         , TextObject(..)
         )
-import Elm.Array as Array exposing (Array)
+import Array as Array exposing (Array)
 
 
 type TestCase

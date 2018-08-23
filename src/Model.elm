@@ -7,19 +7,21 @@ module Model exposing (..)
 
 import Internal.Position exposing (..)
 import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
-import Window as Win exposing (Size)
 import Dict exposing (Dict)
 import Vim.AST as V exposing (VisualType(..))
 import Internal.Syntax exposing (..)
-import Elm.Array as Array
+import Array as Array exposing (Array)
 import Json.Encode as Encode
 import Helper.Fuzzy exposing (FuzzyMatchItem)
-import Elm.Array exposing (Array)
 import Internal.Jumps exposing (..)
 import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode
 import Regex as Re
+
+
+type alias Size =
+    { width : Int, height : Int }
 
 
 type alias Flags =
@@ -48,8 +50,7 @@ type alias LintError =
 buffersInfoToString : List BufferInfo -> String
 buffersInfoToString buffers =
     buffers
-        |> List.map bufferInfoEncoder
-        |> Encode.list
+        |> Encode.list bufferInfoEncoder
         |> Encode.encode 0
 
 
@@ -58,9 +59,9 @@ bufferInfoEncoder info =
     [ ( "path", Encode.string info.path )
     , ( "version", Encode.int info.version )
     , ( "cursor"
-      , Encode.list
-            [ info.cursor |> Tuple.first |> Encode.int
-            , info.cursor |> Tuple.second |> Encode.int
+      , Encode.list Encode.int
+            [ info.cursor |> Tuple.first
+            , info.cursor |> Tuple.second
             ]
       )
     , ( "syntax", Encode.bool info.syntax )
@@ -420,7 +421,7 @@ registerToString : Dict String RegisterText -> String
 registerToString registers =
     registers
         |> Dict.toList
-        |> List.map
+        |> Encode.list
             (\item ->
                 let
                     ( k, v ) =
@@ -442,7 +443,6 @@ registerToString registers =
                                 ( "value", Encode.string s )
                         ]
             )
-        |> Encode.list
         |> Encode.encode 0
 
 

@@ -5,47 +5,33 @@ import Html.Lazy exposing (..)
 import Html.Events as Events
 import Model exposing (..)
 import Internal.TextBuffer as B
-import Elm.Array as Array
+import Array as Array exposing (Array)
 import List
 import Html.Attributes exposing (..)
 import Internal.Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
 import Internal.Syntax exposing (Syntax, Token)
 import String
-import Elm.Array exposing (Array)
 import Update.Buffer as Buf
 import Dict exposing (Dict)
 import Bitwise as BW
 import Update.Message exposing (Msg(..))
 import Update.Range exposing (visualRegions)
 import Json.Decode as Decode
+import Browser exposing (Document)
 
 
-pack : Int -> Int -> Int -> Int
-pack offset a b =
-    a
-        |> BW.shiftLeftBy offset
-        |> BW.or b
-
-
-unpack : Int -> Int -> ( Int, Int )
-unpack offset n =
-    ( BW.shiftRightZfBy offset n
-    , BW.and (BW.shiftLeftBy offset 1 - 1) n
-    )
-
-
-rem : number -> String
+rem : Int -> String
 rem n =
-    toString n ++ "rem"
+    String.fromInt n ++ "rem"
 
 
-ch : number -> String
+ch : Int -> String
 ch n =
-    toString n ++ "ch"
+    String.fromInt n ++ "ch"
 
 
-translate : number -> number -> ( String, String )
+translate : Int -> Int -> ( String, String )
 translate x y =
     ( "transform"
     , "translate(" ++ ch x ++ ", " ++ rem y ++ ")"
@@ -54,11 +40,25 @@ translate x y =
 
 vrView : Buffer -> Html Msg
 vrView buf =
-    div [ class "vr-editor" ] [ view buf, view buf ]
+    div [ class "vr-editor" ] [ pageDom buf, pageDom buf ]
 
 
-view : Buffer -> Html Msg
-view buf =
+page : Buffer -> Document Msg
+page buf =
+    { title = pageTitle buf
+    , body = [ pageDom buf ]
+    }
+
+
+pageTitle buf =
+    if Buf.isDirty buf then
+        "• " ++ buf.name
+    else
+        buf.name
+
+
+pageDom : Buffer -> Html Msg
+pageDom buf =
     let
         { mode, cursor, lines, syntax, continuation, view, history } =
             buf
@@ -70,7 +70,7 @@ view buf =
             view.size.height + 2
 
         topOffsetPx =
-            Basics.rem view.scrollTopPx view.lineHeight
+            remainderBy view.lineHeight view.scrollTopPx
 
         totalLines =
             B.count lines - 1
@@ -86,11 +86,11 @@ view buf =
         scrollTop1 =
             Buf.finalScrollTop buf
 
-        searchRange =
+        highlights =
             incrementSearchRegion mode
 
         relativeZeroLine =
-            searchRange
+            highlights
                 |> Maybe.map (Tuple.first >> .begin)
                 |> Maybe.withDefault cursor
                 |> Tuple.first
@@ -107,7 +107,7 @@ view buf =
                     view.showTip
 
         gutterWidth =
-            totalLines |> toString |> String.length
+            totalLines |> String.fromInt |> String.length
 
         relativeGutterWidth =
             4
@@ -123,14 +123,14 @@ view buf =
                 height
                 scrollTop1
 
-        mouseWheel lineHeight =
+        mouseWheel h =
             Events.on "mousewheel"
                 (Decode.map
                     (toFloat
                         >> (*) 1.8
                         >> floor
-                        >> Basics.min (2 * lineHeight)
-                        >> Basics.max (-2 * lineHeight)
+                        >> Basics.min (2 * h)
+                        >> Basics.max (-2 * h)
                         >> MouseWheel
                     )
                     (Decode.at [ "deltaY" ] Decode.int)
@@ -160,26 +160,19 @@ view buf =
                     relativeZeroLine
                     totalLines
                     view.lines
-                , renderRelativeGutter
+                , lazy5 renderRelativeGutter
                     lineHeight
                     topOffsetPx
                     height
                     (relativeZeroLine - scrollTop1)
                     (totalLines - scrollTop1)
                 , div
-                    [ class "lines-container"
-                    , style scrollingCss
-                    ]
+                    (class "lines-container" :: scrollingCss)
                     (renderColumnGuide maybeCursor
                         :: renderLineGuide maybeCursor
-                        :: renderVisual scrollTop1 height mode lines
-                        ?:: (searchRange
-                                |> Maybe.map
-                                    (\( m, ms ) ->
-                                        renderHighlights scrollTop1 lines m ms
-                                    )
-                            )
-                        ?:: lazy3 renderLint scrollTop1 lines buf.lint.items
+                        :: lazy4 renderVisual scrollTop1 height mode lines
+                        :: renderHighlights scrollTop1 lines highlights
+                        :: lazy3 renderLint scrollTop1 lines buf.lint.items
                         :: lazy renderLines view.lines
                         :: div [ class "ruler" ] []
                         :: renderCursor "" maybeCursor
@@ -188,7 +181,7 @@ view buf =
                             buf.lint.items
                             maybeCursor
                             showTip
-                        ?:: renderMatchedCursor mode cursor buf.view.matchedCursor
+                        :: renderMatchedCursor mode cursor buf.view.matchedCursor
                     )
                 ]
              , renderStatusBar
@@ -197,7 +190,7 @@ view buf =
                 continuation
                 buf.lint.items
                 buf.name
-             , div [ style [ ( "display", "none" ) ] ]
+             , div [ style "display" "none" ]
                 ([ lazy saveBuffers buf.buffers
                  , lazy saveRegisters buf.registers
                  , lazy saveCwd buf.cwd
@@ -276,7 +269,7 @@ renderLintStatus items =
                     [ class "fas fa-times-circle" ]
                     []
                 , errors
-                    |> toString
+                    |> String.fromInt
                     |> text
                 ]
             , span
@@ -285,7 +278,7 @@ renderLintStatus items =
                     [ class "fas fa-exclamation-triangle" ]
                     []
                 , warnings
-                    |> toString
+                    |> String.fromInt
                     |> text
                 ]
             ]
@@ -399,11 +392,11 @@ renderVisual :
     -> Int
     -> Mode
     -> B.TextBuffer
-    -> Maybe (Html msg)
+    -> Html msg
 renderVisual scrollTop height mode lines =
     case mode of
         Visual visual ->
-            Just <| lazy3 renderSelections scrollTop lines visual
+            lazy3 renderSelections scrollTop lines visual
 
         Ex { prefix, visual } ->
             let
@@ -427,10 +420,11 @@ renderVisual scrollTop height mode lines =
             in
                 (visual1
                     |> Maybe.map (lazy3 renderSelections scrollTop lines)
+                    |> Maybe.withDefault (text "")
                 )
 
         _ ->
-            Nothing
+            text ""
 
 
 maybeToList : Maybe a -> List a
@@ -443,26 +437,13 @@ maybeToList mb =
             []
 
 
-(?::) : Maybe a -> List a -> List a
-(?::) item list =
-    case item of
-        Just x ->
-            x :: list
-
-        _ ->
-            list
-infixr 5 ?::
-
-
 renderCursorInner : String -> Int -> Int -> Html msg
 renderCursorInner classname y x =
     div
         [ class "cursor"
         , class classname
-        , style
-            [ ( "left", ch x )
-            , ( "top", rem y )
-            ]
+        , style "left" <| ch x
+        , style "top" <| rem y
         ]
         []
 
@@ -481,9 +462,7 @@ renderCursorColumnInner : Int -> Html msg
 renderCursorColumnInner x =
     div
         [ class "guide column-guide"
-        , style
-            [ ( "left", ch x )
-            ]
+        , style "left" <| ch x
         ]
         []
 
@@ -502,8 +481,7 @@ renderLineGuideInner : Int -> Html msg
 renderLineGuideInner y =
     div
         [ class "guide line-guide"
-        , style
-            [ ( "top", rem y ) ]
+        , style "top" <| rem y
         ]
         []
 
@@ -518,21 +496,23 @@ renderLineGuide cursor =
             text ""
 
 
-renderHighlights :
-    Int
-    -> B.TextBuffer
-    -> VisualMode
-    -> List VisualMode
-    -> Html msg
-renderHighlights scrollTop lines match highlights =
-    div
-        [ class "highlights" ]
-        (List.concatMap
-            (\{ tipe, begin, end } ->
-                (renderRange scrollTop tipe begin end lines False)
-            )
-            (match :: highlights)
-        )
+renderHighlights : Int -> B.TextBuffer -> Maybe ( VisualMode, List VisualMode ) -> Html msg
+renderHighlights scrollTop lines highlights =
+    case
+        highlights
+    of
+        Just ( match, matches ) ->
+            div
+                [ class "highlights" ]
+                (List.concatMap
+                    (\{ tipe, begin, end } ->
+                        (renderRange scrollTop tipe begin end lines False)
+                    )
+                    (match :: matches)
+                )
+
+        _ ->
+            text ""
 
 
 renderSelections :
@@ -546,11 +526,11 @@ renderSelections scrollTop lines { tipe, begin, end } =
         (renderRange scrollTop tipe begin end lines False)
 
 
-renderTipInner : Int -> Int -> List LintError -> Html msg
-renderTipInner width packed items =
+renderTipInner : Int -> Int -> Int -> List LintError -> Html msg
+renderTipInner width y_ x_ items =
     let
         cursor =
-            unpack 16 packed
+            ( y_, x_ )
 
         distanceFrom ( y, x ) { region } =
             let
@@ -561,12 +541,10 @@ renderTipInner width packed items =
 
         renderDetails ( y, x ) details =
             div
-                [ style
-                    [ ( "top", rem <| y + 1 )
+                [ style "top" <| rem <| y + 1
 
-                    -- FIXME: hard code character width
-                    , ( "left", ch (Basics.min x (width // 9 - 40)) )
-                    ]
+                -- FIXME: hard code character width
+                , style "left" <| ch (Basics.min x (width // 9 - 40))
                 , class "tip"
                 ]
                 [ div
@@ -605,16 +583,17 @@ renderTip :
     -> List LintError
     -> Maybe Position
     -> Bool
-    -> Maybe (Html msg)
+    -> Html msg
 renderTip width items maybeCursor showTip =
     if showTip then
         maybeCursor
             |> Maybe.map
                 (\( y, x ) ->
-                    lazy3 renderTipInner width (pack 16 y x) items
+                    lazy4 renderTipInner width y x items
                 )
+            |> Maybe.withDefault (text "")
     else
-        Nothing
+        text ""
 
 
 renderLint :
@@ -624,10 +603,10 @@ renderLint :
     -> Html msg
 renderLint scrollTop lines items =
     let
-        render classname ( begin, end ) scrollTop lines =
+        render classname ( begin, end ) scrollTop_ lines_ =
             div
                 [ class classname ]
-                (renderRange scrollTop VisualChars begin end lines True)
+                (renderRange scrollTop_ VisualChars begin end lines_ True)
     in
         div [ class "lints" ]
             (List.filterMap
@@ -729,13 +708,11 @@ renderRange scrollTop tipe begin end lines excludeLineBreak_ =
                                         Just ( 0, maxcol )
                     in
                         Maybe.map
-                            (\( bx, ex ) ->
+                            (\( bx_, ex_ ) ->
                                 (div
-                                    [ style
-                                        [ ( "left", ch bx )
-                                        , ( "top", rem row )
-                                        , ( "width", ch <| ex - bx + 1 )
-                                        ]
+                                    [ style "left" <| ch bx_
+                                    , style "top" <| rem row
+                                    , style "width" <| ch <| ex_ - bx_ + 1
                                     ]
                                     []
                                 )
@@ -748,9 +725,9 @@ renderGutterHighlight : Int -> Int -> Html ms
 renderGutterHighlight offset highlightLine =
     div
         [ class "line-number-highlight"
-        , style [ ( "top", rem offset ) ]
+        , style "top" <| rem offset
         ]
-        [ text <| toString <| (highlightLine + 1) ]
+        [ text <| String.fromInt <| (highlightLine + 1) ]
 
 
 renderGutterInner : Int -> Int -> List (Maybe ViewLine) -> Html msg
@@ -770,10 +747,10 @@ renderGutterInner totalLines highlightLine viewLines =
                                   )
                                 , ( "line-number", True )
                                 ]
-                             , style [ ( "top", rem lineNumber ) ]
+                             , style "top" <| rem lineNumber
                              ]
                             )
-                            [ text (toString (lineNumber + 1)) ]
+                            [ text (String.fromInt (lineNumber + 1)) ]
                             |> Just
                     else
                         Nothing
@@ -784,7 +761,7 @@ renderGutterInner totalLines highlightLine viewLines =
 
 
 renderGutter :
-    List ( String, String )
+    List (Attribute msg)
     -> Int
     -> Int
     -> Int
@@ -792,11 +769,11 @@ renderGutter :
     -> Html msg
 renderGutter scrollingCss totalWidth highlightLine totalLines viewLines =
     div
-        [ class "gutter-container absolute-gutter-container"
-        , style <|
-            ( "width", ch <| totalWidth + 1 )
-                :: scrollingCss
-        ]
+        ([ class "gutter-container absolute-gutter-container"
+         , style "width" <| ch <| totalWidth + 1
+         ]
+            ++ scrollingCss
+        )
         [ lazy3 renderGutterInner totalLines highlightLine viewLines ]
 
 
@@ -811,14 +788,14 @@ renderAllRelativeNumbers low high =
             |> List.map
                 (\i ->
                     div [ class "line-number" ]
-                        [ text <| toString i ]
+                        [ text <| String.fromInt i ]
                 )
          )
             ++ (List.range 0 (high - 1)
                     |> List.map
                         (\i ->
                             div [ class "line-number" ]
-                                [ text <| toString i ]
+                                [ text <| String.fromInt i ]
                         )
                )
         )
@@ -829,14 +806,11 @@ renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
     div
         [ class "gutter-container"
         , class "relative-gutter-container"
-        , style
-            [ ( "top"
-              , toString ((zeroLine - height) * lineHeight - topOffsetPx)
-                    ++ "px"
-              )
-            ]
+        , style "top" <|
+            (String.fromInt ((zeroLine - height) * lineHeight - topOffsetPx))
+                ++ "px"
         ]
-        [ lazy2 renderAllRelativeNumbers
+        [ renderAllRelativeNumbers
             height
             (Basics.min (maxLine - zeroLine) height)
         ]
@@ -872,12 +846,12 @@ renderTokens spans line i =
                 []
 
 
-scrollingStyle : Int -> Int -> Int -> Int -> Int -> List ( String, String )
+scrollingStyle : Int -> Int -> Int -> Int -> Int -> List (Attribute msg)
 scrollingStyle lineHeight topOffsetPx totalLines height scrollTop =
-    [ ( "top"
-      , toString -(topOffsetPx + scrollTop * lineHeight) ++ "px"
-      )
-    , ( "height", rem (totalLines + height) )
+    [ style "top" <|
+        (String.fromInt -(topOffsetPx + scrollTop * lineHeight))
+            ++ "px"
+    , style "height" <| rem (totalLines + height)
     ]
 
 
@@ -890,7 +864,7 @@ renderLines viewLines =
                 (\viewLine ->
                     div
                         [ class "line"
-                        , style [ ( "top", rem viewLine.lineNumber ) ]
+                        , style "top" <| rem viewLine.lineNumber
                         ]
                         (renderTokens viewLine.tokens viewLine.text 0)
                 )
@@ -925,8 +899,8 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth aut
 
         renderText s indexes i =
             let
-                render i j matched =
-                    renderSpan (String.slice i j s) matched
+                render i_ j matched =
+                    renderSpan (String.slice i_ j s) matched
             in
                 case indexes of
                     j :: rest ->
@@ -960,17 +934,14 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth aut
                 ++ (if isEx then
                         [ class "auto-complete-ex" ]
                     else
-                        [ style
-                            [ ( "left", ch (x + gutterWidth) )
-                            , ( "top"
-                              , toString
-                                    ((y + 1 - viewScrollTop)
-                                        * lineHeight
-                                        - topOffsetPx
-                                    )
-                                    ++ "px"
-                              )
-                            ]
+                        [ style "left" <| ch (x + gutterWidth)
+                        , style "top" <|
+                            String.fromInt
+                                ((y + 1 - viewScrollTop)
+                                    * lineHeight
+                                    - topOffsetPx
+                                )
+                                ++ "px"
                         ]
                    )
             )

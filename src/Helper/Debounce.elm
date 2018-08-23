@@ -2,7 +2,7 @@ port module Helper.Debounce exposing (..)
 
 import Json.Encode as Encode
 import Json.Decode as Decode exposing (decodeValue)
-import Time exposing (Time)
+import Time as Time
 
 
 port debounce : Encode.Value -> Cmd msg
@@ -30,25 +30,25 @@ eventDecoder =
 
 
 decodeEvent :
-    (Result String DebounceEvent -> msg)
-    -> (Encode.Value -> msg)
+    (Result Decode.Error DebounceEvent -> msg)
+    -> (Decode.Value -> msg)
 decodeEvent =
     (>>) (decodeValue eventDecoder)
 
 
-debounceLint : Time -> Cmd msg
+debounceLint : Int -> Cmd msg
 debounceLint time =
     Encode.object
         [ ( "action", Encode.string "lint" )
-        , ( "time", Encode.float time )
+        , ( "time", Encode.int time )
         ]
         |> debounce
 
 
-debounceTokenize : Time -> Cmd msg
+debounceTokenize : Int -> Cmd msg
 debounceTokenize time =
     Encode.object
         [ ( "action", Encode.string "tokenize" )
-        , ( "time", Encode.float time )
+        , ( "time", Encode.int time )
         ]
         |> debounce

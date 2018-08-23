@@ -82,7 +82,7 @@ cursorScope ({ view, cursor, lines } as buf) =
             cursor
 
         scrollTop =
-            if Basics.rem view.scrollTopPx buf.view.lineHeight > 0 then
+            if remainderBy buf.view.lineHeight view.scrollTopPx > 0 then
                 view.scrollTop + 1
             else
                 view.scrollTop
@@ -116,10 +116,10 @@ cursorScope ({ view, cursor, lines } as buf) =
                 Buf.setCursor ( y1, x1 ) True buf
         else
             case Buf.cursorLineFirst lines y1 of
-                Just cursor ->
+                Just cur ->
                     buf
-                        |> Buf.setCursor cursor True
-                        |> setVisualEnd cursor
+                        |> Buf.setCursor cur True
+                        |> setVisualEnd cur
 
                 _ ->
                     buf
@@ -153,7 +153,7 @@ pairCursor buf =
                                 (buf.view.scrollTop + buf.view.size.height)
                                 buf.lines
                                 buf.syntax
-                            |> Maybe.map ((,) cursor)
+                            |> Maybe.map (Tuple.pair cursor)
                 }
         )
         buf

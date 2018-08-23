@@ -110,7 +110,7 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                                             (motionOption ">]$-")
                                             line
                                             (cursor + 1)
-                                            |> Maybe.map ((,) cursor)
+                                            |> Maybe.map (Tuple.pair cursor)
                                     else
                                         Nothing
 
@@ -213,14 +213,13 @@ findPair scrollTop height syntax openChar closeChar around lines (( y, x ) as cu
                 |> B.getLine y
                 |> Maybe.map (String.slice x (x + 1))
 
-        pairChar c =
+        pairChar =
             pairBracket
                 scrollTop
                 (scrollTop + height)
                 lines
                 syntax
                 cursor
-                c
 
         genRegion p1 p2 =
             let
