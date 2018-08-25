@@ -13,7 +13,7 @@ import Internal.Syntax
 import Internal.TextBuffer as B exposing (TextBuffer)
 import Internal.Position exposing (Position)
 import Parser as P exposing ((|.), (|=), Parser)
-import Helper.Helper exposing (regex)
+import Helper.Helper exposing (regex, keepZeroOrMore)
 
 
 isBracket : Char -> Bool
@@ -25,9 +25,7 @@ isBracket c =
 bracketsParser : Parser Int
 bracketsParser =
     P.succeed String.length
-        |= (P.chompWhile (isBracket >> not)
-                |> P.getChompedString
-           )
+        |= keepZeroOrMore (not << isBracket)
         |. P.chompIf isBracket
 
 
@@ -124,7 +122,7 @@ pairBracket top bottom lines syntax ( y, x ) c =
                                                     (String.dropLeft (index + 1) s)
 
                                     _ ->
-                                        ( ( blance, Nothing ), False )
+                                        ( ( blance_, Nothing ), False )
                         in
                             if tokenType == token.tipe then
                                 line

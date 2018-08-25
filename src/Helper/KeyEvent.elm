@@ -314,8 +314,7 @@ toKey : KeyboardEvent -> String
 toKey { ctrlKey, altKey, shiftKey, keyCode } =
     let
         key =
-            mapKeyCode (Debug.log "keyCode" keyCode)
-                |> Debug.log "mapKeyCode"
+            mapKeyCode keyCode
 
         quote k =
             if String.length k > 1 then

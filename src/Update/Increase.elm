@@ -5,7 +5,7 @@ import Char exposing (toUpper, toLower)
 import Update.Buffer as Buf
 import Internal.TextBuffer as B exposing (Patch(..))
 import Parser as P exposing ((|.), (|=), Parser)
-import Helper.Helper exposing (keepOneOrMore)
+import Helper.Helper exposing (keepOneOrMore, keepZeroOrMore)
 
 
 numParser : Parser ( Int, Int, Int )
@@ -19,7 +19,7 @@ numParser =
                 |> Maybe.withDefault 0
             )
         )
-        |= P.getChompedString (P.chompWhile (Char.isDigit >> not))
+        |= keepZeroOrMore (not << Char.isDigit)
         |= keepOneOrMore Char.isDigit
 
 

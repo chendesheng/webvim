@@ -145,6 +145,12 @@ keepOneOrMore pred =
     P.getChompedString (oneOrMore pred)
 
 
+keepZeroOrMore : (Char -> Bool) -> P.Parser String
+keepZeroOrMore pred =
+    P.getChompedString <|
+        P.chompWhile pred
+
+
 parseWords : String -> String -> List String
 parseWords wordChars str =
     let

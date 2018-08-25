@@ -25,6 +25,7 @@ import Helper.Helper
         , regex
         , oneOrMore
         , keepOneOrMore
+        , keepZeroOrMore
         )
 import Internal.TextBuffer as B
 import Internal.Jumps exposing (Location)
@@ -314,22 +315,20 @@ syntaxErrorParser =
            )
         |. oneOrMore (\c -> c == '-' || c == ' ')
         |= keepOneOrMore ((/=) '\n')
-        |= (P.chompWhile (Char.isDigit >> not)
-                |> P.getChompedString
-                |> P.map String.trim
-           )
+        |. P.spaces
+        |= keepZeroOrMore (not << Char.isDigit)
+        |. P.spaces
         |= (keepOneOrMore Char.isDigit
                 |> P.map (String.toInt >> Maybe.withDefault 0)
            )
         |. P.chompUntil "\n"
         |. P.symbol "\n"
-        |= (P.chompWhile ((/=) '^') |> P.getChompedString |> P.map String.length)
+        |= (keepZeroOrMore ((/=) '^') |> P.map String.length)
         |. P.chompUntil "\n"
         |. P.symbol "\n"
-        |= (P.chompWhile (always True)
-                |> P.getChompedString
-                |> P.map String.trim
-           )
+        |. P.spaces
+        |= keepZeroOrMore notSpace
+        |. P.spaces
 
 
 parseElmMakeResponse :

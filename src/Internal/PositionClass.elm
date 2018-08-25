@@ -27,6 +27,7 @@ import Helper.Helper
         , regex
         , oneOrMore
         , keepOneOrMore
+        , keepZeroOrMore
         )
 import Regex as Re
 
@@ -52,7 +53,7 @@ parserWordStart wordChars crossLine =
                 , oneOrMore isSpace
                 ]
             )
-        |= (P.getChompedString <| P.chompWhile isSpace)
+        |= keepZeroOrMore isSpace
         |= (P.getChompedString <|
                 P.oneOf
                     ([ P.chompIf (word wordChars)
@@ -71,7 +72,7 @@ parserLineFirst : Parser Int
 parserLineFirst =
     P.succeed
         (sumLength1 0)
-        |= P.getChompedString (P.chompWhile spaceInline)
+        |= keepZeroOrMore spaceInline
         |. P.oneOf
             [ P.chompIf (spaceInline >> not)
             , P.end
@@ -83,7 +84,7 @@ parserWordEnd wordChars =
     P.succeed
         (sumLength2 0)
         |. P.chompIf (always True)
-        |= P.getChompedString (P.chompWhile isSpace)
+        |= keepZeroOrMore isSpace
         |= (P.oneOf
                 [ oneOrMore (word wordChars)
                 , oneOrMore (punctuation wordChars)
@@ -176,7 +177,7 @@ parserWORDAround =
         , P.succeed
             (sumLength2 -1)
             |= keepOneOrMore notSpace
-            |= P.getChompedString (P.chompWhile spaceInline)
+            |= keepZeroOrMore spaceInline
         ]
 
 
@@ -203,7 +204,7 @@ parserWORDEnd =
     P.succeed
         (sumLength2 0)
         |. P.chompIf (always True)
-        |= P.getChompedString (P.chompWhile isSpace)
+        |= keepZeroOrMore isSpace
         |= keepOneOrMore notSpace
         |. P.oneOf
             [ P.chompIf isSpace
@@ -216,7 +217,7 @@ parserChar ch =
     P.succeed
         (sumLength2 0)
         |= P.getChompedString (P.chompIf (always True))
-        |= P.getChompedString (P.chompWhile ((/=) ch))
+        |= keepZeroOrMore ((/=) ch)
         |. P.chompIf ((==) ch)
 
 
@@ -224,7 +225,7 @@ parserBeforeChar : Char -> Parser Int
 parserBeforeChar ch =
     P.succeed String.length
         |. P.chompIf (always True)
-        |= P.getChompedString (P.chompWhile ((/=) ch))
+        |= keepZeroOrMore ((/=) ch)
         |. P.chompIf ((==) ch)
 
 
