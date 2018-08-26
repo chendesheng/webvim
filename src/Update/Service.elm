@@ -46,6 +46,8 @@ import Model
         , LintError
         , Key
         , Flags
+        , RichText(..)
+        , TextWithStyle
         )
 
 
@@ -76,7 +78,6 @@ eslintResultDecoder =
                 )
                 (Decode.succeed Nothing)
                 (Decode.succeed filePath)
-                (Decode.field "message" Decode.string)
                 (Decode.field "ruleId"
                     (Decode.oneOf
                         [ Decode.null ""
@@ -84,6 +85,9 @@ eslintResultDecoder =
                             |> Decode.map (\s -> "(" ++ s ++ ")")
                         ]
                     )
+                )
+                (Decode.field "message" Decode.string
+                    |> Decode.map PlainText
                 )
                 regionDecoder
                 (Decode.succeed Nothing)
@@ -100,15 +104,54 @@ eslintResultDecoder =
 
 elmMakeResultDecoder : Decode.Decoder (List LintError)
 elmMakeResultDecoder =
-    Decode.map7 LintError
-        (Decode.field "type" Decode.string)
-        (Decode.field "tag" Decode.string |> Decode.maybe)
-        (Decode.field "file" Decode.string)
-        (Decode.field "overview" Decode.string)
-        (Decode.field "details" Decode.string)
-        (Decode.field "region" regionDecoder)
-        (Decode.field "subregion" regionDecoder |> Decode.maybe)
-        |> Decode.list
+    let
+        messageDecoder =
+            Decode.list
+                (Decode.oneOf
+                    [ Decode.string
+                        |> Decode.map
+                            (\s ->
+                                { bold = False
+                                , color = Nothing
+                                , underline = False
+                                , string = s
+                                }
+                            )
+                    , Decode.map4 TextWithStyle
+                        (Decode.field "bold" Decode.bool)
+                        (Decode.field "color" Decode.string |> Decode.maybe)
+                        (Decode.field "underline" Decode.bool)
+                        (Decode.field "string" Decode.string)
+                    ]
+                )
+
+        errorDecoder path =
+            Decode.map3
+                (\title details region ->
+                    { tipe = "error"
+                    , tag = Nothing
+                    , file = path
+                    , overview = title
+                    , details = details
+                    , region = region
+                    , subRegion = Nothing
+                    }
+                )
+                (Decode.field "title" Decode.string)
+                (Decode.field "message" messageDecoder |> Decode.map RichText)
+                (Decode.field "region" regionDecoder)
+    in
+        Decode.field "errors"
+            (Decode.field "path" Decode.string
+                |> Decode.andThen
+                    (\path ->
+                        errorDecoder path
+                            |> Decode.list
+                            |> Decode.field "problems"
+                    )
+                |> Decode.list
+            )
+            |> Decode.map List.concat
 
 
 lineDiffDecoder : Decode.Decoder (List Patch)
@@ -280,7 +323,7 @@ cannotFindModuleError path lines =
                     , tag = Nothing
                     , file = path
                     , overview = ""
-                    , details = details
+                    , details = PlainText details
                     , region = findRegion name lines
                     , subRegion = Nothing
                     }
@@ -302,7 +345,7 @@ syntaxErrorParser =
                 , tag = Just tag
                 , file = file
                 , overview = overview
-                , details = details
+                , details = PlainText details
                 , region = ( ( y1, x1 ), ( y1, x1 + 1 ) )
                 , subRegion = Nothing
                 }
@@ -342,7 +385,7 @@ parseElmMakeResponse sep path lines resp =
                 [ dir, s ] ->
                     if String.trim s == "Successfully generated /dev/null" then
                         Ok []
-                    else if String.startsWith "[" s then
+                    else if String.startsWith "{" s then
                         s
                             |> String.lines
                             |> List.map
@@ -394,7 +437,7 @@ parseElmMakeResponse sep path lines resp =
                                           , region = ( ( 0, 0 ), ( 0, 0 ) )
                                           , subRegion = Nothing
                                           , overview = ""
-                                          , details = s
+                                          , details = PlainText s
                                           }
                                         ]
                                     )

@@ -36,12 +36,25 @@ type alias Flags =
     }
 
 
+type alias TextWithStyle =
+    { bold : Bool
+    , color : Maybe String
+    , underline : Bool
+    , string : String
+    }
+
+
+type RichText
+    = PlainText String
+    | RichText (List TextWithStyle)
+
+
 type alias LintError =
     { tipe : String
     , tag : Maybe String
     , file : String
     , overview : String
-    , details : String
+    , details : RichText
     , region : ( Position, Position )
     , subRegion : Maybe ( Position, Position )
     }

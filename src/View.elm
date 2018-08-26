@@ -546,17 +546,28 @@ renderTipInner width y_ x_ items =
             in
                 ( abs (y1 - y), abs (x1 - x) )
 
-        renderDetails ( y, x ) details =
+        renderDetails ( y, x ) overview details =
             div
                 [ style "top" <| rem <| y + 1
-
-                -- FIXME: hard code character width
-                , style "left" <| ch (Basics.min x (width // 9 - 40))
+                , style "left" <| ch x
                 , class "tip"
+                , (case details of
+                    RichText rt ->
+                        class ""
+
+                    PlainText s ->
+                        style "max-width" "400px"
+                  )
                 ]
                 [ div
                     [ class "tip-content" ]
-                    [ text details ]
+                    (case details of
+                        RichText rt ->
+                            renderRichText rt
+
+                        PlainText s ->
+                            [ text s ]
+                    )
                 ]
     in
         items
@@ -576,13 +587,35 @@ renderTipInner width y_ x_ items =
                 (\item ->
                     renderDetails
                         cursor
-                        (if String.isEmpty item.overview then
-                            item.details
-                         else
-                            item.overview ++ "\n" ++ item.details
-                        )
+                        item.overview
+                        item.details
                 )
             |> Maybe.withDefault (text "")
+
+
+renderRichText : List TextWithStyle -> List (Html msg)
+renderRichText details =
+    details
+        |> List.map
+            (\{ bold, underline, color, string } ->
+                span
+                    [ if bold then
+                        style "font-weight" "700"
+                      else
+                        style "font-weight" "400"
+                    , if underline then
+                        style "text-decoration" "underline"
+                      else
+                        style "text-decoration" "none"
+                    , case color of
+                        Just c ->
+                            style "color" c
+
+                        _ ->
+                            style "color" "inherit"
+                    ]
+                    [ text string ]
+            )
 
 
 renderTip :
