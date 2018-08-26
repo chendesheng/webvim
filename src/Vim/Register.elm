@@ -13,39 +13,28 @@ import Vim.AST
 import String
 
 
-isRegister : Key -> Bool
-isRegister key =
-    let
-        reg =
-            key
-                |> String.slice 0 1
-                |> String.toList
-                |> List.head
-    in
-        case reg of
-            Just ch ->
-                String.any
-                    ((==) ch)
-                    ("\"/=+_.@"
-                        ++ "0123456789"
-                        ++ "abcdefghijklmnopqrstuvwxyz"
-                        ++ "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                    )
-
-            Nothing ->
-                False
-
-
-registerParser : Parser ModeDelta
-registerParser =
-    readKeyAndThen "\""
-        [ PushKey "\"" ]
-        (P.succeed
-            (\key ->
-                if isRegister key then
-                    [ PushKey ("\"" ++ key), PushRegister key ]
-                else
-                    []
-            )
-            |= keyParser
+isRegisterChar : Char -> Bool
+isRegisterChar ch =
+    String.any
+        ((==) ch)
+        ("\"/=+_.@"
+            ++ "0123456789"
+            ++ "abcdefghijklmnopqrstuvwxyz"
+            ++ "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         )
+
+
+registerKeyEnd : (Key -> ModeDelta) -> Parser ModeDelta
+registerKeyEnd =
+    registerKey (P.succeed [])
+
+
+registerKey : Parser ModeDelta -> (Key -> ModeDelta) -> Parser ModeDelta
+registerKey next f =
+    P.oneOf
+        [ P.succeed f
+            |= (P.chompIf isRegisterChar
+                    |> P.getChompedString
+               )
+        , next
+        ]

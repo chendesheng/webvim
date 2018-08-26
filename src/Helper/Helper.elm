@@ -151,6 +151,11 @@ keepZeroOrMore pred =
         P.chompWhile pred
 
 
+chompUntilAfter : String -> P.Parser ()
+chompUntilAfter s =
+    P.chompUntil s |. P.symbol s
+
+
 parseWords : String -> String -> List String
 parseWords wordChars str =
     let

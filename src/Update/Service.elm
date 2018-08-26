@@ -26,6 +26,7 @@ import Helper.Helper
         , oneOrMore
         , keepOneOrMore
         , keepZeroOrMore
+        , chompUntilAfter
         )
 import Internal.TextBuffer as B
 import Internal.Jumps exposing (Location)
@@ -251,8 +252,7 @@ cannotFindModuleError path lines =
                             |> P.run
                                 (P.succeed identity
                                     |. P.symbol "import"
-                                    |. P.chompUntil name
-                                    |. P.symbol name
+                                    |. chompUntilAfter name
                                     |. P.chompIf isSpace
                                     |. P.chompWhile isSpace
                                 )
@@ -321,11 +321,9 @@ syntaxErrorParser =
         |= (keepOneOrMore Char.isDigit
                 |> P.map (String.toInt >> Maybe.withDefault 0)
            )
-        |. P.chompUntil "\n"
-        |. P.symbol "\n"
+        |. chompUntilAfter "\n"
         |= (keepZeroOrMore ((/=) '^') |> P.map String.length)
-        |. P.chompUntil "\n"
-        |. P.symbol "\n"
+        |. chompUntilAfter "\n"
         |. P.spaces
         |= keepZeroOrMore notSpace
         |. P.spaces
@@ -719,18 +717,15 @@ ctagsParser sep =
                     |. oneOrMore isSpace
                     |= keepOneOrMore notSpace
                     |= (P.succeed String.length
-                            |. P.chompUntil "/^"
-                            |. P.symbol "/^"
+                            |. chompUntilAfter "/^"
                             |= P.oneOf
                                 [ keepOneOrMore isSpace
                                 , P.succeed ""
                                 ]
                        )
-                    |. P.chompUntil "line:"
-                    |. P.symbol "line:"
+                    |. chompUntilAfter "line:"
                     |= P.int
-                    |. P.chompUntil "\n"
-                    |. P.symbol "\n"
+                    |. chompUntilAfter "\n"
                     |. P.chompWhile isSpace
                 , P.succeed (P.Done locations)
                     |. P.end

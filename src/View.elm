@@ -10,6 +10,7 @@ import List
 import Html.Attributes exposing (..)
 import Internal.Position exposing (Position)
 import Vim.AST exposing (VisualType(..))
+import Vim.Helper exposing (parseKeys)
 import Internal.Syntax exposing (Syntax, Token)
 import String
 import Update.Buffer as Buf
@@ -287,7 +288,13 @@ renderLintStatus items =
 renderStatusBarRight : String -> String -> List LintError -> Html msg
 renderStatusBarRight continuation name items =
     div [ class "status-right" ]
-        [ div [ class "status-cmds" ] [ text continuation ]
+        [ div
+            [ class "status-cmds" ]
+            [ continuation
+                |> parseKeys
+                |> String.join ""
+                |> text
+            ]
         , div [ class "filename" ] [ text name ]
         , lazy renderLintStatus items
         ]

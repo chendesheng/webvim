@@ -1,26 +1,29 @@
 module Update.Keymap exposing (keymap)
 
-import Vim.Helper exposing (parseKeys)
+import Vim.Helper exposing (parseKeys, escapeKey)
 import Model exposing (Mode(..), Key)
+import Dict
 
 
-normalKeyMap : Key -> List Key
-normalKeyMap key =
-    (case key of
-        "<c-p>" ->
-            ":e<space>"
+normalKeyMap =
+    [ ( "<c-p>", ":e<space>" )
+    , ( "<c-,>", ":f<space>" )
+    , ( "<c-s>", ":w<cr>" )
+    , ( "<m-v>", "\"+P" )
+    , ( "<a-v>", "\"+P" ) -- for windows
+    ]
 
-        "<c-,>" ->
-            ":f<space>"
 
-        "<c-s>" ->
-            ":w<cr>"
+insertKeyMap =
+    [ ( "<m-v>", "<c-r>+" )
+    , ( "<a-v>", "<c-r>+" )
+    ]
 
-        _ ->
-            ""
-    )
-        |> parseKeys
-        |> Maybe.withDefault [ key ]
+
+visualKeyMap =
+    [ ( "<m-c>", "\"+y" )
+    , ( "<a-c>", "\"+y" )
+    ]
 
 
 keymap : Mode -> Key -> List Key
@@ -29,7 +32,16 @@ keymap mode key =
         Normal _ ->
             normalKeyMap
 
+        Insert _ ->
+            insertKeyMap
+
+        Visual _ ->
+            visualKeyMap
+
         _ ->
-            List.singleton
+            []
     )
-        key
+        |> Dict.fromList
+        |> Dict.get key
+        |> Maybe.map parseKeys
+        |> Maybe.withDefault [ key ]

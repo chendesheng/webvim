@@ -5,7 +5,7 @@ import Char
 import String
 import List
 import Result
-import Helper.Helper exposing (getLast, notSpace)
+import Helper.Helper exposing (getLast, notSpace, oneOrMore, chompUntilAfter)
 import Vim.AST
     exposing
         ( ModeDelta
@@ -18,16 +18,6 @@ import Vim.AST
         , OperatorRange(..)
         , MotionOption
         )
-
-
-escapeKey : String -> Key
-escapeKey key =
-    if key == "<" then
-        "\\<"
-    else if key == "\\" then
-        "\\\\"
-    else
-        key
 
 
 isBetween : Char -> Char -> Char -> Bool
@@ -64,16 +54,6 @@ countParser =
             )
 
 
-ignoreChar : (Char -> Bool) -> Parser ()
-ignoreChar =
-    P.chompIf
-
-
-keepChar : (Char -> Bool) -> Parser String
-keepChar =
-    P.chompIf >> P.getChompedString
-
-
 dropLast : List a -> List a
 dropLast l =
     case l of
@@ -103,15 +83,12 @@ readKeyAndThen :
     -> Parser ModeDelta
     -> Parser ModeDelta
 readKeyAndThen key partialResult nextOps =
-    P.succeed
-        identity
+    P.succeed identity
         |. P.symbol key
         |= P.oneOf
-            [ P.succeed
-                partialResult
+            [ P.succeed partialResult
                 |. P.end
-            , P.succeed
-                []
+            , P.succeed []
                 |. P.symbol "<esc>"
             , nextOps
             ]
@@ -419,42 +396,49 @@ visualLineAfterOperator range =
             range
 
 
-escapedChar : Parser String
-escapedChar =
-    P.oneOf
-        -- escape '<' and '\'
-        [ P.succeed identity
-            |. ignoreChar ((==) '\\')
-            |= keepChar (\ch -> notSpace ch && (ch == '<' || ch == '\\'))
-        , keepChar (\ch -> notSpace ch && ch /= '<')
-        ]
+escapeKey : String -> Key
+escapeKey key =
+    if String.contains key "\\<" then
+        "\\" ++ key
+    else
+        key
+
+
+repeatParser : Parser a -> Parser (List a)
+repeatParser parser =
+    P.loop [] <|
+        (\items ->
+            P.oneOf
+                [ P.succeed (\item -> P.Loop (item :: items))
+                    |= parser
+                , P.succeed (P.Done <| List.reverse items)
+                    |. P.end
+                ]
+        )
 
 
 keyParser : Parser Key
 keyParser =
     P.oneOf
-        [ escapedChar
-        , P.symbol "<"
-            |. P.chompUntil ">"
+        [ P.symbol "<"
+            |. oneOrMore (\ch -> notSpace ch && ch /= '>')
             |. P.symbol ">"
+            |> P.getChompedString
+        , P.succeed identity
+            |. P.symbol "\\"
+            |= (P.oneOf
+                    [ P.symbol "<"
+                    , P.symbol "\\"
+                    ]
+                    |> P.getChompedString
+               )
+        , P.chompIf notSpace
             |> P.getChompedString
         ]
 
 
-parseKeys : String -> Maybe (List Key)
+parseKeys : String -> List Key
 parseKeys =
-    P.run
-        (P.loop []
-            (\keys ->
-                P.oneOf
-                    [ P.succeed (\key -> P.Loop (key :: keys))
-                        |= keyParser
-                    , if List.isEmpty keys then
-                        P.problem "no keys"
-                      else
-                        P.succeed (P.Done <| List.reverse keys)
-                            |. P.end
-                    ]
-            )
-        )
-        >> Result.toMaybe
+    Debug.log "parseKeys"
+        >> P.run (repeatParser keyParser)
+        >> Result.withDefault []

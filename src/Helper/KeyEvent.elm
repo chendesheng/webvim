@@ -311,7 +311,7 @@ mapShift key =
 
 
 toKey : KeyboardEvent -> String
-toKey { ctrlKey, altKey, shiftKey, keyCode } =
+toKey { ctrlKey, altKey, shiftKey, keyCode, metaKey } =
     let
         key =
             mapKeyCode keyCode
@@ -327,6 +327,7 @@ toKey { ctrlKey, altKey, shiftKey, keyCode } =
                 && (keyCode /= 16)
                 && (keyCode /= 17)
                 && (keyCode /= 18)
+                && (keyCode /= 93)
          then
             let
                 key1 =
@@ -334,13 +335,19 @@ toKey { ctrlKey, altKey, shiftKey, keyCode } =
                         mapShift ("s-" ++ key)
                     else
                         key
+
+                key2 =
+                    if ctrlKey then
+                        mapCtrl ("c-" ++ key1)
+                    else if altKey then
+                        "a-" ++ key1
+                    else
+                        key1
             in
-                if ctrlKey then
-                    mapCtrl ("c-" ++ key1)
-                else if altKey then
-                    "a-" ++ key1
+                if metaKey then
+                    "m-" ++ key2
                 else
-                    key1
+                    key2
          else
             ""
         )

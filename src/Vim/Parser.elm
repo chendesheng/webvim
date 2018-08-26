@@ -81,18 +81,22 @@ insertCommands =
                 |. P.symbol "<esc>"
             , P.succeed
                 (\key ->
-                    if key == "<inserts>" then
-                        [ PushOperator (InsertString LastSavedString) ]
-                    else
-                        case keyToChar key of
-                            Just ch ->
-                                [ TextLiteral ch
-                                    |> InsertString
-                                    |> PushOperator
-                                ]
+                    let
+                        _ =
+                            Debug.log "key" key
+                    in
+                        if key == "<inserts>" then
+                            [ PushOperator (InsertString LastSavedString) ]
+                        else
+                            case keyToChar key of
+                                Just ch ->
+                                    [ TextLiteral ch
+                                        |> InsertString
+                                        |> PushOperator
+                                    ]
 
-                            _ ->
-                                []
+                                _ ->
+                                    []
                 )
                 |= keyParser
             ]
@@ -156,16 +160,11 @@ insertMode =
         register =
             readKeyAndThen "<c-r>"
                 [ PushKey "<c-r>" ]
-                (P.succeed
-                    (\key ->
-                        if isRegister key then
-                            [ PushRegister key
-                            , Put False |> PushOperator
-                            ]
-                        else
-                            []
-                    )
-                    |= keyParser
+                (registerKeyEnd <|
+                    \key ->
+                        [ PushRegister key
+                        , Put False |> PushOperator
+                        ]
                 )
     in
         P.oneOf
@@ -220,17 +219,12 @@ linebuffer prefix map =
                                         InsertString WordUnderCursor
                                     ]
                                     |. P.symbol "<c-w>"
-                                , P.succeed
-                                    (\key ->
-                                        if isRegister key then
-                                            [ PushRegister key
-                                            , Put False
-                                                |> PushOperator
-                                            ]
-                                        else
-                                            []
-                                    )
-                                    |= keyParser
+                                , registerKeyEnd <|
+                                    \key ->
+                                        [ PushRegister key
+                                        , Put False
+                                            |> PushOperator
+                                        ]
                                 ]
                             )
                         , P.succeed [ PushOperator RepeatLastEx ]
@@ -751,7 +745,12 @@ operator isVisual isTemp =
                     )
 
         registerPrefix =
-            registerParser
+            readKeyAndThen "\""
+                [ PushKey "\"" ]
+                (registerKeyEnd <|
+                    \key ->
+                        [ PushKey ("\"" ++ key), PushRegister key ]
+                )
                 |> dontRecord
                 |> P.andThen
                     (\modeDelta ->
@@ -945,17 +944,12 @@ operator isVisual isTemp =
                         |> dontRecord
                    , readKeyAndThen "@"
                         [ PushKey "@" ]
-                        (P.map
-                            (\key ->
-                                if isRegister key then
-                                    [ PushKey ("@" ++ key)
-                                    , ReplayMacro key |> PushOperator
-                                    , PushComplete
-                                    ]
-                                else
-                                    []
-                            )
-                            keyParser
+                        (registerKeyEnd <|
+                            \key ->
+                                [ PushKey ("@" ++ key)
+                                , ReplayMacro key |> PushOperator
+                                , PushComplete
+                                ]
                         )
                         |> dontRecord
                    , define "J" (Join True)
@@ -1057,18 +1051,15 @@ macro : Bool -> Parser ModeDelta
 macro isVisual =
     readKeyAndThen "q"
         [ PushKey "q" ]
-        (keyParser
-            |> P.andThen
-                (\key ->
-                    if isRegister key then
-                        P.succeed
-                            [ PushKey ("q" ++ key)
-                            , PushRecordMacro key
-                            ]
-                            |> dontRecord
-                    else
-                        P.problem ("unknown register: " ++ key)
-                )
+        (registerKey
+            (P.problem "unknown register")
+            (\key ->
+                [ PauseRecording
+                , PushKey ("q" ++ key)
+                , PushRecordMacro key
+                , ContinueRecording
+                ]
+            )
             |> P.andThen
                 (\modeDelta ->
                     P.map ((++) modeDelta)
@@ -1102,8 +1093,8 @@ parse lastKeys key =
                 (lastKeys
                     ++ escapeKey key
                 )
+                    |> Debug.log "keys"
 
-            --|> Debug.log "keys"
             modeDelta =
                 P.run (completeAndThen popKey <| operator False False) keys
                     |> Result.withDefault []

@@ -921,9 +921,7 @@ replayKeys s buf =
                 buf.registers
 
             keys =
-                s
-                    |> parseKeys
-                    |> Maybe.withDefault []
+                parseKeys s
 
             ( buf1, cmd ) =
                 List.foldl

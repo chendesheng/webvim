@@ -14,6 +14,7 @@ import Helper.Helper
         , normalizePath
         , nthList
         , floorFromZero
+        , keepOneOrMore
         )
 import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
@@ -337,7 +338,7 @@ locationParser =
             { path = path
             , cursor =
                 case ints of
-                    y :: x :: _ ->
+                    x :: y :: _ ->
                         ( y - 1, x - 1 )
 
                     [ y ] ->
@@ -347,23 +348,22 @@ locationParser =
                         ( 0, 0 )
             }
         )
-        |= (P.chompIf isPathChar
-                |. P.chompWhile isPathChar
-                |> P.getChompedString
-           )
+        |= keepOneOrMore isPathChar
         |= (P.loop []
                 (\locations ->
-                    P.oneOf
-                        [ (P.succeed (\loc -> P.Loop (loc :: locations))
-                            |. P.symbol ":"
-                            |= P.oneOf
-                                [ P.int
-                                , P.succeed 1
-                                ]
-                          )
-                        , P.succeed (P.Done locations)
-                            |. P.end
-                        ]
+                    let
+                        done =
+                            P.succeed <| P.Done locations
+
+                        continue =
+                            P.succeed (\loc -> P.Loop <| loc :: locations)
+                                |. P.symbol ":"
+                                |= P.int
+                    in
+                        if List.length locations == 2 then
+                            done
+                        else
+                            P.oneOf [ P.backtrackable continue, done ]
                 )
            )
 
@@ -427,7 +427,7 @@ jumpToFile : Buffer -> ( Buffer, Cmd Msg )
 jumpToFile buf =
     case wORDStringUnderCursor buf of
         Just ( _, s ) ->
-            case P.run locationParser s of
+            case P.run locationParser (Debug.log "jumpToFile" s) of
                 Ok loc ->
                     jumpToLocation True loc buf
 
