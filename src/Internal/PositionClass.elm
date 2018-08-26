@@ -44,119 +44,68 @@ spaceInline char =
 
 parserWordStart : String -> Bool -> Parser Int
 parserWordStart wordChars crossLine =
-    P.succeed
-        (sumLength3 -1)
-        |= P.getChompedString
-            (P.oneOf
-                [ oneOrMore (word wordChars)
-                , oneOrMore (punctuation wordChars)
-                , oneOrMore isSpace
-                ]
+    P.succeed (\b e -> e - b - 1)
+        |= P.getOffset
+        |. P.oneOf
+            [ oneOrMore (word wordChars)
+            , oneOrMore (punctuation wordChars)
+            , oneOrMore isSpace
+            ]
+        |. P.chompWhile isSpace
+        |. P.oneOf
+            ([ P.chompIf (word wordChars)
+             , P.chompIf (punctuation wordChars)
+             ]
+                ++ (if crossLine then
+                        []
+                    else
+                        [ P.end ]
+                   )
             )
-        |= keepZeroOrMore isSpace
-        |= (P.getChompedString <|
-                P.oneOf
-                    ([ P.chompIf (word wordChars)
-                     , P.chompIf (punctuation wordChars)
-                     ]
-                        ++ (if crossLine then
-                                []
-                            else
-                                [ P.end ]
-                           )
-                    )
-           )
+        |= P.getOffset
 
 
 parserLineFirst : Parser Int
 parserLineFirst =
     P.succeed
-        (sumLength1 0)
-        |= keepZeroOrMore spaceInline
-        |. P.oneOf
-            [ P.chompIf (spaceInline >> not)
-            , P.end
-            ]
+        (\b e -> e - b)
+        |= P.getOffset
+        |. P.chompWhile spaceInline
+        |= P.getOffset
 
 
 parserWordEnd : String -> Parser Int
 parserWordEnd wordChars =
     P.succeed
-        (sumLength2 0)
+        (\b e -> e - b)
         |. P.chompIf (always True)
-        |= keepZeroOrMore isSpace
-        |= (P.oneOf
-                [ oneOrMore (word wordChars)
-                , oneOrMore (punctuation wordChars)
-                ]
-                |> P.getChompedString
-           )
+        |= P.getOffset
+        |. P.chompWhile isSpace
         |. P.oneOf
-            [ P.chompIf (word wordChars)
-            , P.chompIf (punctuation wordChars)
-            , P.chompIf isSpace
-            , P.end
+            [ oneOrMore (word wordChars)
+            , oneOrMore (punctuation wordChars)
             ]
+        |= P.getOffset
 
 
 parserWORDStart : Bool -> Parser Int
 parserWORDStart crossLine =
-    P.succeed
-        (sumLength3 -1)
-        |= (P.oneOf
-                [ oneOrMore notSpace
-                , oneOrMore isSpace
-                ]
-                |> P.getChompedString
-           )
-        |= P.getChompedString (P.chompIf isSpace)
-        |= P.getChompedString
-            (if crossLine then
+    P.succeed (\b e -> e - b - 1)
+        |= P.getOffset
+        |. P.oneOf
+            [ oneOrMore notSpace
+            , oneOrMore isSpace
+            ]
+        |. P.chompIf isSpace
+        |. (if crossLine then
                 P.chompIf notSpace
-             else
+            else
                 P.oneOf
                     [ P.chompIf notSpace
                     , P.end
                     ]
-            )
-
-
-sumLength1 : Int -> String -> Int
-sumLength1 delta a =
-    delta + String.length a
-
-
-sumLength2 : Int -> String -> String -> Int
-sumLength2 delta a b =
-    delta + String.length a + String.length b
-
-
-sumLength3 : Int -> String -> String -> String -> Int
-sumLength3 delta a b c =
-    delta
-        + String.length a
-        + String.length b
-        + String.length c
-
-
-parserWordEdge : String -> Parser Int
-parserWordEdge wordChars =
-    let
-        divider pred =
-            oneOrMore pred
-                |. P.oneOf
-                    [ P.chompIf (pred >> not)
-                    , P.end
-                    ]
-    in
-        P.succeed String.length
-            |= (P.oneOf
-                    [ divider spaceInline
-                    , divider (word wordChars)
-                    , divider (punctuation wordChars)
-                    ]
-                    |> P.getChompedString
-               )
+           )
+        |= P.getOffset
 
 
 parserWordAround : String -> Parser Int
@@ -168,64 +117,75 @@ parserWORDAround : Parser Int
 parserWORDAround =
     P.oneOf
         [ P.succeed
-            (sumLength1 -1)
-            |= keepOneOrMore spaceInline
+            (\b e -> e - b - 1)
+            |= P.getOffset
+            |. oneOrMore spaceInline
             |. P.oneOf
                 [ P.chompIf (spaceInline >> not)
                 , P.end
                 ]
+            |= P.getOffset
         , P.succeed
-            (sumLength2 -1)
-            |= keepOneOrMore notSpace
-            |= keepZeroOrMore spaceInline
+            (\b e -> e - b - 1)
+            |= P.getOffset
+            |. oneOrMore notSpace
+            |. P.chompWhile spaceInline
+            |= P.getOffset
         ]
+
+
+parserWordEdge : String -> Parser Int
+parserWordEdge wordChars =
+    P.succeed (\b e -> e - b)
+        |= P.getOffset
+        |. P.oneOf
+            [ oneOrMore spaceInline
+            , oneOrMore <| word wordChars
+            , oneOrMore <| punctuation wordChars
+            ]
+        |= P.getOffset
 
 
 parserWORDEdge : Parser Int
 parserWORDEdge =
-    let
-        divider pred =
-            P.succeed
-                String.length
-                |= keepOneOrMore pred
-                |. P.oneOf
-                    [ P.chompIf (pred >> not)
-                    , P.end
-                    ]
-    in
-        P.oneOf
-            [ divider spaceInline
-            , divider notSpace
+    P.succeed (\b e -> e - b)
+        |= P.getOffset
+        |. P.oneOf
+            [ oneOrMore spaceInline
+            , oneOrMore notSpace
             ]
+        |= P.getOffset
 
 
 parserWORDEnd : Parser Int
 parserWORDEnd =
     P.succeed
-        (sumLength2 0)
+        (\b e -> e - b)
         |. P.chompIf (always True)
-        |= keepZeroOrMore isSpace
-        |= keepOneOrMore notSpace
-        |. P.oneOf
-            [ P.chompIf isSpace
-            , P.end
-            ]
+        |= P.getOffset
+        |. P.chompWhile isSpace
+        |. oneOrMore notSpace
+        |= P.getOffset
 
 
 parserChar : Char -> Parser Int
 parserChar ch =
     P.succeed
-        (sumLength2 0)
-        |= P.getChompedString (P.chompIf (always True))
-        |= keepZeroOrMore ((/=) ch)
+        (\b e -> e - b)
+        |= P.getOffset
+        |. P.chompIf (always True)
+        |. P.chompWhile ((/=) ch)
+        |= P.getOffset
         |. P.chompIf ((==) ch)
 
 
 parserBeforeChar : Char -> Parser Int
 parserBeforeChar ch =
-    P.succeed String.length
+    P.succeed (\b e -> e - b)
         |. P.chompIf (always True)
-        |= keepZeroOrMore ((/=) ch)
+        |= P.getOffset
+        |. keepZeroOrMore ((/=) ch)
+        |= P.getOffset
         |. P.chompIf ((==) ch)
 
 
