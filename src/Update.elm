@@ -8,7 +8,15 @@ import Model exposing (..)
 import Update.Message exposing (..)
 import Vim.Helper exposing (parseKeys, escapeKey)
 import Vim.AST exposing (AST)
-import Helper.Helper exposing (fromListBy, normalizePath, nthList, regexWith)
+import Helper.Helper
+    exposing
+        ( fromListBy
+        , normalizePath
+        , nthList
+        , regexWith
+        , relativePath
+        , inc
+        )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
 import Internal.TextBuffer as B exposing (Patch(..))
@@ -758,8 +766,43 @@ runOperator count register operator buf =
         ColumnInsert append ->
             ( columnInsert append buf, Cmd.none )
 
+        ShowInfo ->
+            let
+                n =
+                    B.count buf.lines - 1
+
+                ( y, x ) =
+                    buf.cursor
+            in
+                ( Buf.infoMessage
+                    ((buf |> Buf.shortPath |> quote)
+                        ++ " line "
+                        ++ (y
+                                |> inc
+                                |> String.fromInt
+                           )
+                        ++ " of "
+                        ++ (B.count buf.lines - 1 |> String.fromInt)
+                        ++ " --"
+                        ++ (y * 100 // n |> String.fromInt)
+                        ++ "%--"
+                        ++ " col "
+                        ++ (x
+                                |> inc
+                                |> String.fromInt
+                           )
+                    )
+                    buf
+                , Cmd.none
+                )
+
         _ ->
             ( buf, Cmd.none )
+
+
+quote : String -> String
+quote s =
+    "\"" ++ s ++ "\""
 
 
 columnInsert : Bool -> Buffer -> Buffer
@@ -1564,7 +1607,7 @@ onWrite result buf =
                         |> scrollToCursor
                         |> pairCursor
                         |> Buf.infoMessage
-                            (Buf.shortPath buf ++ " Written")
+                            ((buf |> Buf.shortPath |> quote) ++ " Written")
 
                 syntaxBottom =
                     buf.syntaxDirtyFrom

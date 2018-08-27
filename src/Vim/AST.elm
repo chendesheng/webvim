@@ -114,6 +114,7 @@ type Operator
     | SelectAutoComplete Bool
     | IncreaseNumber Bool
     | ColumnInsert Bool -- visual mode I/A
+    | ShowInfo
 
 
 type StringType

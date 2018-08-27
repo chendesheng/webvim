@@ -405,3 +405,13 @@ floorFromZero n =
         ceiling n
     else
         floor n
+
+
+inc : number -> number
+inc i =
+    i + 1
+
+
+dec : number -> number
+dec i =
+    i + 1

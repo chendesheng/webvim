@@ -909,6 +909,8 @@ operator isVisual isTemp =
                     |> dontRecord
                 , define "<c-t>" JumpBackFromTag
                     |> dontRecord
+                , define "<c-g>" ShowInfo
+                    |> dontRecord
                 ]
              )
                 ++ [ countPrefix
