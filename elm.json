@@ -1,6 +1,6 @@
 {
   "type": "application",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "summary": "A toy vim clone",
   "repository": "https://github.com/chendesheng/webvim-elm.git",
   "license": "MIT",
