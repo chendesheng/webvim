@@ -782,11 +782,10 @@ runOperator count register operator buf =
                                 |> String.fromInt
                            )
                         ++ " of "
-                        ++ (B.count buf.lines - 1 |> String.fromInt)
+                        ++ (B.count buf.lines |> String.fromInt)
                         ++ " --"
                         ++ (y * 100 // n |> String.fromInt)
-                        ++ "%--"
-                        ++ " col "
+                        ++ "%-- col "
                         ++ (x
                                 |> inc
                                 |> String.fromInt
