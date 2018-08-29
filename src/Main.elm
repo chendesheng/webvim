@@ -24,8 +24,8 @@ toModel =
 
 main : Program Flags Model Msg
 main =
-    Browser.application
-        { init = (\flags _ _ -> ( Booting, initCommand flags ))
+    Browser.document
+        { init = (\flags -> ( Booting, initCommand flags ))
         , view =
             (\model ->
                 case model of
@@ -89,6 +89,4 @@ main =
                                         NoneMessage
                             )
                     ]
-        , onUrlRequest = always NoneMessage
-        , onUrlChange = always NoneMessage
         }
