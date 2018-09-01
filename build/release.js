@@ -49,7 +49,7 @@ const releaseFrontEnd = () => {
     }
   };
 
-  shell('elm make src/Main.elm --output dist/.bundle.js');
+  shell('elm make src/Main.elm --output dist/.bundle.js --optimize');
 
   const code = optimizeByGoogleClosureCompiler(
     version,
@@ -67,10 +67,12 @@ const releaseFrontEnd = () => {
   fs.writeFileSync('dist/webvim.html',
     htmlfile
       .replace(placeholder, '')
-      .replace(/[<]link.*dist\/style.min.css.*?>/, `<style>${css}</style>`)
-      .replace('src="dist/elm.js">', `>${code}`)
+      .replace(/[<]link.*dist\/style.min.css.*?>/,
+        () => `<style>${css}</style>`)
+      .replace('src="dist/elm.js">', () => `>${code}`)
       .replace('href="favicon.ico"',
-        `href="data:image/x-icon;base64,${base64Encode('favicon.ico')}"`));
+        () => ('href="data:image/x-icon;base64,'
+          + `${base64Encode('favicon.ico')}"`)));
 
   console.log('Successfully generated webvim.html');
 };

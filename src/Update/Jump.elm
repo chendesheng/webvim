@@ -427,7 +427,7 @@ jumpToFile : Buffer -> ( Buffer, Cmd Msg )
 jumpToFile buf =
     case wORDStringUnderCursor buf of
         Just ( _, s ) ->
-            case P.run locationParser (Debug.log "jumpToFile" s) of
+            case P.run locationParser s of
                 Ok loc ->
                     jumpToLocation True loc buf
 
