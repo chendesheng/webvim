@@ -99,11 +99,11 @@ suite =
             (let
                 testArrayInsert n item target result =
                     test
-                        (toString n
+                        (String.fromInt n
                             ++ " "
-                            ++ toString item
+                            ++ String.fromInt item
                             ++ " "
-                            ++ toString target
+                            ++ Debug.toString target
                         )
                     <|
                         (\_ ->
@@ -139,7 +139,7 @@ suite =
         , describe "findIndex"
             (let
                 testFindIndex arr i result =
-                    test ("find " ++ toString i ++ " in " ++ toString arr)
+                    test ("find " ++ String.fromInt i ++ " in " ++ Debug.toString arr)
                         (\_ ->
                             Expect.equal result <| findIndex ((==) i) arr
                         )

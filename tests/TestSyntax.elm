@@ -214,7 +214,7 @@ suite =
                 test item.description <|
                     \_ ->
                         let
-                            ( newSyntax, n ) =
+                            ( newSyntax_, n_ ) =
                                 List.foldl
                                     (\patch result ->
                                         let
@@ -231,7 +231,7 @@ suite =
                         in
                             Expect.equal
                                 item.result
-                                ( Array.toList newSyntax, n )
+                                ( Array.toList newSyntax_, n_ )
             )
             --(List.drop (List.length cases - 1) cases)
             cases

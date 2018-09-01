@@ -28,6 +28,7 @@ import Helper.Helper
         , oneOrMore
         , keepOneOrMore
         , keepZeroOrMore
+        , spaceInline
         )
 import Regex as Re
 
@@ -35,11 +36,6 @@ import Regex as Re
 punctuation : String -> Char -> Bool
 punctuation wordChars char =
     not (word wordChars char) && not (isSpace char)
-
-
-spaceInline : Char -> Bool
-spaceInline char =
-    isSpace char && char /= '\n'
 
 
 parserWordStart : String -> Bool -> Parser Int
@@ -96,7 +92,7 @@ parserWORDStart crossLine =
             [ oneOrMore notSpace
             , oneOrMore isSpace
             ]
-        |. P.chompIf isSpace
+        |. P.chompWhile isSpace
         |. (if crossLine then
                 P.chompIf notSpace
             else

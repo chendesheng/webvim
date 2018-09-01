@@ -827,12 +827,12 @@ suite : Test
 suite =
     describe "Vim key parser module"
         (List.map
-            (\( keys, mode ) ->
+            (\( keys, continuation ) ->
                 test ("Parse `" ++ keys ++ "`") <|
                     \_ ->
-                        Expect.equal mode (V.parse keys "")
+                        Expect.equal continuation (V.parse keys "")
             )
             (cases
-             --|> List.filter (\( keys, _ ) -> keys == "v/<esc>")
+             --|> List.filter (\( keys, _ ) -> keys == "2w")
             )
         )

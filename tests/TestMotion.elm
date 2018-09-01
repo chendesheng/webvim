@@ -5,11 +5,12 @@ import Test exposing (..)
 import Update.Motion exposing (..)
 import Internal.TextBuffer as B
 import Regex as Re
+import Helper.Helper exposing (regex)
 
 
 cleanLineBreaks : String -> String
 cleanLineBreaks s =
-    Re.replace Re.All (Re.regex "[\n]+") (always "\n") s
+    Re.replace (regex "[\n]+") (always "\n") s
 
 
 suite : Test

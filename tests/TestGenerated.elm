@@ -9,7 +9,19 @@ import Update.Message exposing (Msg(..))
 import Parser as P exposing ((|.), (|=), Parser)
 import Vim.Helper exposing (keyParser)
 import Vim.AST exposing (ModeName(..), VisualType(..))
-import Helper.Helper exposing (getLast, arrayInsert, isSpace, findIndex)
+import Helper.Helper
+    exposing
+        ( getLast
+        , arrayInsert
+        , isSpace
+        , findIndex
+        , repeatParser
+        , oneOrMore
+        , regex
+        , chompUntilAfter
+        , keepZeroOrMore
+        , spaceInline
+        )
 import Internal.Position exposing (Position)
 import Regex as Re
 import Array as Array
@@ -30,6 +42,11 @@ type TestInput
     | ApplyPatch Patch
 
 
+showPosition : Position -> String
+showPosition ( y, x ) =
+    "( " ++ String.fromInt y ++ ", " ++ String.fromInt x ++ " )"
+
+
 showTestInput : TestInput -> String
 showTestInput input =
     case input of
@@ -39,22 +56,26 @@ showTestInput input =
         ApplyPatch patch ->
             case patch of
                 Insertion pos s ->
-                    "+" ++ toString pos ++ " \"" ++ B.toString s ++ "\""
+                    "+" ++ showPosition pos ++ " \"" ++ B.toString s ++ "\""
 
                 Deletion b e ->
-                    "-" ++ toString b ++ " " ++ toString e
+                    "-" ++ showPosition b ++ " " ++ showPosition e
 
 
 handleKeys : List TestInput -> Buffer -> Buffer
 handleKeys inputs buf =
     List.foldl
-        (\input buf ->
+        (\input buf_ ->
             case input of
                 InputKey key ->
-                    update (PressKey key) buf |> Tuple.first
+                    buf_
+                        --|> Debug.log "buf_"
+                        |> update (PressKey key)
+                        |> Tuple.first
 
+                --|> Debug.log "return buf"
                 ApplyPatch patch ->
-                    Buf.transaction [ patch ] buf
+                    Buf.transaction [ patch ] buf_
         )
         buf
         inputs
@@ -117,8 +138,8 @@ formatBuffer buf =
                     (B.count buf.lines)
                 |> B.mapLines (addPrefix "|       ")
 
-        breakRegions buf =
-            case buf.mode of
+        breakRegions buf_ =
+            case buf_.mode of
                 Visual { tipe, begin, end } ->
                     let
                         ( by, bx ) =
@@ -132,7 +153,7 @@ formatBuffer buf =
                                 (\row ->
                                     let
                                         maxcol =
-                                            B.getLineMaxColumn row buf.lines
+                                            B.getLineMaxColumn row buf_.lines
 
                                         maybeRegion =
                                             case tipe of
@@ -162,30 +183,30 @@ formatBuffer buf =
                                                     else
                                                         Just ( 0, maxcol )
                                     in
-                                        Maybe.map ((,) row) maybeRegion
+                                        Maybe.map (Tuple.pair row) maybeRegion
                                 )
 
                 _ ->
-                    case buf.cursor of
-                        ( y, x ) ->
-                            [ ( y, ( x, x ) ) ]
+                    case buf_.cursor of
+                        ( y_, x_ ) ->
+                            [ ( y_, ( x_, x_ ) ) ]
 
         insertRegions regions textLines =
             regions
                 |> List.reverse
                 |> List.foldl
-                    (\( y, ( b, e ) ) lines ->
+                    (\( y_, ( b, e ) ) lines_ ->
                         let
                             s =
-                                if y == Tuple.first buf.cursor then
+                                if y_ == Tuple.first buf.cursor then
                                     let
-                                        x =
+                                        x_ =
                                             Tuple.second buf.cursor
                                     in
                                         ((String.repeat (8 + b) " ")
-                                            ++ (String.repeat (x - b) "-")
+                                            ++ (String.repeat (x_ - b) "-")
                                             ++ "^"
-                                            ++ (String.repeat (e - x) "-")
+                                            ++ (String.repeat (e - x_) "-")
                                         )
                                 else
                                     ((String.repeat (8 + b) " ")
@@ -193,9 +214,9 @@ formatBuffer buf =
                                     )
                         in
                             arrayInsert
-                                (y + 1)
+                                (y_ + 1)
                                 (s ++ "\n")
-                                lines
+                                lines_
                     )
                     textLines
 
@@ -289,8 +310,8 @@ parseCursor lines =
             (\i line ->
                 if String.startsWith " " line then
                     line
-                        |> Re.find (Re.AtMost 1)
-                            (Re.regex "\\^")
+                        |> Re.findAtMost 1
+                            (regex "\\^")
                         |> List.head
                         |> Maybe.map
                             (\m ->
@@ -437,21 +458,20 @@ isVisible line =
 
 ignoreSpaces : Parser ()
 ignoreSpaces =
-    P.ignore P.zeroOrMore
-        (\c -> isSpace c && c /= '\n' && c /= '\x0D')
+    P.chompWhile spaceInline
 
 
 pressKeysParser : Parser (List TestInput)
 pressKeysParser =
     P.succeed (List.map InputKey)
-        |. P.ignoreUntil "\n>"
+        |. (chompUntilAfter "\n>")
         |. ignoreSpaces
-        |= P.repeat P.zeroOrMore keyParser
+        |= repeatParser keyParser
 
 
 positionParser : Parser ( Int, Int )
 positionParser =
-    P.succeed (,)
+    P.succeed Tuple.pair
         |. P.symbol "("
         |. ignoreSpaces
         |= P.int
@@ -471,7 +491,7 @@ insertPatchParser =
         |= positionParser
         |. ignoreSpaces
         |. P.symbol "\""
-        |= (P.keep P.zeroOrMore ((/=) '"')
+        |= (keepZeroOrMore ((/=) '"')
                 |> P.map B.fromString
            )
         |. P.symbol "\""
@@ -502,18 +522,17 @@ testDataParser =
             , tests = tests
             }
         )
-        |. P.ignoreUntil "{"
-        |= (P.ignoreUntil "\n}"
-                |> P.source
+        |. chompUntilAfter "{"
+        |= (P.chompUntil "\n}"
+                |> P.getChompedString
                 |> P.andThen
                     (\s ->
-                        if s == "\n}" then
+                        if s == "" then
                             P.succeed emptyBuffer
                         else if String.startsWith "~\n" s then
                             let
                                 height =
                                     s
-                                        |> String.dropRight 2
                                         |> String.lines
                                         |> List.length
 
@@ -534,13 +553,14 @@ testDataParser =
                             let
                                 lines =
                                     s
-                                        |> String.dropRight 2
+                                        |> String.dropLeft 1
                                         |> String.lines
 
                                 textLines =
                                     lines
                                         |> List.filter isTextLine
 
+                                --|> Debug.log "lines"
                                 height =
                                     lines
                                         |> List.filter isVisible
@@ -563,12 +583,12 @@ testDataParser =
                                 textLines
                                     |> List.map (String.dropLeft 8)
                                     |> String.join "\n"
-                                    |> (flip (++) "\n")
+                                    |> (\line -> line ++ "\n")
                                     |> newBuffer mode cursor height scrollTop
                                     |> P.succeed
                     )
            )
-        |= P.repeat P.oneOrMore
+        |= repeatParser
             (P.succeed
                 (\input result ->
                     { input = input
@@ -578,9 +598,9 @@ testDataParser =
                 |= P.oneOf
                     [ pressKeysParser
                     , (P.succeed identity
-                        |. P.ignoreUntil "\n<"
+                        |. chompUntilAfter "\n<"
                         |. ignoreSpaces
-                        |= P.repeat P.oneOrMore
+                        |= repeatParser
                             (P.oneOf
                                 [ applyPatchParser insertPatchParser
                                 , applyPatchParser deletePatchParser
@@ -588,11 +608,12 @@ testDataParser =
                             )
                       )
                     ]
-                |. P.ignoreUntil "\n{"
-                |= (P.ignoreUntil "\n}"
-                        |> P.source
-                        |> P.map (String.slice 0 -1 >> String.trim)
+                |. chompUntilAfter "\n{"
+                |= (P.chompUntil "\n}"
+                        |> P.getChompedString
+                        |> P.map String.trim
                    )
+                |. P.symbol "\n}"
             )
 
 
@@ -631,7 +652,7 @@ genTest name data =
                         test
                             (name
                                 ++ "."
-                                ++ toString (i + 1)
+                                ++ String.fromInt (i + 1)
                                 ++ " ["
                                 ++ (input
                                         |> List.map showTestInput
@@ -651,4 +672,4 @@ genTest name data =
         Err err ->
             test name <|
                 \_ ->
-                    Expect.fail <| "parse test data error: " ++ toString err
+                    Expect.fail <| "parse test data error: " ++ Debug.toString err

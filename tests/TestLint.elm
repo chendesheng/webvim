@@ -33,5 +33,5 @@ I am looking for one of the following things:
                             Expect.pass
 
                         Err err ->
-                            Expect.fail (toString err)
+                            Expect.fail (Debug.toString err)
         ]

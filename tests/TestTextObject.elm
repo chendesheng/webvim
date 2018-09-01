@@ -66,7 +66,7 @@ suite =
                 (\(TestCase textobj around testcase) ->
                     test
                         (String.join " "
-                            [ toString textobj, toString around, testcase ]
+                            [ Debug.toString textobj, Debug.toString around, testcase ]
                         )
                     <|
                         \_ ->

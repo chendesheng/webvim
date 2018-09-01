@@ -53,7 +53,7 @@ gulp.task('js', function() {
 
 gulp.task('test', async function() {
   await genTests();
-  await exec('elm test');
+  await exec('elm-test');
 });
 
 function startBackend(port) {

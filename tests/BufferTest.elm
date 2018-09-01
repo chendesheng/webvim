@@ -22,8 +22,8 @@ import Internal.Brackets exposing (pairBracketAt)
 repeat : Int -> (a -> a) -> (a -> a)
 repeat n f =
     let
-        helper n x =
-            case (max n 0) of
+        helper n_ x =
+            case (max n_ 0) of
                 0 ->
                     x
 
@@ -331,8 +331,8 @@ suite =
                 let
                     buf =
                         List.foldl
-                            (\patches buf ->
-                                buf
+                            (\patches buf_ ->
+                                buf_
                                     |> transaction patches
                                     |> commit
                             )
@@ -353,8 +353,8 @@ suite =
                 let
                     buf =
                         List.foldl
-                            (\patches buf ->
-                                buf
+                            (\patches buf_ ->
+                                buf_
                                     |> transaction patches
                                     |> commit
                             )

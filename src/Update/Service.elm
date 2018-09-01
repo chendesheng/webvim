@@ -358,18 +358,18 @@ syntaxErrorParser =
            )
         |. oneOrMore (\c -> c == '-' || c == ' ')
         |= keepOneOrMore ((/=) '\n')
-        |. P.spaces
-        |= keepZeroOrMore (not << Char.isDigit)
-        |. P.spaces
+        |= (keepZeroOrMore (not << Char.isDigit)
+                |> P.map String.trim
+           )
         |= (keepOneOrMore Char.isDigit
                 |> P.map (String.toInt >> Maybe.withDefault 0)
            )
         |. chompUntilAfter "\n"
         |= (keepZeroOrMore ((/=) '^') |> P.map String.length)
         |. chompUntilAfter "\n"
-        |. P.spaces
-        |= keepZeroOrMore notSpace
-        |. P.spaces
+        |= (keepZeroOrMore (always True)
+                |> P.map String.trim
+           )
 
 
 parseElmMakeResponse :

@@ -3,8 +3,20 @@ module Helper.Helper exposing (..)
 import Dict exposing (Dict)
 import Regex as Re exposing (Regex)
 import Char
-import Parser as P exposing ((|.), (|=))
+import Parser as P exposing ((|.), (|=), Parser)
 import Array as Array exposing (Array)
+
+
+repeatParser : Parser a -> Parser (List a)
+repeatParser parser =
+    P.loop [] <|
+        (\items ->
+            P.oneOf
+                [ P.succeed (\item -> P.Loop (item :: items))
+                    |= parser
+                , P.succeed (P.Done <| List.reverse items)
+                ]
+        )
 
 
 getLast : List a -> Maybe a
@@ -415,3 +427,8 @@ inc i =
 dec : number -> number
 dec i =
     i + 1
+
+
+spaceInline : Char -> Bool
+spaceInline char =
+    isSpace char && char /= '\n'

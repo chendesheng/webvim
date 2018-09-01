@@ -5,7 +5,14 @@ import Char
 import String
 import List
 import Result
-import Helper.Helper exposing (getLast, notSpace, oneOrMore, chompUntilAfter)
+import Helper.Helper
+    exposing
+        ( getLast
+        , notSpace
+        , oneOrMore
+        , chompUntilAfter
+        , repeatParser
+        )
 import Vim.AST
     exposing
         ( ModeDelta
@@ -398,23 +405,10 @@ visualLineAfterOperator range =
 
 escapeKey : String -> Key
 escapeKey key =
-    if String.contains key "\\<" then
+    if key == "<" || key == "\\" then
         "\\" ++ key
     else
         key
-
-
-repeatParser : Parser a -> Parser (List a)
-repeatParser parser =
-    P.loop [] <|
-        (\items ->
-            P.oneOf
-                [ P.succeed (\item -> P.Loop (item :: items))
-                    |= parser
-                , P.succeed (P.Done <| List.reverse items)
-                    |. P.end
-                ]
-        )
 
 
 keyParser : Parser Key
@@ -439,6 +433,5 @@ keyParser =
 
 parseKeys : String -> List Key
 parseKeys =
-    Debug.log "parseKeys"
-        >> P.run (repeatParser keyParser)
+    P.run (repeatParser keyParser)
         >> Result.withDefault []

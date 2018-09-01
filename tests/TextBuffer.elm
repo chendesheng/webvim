@@ -129,11 +129,6 @@ invalidPatches =
     ]
 
 
-fuzzBuffer : Fuzz.Fuzzer TextBuffer
-fuzzBuffer =
-    Fuzz.map B.fromString Fuzz.string
-
-
 fuzzPosition : Fuzz.Fuzzer Position
 fuzzPosition =
     Fuzz.tuple ( Fuzz.intRange 0 1000, Fuzz.intRange 0 1000 )
@@ -144,41 +139,21 @@ fuzzPositionFrom ( y, x ) =
     Fuzz.tuple ( Fuzz.intRange y (y + 1000), Fuzz.intRange x (x + 1000) )
 
 
-fuzzLines : Fuzz.Fuzzer B.TextBuffer
+fuzzLines : Fuzz.Fuzzer TextBuffer
 fuzzLines =
-    Fuzz.string
-        |> Fuzz.andThen
-            (\s ->
-                Fuzz.intRange 0 (String.length s)
-                    |> Fuzz.list
-                    |> Fuzz.map2
-                        (\n poses ->
-                            poses
-                                |> List.take n
-                                |> List.sort
-                                |> List.reverse
-                                |> List.foldl
-                                    (\i res ->
-                                        String.left i res
-                                            ++ "\n"
-                                            ++ String.dropLeft i res
-                                    )
-                                    s
-                                |> B.fromString
-                        )
-                        (Fuzz.intRange 0 10)
-            )
+    Fuzz.map B.fromString Fuzz.string
 
 
 fuzzPatch : Fuzz.Fuzzer Patch
 fuzzPatch =
     Fuzz.oneOf
         [ Fuzz.map2 Insertion fuzzPosition fuzzLines
-        , fuzzPosition
-            |> Fuzz.andThen
-                (\pos ->
-                    Fuzz.map (Deletion pos) (fuzzPositionFrom pos)
-                )
+        , Fuzz.map2
+            (\p1 p2 ->
+                Deletion (min p1 p2) (max p1 p2)
+            )
+            fuzzPosition
+            fuzzPosition
         ]
 
 
@@ -230,36 +205,29 @@ suite =
             )
         , describe "by property"
             [ fuzz
-                (Fuzz.tuple ( fuzzPatch, fuzzBuffer ))
-                "apply a patch returned from applyPatch get orignal buffer"
-              <|
-                \( patch, buf ) ->
-                    let
-                        ( patch1, buf1 ) =
-                            B.applyPatch patch buf
-
-                        ( patch2, buf2 ) =
-                            B.applyPatch patch1 buf1
-                    in
-                        Expect.equal buf buf2
-            , fuzz
-                (Fuzz.tuple ( fuzzPatch, fuzzBuffer ))
-                "applyPatch always return valid buffer"
+                (Fuzz.tuple ( fuzzPatch, fuzzLines ))
+                "apply random patch to random buffer"
               <|
                 \( patch, buf ) ->
                     Expect.all
-                        [ (\buf ->
+                        [ \( patch1, buf1 ) ->
+                            let
+                                ( patch2, buf2 ) =
+                                    B.applyPatch patch1 buf1
+                            in
+                                Expect.equal buf buf2
+                        , (\( _, buf_ ) ->
                             let
                                 line =
-                                    buf
-                                        |> B.getLine (B.count buf - 1)
+                                    buf_
+                                        |> B.getLine (B.count buf_ - 1)
                                         |> Maybe.withDefault ""
                             in
                                 String.endsWith B.lineBreak line
                                     |> Expect.false
                                         "last line should not endsWith \\n"
                           )
-                        , (\buf ->
+                        , (\( _, buf_ ) ->
                             B.mapLines
                                 (\line ->
                                     line
@@ -267,25 +235,25 @@ suite =
                                         |> List.length
                                         |> ((==) 1)
                                 )
-                                buf
+                                buf_
                                 |> Array.slice 0
-                                    (B.count buf - 1)
+                                    (B.count buf_ - 1)
                                 |> Array.toList
                                 |> List.all ((==) True)
                                 |> Expect.true
                                     "should always contains single \\n except last line"
                           )
-                        , (\buf ->
-                            B.mapLines String.isEmpty buf
+                        , (\( _, buf_ ) ->
+                            B.mapLines String.isEmpty buf_
                                 |> Array.slice 0
-                                    (B.count buf - 1)
+                                    (B.count buf_ - 1)
                                 |> Array.toList
                                 |> List.all not
                                 |> Expect.true
                                     "should not contains empty line except last line"
                           )
                         ]
-                        (B.applyPatch patch buf |> Tuple.second)
+                        (B.applyPatch patch buf)
             ]
         , let
             testMergePatch cases =

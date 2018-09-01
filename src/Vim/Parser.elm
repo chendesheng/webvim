@@ -81,22 +81,18 @@ insertCommands =
                 |. P.symbol "<esc>"
             , P.succeed
                 (\key ->
-                    let
-                        _ =
-                            Debug.log "key" key
-                    in
-                        if key == "<inserts>" then
-                            [ PushOperator (InsertString LastSavedString) ]
-                        else
-                            case keyToChar key of
-                                Just ch ->
-                                    [ TextLiteral ch
-                                        |> InsertString
-                                        |> PushOperator
-                                    ]
+                    if key == "<inserts>" then
+                        [ PushOperator (InsertString LastSavedString) ]
+                    else
+                        case keyToChar key of
+                            Just ch ->
+                                [ TextLiteral ch
+                                    |> InsertString
+                                    |> PushOperator
+                                ]
 
-                                _ ->
-                                    []
+                            _ ->
+                                []
                 )
                 |= keyParser
             ]
@@ -1095,7 +1091,6 @@ parse lastKeys key =
                 (lastKeys
                     ++ escapeKey key
                 )
-                    |> Debug.log "keys"
 
             modeDelta =
                 P.run (completeAndThen popKey <| operator False False) keys
@@ -1116,7 +1111,7 @@ parse lastKeys key =
                             keys_ =
                                 aggregateRecordKeys modeDelta
                         in
-                            if containsOnlyDigits keys then
+                            if containsOnlyDigits keys_ then
                                 ""
                             else
                                 keys_

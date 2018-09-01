@@ -14,7 +14,7 @@ import Vim.AST
 
 isEven : Int -> Bool
 isEven x =
-    x % 2 == 0
+    modBy 2 x == 0
 
 
 isOdd : Int -> Bool
@@ -571,7 +571,7 @@ a h
                 (\(TestCase md option testcase) ->
                     test
                         (String.join " "
-                            [ toString md, option, testcase ]
+                            [ Debug.toString md, option, testcase ]
                         )
                     <|
                         \_ ->
