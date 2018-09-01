@@ -6,6 +6,7 @@ const {generateHtml} = require('./build/html.config.js');
 const http = require('http');
 const browserSync = require('browser-sync').create();
 const AsyncLock = require('async-lock');
+const os = require('os');
 const lock = new AsyncLock();
 
 function exec(cmd) {
@@ -22,21 +23,17 @@ function exec(cmd) {
 
 gulp.task('ctags', async function() {
   return lock.acquire('ctags', function() {
+    const home = os.homedir();
     return exec(['ctags',
       '-R',
       '--fields=+n',
-      '--exclude="tests/elm-stuff"',
       '--exclude="*.json"',
-      '--exclude="elm-stuff/**/tests"',
-      '--exclude="elm-stuff/**/benchmarks"',
-      '--exclude="tests/elm-stuff/packages/elm-community/elm-test/**/tests"',
-      '--exclude='
-      + '"tests/elm-stuff/packages/elm-community/elm-test/**/benchmarks"',
+      `--exclude="${home}/.elm/0.19.0/package/elm/**/tests"`,
+      '--exclude="tests/elm-stuff/pac-community/elm-test/**/benchmarks"',
       '--exclude="tests/gen/**"',
       'src',
       'tests',
-      'elm-stuff/packages',
-      'tests/elm-stuff/packages/elm-community/elm-test',
+      `${home}/.elm`,
     ].join(' '));
   });
 });
