@@ -49,7 +49,8 @@
     "less": "^3.8.1",
     "less-plugin-autoprefix": "^1.5.1",
     "less-plugin-clean-css": "^1.5.1",
-    "purescript": "^0.12.0"
+    "purescript": "^0.12.0",
+    "sshpk": "^1.14.2"
   },
   "dependencies": {
     "clipboardy": "^1.2.3",
