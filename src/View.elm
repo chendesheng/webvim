@@ -22,6 +22,28 @@ import Json.Decode as Decode
 import Browser exposing (Document)
 
 
+type alias Point =
+    ( Int, Int )
+
+
+cursorPoint : FontInfo -> B.TextBuffer -> Int -> Int -> ( Point, Point )
+cursorPoint fontInfo lines y x =
+    lines
+        |> B.getLine y
+        |> Maybe.map
+            (\line ->
+                let
+                    x1 =
+                        stringWidth fontInfo 0 x line
+
+                    w =
+                        cursorCharWidth fontInfo x line
+                in
+                    ( ( y, x1 ), ( y, x1 + w ) )
+            )
+        |> Maybe.withDefault ( ( 0, 0 ), ( 0, 0 ) )
+
+
 rem : Int -> String
 rem n =
     String.fromInt n ++ "rem"
@@ -30,6 +52,11 @@ rem n =
 ch : Int -> String
 ch n =
     String.fromInt n ++ "ch"
+
+
+px : Int -> String
+px n =
+    String.fromInt n ++ "px"
 
 
 translate : Int -> Int -> ( String, String )
@@ -41,7 +68,11 @@ translate x y =
 
 vrView : Buffer -> Html Msg
 vrView buf =
-    div [ class "vr-editor" ] [ pageDom buf, pageDom buf ]
+    let
+        dom =
+            pageDom buf
+    in
+        div [ class "vr-editor" ] [ dom, dom ]
 
 
 page : Buffer -> Document Msg
@@ -63,6 +94,9 @@ pageDom buf =
     let
         { mode, cursor, lines, syntax, continuation, view, history } =
             buf
+
+        { fontInfo } =
+            buf.config
 
         scrollTop =
             view.scrollTop
@@ -171,21 +205,27 @@ pageDom buf =
                     (class "lines-container" :: scrollingCss)
                     (renderColumnGuide maybeCursor
                         :: renderLineGuide maybeCursor
-                        :: lazy4 renderVisual scrollTop1 height mode lines
-                        :: renderHighlights scrollTop1 lines highlights
-                        :: lazy3 renderLint scrollTop1 lines buf.lint.items
+                        :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
+                        :: renderHighlights fontInfo scrollTop1 lines highlights
+                        :: lazy4 renderLint fontInfo scrollTop1 lines buf.lint.items
                         :: lazy renderLines view.lines
                         :: div [ class "ruler" ] []
-                        :: renderCursor "" maybeCursor
+                        :: renderCursor fontInfo lines "" maybeCursor
                         :: renderTip
                             buf.view.size.width
                             buf.lint.items
                             maybeCursor
                             showTip
-                        :: renderMatchedCursor mode cursor buf.view.matchedCursor
+                        :: renderMatchedCursor
+                            fontInfo
+                            lines
+                            mode
+                            cursor
+                            buf.view.matchedCursor
                     )
                 ]
              , renderStatusBar
+                fontInfo
                 (Buf.isDirty buf)
                 mode
                 continuation
@@ -300,14 +340,31 @@ renderStatusBarRight continuation name items =
         ]
 
 
-renderStatusBarLeft : Mode -> Html msg
-renderStatusBarLeft mode =
+renderStatusBarLeft : FontInfo -> Mode -> Html msg
+renderStatusBarLeft fontInfo mode =
     let
         statusBar =
             Buf.getStatusBar mode
+
+        divs =
+            case statusBar.cursor of
+                Just ( y, x ) ->
+                    [ div
+                        [ class "cursor"
+                        , statusBar.text
+                            |> stringWidth fontInfo 0 x
+                            |> px
+                            |> style "left"
+                        , style "top" <| rem y
+                        ]
+                        []
+                    ]
+
+                _ ->
+                    []
     in
         div [ class "status-left" ]
-            [ div
+            ([ div
                 [ class
                     (if statusBar.error then
                         "status-error"
@@ -322,16 +379,19 @@ renderStatusBarLeft mode =
                         statusBar.text
                     )
                 ]
-            , renderCursor "" statusBar.cursor
-            ]
+             ]
+                ++ divs
+            )
 
 
 renderMatchedCursor :
-    Mode
+    FontInfo
+    -> B.TextBuffer
+    -> Mode
     -> Position
     -> Maybe ( Position, Position )
     -> List (Html msg)
-renderMatchedCursor mode cursor matchedCursor =
+renderMatchedCursor fontInfo lines mode cursor matchedCursor =
     case mode of
         Ex _ ->
             []
@@ -343,20 +403,31 @@ renderMatchedCursor mode cursor matchedCursor =
                         |> List.filter ((/=) cursor)
                         |> List.map
                             (\( y, x ) ->
-                                renderCursorInner "matched-cursor" y x
+                                renderCursorInner fontInfo
+                                    lines
+                                    "matched-cursor"
+                                    y
+                                    x
                             )
 
                 _ ->
                     []
 
 
-renderStatusBar : Bool -> Mode -> String -> List LintError -> String -> Html msg
-renderStatusBar dirty mode continuation items name =
+renderStatusBar :
+    FontInfo
+    -> Bool
+    -> Mode
+    -> String
+    -> List LintError
+    -> String
+    -> Html msg
+renderStatusBar fontInfo dirty mode continuation items name =
     div
         [ class "status"
         , classList [ ( "dirty", dirty ) ]
         ]
-        [ lazy renderStatusBarLeft mode
+        [ lazy2 renderStatusBarLeft fontInfo mode
         , lazy3 renderStatusBarRight continuation name items
         ]
 
@@ -395,15 +466,16 @@ incrementSearchRegion mode =
 
 
 renderVisual :
-    Int
+    FontInfo
+    -> Int
     -> Int
     -> Mode
     -> B.TextBuffer
     -> Html msg
-renderVisual scrollTop height mode lines =
+renderVisual fontInfo scrollTop height mode lines =
     case mode of
         Visual visual ->
-            lazy3 renderSelections scrollTop lines visual
+            lazy4 renderSelections fontInfo scrollTop lines visual
 
         Ex { prefix, visual } ->
             let
@@ -426,7 +498,7 @@ renderVisual scrollTop height mode lines =
                             Nothing
             in
                 (visual1
-                    |> Maybe.map (lazy3 renderSelections scrollTop lines)
+                    |> Maybe.map (lazy4 renderSelections fontInfo scrollTop lines)
                     |> Maybe.withDefault (text "")
                 )
 
@@ -444,22 +516,27 @@ maybeToList mb =
             []
 
 
-renderCursorInner : String -> Int -> Int -> Html msg
-renderCursorInner classname y x =
-    div
-        [ class "cursor"
-        , class classname
-        , style "left" <| ch x
-        , style "top" <| rem y
-        ]
-        []
+renderCursorInner : FontInfo -> B.TextBuffer -> String -> Int -> Int -> Html msg
+renderCursorInner fontInfo lines classname y x =
+    let
+        ( ( by, bx ), ( ey, ex ) ) =
+            cursorPoint fontInfo lines y x
+    in
+        div
+            [ class "cursor"
+            , class classname
+            , style "left" <| px bx
+            , style "top" <| rem y
+            , style "width" <| px (ex - bx)
+            ]
+            []
 
 
-renderCursor : String -> Maybe Position -> Html msg
-renderCursor classname cursor =
+renderCursor : FontInfo -> B.TextBuffer -> String -> Maybe Position -> Html msg
+renderCursor fontInfo lines classname cursor =
     case cursor of
         Just ( y, x ) ->
-            lazy3 renderCursorInner classname y x
+            lazy5 renderCursorInner fontInfo lines classname y x
 
         _ ->
             text ""
@@ -503,8 +580,8 @@ renderLineGuide cursor =
             text ""
 
 
-renderHighlights : Int -> B.TextBuffer -> Maybe ( VisualMode, List VisualMode ) -> Html msg
-renderHighlights scrollTop lines highlights =
+renderHighlights : FontInfo -> Int -> B.TextBuffer -> Maybe ( VisualMode, List VisualMode ) -> Html msg
+renderHighlights fontInfo scrollTop lines highlights =
     case
         highlights
     of
@@ -513,7 +590,7 @@ renderHighlights scrollTop lines highlights =
                 [ class "highlights" ]
                 (List.concatMap
                     (\{ tipe, begin, end } ->
-                        (renderRange scrollTop tipe begin end lines False)
+                        (renderRange fontInfo scrollTop tipe begin end lines False)
                     )
                     (match :: matches)
                 )
@@ -523,14 +600,15 @@ renderHighlights scrollTop lines highlights =
 
 
 renderSelections :
-    Int
+    FontInfo
+    -> Int
     -> B.TextBuffer
     -> VisualMode
     -> Html msg
-renderSelections scrollTop lines { tipe, begin, end } =
+renderSelections fontInfo scrollTop lines { tipe, begin, end } =
     div
         [ class "selections" ]
-        (renderRange scrollTop tipe begin end lines False)
+        (renderRange fontInfo scrollTop tipe begin end lines False)
 
 
 renderTipInner : Int -> Int -> Int -> List LintError -> Html msg
@@ -637,16 +715,24 @@ renderTip width items maybeCursor showTip =
 
 
 renderLint :
-    Int
+    FontInfo
+    -> Int
     -> B.TextBuffer
     -> List LintError
     -> Html msg
-renderLint scrollTop lines items =
+renderLint fontInfo scrollTop lines items =
     let
         render classname ( begin, end ) scrollTop_ lines_ =
             div
                 [ class classname ]
-                (renderRange scrollTop_ VisualChars begin end lines_ True)
+                (renderRange fontInfo
+                    scrollTop_
+                    VisualChars
+                    begin
+                    end
+                    lines_
+                    True
+                )
     in
         div [ class "lints" ]
             (List.filterMap
@@ -682,14 +768,15 @@ renderLint scrollTop lines items =
 {-| inclusive
 -}
 renderRange :
-    Int
+    FontInfo
+    -> Int
     -> VisualType
     -> Position
     -> Position
     -> B.TextBuffer
     -> Bool
     -> List (Html msg)
-renderRange scrollTop tipe begin end lines excludeLineBreak_ =
+renderRange fontInfo scrollTop tipe begin end lines excludeLineBreak_ =
     let
         regions =
             visualRegions False tipe begin end lines
@@ -747,17 +834,40 @@ renderRange scrollTop tipe begin end lines excludeLineBreak_ =
                                     else
                                         Just ( 0, maxcol )
                     in
-                        Maybe.map
-                            (\( bx_, ex_ ) ->
-                                (div
-                                    [ style "left" <| ch bx_
-                                    , style "top" <| rem row
-                                    , style "width" <| ch <| ex_ - bx_ + 1
-                                    ]
-                                    []
-                                )
+                        Maybe.map2
+                            (\( bx_, ex_ ) line ->
+                                let
+                                    styleTop =
+                                        row
+                                            |> rem
+                                            |> style "top"
+
+                                    styleLeft =
+                                        line
+                                            |> stringWidth fontInfo 0 bx_
+                                            |> px
+                                            |> style "left"
+
+                                    styleWidth =
+                                        line
+                                            |> stringWidth fontInfo bx_ ex_
+                                            |> (+)
+                                                (cursorCharWidth fontInfo
+                                                    ex_
+                                                    line
+                                                )
+                                            |> px
+                                            |> style "width"
+                                in
+                                    div
+                                        [ styleTop
+                                        , styleLeft
+                                        , styleWidth
+                                        ]
+                                        []
                             )
                             maybeRegion
+                            (B.getLine row lines)
                 )
 
 
@@ -863,15 +973,23 @@ renderTokens spans line i =
             let
                 j =
                     i + sp.length
+
+                -- FIXME: implement wrapping
+                j1 =
+                    Basics.min j 1000
             in
                 (span
                     [ class sp.classname ]
                     [ line
-                        |> String.slice i j
+                        |> String.slice i j1
                         |> text
                     ]
                 )
-                    :: (renderTokens rest line j)
+                    :: (if j1 == j then
+                            renderTokens rest line j
+                        else
+                            []
+                       )
 
         _ ->
             -- this means we have broken syntax tokens

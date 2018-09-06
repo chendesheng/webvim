@@ -241,6 +241,7 @@ newBuffer info buf =
                     | service = buf.config.service
                     , pathSeperator = buf.config.pathSeperator
                     , syntax = info.syntax
+                    , fontInfo = buf.config.fontInfo
                 }
             , view =
                 { emptyView

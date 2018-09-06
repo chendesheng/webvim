@@ -18,21 +18,77 @@ import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode
 import Regex as Re
+import Helper.Helper exposing (findFirst)
 
 
 type alias Size =
     { width : Int, height : Int }
 
 
+type alias CodePoint =
+    Int
+
+
+type alias FontWidth =
+    { from : CodePoint
+    , to : CodePoint
+    , width : Float
+    }
+
+
+type alias FontInfo =
+    { name : String
+    , widths : List FontWidth
+    , asciiCharWidth : Float
+    , lineHeight : Int
+    , size : Int -- pt
+    }
+
+
+charWidth : FontInfo -> Char -> Float
+charWidth { widths, asciiCharWidth } ch =
+    widths
+        |> findFirst
+            (\{ from, to } ->
+                let
+                    codePoint =
+                        Char.toCode ch
+                in
+                    from <= codePoint && codePoint < to
+            )
+        |> Maybe.map .width
+        |> Maybe.withDefault asciiCharWidth
+
+
+stringWidth : FontInfo -> Int -> Int -> String -> Int
+stringWidth fontInfo b e s =
+    s
+        |> String.slice b e
+        |> String.toList
+        |> List.map (charWidth fontInfo)
+        |> List.sum
+        |> round
+
+
+cursorCharWidth : FontInfo -> Int -> String -> Int
+cursorCharWidth fontInfo x s =
+    s
+        |> String.dropLeft x
+        |> String.uncons
+        |> Maybe.map (Tuple.first >> charWidth fontInfo)
+        |> Maybe.withDefault fontInfo.asciiCharWidth
+        |> round
+
+
 type alias Flags =
-    { lineHeight : Int
-    , service : String
+    { service : String
     , buffers : Encode.Value
     , activeBuffer : Encode.Value
     , registers : Encode.Value
     , height : Int
     , cwd : String
     , pathSeperator : String
+    , fontInfo : FontInfo
     }
 
 
@@ -360,6 +416,7 @@ type alias BufferConfig =
     , pathSeperator : String
     , indent : IndentConfig
     , syntax : Bool
+    , fontInfo : FontInfo
     }
 
 
@@ -373,6 +430,13 @@ defaultBufferConfig =
     , pathSeperator = "/"
     , indent = AutoIndent
     , syntax = True
+    , fontInfo =
+        { widths = []
+        , asciiCharWidth = 0
+        , lineHeight = 0
+        , size = 0
+        , name = ""
+        }
     }
 
 

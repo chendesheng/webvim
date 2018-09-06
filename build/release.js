@@ -39,23 +39,12 @@ const optimizeByGoogleClosureCompiler = (version, commit, code) => {
 };
 
 const releaseFrontEnd = () => {
-  const getLineHeight = () => {
-    try {
-      return parseInt(read('css/style.less')
-        .match(/@line-height:\s?(\d+)px;/)[1]);
-    } catch ( e ) {
-      console.warn('read line height failed: ' + e);
-      return 21;
-    }
-  };
-
   shell('elm make src/Main.elm --output dist/.bundle.js --optimize');
 
   const code = optimizeByGoogleClosureCompiler(
     version,
     commit,
     [read('dist/.bundle.js'),
-      `const lineHeight = ${getLineHeight()};`,
       read('build/index.js')
         .replace(/\n\s*service:.*8899.*,\s*\n/, '\nservice:"",\n'),
     ].join('\n'));

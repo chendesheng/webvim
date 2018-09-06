@@ -353,10 +353,20 @@ findPosition wordChars md mo line pos =
                     Just (String.length line1 - 1)
 
                 CharStart ->
-                    if pos + 1 >= String.length line1 then
-                        Nothing
-                    else
-                        Just (pos + 1)
+                    line1
+                        |> String.dropLeft pos
+                        |> String.uncons
+                        |> Maybe.andThen
+                            (\( ch, right ) ->
+                                if String.isEmpty right then
+                                    Nothing
+                                else
+                                    ch
+                                        |> String.fromChar
+                                        |> String.length
+                                        |> (+) pos
+                                        |> Just
+                            )
 
                 _ ->
                     line1
@@ -374,10 +384,19 @@ findPosition wordChars md mo line pos =
                         |> Result.toMaybe
 
                 CharStart ->
-                    if pos - 1 >= 0 then
-                        Just (pos - 1)
-                    else
+                    if pos == 0 then
                         Nothing
+                    else
+                        line1
+                            |> String.dropLeft (pos - 2)
+                            |> String.uncons
+                            |> Maybe.map
+                                (\( ch, _ ) ->
+                                    ch
+                                        |> String.fromChar
+                                        |> String.length
+                                        |> (-) pos
+                                )
 
                 _ ->
                     line1

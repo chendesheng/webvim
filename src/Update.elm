@@ -1680,8 +1680,11 @@ getViewHeight heightPx lineHeightPx statusBarHeight =
 init : Flags -> ( Buffer, Cmd Msg )
 init flags =
     let
-        { cwd, lineHeight, service, buffers } =
+        { cwd, fontInfo, service, buffers } =
             flags
+
+        lineHeight =
+            fontInfo.lineHeight
 
         { activeBuffer, registers, height, pathSeperator } =
             flags
@@ -1724,6 +1727,7 @@ init flags =
                         { defaultBufferConfig
                             | service = service
                             , pathSeperator = pathSeperator
+                            , fontInfo = fontInfo
                         }
                     , registers =
                         Decode.decodeValue registersDecoder registers

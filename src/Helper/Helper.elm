@@ -72,6 +72,19 @@ filename s =
             ( "", "" )
 
 
+findFirst : (a -> Bool) -> List a -> Maybe a
+findFirst pred list =
+    case list of
+        [] ->
+            Nothing
+
+        first :: rest ->
+            if pred first then
+                Just first
+            else
+                findFirst pred rest
+
+
 findIndex : (a -> Bool) -> List a -> Maybe Int
 findIndex =
     let
@@ -432,3 +445,10 @@ dec i =
 spaceInline : Char -> Bool
 spaceInline char =
     isSpace char && char /= '\n'
+
+
+charAt : Int -> String -> Maybe Char
+charAt x s =
+    String.dropLeft x s
+        |> String.uncons
+        |> Maybe.map Tuple.first

@@ -43,6 +43,36 @@ correctCursor buf =
         buf
 
 
+greaterTo : Int -> Int -> Bool
+greaterTo x y =
+    y > x
+
+
+correctPositionOnSurrogate : B.TextBuffer -> Position -> Position
+correctPositionOnSurrogate lines (( y, x ) as pos) =
+    lines
+        |> B.getLine y
+        |> Maybe.andThen
+            (\line ->
+                line
+                    |> String.dropLeft (x - 1)
+                    |> String.uncons
+                    |> Maybe.map
+                        (\( ch, _ ) ->
+                            if
+                                ch
+                                    |> String.fromChar
+                                    |> String.length
+                                    |> greaterTo 1
+                            then
+                                ( y, x - 1 )
+                            else
+                                pos
+                        )
+            )
+        |> Maybe.withDefault pos
+
+
 correctPosition : Position -> Bool -> B.TextBuffer -> Position
 correctPosition pos excludeLineBreak lines =
     let
@@ -68,9 +98,9 @@ correctPosition pos excludeLineBreak lines =
                 |> min x
     in
         if y1 == y && x == x1 then
-            pos
+            correctPositionOnSurrogate lines pos
         else
-            ( y1, x1 )
+            correctPositionOnSurrogate lines ( y1, x1 )
 
 
 {-| move cursor ensure cursor is insdie viewport

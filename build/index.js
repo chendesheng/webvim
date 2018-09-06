@@ -34,6 +34,53 @@ if (typeof customElements !== 'undefined') {
   customElements.define('session-storage-item', SessionStorageItem);
 }
 
+function measureChar(ch) {
+  let s = '';
+  for (let i = 0; i < 256; i++) {
+    s += ch;
+  }
+
+  const span = document.getElementById('measureChar')
+  || document.createElement('span');
+  span.id = 'measureChar';
+  span.textContent = s;
+  span.className = 'editor line';
+  span.style.cssText = 'position:absolute;left:-9999px;';
+
+  return {
+    width: span.clientWidth / 256,
+    height: span.clientHeight,
+  };
+}
+
+function measureFont() {
+  const span = document.createElement('span');
+  span.id = 'measureChar';
+  document.body.insertBefore(span, document.body.firstChild);
+
+  const size = measureChar('m');
+  const size2 = measureChar('中');
+  const size3 = measureChar('😄');
+  const style = window.getComputedStyle(span, null);
+  const fontSize = parseInt(style.getPropertyValue('font-size'));
+  const fontName = style.getPropertyValue('font-family');
+  span.remove();
+  return {
+    widths: [{
+      from: 256,
+      to: 0x1f600,
+      width: size2.width,
+    }, {
+      from: 0x1f600,
+      to: 0xffffffff,
+      width: size3.width,
+    }],
+    asciiCharWidth: size.width,
+    lineHeight: size.height,
+    size: fontSize,
+    name: fontName,
+  };
+}
 
 const safeJsonParse = (s) => {
   if (s) {
@@ -55,7 +102,6 @@ if (!location.hostname) {
 }
 
 const flags = {
-  lineHeight,
   service: `${scheme}//${host}:8899`,
   activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
   buffers: safeJsonParse(sessionStorage.getItem('buffers')) || [],
@@ -63,6 +109,7 @@ const flags = {
   height: window.innerHeight,
   cwd: sessionStorage.getItem('cwd') || '',
   pathSeperator: '',
+  fontInfo: measureFont(),
 };
 
 const applyCss = (url) => {
