@@ -65,7 +65,10 @@ correctPositionOnSurrogate lines (( y, x ) as pos) =
                                     |> String.length
                                     |> greaterTo 1
                             then
-                                ( y, x - 1 )
+                                if x + 1 >= String.length line - 1 then
+                                    ( y, x - 1 )
+                                else
+                                    ( y, x + 1 )
                             else
                                 pos
                         )

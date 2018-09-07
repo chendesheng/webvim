@@ -203,7 +203,7 @@ pageDom buf =
                     (totalLines - scrollTop1)
                 , div
                     (class "lines-container" :: scrollingCss)
-                    (renderColumnGuide maybeCursor
+                    (renderColumnGuide fontInfo lines maybeCursor
                         :: renderLineGuide maybeCursor
                         :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
                         :: renderHighlights fontInfo scrollTop1 lines highlights
@@ -542,20 +542,25 @@ renderCursor fontInfo lines classname cursor =
             text ""
 
 
-renderCursorColumnInner : Int -> Html msg
-renderCursorColumnInner x =
-    div
-        [ class "guide column-guide"
-        , style "left" <| ch x
-        ]
-        []
+renderCursorColumnInner : FontInfo -> B.TextBuffer -> Int -> Int -> Html msg
+renderCursorColumnInner fontInfo lines y x =
+    let
+        ( ( _, x1 ), ( _, x2 ) ) =
+            cursorPoint fontInfo lines y x
+    in
+        div
+            [ class "guide column-guide"
+            , style "left" <| px x1
+            , style "width" <| px (x2 - x1)
+            ]
+            []
 
 
-renderColumnGuide : Maybe Position -> Html msg
-renderColumnGuide cursor =
+renderColumnGuide : FontInfo -> B.TextBuffer -> Maybe Position -> Html msg
+renderColumnGuide fontInfo lines cursor =
     case cursor of
         Just ( y, x ) ->
-            lazy renderCursorColumnInner x
+            lazy4 renderCursorColumnInner fontInfo lines y x
 
         _ ->
             text ""

@@ -1,4 +1,4 @@
-port module Main exposing (..)
+module Main exposing (..)
 
 import Model exposing (..)
 import Update.Message exposing (..)
