@@ -5,7 +5,7 @@
 -- Normal --
 }
 
-> <c-v>jI1<esc>
+> <c-v>jI1<escape>
 
 {
 ||      1a

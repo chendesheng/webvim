@@ -47,7 +47,7 @@ cases =
         , ""
         )
       )
-    , ( "g<esc>"
+    , ( "g<escape>"
       , ( initialMode, "" )
       )
     , ( "gj"
@@ -73,10 +73,10 @@ cases =
     , ( "i"
       , ( { initialMode | modeName = ModeNameInsert }, "i" )
       )
-    , ( "i<esc>"
+    , ( "i<escape>"
       , ( { initialMode
             | modeName = ModeNameNormal
-            , recordKeys = "i<inserts><esc>"
+            , recordKeys = "i<inserts><escape>"
           }
         , ""
         )
@@ -90,7 +90,7 @@ cases =
         )
       )
     , ( "c", ( initialMode, "c" ) )
-    , ( "c<esc>", ( initialMode, "" ) )
+    , ( "c<escape>", ( initialMode, "" ) )
     , ( "cw"
       , ( { initialMode
             | modeName = ModeNameInsert
@@ -104,7 +104,7 @@ cases =
         )
       )
     , ( "cv", ( initialMode, "cv" ) )
-    , ( "cv<esc>", ( initialMode, "" ) )
+    , ( "cv<escape>", ( initialMode, "" ) )
     , ( "cvw"
       , ( { initialMode
             | modeName = ModeNameInsert
@@ -117,11 +117,11 @@ cases =
         , "cvw"
         )
       )
-    , ( "cw<esc>"
-      , ( { initialMode | recordKeys = "cw<inserts><esc>" }, "" )
+    , ( "cw<escape>"
+      , ( { initialMode | recordKeys = "cw<inserts><escape>" }, "" )
       )
-    , ( "cvw<esc>"
-      , ( { initialMode | recordKeys = "cvw<inserts><esc>" }, "" )
+    , ( "cvw<escape>"
+      , ( { initialMode | recordKeys = "cvw<inserts><escape>" }, "" )
       )
     , ( "cwa"
       , ( { initialMode
@@ -166,21 +166,21 @@ cases =
         , "c/"
         )
       )
-    , ( "c/<cr>"
+    , ( "c/<enter>"
       , ( { initialMode
             | modeName = ModeNameInsert
             , edit =
                 Delete (MotionRange (MatchString LastSavedString) (motionOption ">)+-"))
                     |> Just
           }
-        , "c/<cr>"
+        , "c/<enter>"
         )
       )
-    , ( "c/<esc>", ( initialMode, "" ) )
+    , ( "c/<escape>", ( initialMode, "" ) )
 
     -- range operator
     , ( "d", ( initialMode, "d" ) )
-    , ( "d<esc>", ( initialMode, "" ) )
+    , ( "d<escape>", ( initialMode, "" ) )
     , ( "dw"
       , ( { initialMode
             | edit =
@@ -218,7 +218,7 @@ cases =
         )
       )
     , ( "\\<", ( initialMode, "\\<" ) )
-    , ( "\\<<esc>", ( initialMode, "" ) )
+    , ( "\\<<escape>", ( initialMode, "" ) )
     , ( "\\<w"
       , ( { initialMode
             | edit =
@@ -265,10 +265,10 @@ cases =
         , ":"
         )
       )
-    , ( ":<esc>"
+    , ( ":<escape>"
       , ( initialMode, "" )
       )
-    , ( ":<cr>"
+    , ( ":<enter>"
       , ( { initialMode | edit = Execute |> Just }, "" )
       )
     , ( ":a"
@@ -282,10 +282,10 @@ cases =
     , ( "/"
       , ( { initialMode | modeName = ModeNameEx "/" }, "/" )
       )
-    , ( "/<esc>"
+    , ( "/<escape>"
       , ( initialMode, "" )
       )
-    , ( "/<cr>"
+    , ( "/<enter>"
       , ( { initialMode
             | edit =
                 motionOption ">)+-"
@@ -306,10 +306,10 @@ cases =
     , ( "?"
       , ( { initialMode | modeName = ModeNameEx "?" }, "?" )
       )
-    , ( "?<esc>"
+    , ( "?<escape>"
       , ( initialMode, "" )
       )
-    , ( "?<cr>"
+    , ( "?<enter>"
       , ( { initialMode
             | edit =
                 motionOption "<)+-"
@@ -354,7 +354,7 @@ cases =
     , ( "i<c-o>"
       , ( { initialMode | modeName = ModeNameTempNormal }, "i<c-o>" )
       )
-    , ( "i<c-o><esc>"
+    , ( "i<c-o><escape>"
       , ( { initialMode | modeName = ModeNameInsert }, "i" )
       )
     , ( "i<c-o>w"
@@ -436,7 +436,7 @@ cases =
     , ( "cw<c-o>"
       , ( { initialMode | modeName = ModeNameTempNormal }, "cw<c-o>" )
       )
-    , ( "cw<c-o><esc>"
+    , ( "cw<c-o><escape>"
       , ( { initialMode | modeName = ModeNameInsert }, "cw" )
       )
     , ( "cw<c-o>w"
@@ -483,11 +483,11 @@ cases =
     , ( "q"
       , ( initialMode, "q" )
       )
-    , ( "q<esc>", ( initialMode, "" ) )
+    , ( "q<escape>", ( initialMode, "" ) )
     , ( "qa"
       , ( { initialMode | recordMacro = Just "a" }, "qa" )
       )
-    , ( "qa<esc>"
+    , ( "qa<escape>"
       , ( { initialMode | recordMacro = Just "a" }, "qa" )
       )
     , ( "qaw"
@@ -543,7 +543,7 @@ cases =
     , ( "\"a\"b"
       , ( { initialMode | register = "b" }, "\"a\"b" )
       )
-    , ( "\"<esc>"
+    , ( "\"<escape>"
       , ( initialMode, "" )
       )
     , ( "\"aw"
@@ -596,7 +596,7 @@ cases =
     , ( "23"
       , ( { initialMode | count = Just 23 }, "23" )
       )
-    , ( "23<esc>", ( initialMode, "" ) )
+    , ( "23<escape>", ( initialMode, "" ) )
     , ( "23\"a24"
       , ( { initialMode
             | register = "a"
@@ -606,7 +606,7 @@ cases =
         )
       )
     , ( "@", ( initialMode, "@" ) )
-    , ( "@<esc>", ( initialMode, "" ) )
+    , ( "@<escape>", ( initialMode, "" ) )
     , ( "@q"
       , ( { initialMode | edit = ReplayMacro "q" |> Just }, "" )
       )
@@ -770,7 +770,7 @@ cases =
         , "v"
         )
       )
-    , ( "v/<esc>"
+    , ( "v/<escape>"
       , ( { initialMode
             | modeName = ModeNameVisual VisualChars
             , recordKeys = ""

@@ -8,7 +8,7 @@
 -- Normal --
 }
 
-> A<space><esc>J
+> A<space><escape>J
 
 {
 ||      123 456

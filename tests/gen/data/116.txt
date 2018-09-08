@@ -5,7 +5,7 @@
 -- Normal --
 }
 
-> /^<cr>
+> /^<enter>
 
 {
 |       aa aa
@@ -14,7 +14,7 @@
 /^
 }
 
-> ?^<cr>
+> ?^<enter>
 
 {
 ||      aa aa

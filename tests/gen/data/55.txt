@@ -1,7 +1,7 @@
 {
 }
 
-> inewline<esc>"ayyddiabc<esc>^dei123<cr>456<esc>gg
+> inewline<escape>"ayyddiabc<escape>^dei123<enter>456<escape>gg
 
 {
 ||      123

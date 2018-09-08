@@ -7,7 +7,7 @@
 -- Normal --
 }
 
-> <c-v>kkkhI<cr><esc>
+> <c-v>kkkhI<enter><escape>
 
 {
 |       abc d

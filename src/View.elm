@@ -16,10 +16,11 @@ import String
 import Update.Buffer as Buf
 import Dict exposing (Dict)
 import Bitwise as BW
-import Update.Message exposing (Msg(..))
+import Update.Message exposing (Msg(..), IMEMsg(..))
 import Update.Range exposing (visualRegions)
 import Json.Decode as Decode
 import Browser exposing (Document)
+import Helper.KeyEvent exposing (decodeKeyboardEvent)
 
 
 type alias Point =
@@ -210,7 +211,7 @@ pageDom buf =
                         :: lazy4 renderLint fontInfo scrollTop1 lines buf.lint.items
                         :: lazy renderLines view.lines
                         :: div [ class "ruler" ] []
-                        :: renderCursor fontInfo lines "" maybeCursor
+                        :: renderCursor fontInfo mode lines "" maybeCursor
                         :: renderTip
                             buf.view.size.width
                             buf.lint.items
@@ -340,7 +341,93 @@ renderStatusBarRight continuation name items =
         ]
 
 
-renderStatusBarLeft : FontInfo -> Mode -> Html msg
+renderInput : FontInfo -> String -> Int -> Int -> IME -> Html Msg
+renderInput fontInfo className y x ime =
+    div
+        [ class "ime"
+        , class className
+        , style "top" <| rem y
+        , style "left" <| px x
+        ]
+        [ if ime == emptyIme then
+            text ""
+          else
+            div
+                [ class "ime-preview"
+                , style "padding-left" "3px"
+                , style "padding-right" "3px"
+                ]
+                [ text ime.text
+                , div
+                    [ class "ime-preview-cursor"
+                    , style "left" <|
+                        px (stringWidth fontInfo 0 ime.caret ime.text + 3)
+                    ]
+                    []
+                ]
+        , input
+            [ id "ime-hidden-input"
+            , value ime.text
+            , Events.custom "keydown"
+                (decodeKeyboardEvent
+                    |> Decode.map
+                        (\key ->
+                            let
+                                _ =
+                                    Debug.log "key" key
+                            in
+                                if
+                                    String.startsWith "<s-" key
+                                        || String.startsWith "<c-" key
+                                        || String.startsWith "<a-" key
+                                        || String.startsWith "<m-" key
+                                        || (key == "<escape>")
+                                        || (String.isEmpty ime.text
+                                                && (String.startsWith "<" key)
+                                           )
+                                then
+                                    { message = PressKeys key
+                                    , stopPropagation = True
+                                    , preventDefault = True
+                                    }
+                                else
+                                    { message = NoneMessage
+                                    , stopPropagation = True
+                                    , preventDefault = False
+                                    }
+                        )
+                )
+
+            --, Events.onBlur (IMEMessage <| IMESelect <| ime.text)
+            , Events.custom "input" <|
+                Decode.map2
+                    (\text caret ->
+                        { message =
+                            { caret = caret, text = text }
+                                |> IMETyping
+                                |> IMEMessage
+                        , stopPropagation = True
+                        , preventDefault = True
+                        }
+                    )
+                    (Decode.at [ "target", "value" ] Decode.string)
+                    (Decode.at [ "target", "selectionStart" ] Decode.int)
+            , Events.custom "textInput"
+                (Decode.field "data" Decode.string
+                    |> Decode.map
+                        (\text ->
+                            { message = IMEMessage <| IMESelect text
+                            , stopPropagation = True
+                            , preventDefault = True
+                            }
+                        )
+                )
+            ]
+            []
+        ]
+
+
+renderStatusBarLeft : FontInfo -> Mode -> Html Msg
 renderStatusBarLeft fontInfo mode =
     let
         statusBar =
@@ -349,22 +436,28 @@ renderStatusBarLeft fontInfo mode =
         divs =
             case statusBar.cursor of
                 Just ( y, x ) ->
-                    [ div
-                        [ class "cursor"
-                        , statusBar.text
-                            |> stringWidth fontInfo 0 x
-                            |> px
-                            |> style "left"
-                        , style "top" <| rem y
-                        ]
-                        []
-                    ]
+                    let
+                        x1 =
+                            stringWidth fontInfo 0 x statusBar.text
+                    in
+                        renderInput fontInfo "ime-ex-mode" y x1 statusBar.ime
+                            :: (if statusBar.ime == emptyIme then
+                                    [ div
+                                        [ class "cursor"
+                                        , style "left" <| px x1
+                                        , style "top" <| rem y
+                                        ]
+                                        []
+                                    ]
+                                else
+                                    []
+                               )
 
                 _ ->
                     []
     in
         div [ class "status-left" ]
-            ([ div
+            (div
                 [ class
                     (if statusBar.error then
                         "status-error"
@@ -379,8 +472,7 @@ renderStatusBarLeft fontInfo mode =
                         statusBar.text
                     )
                 ]
-             ]
-                ++ divs
+                :: divs
             )
 
 
@@ -390,7 +482,7 @@ renderMatchedCursor :
     -> Mode
     -> Position
     -> Maybe ( Position, Position )
-    -> List (Html msg)
+    -> List (Html Msg)
 renderMatchedCursor fontInfo lines mode cursor matchedCursor =
     case mode of
         Ex _ ->
@@ -404,6 +496,7 @@ renderMatchedCursor fontInfo lines mode cursor matchedCursor =
                         |> List.map
                             (\( y, x ) ->
                                 renderCursorInner fontInfo
+                                    Nothing
                                     lines
                                     "matched-cursor"
                                     y
@@ -421,7 +514,7 @@ renderStatusBar :
     -> String
     -> List LintError
     -> String
-    -> Html msg
+    -> Html Msg
 renderStatusBar fontInfo dirty mode continuation items name =
     div
         [ class "status"
@@ -516,27 +609,57 @@ maybeToList mb =
             []
 
 
-renderCursorInner : FontInfo -> B.TextBuffer -> String -> Int -> Int -> Html msg
-renderCursorInner fontInfo lines classname y x =
+renderCursorInner : FontInfo -> Maybe IME -> B.TextBuffer -> String -> Int -> Int -> Html Msg
+renderCursorInner fontInfo maybeIme lines classname y x =
     let
         ( ( by, bx ), ( ey, ex ) ) =
             cursorPoint fontInfo lines y x
+
+        divCursor =
+            div
+                [ class "cursor"
+                , class classname
+                , style "left" <| px bx
+                , style "top" <| rem y
+                , style "width" <| px (ex - bx)
+                ]
+                []
     in
-        div
-            [ class "cursor"
-            , class classname
-            , style "left" <| px bx
-            , style "top" <| rem y
-            , style "width" <| px (ex - bx)
-            ]
-            []
+        case maybeIme of
+            Just ime ->
+                let
+                    imeInput =
+                        renderInput fontInfo "ime-insert-mode" y bx ime
+                in
+                    div []
+                        (imeInput
+                            :: if ime == emptyIme then
+                                [ divCursor ]
+                               else
+                                []
+                        )
+
+            _ ->
+                divCursor
 
 
-renderCursor : FontInfo -> B.TextBuffer -> String -> Maybe Position -> Html msg
-renderCursor fontInfo lines classname cursor =
+renderCursor : FontInfo -> Mode -> B.TextBuffer -> String -> Maybe Position -> Html Msg
+renderCursor fontInfo mode lines classname cursor =
     case cursor of
         Just ( y, x ) ->
-            lazy5 renderCursorInner fontInfo lines classname y x
+            lazy6 renderCursorInner
+                fontInfo
+                (case mode of
+                    Insert { ime } ->
+                        Just ime
+
+                    _ ->
+                        Nothing
+                )
+                lines
+                classname
+                y
+                x
 
         _ ->
             text ""

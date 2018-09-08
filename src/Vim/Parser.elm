@@ -25,7 +25,7 @@ mapHead map items =
 keyToChar : String -> Maybe String
 keyToChar key =
     case key of
-        "<cr>" ->
+        "<enter>" ->
             Just "\n"
 
         "<tab>" ->
@@ -35,7 +35,7 @@ keyToChar key =
             Just " "
 
         _ ->
-            if String.length key > 1 then
+            if String.length key > 2 then
                 Nothing
             else
                 Just key
@@ -75,10 +75,10 @@ insertCommands =
             , P.succeed
                 [ PopMode
                 , PushComplete
-                , PushKey "<inserts><esc>"
+                , PushKey "<inserts><escape>"
                 , PopKey
                 ]
-                |. P.symbol "<esc>"
+                |. P.symbol "<escape>"
             , P.succeed
                 (\key ->
                     if key == "<inserts>" then
@@ -183,17 +183,17 @@ linebuffer prefix map =
             |= P.oneOf
                 [ P.succeed
                     [ Execute |> map |> PushOperator
-                    , PushKey (prefix ++ "<exbuf>" ++ "<cr>")
+                    , PushKey (prefix ++ "<exbuf>" ++ "<enter>")
                     , PopKey
                     , PauseRecording
-                    , PushKey (prefix ++ "<cr>")
+                    , PushKey (prefix ++ "<enter>")
                     , ContinueRecording
                     , PushComplete
                     ]
-                    |. P.symbol "<cr>"
+                    |. P.symbol "<enter>"
                 , P.succeed
                     [ PushComplete, PushEscape ]
-                    |. P.symbol "<esc>"
+                    |. P.symbol "<escape>"
                 , P.succeed
                     ((++)
                         [ PushKey prefix
@@ -483,7 +483,7 @@ motion isVisual map gMotion =
              , define "N" (MatchString LastSavedString) <| motionOption "<)+-"
              , define "*" (MatchString WordUnderCursor) <| motionOption ">)+-"
              , define "#" (MatchString WordUnderCursor) <| motionOption "<)+-"
-             , define "<cr>" NextLineFirst <| motionOption ">]+="
+             , define "<enter>" NextLineFirst <| motionOption ">]+="
              , gMotion
              ]
             )
@@ -999,7 +999,7 @@ visual =
                     P.oneOf
                         [ P.succeed
                             (\key1 ->
-                                if key1 == key || key1 == "<esc>" then
+                                if key1 == key || key1 == "<escape>" then
                                     []
                                 else if key1 == "" then
                                     [ key2mode key |> PushMode
@@ -1014,7 +1014,7 @@ visual =
                                     [ P.symbol "v"
                                     , P.symbol "V"
                                     , P.symbol "<c-v>"
-                                    , P.symbol "<esc>"
+                                    , P.symbol "<escape>"
                                     , P.end
                                     ]
                                     |> P.getChompedString

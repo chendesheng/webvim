@@ -17,7 +17,7 @@
 -- Insert --
 }
 
-> <cr>
+> <enter>
 
 {
 |       12
@@ -35,7 +35,7 @@
 -- Insert --
 }
 
-> <esc>
+> <escape>
 
 {
 |       12

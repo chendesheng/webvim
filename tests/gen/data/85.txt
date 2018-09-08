@@ -4,7 +4,7 @@
 -- Normal --
 }
 
-> :e<space>*Test*<cr>
+> :e<space>*Test*<enter>
 
 {
 ||      

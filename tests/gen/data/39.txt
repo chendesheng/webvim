@@ -5,7 +5,7 @@
 -- Normal --
 }
 
-> ji<space><space><esc>kdd
+> ji<space><space><escape>kdd
 
 {
 ||        456

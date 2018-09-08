@@ -9,7 +9,7 @@
 -- Normal --
 }
 
-> /bc<cr><c-o>
+> /bc<enter><c-o>
 
 {
 ||      123

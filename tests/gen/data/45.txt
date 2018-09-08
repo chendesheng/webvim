@@ -7,7 +7,7 @@
 -- Normal --
 }
 
-> c/<esc>
+> c/<escape>
 
 {
 ||       123

@@ -5,7 +5,7 @@
 -- Normal --
 }
 
-> dv/456<cr>
+> dv/456<enter>
 
 {
 ||      56

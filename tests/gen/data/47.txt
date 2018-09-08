@@ -5,7 +5,7 @@
 -- Normal --
 }
 
-> jlllr<cr>
+> jlllr<enter>
 
 {
 |       123

@@ -7,7 +7,7 @@
 -- Normal --
 }
 
-> <c-v>kkklI12<esc>
+> <c-v>kkklI12<escape>
 
 {
 ||      abc d12ef

@@ -6,7 +6,7 @@
 -- Normal --
 }
 
-> /11<cr>
+> /11<enter>
 
 {
 ||      abc

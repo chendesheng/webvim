@@ -324,3 +324,51 @@ html, body {
   left: 3ch;
 }
 
+.ime {
+  position: absolute;
+  margin: 0 0 0 1.1ch;
+  padding: 0;
+  border: none;
+  height: 1rem;
+  opacity: 1;
+  transform: translateY(2px);
+}
+
+.ime.ime-insert-mode {
+  margin: 0 0 0 0.1ch;
+}
+
+#ime-hidden-input {
+  width: 100%;
+  height: 100%;
+  display: block;
+  position: absolute;
+  opacity: 0;
+  left: 0;
+  top: 0;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  border: none;
+  width: 200px;
+}
+
+.ime-preview {
+  white-space: pre;
+  border: solid 1px;
+  border-radius: 3px;
+  height: 1rem;
+  box-sizing: border-box;
+}
+
+.ime-preview-cursor {
+  position: absolute;
+  height: 0.8rem;
+  top: 0.1rem;
+  border-radius: 1px;
+  border: solid 1px;
+  width: 0;
+  box-sizing: border-box;
+}
+
+

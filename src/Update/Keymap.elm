@@ -1,42 +1,51 @@
-module Update.Keymap exposing (keymap)
+module Update.Keymap exposing (mapKeys)
 
 import Vim.Helper exposing (parseKeys, escapeKey)
 import Model exposing (Mode(..), Key)
 import Dict
 
 
-normalKeyMap =
+normalKeymap =
     [ ( "<c-p>", ":e<space>" )
     , ( "<c-,>", ":f<space>" )
-    , ( "<c-s>", ":w<cr>" )
+    , ( "<c-s>", ":w<enter>" )
+    , ( "<a-s>", ":w<enter>" )
+    , ( "<m-s>", ":w<enter>" )
     , ( "<m-v>", "\"+P" )
     , ( "<a-v>", "\"+P" ) -- for windows
     ]
 
 
-insertKeyMap =
+insertKeymap =
     [ ( "<m-v>", "<c-r>+" )
     , ( "<a-v>", "<c-r>+" )
     ]
 
 
-visualKeyMap =
+visualKeymap =
     [ ( "<m-c>", "\"+y" )
     , ( "<a-c>", "\"+y" )
     ]
+
+
+mapKeys : Mode -> String -> List Key
+mapKeys mode keys =
+    keys
+        |> parseKeys
+        |> List.concatMap (keymap mode)
 
 
 keymap : Mode -> Key -> List Key
 keymap mode key =
     (case mode of
         Normal _ ->
-            normalKeyMap
+            normalKeymap
 
         Insert _ ->
-            insertKeyMap
+            insertKeymap
 
         Visual _ ->
-            visualKeyMap
+            visualKeymap
 
         _ ->
             []

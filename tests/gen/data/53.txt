@@ -6,7 +6,7 @@
 -- Normal --
 }
 
-> ?123<cr>
+> ?123<enter>
 
 {
 ||      abc
@@ -16,7 +16,7 @@
 Pattern not found
 }
 
-> jj?def<cr>
+> jj?def<enter>
 
 {
 |       abc

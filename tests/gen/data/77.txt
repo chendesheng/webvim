@@ -6,7 +6,7 @@
 -- Normal --
 }
 
-> v/ef<esc>
+> v/ef<escape>
 
 # FIXME: this is wrong
 {

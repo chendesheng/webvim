@@ -2,7 +2,7 @@ module Update exposing (update, init, initCommand, initMode)
 
 import Http
 import Task
-import Update.Keymap exposing (keymap)
+import Update.Keymap exposing (mapKeys)
 import Json.Decode as Decode
 import Model exposing (..)
 import Update.Message exposing (..)
@@ -40,6 +40,7 @@ import Update.Select exposing (select)
 import Update.Cursor exposing (..)
 import Update.Jump exposing (..)
 import Update.Range exposing (visualRegions)
+import Browser.Dom as Dom
 
 
 stringToPrefix : String -> ExPrefix
@@ -99,6 +100,7 @@ initMode { cursor, mode } modeName =
 
                         _ ->
                             Nothing
+                , ime = emptyIme
                 }
 
         V.ModeNameEx prefix ->
@@ -118,6 +120,7 @@ initMode { cursor, mode } modeName =
                         _ ->
                             Nothing
                 , message = EmptyMessage
+                , ime = emptyIme
                 }
 
         V.ModeNameVisual tipe ->
@@ -378,7 +381,7 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
         Ex ({ prefix, exbuf } as ex) ->
             if B.isEmpty exbuf.lines then
                 buf
-                    |> handleKeypress False "<esc>"
+                    |> handleKeypress False "<escape>"
                     |> Tuple.first
             else
                 let
@@ -1109,6 +1112,13 @@ serviceBeforeApplyVimAST replaying key ast buf =
             Nothing
 
 
+focusImeInput : Cmd Msg
+focusImeInput =
+    Task.attempt
+        (always NoneMessage)
+        (Dom.focus "ime-hidden-input")
+
+
 applyVimAST : Bool -> Key -> AST -> Buffer -> ( Buffer, Cmd Msg )
 applyVimAST replaying key ast buf =
     let
@@ -1126,6 +1136,7 @@ applyVimAST replaying key ast buf =
                     { autoComplete = Nothing
                     , startCursor = buf.cursor
                     , visual = Nothing
+                    , ime = emptyIme
                     }
             else
                 buf.mode
@@ -1178,6 +1189,25 @@ applyVimAST replaying key ast buf =
                     ( buf_, debounceLint delay :: cmds )
             else
                 ( buf_, cmds )
+
+        doFocusInput oldBuf ( buf_, cmds ) =
+            case oldBuf.mode of
+                Insert _ ->
+                    ( buf_, cmds )
+
+                Ex _ ->
+                    ( buf_, cmds )
+
+                _ ->
+                    case buf_.mode of
+                        Insert _ ->
+                            ( buf_, focusImeInput :: cmds )
+
+                        Ex _ ->
+                            ( buf_, focusImeInput :: cmds )
+
+                        _ ->
+                            ( buf_, cmds )
     in
         buf
             |> applyEdit count edit register
@@ -1193,6 +1223,7 @@ applyVimAST replaying key ast buf =
             |> Tuple.mapSecond List.singleton
             |> doLint buf
             |> doTokenize buf
+            |> doFocusInput buf
             |> Tuple.mapSecond Cmd.batch
 
 
@@ -1381,7 +1412,7 @@ update message buf =
         MouseWheel delta ->
             onMouseWheel delta buf
 
-        PressKey key ->
+        PressKeys keys ->
             List.foldl
                 (\key_ ( buf_, cmds ) ->
                     let
@@ -1391,7 +1422,7 @@ update message buf =
                         ( buf1, cmd :: cmds )
                 )
                 ( buf, [] )
-                (keymap buf.mode key)
+                (mapKeys buf.mode keys)
                 |> Tuple.mapSecond (List.reverse >> Cmd.batch)
 
         Resize size ->
@@ -1461,7 +1492,26 @@ update message buf =
         SetCwd (Ok cwd) ->
             ( Buf.infoMessage cwd { buf | cwd = cwd }, Cmd.none )
 
-        _ ->
+        IMEMessage imeMsg ->
+            case imeMsg of
+                IMETyping ime ->
+                    ( updateIme ime buf, Cmd.none )
+
+                IMESelect keys ->
+                    buf
+                        |> updateIme emptyIme
+                        |> update (PressKeys keys)
+
+                IMEFocus ->
+                    ( buf, focusImeInput )
+
+        NoneMessage ->
+            ( buf, Cmd.none )
+
+        Boot _ ->
+            ( buf, Cmd.none )
+
+        SetCwd _ ->
             ( buf, Cmd.none )
 
 

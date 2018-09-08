@@ -244,6 +244,7 @@ type Mode
         { autoComplete : Maybe AutoComplete
         , startCursor : Position -- cursor position when enter insert mode
         , visual : Maybe VisualMode
+        , ime : IME
         }
     | TempNormal
     | Ex ExMode
@@ -254,6 +255,7 @@ type alias ExMode =
     , exbuf : Buffer
     , visual : Maybe VisualMode
     , message : StatusMessage
+    , ime : IME
     }
 
 
@@ -360,6 +362,15 @@ type alias Buffer =
     }
 
 
+type alias IME =
+    { text : String, caret : Int }
+
+
+emptyIme : IME
+emptyIme =
+    { text = "", caret = 0 }
+
+
 cacheVimAST : ( String, String ) -> ( V.AST, String ) -> Buffer -> Buffer
 cacheVimAST k v buf =
     { buf | vimASTCache = Dict.insert k v buf.vimASTCache }
@@ -373,9 +384,23 @@ emptyExBuffer =
                 { autoComplete = Nothing
                 , startCursor = ( 0, 0 )
                 , visual = Nothing
+                , ime = emptyIme
                 }
         , lines = B.empty
     }
+
+
+updateIme : IME -> Buffer -> Buffer
+updateIme ime buf =
+    case buf.mode of
+        Insert m ->
+            { buf | mode = Insert { m | ime = ime } }
+
+        Ex ex ->
+            { buf | mode = Ex { ex | ime = ime } }
+
+        _ ->
+            buf
 
 
 emptyView : View

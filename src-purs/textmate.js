@@ -220,6 +220,8 @@ function genThemeCss(uiTheme, theme, colorMap) {
 
   cssShadow('.ruler', 'editorRuler.foreground', '1px 0 0 0 inset');
 
+  cssBg('.ime-preview', 'editor.background');
+
   for (var i = 1, len = colorMap.length; i < len; i++) {
     const color = colorMap[i];
     if (i == 1) {
@@ -232,9 +234,10 @@ function genThemeCss(uiTheme, theme, colorMap) {
   rules.push('.mtkb { font-weight: 700; }');
   rules.push('.mtku { border-bottom: solid 1px }');
 
+
   return rules.join('\n');
 }
-;
+
 
 const registry = new Registry({
   loadGrammar: function(scopeName) {

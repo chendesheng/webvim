@@ -96,7 +96,7 @@ readKeyAndThen key partialResult nextOps =
             [ P.succeed partialResult
                 |. P.end
             , P.succeed []
-                |. P.symbol "<esc>"
+                |. P.symbol "<escape>"
             , nextOps
             ]
 
@@ -119,7 +119,7 @@ readKeysAndThen keys partialResult nextOps =
                         |. P.end
                     , P.succeed
                         []
-                        |. P.symbol "<esc>"
+                        |. P.symbol "<escape>"
                     , (nextOps key)
                     ]
             )

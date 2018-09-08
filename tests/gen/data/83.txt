@@ -5,7 +5,7 @@
 -- Normal --
 }
 
-> vc11<esc>vc22<esc>
+> vc11<escape>vc22<escape>
 
 {
 ||      12223

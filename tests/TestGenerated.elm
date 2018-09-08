@@ -70,7 +70,7 @@ handleKeys inputs buf =
                 InputKey key ->
                     buf_
                         --|> Debug.log "buf_"
-                        |> update (PressKey key)
+                        |> update (PressKeys key)
                         |> Tuple.first
 
                 --|> Debug.log "return buf"
@@ -343,6 +343,7 @@ parseMode cursor statusBar =
             { autoComplete = Nothing
             , startCursor = cursor
             , visual = Nothing
+            , ime = emptyIme
             }
     else if
         String.startsWith
@@ -391,6 +392,7 @@ parseMode cursor statusBar =
                         ]
             , visual = Nothing
             , message = EmptyMessage
+            , ime = emptyIme
             }
     else if String.startsWith "/" statusBar then
         Ex
@@ -408,6 +410,7 @@ parseMode cursor statusBar =
                         ]
             , visual = Nothing
             , message = EmptyMessage
+            , ime = emptyIme
             }
     else if String.startsWith "?" statusBar then
         Ex
@@ -425,6 +428,7 @@ parseMode cursor statusBar =
                         ]
             , visual = Nothing
             , message = EmptyMessage
+            , ime = emptyIme
             }
     else if
         String.startsWith "-- Normal --"

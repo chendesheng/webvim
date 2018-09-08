@@ -6,7 +6,7 @@ import Internal.Syntax exposing (Token, Syntax)
 import Vim.AST exposing (AST)
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer as B exposing (Patch)
-import Model exposing (Key, LintError, BufferInfo, Flags, Size)
+import Model exposing (Key, LintError, BufferInfo, Flags, Size, IME)
 
 
 type alias BufferIdentifier =
@@ -29,8 +29,15 @@ type alias TokenizeRequest =
     }
 
 
+type IMEMsg
+    = IMETyping IME
+    | IMESelect String
+    | IMEFocus
+
+
 type Msg
-    = PressKey Key -- buffer id, key
+    = PressKeys Key -- buffer id, key
+    | IMEMessage IMEMsg
     | Resize Size
     | Read (Result Http.Error BufferInfo)
     | Write (Result String (List Patch))

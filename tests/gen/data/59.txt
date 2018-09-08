@@ -6,7 +6,7 @@
 -- Normal --
 }
 
-> iaa<esc>.
+> iaa<escape>.
 
 {
 ||      aaaa123

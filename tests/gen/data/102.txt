@@ -7,7 +7,7 @@
 -- Normal --
 }
 
-> <c-v>jjjA12<esc>
+> <c-v>jjjA12<escape>
 
 {
 ||      abc de12f

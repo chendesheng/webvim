@@ -7,7 +7,7 @@
 -- Normal --
 }
 
-> c/ef<cr>
+> c/ef<enter>
 
 {
 ||      ef 

@@ -7,6 +7,7 @@ import Update exposing (..)
 import Html
 import View exposing (page)
 import Browser.Events exposing (onResize)
+import Browser.Events as Events
 import Browser
 import Helper.Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
@@ -15,6 +16,7 @@ import Json.Decode as Decode
 
 
 -- This is the first line written in webvim-elm :)
+-- 可以用中文输入法了！表情也可以输入了😄
 
 
 toModel : ( Buffer, cmd ) -> ( Model, cmd )
@@ -66,10 +68,12 @@ main =
                 Sub.batch
                     [ onKeyDown
                         (Decode.decodeValue decodeKeyboardEvent
-                            >> Result.map PressKey
+                            >> Debug.log "keys"
+                            >> Result.map PressKeys
                             >> Result.withDefault NoneMessage
                         )
-                    , onResize (\w h -> Resize { width = w, height = h })
+                    , Events.onClick (Decode.succeed <| IMEMessage IMEFocus)
+                    , Events.onResize (\w h -> Resize { width = w, height = h })
                     , onDebounce <|
                         decodeEvent
                             (\resp ->

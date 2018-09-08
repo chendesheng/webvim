@@ -14,7 +14,7 @@
 -- Insert --
 }
 
-> x<esc>
+> x<escape>
 
 {
 ||      x3

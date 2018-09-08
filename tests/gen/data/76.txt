@@ -6,7 +6,7 @@
 -- Normal --
 }
 
-> v/ef<cr>
+> v/ef<enter>
 
 {
 |       abc

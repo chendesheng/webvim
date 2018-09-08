@@ -9,7 +9,7 @@
 -- Insert --
 }
 
-> 1<cr><backspace>
+> 1<enter><backspace>
 
 {
 ||      1

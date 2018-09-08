@@ -6,7 +6,7 @@
 -- Normal --
 }
 
-> iaa<c-o>hbb<esc>.
+> iaa<c-o>hbb<escape>.
 
 {
 ||      abbbba123

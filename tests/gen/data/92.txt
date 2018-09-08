@@ -4,7 +4,7 @@
 -- Normal --
 }
 
-> yeo<c-r>"<esc>
+> yeo<c-r>"<escape>
 
 {
 |         aa

@@ -3,7 +3,7 @@
 ~
 }
 
-> i123<cr><esc>
+> i123<enter><escape>
 
 {
 ||      123

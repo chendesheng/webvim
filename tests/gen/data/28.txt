@@ -5,7 +5,7 @@
 -- Normal --
 }
 
-> VGdiaa<esc>
+> VGdiaa<escape>
 
 {
 ||      aa
