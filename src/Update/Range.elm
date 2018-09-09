@@ -80,12 +80,7 @@ visualRegions linewise tipe begin end lines =
                     ]
 
                 V.VisualChars ->
-                    [ ( b
-                      , ( ey
-                        , ex1 + 1
-                        )
-                      )
-                    ]
+                    [ ( b, ( ey, ex + 1 ) ) ]
 
                 V.VisualBlock ->
                     List.range by ey

@@ -1,0 +1,32 @@
+{
+||       acd
+           ^
+|       bb
+-- Normal --
+}
+
+> vjhh
+
+{
+|        acd
+           --
+||      bb
+        ^
+-- Visual --
+}
+
+> d
+
+{
+||       acb
+           ^
+-- Normal --
+}
+
+> vhd
+
+{
+||       a
+         ^
+-- Normal --
+}
