@@ -11,7 +11,6 @@ import Browser.Events as Events
 import Browser
 import Helper.Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
-import Helper.Document exposing (onKeyDown)
 import Json.Decode as Decode
 
 
@@ -66,13 +65,7 @@ main =
         , subscriptions =
             \_ ->
                 Sub.batch
-                    [ onKeyDown
-                        (Decode.decodeValue decodeKeyboardEvent
-                            >> Debug.log "keys"
-                            >> Result.map PressKeys
-                            >> Result.withDefault NoneMessage
-                        )
-                    , Events.onClick (Decode.succeed <| IMEMessage IMEFocus)
+                    [ Events.onClick (Decode.succeed <| IMEMessage IMEFocus)
                     , Events.onResize (\w h -> Resize { width = w, height = h })
                     , onDebounce <|
                         decodeEvent

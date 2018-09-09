@@ -6,9 +6,9 @@ import Helper.Helper exposing (isSingleChar, regex)
 import Regex as Re
 
 
-decodeKeyboardEvent : Decoder String
-decodeKeyboardEvent =
-    map5 toKey
+decodeKeyboardEvent : Bool -> Decoder String
+decodeKeyboardEvent replaceFullWidthToHalfWidth =
+    map5 (toKey replaceFullWidthToHalfWidth)
         (field "ctrlKey" bool)
         (field "altKey" bool)
         (field "shiftKey" bool)
@@ -19,7 +19,15 @@ decodeKeyboardEvent =
                     if key == " " then
                         "Space"
                     else
-                        key
+                        case String.uncons key of
+                            Just ( c, rest ) ->
+                                if String.fromChar c == rest then
+                                    rest
+                                else
+                                    key
+
+                            _ ->
+                                key
                 )
         )
         |> andThen
@@ -33,7 +41,7 @@ decodeKeyboardEvent =
 
 shiftedKeys : String
 shiftedKeys =
-    "~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?"
+    "~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?～！¥…（）—+「」：“《》？"
 
 
 shiftComboMap : Dict.Dict String String
@@ -63,17 +71,17 @@ shiftComboMap =
         ]
 
 
-toKey : Bool -> Bool -> Bool -> Bool -> String -> String
-toKey ctrl alt shift meta key =
+toKey : Bool -> Bool -> Bool -> Bool -> Bool -> String -> String
+toKey replaceFullWidthToHalfWidth ctrl alt shift meta key =
     if key == "Control" || key == "Shift" || key == "Meta" || key == "Alt" then
         ""
     else
         let
-            _ =
-                Debug.log "key" key
-
             key1 =
-                fullWidthToHalfWidth key
+                if replaceFullWidthToHalfWidth then
+                    fullWidthToHalfWidth key
+                else
+                    key
 
             key2 =
                 if shift then
@@ -118,7 +126,11 @@ toKey ctrl alt shift meta key =
                     ++ mapKey
                         (prefix
                             ++ if singleChar then
-                                key2
+                                if not replaceFullWidthToHalfWidth then
+                                    -- for combo keys, always replace full width to half width
+                                    fullWidthToHalfWidth key2
+                                else
+                                    key2
                                else
                                 String.toLower key2
                         )

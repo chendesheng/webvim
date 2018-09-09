@@ -41,6 +41,7 @@ import Update.Cursor exposing (..)
 import Update.Jump exposing (..)
 import Update.Range exposing (visualRegions)
 import Browser.Dom as Dom
+import Process
 
 
 stringToPrefix : String -> ExPrefix
@@ -1112,11 +1113,11 @@ serviceBeforeApplyVimAST replaying key ast buf =
             Nothing
 
 
-focusImeInput : Cmd Msg
-focusImeInput =
+focusHiddenInput : Cmd Msg
+focusHiddenInput =
     Task.attempt
         (always NoneMessage)
-        (Dom.focus "ime-hidden-input")
+        (Dom.focus "hidden-input")
 
 
 applyVimAST : Bool -> Key -> AST -> Buffer -> ( Buffer, Cmd Msg )
@@ -1191,23 +1192,10 @@ applyVimAST replaying key ast buf =
                 ( buf_, cmds )
 
         doFocusInput oldBuf ( buf_, cmds ) =
-            case oldBuf.mode of
-                Insert _ ->
-                    ( buf_, cmds )
-
-                Ex _ ->
-                    ( buf_, cmds )
-
-                _ ->
-                    case buf_.mode of
-                        Insert _ ->
-                            ( buf_, focusImeInput :: cmds )
-
-                        Ex _ ->
-                            ( buf_, focusImeInput :: cmds )
-
-                        _ ->
-                            ( buf_, cmds )
+            if getModeName oldBuf.mode /= getModeName buf_.mode then
+                ( buf_, focusHiddenInput :: cmds )
+            else
+                ( buf_, cmds )
     in
         buf
             |> applyEdit count edit register
@@ -1494,16 +1482,70 @@ update message buf =
 
         IMEMessage imeMsg ->
             case imeMsg of
-                IMETyping ime ->
-                    ( updateIme ime buf, Cmd.none )
+                CompositionTry s ->
+                    let
+                        ignoreWhenComposing ime =
+                            if ime.isComposing then
+                                ( buf, Cmd.none )
+                            else
+                                update (PressKeys s) buf
+                    in
+                        case buf.mode of
+                            Insert m ->
+                                ignoreWhenComposing m.ime
 
-                IMESelect keys ->
+                            Ex ex ->
+                                ignoreWhenComposing ex.ime
+
+                            _ ->
+                                ( buf, Cmd.none )
+
+                CompositionWait s ->
+                    ( buf
+                    , Process.sleep 10
+                        |> Task.attempt
+                            (always (IMEMessage (CompositionTry s)))
+                    )
+
+                CompositionStart s ->
+                    ( updateIme
+                        (\ime ->
+                            { ime
+                                | isComposing = True
+                                , compositionText = s
+                            }
+                        )
+                        buf
+                    , Cmd.none
+                    )
+
+                CompositionCommit keys ->
                     buf
-                        |> updateIme emptyIme
                         |> update (PressKeys keys)
+                        |> Tuple.mapSecond
+                            (\cmd ->
+                                Cmd.batch
+                                    [ cmd
+                                    , Process.sleep 10
+                                        |> Task.attempt
+                                            (always (IMEMessage CompositionEnd))
+                                    ]
+                            )
+
+                CompositionEnd ->
+                    ( updateIme
+                        (\ime ->
+                            { ime
+                                | isComposing = False
+                                , compositionText = ""
+                            }
+                        )
+                        buf
+                    , Cmd.none
+                    )
 
                 IMEFocus ->
-                    ( buf, focusImeInput )
+                    ( buf, focusHiddenInput )
 
         NoneMessage ->
             ( buf, Cmd.none )
@@ -1791,5 +1833,5 @@ init flags =
                     |> Result.withDefault []
                     |> fromListBy .path
           }
-        , cmd
+        , Cmd.batch [ cmd, focusHiddenInput ]
         )

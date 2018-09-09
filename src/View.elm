@@ -19,6 +19,7 @@ import Bitwise as BW
 import Update.Message exposing (Msg(..), IMEMsg(..))
 import Update.Range exposing (visualRegions)
 import Json.Decode as Decode
+import Json.Encode as Encode
 import Browser exposing (Document)
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
 
@@ -65,15 +66,6 @@ translate x y =
     ( "transform"
     , "translate(" ++ ch x ++ ", " ++ rem y ++ ")"
     )
-
-
-vrView : Buffer -> Html Msg
-vrView buf =
-    let
-        dom =
-            pageDom buf
-    in
-        div [ class "vr-editor" ] [ dom, dom ]
 
 
 page : Buffer -> Document Msg
@@ -172,7 +164,8 @@ pageDom buf =
                     (Decode.at [ "deltaY" ] Decode.int)
                 )
     in
-        div [ class "editor" ]
+        div
+            [ class "editor" ]
             ([ div
                 ([ class "buffer" ]
                     ++ case buf.mode of
@@ -341,90 +334,125 @@ renderStatusBarRight continuation name items =
         ]
 
 
-renderInput : FontInfo -> String -> Int -> Int -> IME -> Html Msg
-renderInput fontInfo className y x ime =
-    div
-        [ class "ime"
-        , class className
-        , style "top" <| rem y
-        , style "left" <| px x
-        ]
-        [ if ime == emptyIme then
-            text ""
-          else
-            div
-                [ class "ime-preview"
-                , style "padding-left" "3px"
-                , style "padding-right" "3px"
-                ]
-                [ text ime.text
-                , div
-                    [ class "ime-preview-cursor"
-                    , style "left" <|
-                        px (stringWidth fontInfo 0 ime.caret ime.text + 3)
-                    ]
-                    []
-                ]
-        , input
-            [ id "ime-hidden-input"
-            , value ime.text
-            , Events.custom "keydown"
-                (decodeKeyboardEvent
-                    |> Decode.map
-                        (\key ->
-                            let
-                                _ =
-                                    Debug.log "key" key
-                            in
-                                if
-                                    String.startsWith "<s-" key
-                                        || String.startsWith "<c-" key
-                                        || String.startsWith "<a-" key
-                                        || String.startsWith "<m-" key
-                                        || (key == "<escape>")
-                                        || (String.isEmpty ime.text
-                                                && (String.startsWith "<" key)
-                                           )
-                                then
-                                    { message = PressKeys key
-                                    , stopPropagation = True
-                                    , preventDefault = True
-                                    }
-                                else
-                                    { message = NoneMessage
-                                    , stopPropagation = True
-                                    , preventDefault = False
-                                    }
-                        )
-                )
+isComoboKey key =
+    String.startsWith "<s-" key
+        || String.startsWith "<c-" key
+        || String.startsWith "<a-" key
+        || String.startsWith "<m-" key
 
-            --, Events.onBlur (IMEMessage <| IMESelect <| ime.text)
-            , Events.custom "input" <|
-                Decode.map2
-                    (\text caret ->
-                        { message =
-                            { caret = caret, text = text }
-                                |> IMETyping
-                                |> IMEMessage
+
+renderInputSafari : FontInfo -> IME -> Html Msg
+renderInputSafari fontInfo ime =
+    span
+        ((if ime.isComposing then
+            []
+          else
+            [ onKeyDownPressKeys False
+            , style "opacity" "0"
+            ]
+         )
+            ++ [ id "hidden-input"
+               , Events.custom "compositionstart"
+                    (Decode.field "data" Decode.string
+                        |> Decode.map
+                            (\text ->
+                                { message = IMEMessage <| CompositionStart text
+                                , stopPropagation = False
+                                , preventDefault = False
+                                }
+                            )
+                        |> Decode.map (Debug.log "compositionstart")
+                    )
+               , Events.custom "compositionend"
+                    (Decode.field "data" Decode.string
+                        |> Decode.map
+                            (\text ->
+                                { message = IMEMessage <| CompositionCommit text
+                                , stopPropagation = True
+                                , preventDefault = True
+                                }
+                            )
+                        |> Decode.map (Debug.log "compositionend")
+                    )
+               , contenteditable True
+               , Events.custom "textInput"
+                    (Decode.succeed
+                        { message = NoneMessage
                         , stopPropagation = True
                         , preventDefault = True
                         }
                     )
-                    (Decode.at [ "target", "value" ] Decode.string)
-                    (Decode.at [ "target", "selectionStart" ] Decode.int)
-            , Events.custom "textInput"
-                (Decode.field "data" Decode.string
+               ]
+        )
+        []
+
+
+renderInputChrome : FontInfo -> IME -> Html Msg
+renderInputChrome fontInfo ime =
+    --let
+    --_ =
+    --Debug.log "renderInput.ime" ime
+    --in
+    span
+        ((if ime.isComposing then
+            [ property "textContent" (Encode.string ime.compositionText) ]
+          else
+            [ Events.custom "keydown"
+                (decodeKeyboardEvent False
                     |> Decode.map
-                        (\text ->
-                            { message = IMEMessage <| IMESelect text
+                        (\key ->
+                            { message = IMEMessage (CompositionWait key)
                             , stopPropagation = True
-                            , preventDefault = True
+                            , preventDefault = False
                             }
+                         --|> Debug.log "keydown"
                         )
                 )
+            , style "opacity" "0"
+            , property "textContent" (Encode.string "")
             ]
-            []
-        ]
+         )
+            ++ [ id "hidden-input"
+               , contenteditable True
+               , Events.custom "compositionstart"
+                    (Decode.field "data" Decode.string
+                        |> Decode.map
+                            (\text ->
+                                { message = IMEMessage <| CompositionStart text
+                                , stopPropagation = False
+                                , preventDefault = False
+                                }
+                            )
+                     --|> Decode.map (Debug.log "compositionstart")
+                    )
+               , Events.custom "compositionupdate"
+                    (Decode.field "data" Decode.string
+                        |> Decode.map
+                            (\text ->
+                                { message = IMEMessage <| CompositionStart text
+                                , stopPropagation = False
+                                , preventDefault = False
+                                }
+                            )
+                     --|> Decode.map (Debug.log "compositionstart")
+                    )
+               , Events.custom "compositionend"
+                    (Decode.field "data" Decode.string
+                        |> Decode.map
+                            (\text ->
+                                { message =
+                                    IMEMessage <|
+                                        CompositionCommit <|
+                                            --Debug.log "compositionend.data" <|
+                                            text
+                                , stopPropagation = True
+                                , preventDefault = True
+                                }
+                            )
+                    )
+               ]
+        )
+        []
 
 
 renderStatusBarLeft : FontInfo -> Mode -> Html Msg
@@ -436,22 +464,14 @@ renderStatusBarLeft fontInfo mode =
         divs =
             case statusBar.cursor of
                 Just ( y, x ) ->
-                    let
-                        x1 =
-                            stringWidth fontInfo 0 x statusBar.text
-                    in
-                        renderInput fontInfo "ime-ex-mode" y x1 statusBar.ime
-                            :: (if statusBar.ime == emptyIme then
-                                    [ div
-                                        [ class "cursor"
-                                        , style "left" <| px x1
-                                        , style "top" <| rem y
-                                        ]
-                                        []
-                                    ]
-                                else
-                                    []
-                               )
+                    [ renderCursorInner True
+                        fontInfo
+                        mode
+                        (B.fromString statusBar.text)
+                        "ex-cursor"
+                        0
+                        x
+                    ]
 
                 _ ->
                     []
@@ -495,8 +515,9 @@ renderMatchedCursor fontInfo lines mode cursor matchedCursor =
                         |> List.filter ((/=) cursor)
                         |> List.map
                             (\( y, x ) ->
-                                renderCursorInner fontInfo
-                                    Nothing
+                                renderCursorInner False
+                                    fontInfo
+                                    mode
                                     lines
                                     "matched-cursor"
                                     y
@@ -609,57 +630,88 @@ maybeToList mb =
             []
 
 
-renderCursorInner : FontInfo -> Maybe IME -> B.TextBuffer -> String -> Int -> Int -> Html Msg
-renderCursorInner fontInfo maybeIme lines classname y x =
+onKeyDownPressKeys replaceFullwithToHalfWidth =
+    Events.custom "keydown"
+        (decodeKeyboardEvent replaceFullwithToHalfWidth
+            |> Decode.map
+                (\key ->
+                    { message = PressKeys key
+                    , stopPropagation = True
+                    , preventDefault = True
+                    }
+                        |> Debug.log "keydown"
+                )
+        )
+
+
+noCompositionInput : Html Msg
+noCompositionInput =
+    span
+        [ id "hidden-input"
+        , tabindex 0
+        , autofocus True
+        , onKeyDownPressKeys True
+        ]
+        []
+
+
+renderCursorInner :
+    Bool
+    -> FontInfo
+    -> Mode
+    -> B.TextBuffer
+    -> String
+    -> Int
+    -> Int
+    -> Html Msg
+renderCursorInner isMainCursor fontInfo mode lines classname y x =
     let
         ( ( by, bx ), ( ey, ex ) ) =
             cursorPoint fontInfo lines y x
 
-        divCursor =
-            div
-                [ class "cursor"
-                , class classname
-                , style "left" <| px bx
-                , style "top" <| rem y
-                , style "width" <| px (ex - bx)
-                ]
-                []
+        ( hiddenInput, isComposing ) =
+            if isMainCursor then
+                case mode of
+                    Insert { ime } ->
+                        ( lazy2 renderInputSafari fontInfo ime, ime.isComposing )
+
+                    Ex { ime } ->
+                        ( lazy2 renderInputSafari fontInfo ime, ime.isComposing )
+
+                    _ ->
+                        ( noCompositionInput, False )
+            else
+                ( noCompositionInput, False )
     in
-        case maybeIme of
-            Just ime ->
-                let
-                    imeInput =
-                        renderInput fontInfo "ime-insert-mode" y bx ime
-                in
-                    div []
-                        (imeInput
-                            :: if ime == emptyIme then
-                                [ divCursor ]
-                               else
-                                []
-                        )
+        div
+            ([ class "cursor"
+             , class classname
+             , style "left" <| px bx
+             , style "top" <| rem y
+             , style "width" <| px (ex - bx)
+             ]
+                ++ (if isComposing then
+                        [ style "opacity" "1"
+                        , style "background" "none"
+                        ]
+                    else
+                        [ style "opacity" "0.5" ]
+                   )
+            )
+            [ hiddenInput ]
 
-            _ ->
-                divCursor
 
-
-renderCursor : FontInfo -> Mode -> B.TextBuffer -> String -> Maybe Position -> Html Msg
+renderCursor :
+    FontInfo
+    -> Mode
+    -> B.TextBuffer
+    -> String
+    -> Maybe Position
+    -> Html Msg
 renderCursor fontInfo mode lines classname cursor =
     case cursor of
         Just ( y, x ) ->
-            lazy6 renderCursorInner
-                fontInfo
-                (case mode of
-                    Insert { ime } ->
-                        Just ime
-
-                    _ ->
-                        Nothing
-                )
-                lines
-                classname
-                y
-                x
+            lazy7 renderCursorInner True fontInfo mode lines classname y x
 
         _ ->
             text ""
@@ -708,7 +760,12 @@ renderLineGuide cursor =
             text ""
 
 
-renderHighlights : FontInfo -> Int -> B.TextBuffer -> Maybe ( VisualMode, List VisualMode ) -> Html msg
+renderHighlights :
+    FontInfo
+    -> Int
+    -> B.TextBuffer
+    -> Maybe ( VisualMode, List VisualMode )
+    -> Html msg
 renderHighlights fontInfo scrollTop lines highlights =
     case
         highlights

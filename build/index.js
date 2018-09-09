@@ -64,6 +64,14 @@ function measureFont() {
   const style = window.getComputedStyle(span, null);
   const fontSize = parseInt(style.getPropertyValue('font-size'));
   const fontName = style.getPropertyValue('font-family');
+  const widthByType = [
+    ['F', measureChar(String.fromCodePoint(0xFF0A)).width],
+    ['H', measureChar(String.fromCodePoint(0x20A9)).width],
+    ['W', measureChar(String.fromCodePoint(0x1100)).width],
+    ['Na', measureChar(String.fromCodePoint(0x003F)).width],
+    ['A', measureChar(String.fromCodePoint(0xA1)).width],
+    ['N', measureChar(String.fromCodePoint(0x0CDE)).width],
+  ];
   span.remove();
   return {
     widths: [{
@@ -75,6 +83,7 @@ function measureFont() {
       to: 0xffffffff,
       width: size3.width,
     }],
+    widthByType,
     asciiCharWidth: size.width,
     lineHeight: size.height,
     size: fontSize,
@@ -124,13 +133,6 @@ applyCss(`${flags.service}/css?theme=${getTheme() || 'Solarized Dark'}`);
 // console.log("flags", flags);
 const app = Elm.Main.init({
   flags,
-});
-
-document.addEventListener('keydown', function(event) {
-  event.preventDefault();
-  event.stopPropagation();
-
-  app.ports.onKeyDown.send(event);
 });
 
 const debouncers = {};

@@ -18,7 +18,7 @@ import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode
 import Regex as Re
-import Helper.Helper exposing (findFirst)
+import Helper.Helper exposing (findFirst, charWidthType)
 
 
 type alias Size =
@@ -42,6 +42,7 @@ type alias FontInfo =
     , asciiCharWidth : Float
     , lineHeight : Int
     , size : Int -- pt
+    , widthByType : List ( String, Float )
     }
 
 
@@ -58,6 +59,27 @@ charWidth { widths, asciiCharWidth } ch =
             )
         |> Maybe.map .width
         |> Maybe.withDefault asciiCharWidth
+
+
+charWidthByType : FontInfo -> Char -> Float
+charWidthByType { widthByType, asciiCharWidth } ch =
+    let
+        dict =
+            Dict.fromList widthByType
+
+        codePoint =
+            Char.toCode ch
+
+        widthType =
+            charWidthType codePoint
+    in
+        widthByType
+            |> findFirst
+                (\( tipe, width ) ->
+                    tipe == widthType
+                )
+            |> Maybe.map Tuple.second
+            |> Maybe.withDefault asciiCharWidth
 
 
 stringWidth : FontInfo -> Int -> Int -> String -> Int
@@ -363,12 +385,16 @@ type alias Buffer =
 
 
 type alias IME =
-    { text : String, caret : Int }
+    { isComposing : Bool
+    , compositionText : String
+    }
 
 
 emptyIme : IME
 emptyIme =
-    { text = "", caret = 0 }
+    { isComposing = False
+    , compositionText = ""
+    }
 
 
 cacheVimAST : ( String, String ) -> ( V.AST, String ) -> Buffer -> Buffer
@@ -390,14 +416,28 @@ emptyExBuffer =
     }
 
 
-updateIme : IME -> Buffer -> Buffer
-updateIme ime buf =
+updateIme : (IME -> IME) -> Buffer -> Buffer
+updateIme fnupdate buf =
     case buf.mode of
         Insert m ->
-            { buf | mode = Insert { m | ime = ime } }
+            let
+                ime =
+                    fnupdate m.ime
+            in
+                if m.ime == ime then
+                    buf
+                else
+                    { buf | mode = Insert { m | ime = ime } }
 
         Ex ex ->
-            { buf | mode = Ex { ex | ime = ime } }
+            let
+                ime =
+                    fnupdate ex.ime
+            in
+                if ex.ime == ime then
+                    buf
+                else
+                    { buf | mode = Ex { ex | ime = ime } }
 
         _ ->
             buf
@@ -461,6 +501,7 @@ defaultBufferConfig =
         , lineHeight = 0
         , size = 0
         , name = ""
+        , widthByType = []
         }
     }
 

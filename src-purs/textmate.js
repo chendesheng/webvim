@@ -221,6 +221,7 @@ function genThemeCss(uiTheme, theme, colorMap) {
   cssShadow('.ruler', 'editorRuler.foreground', '1px 0 0 0 inset');
 
   cssBg('.ime-preview', 'editor.background');
+  cssBg('#hidden-input', 'editor.background');
 
   for (var i = 1, len = colorMap.length; i < len; i++) {
     const color = colorMap[i];

@@ -30,8 +30,11 @@ type alias TokenizeRequest =
 
 
 type IMEMsg
-    = IMETyping IME
-    | IMESelect String
+    = CompositionWait String
+    | CompositionTry String
+    | CompositionStart String
+    | CompositionCommit String
+    | CompositionEnd
     | IMEFocus
 
 

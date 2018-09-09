@@ -2,7 +2,6 @@ port module Helper.Debounce exposing (..)
 
 import Json.Encode as Encode
 import Json.Decode as Decode exposing (decodeValue)
-import Time as Time
 
 
 port debounce : Encode.Value -> Cmd msg
