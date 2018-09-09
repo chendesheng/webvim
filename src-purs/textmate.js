@@ -189,6 +189,17 @@ function genThemeCss(uiTheme, theme, colorMap) {
     }
   }
 
+  function cssCaretColor(selector, prop) {
+    if (!theme.colors) {
+      return;
+    }
+
+    const bg = theme.colors[prop];
+    if (bg) {
+      rules.push(selector + ' { caret-color:' + bg + ' }');
+    }
+  }
+
   cssColor('body', 'editor.forground');
   cssBg('body, .tip', 'editor.background');
 
@@ -221,6 +232,8 @@ function genThemeCss(uiTheme, theme, colorMap) {
   cssShadow('.ruler', 'editorRuler.foreground', '1px 0 0 0 inset');
 
   cssBg('.ime-preview', 'editor.background');
+
+  cssCaretColor('#hidden-input', 'editorCursor.foreground');
   cssBg('#hidden-input', 'editor.background');
 
   for (var i = 1, len = colorMap.length; i < len; i++) {

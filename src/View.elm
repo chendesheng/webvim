@@ -686,10 +686,7 @@ renderCursorInner isMainCursor fontInfo ime lines classname y x =
             isMainCursor && ime.isActive
 
         imeIsComposing =
-            if isMainCursor then
-                ime.isComposing
-            else
-                False
+            imeIsActive && ime.isComposing
     in
         div
             ([ class "cursor"
@@ -698,13 +695,13 @@ renderCursorInner isMainCursor fontInfo ime lines classname y x =
              , style "top" <| rem y
              , style "width" <| px (ex - bx)
              ]
-                ++ (if imeIsComposing then
-                        [ class "cursor-ime-composing" ]
+                ++ (if imeIsActive then
+                        [ class "cursor-ime-active" ]
                     else
                         []
                    )
-                ++ (if imeIsActive then
-                        [ class "cursor-ime-active" ]
+                ++ (if imeIsComposing then
+                        [ class "cursor-ime-composing" ]
                     else
                         []
                    )

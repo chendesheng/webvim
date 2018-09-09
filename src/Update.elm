@@ -717,7 +717,11 @@ runOperator count register operator buf =
             ( join count collapseSpaces buf, Cmd.none )
 
         Replace ch ->
-            ( applyReplace count ch buf, Cmd.none )
+            ( buf
+                |> applyReplace count ch
+                |> updateIme (\ime -> { ime | isActive = False })
+            , Cmd.none
+            )
 
         ToggleTip ->
             ( Buf.setShowTip (not buf.view.showTip) buf, Cmd.none )

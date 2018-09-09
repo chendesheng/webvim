@@ -133,10 +133,10 @@ fullWidthToHalfWidthMap : Dict String String
 fullWidthToHalfWidthMap =
     let
         fullWidths =
-            String.toList "…；，。【】！（）—《》？：“「」～"
+            String.toList "、…；，。【】！（）—《》？：“「」～"
 
         halfWidths =
-            String.toList "^;,.[]!()_<>?:\"{}~"
+            String.toList "\\^;,.[]!()_<>?:\"{}~"
     in
         List.map2
             (\k v -> ( String.fromChar k, String.fromChar v ))

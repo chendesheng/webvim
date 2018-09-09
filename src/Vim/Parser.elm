@@ -805,15 +805,20 @@ operator isVisual isTemp =
                 [ PushKey "r" ]
                 (P.map
                     (\key ->
-                        case keyToChar key of
-                            Just ch ->
-                                [ PushOperator <| Replace ch
-                                , PushKey ("r" ++ ch)
-                                , PushComplete
-                                ]
+                        if key == "<s-enter>" then
+                            [ PushOperator IMEToggleActive
+                            , PushKey "r"
+                            ]
+                        else
+                            case keyToChar key of
+                                Just ch ->
+                                    [ PushOperator <| Replace ch
+                                    , PushKey ("r" ++ ch)
+                                    , PushComplete
+                                    ]
 
-                            _ ->
-                                []
+                                _ ->
+                                    []
                     )
                     keyParser
                 )
