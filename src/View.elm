@@ -361,7 +361,7 @@ renderInputSafari fontInfo ime =
                                 , preventDefault = False
                                 }
                             )
-                        |> Decode.map (Debug.log "compositionstart")
+                     --|> Decode.map (Debug.log "compositionstart")
                     )
                , Events.custom "compositionend"
                     (Decode.field "data" Decode.string
@@ -372,7 +372,7 @@ renderInputSafari fontInfo ime =
                                 , preventDefault = True
                                 }
                             )
-                        |> Decode.map (Debug.log "compositionend")
+                     --|> Decode.map (Debug.log "compositionend")
                     )
                , contenteditable True
                , Events.custom "textInput"
@@ -639,7 +639,7 @@ onKeyDownPressKeys replaceFullwithToHalfWidth =
                     , stopPropagation = True
                     , preventDefault = True
                     }
-                        |> Debug.log "keydown"
+                 --|> Debug.log "keydown"
                 )
         )
 

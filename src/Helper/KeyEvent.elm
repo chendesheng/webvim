@@ -3,6 +3,7 @@ module Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Json.Decode exposing (Decoder, map, map5, field, andThen, maybe, succeed, fail, bool, string)
 import Dict exposing (Dict)
 import Helper.Helper exposing (isSingleChar, regex)
+import Vim.Helper exposing (escapeKey)
 import Regex as Re
 
 
@@ -110,7 +111,7 @@ toKey replaceFullWidthToHalfWidth ctrl alt shift meta key =
                     |> String.join ""
         in
             if singleChar && String.isEmpty prefix then
-                key2
+                escapeKey key2
             else
                 "<"
                     ++ mapKey
