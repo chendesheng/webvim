@@ -101,7 +101,6 @@ initMode { cursor, mode } modeName =
 
                         _ ->
                             Nothing
-                , ime = emptyIme
                 }
 
         V.ModeNameEx prefix ->
@@ -121,7 +120,6 @@ initMode { cursor, mode } modeName =
                         _ ->
                             Nothing
                 , message = EmptyMessage
-                , ime = emptyIme
                 }
 
         V.ModeNameVisual tipe ->
@@ -216,9 +214,25 @@ updateMode modeName buf =
 
         scrollTo =
             Buf.finalScrollTop buf1
+
+        ime =
+            if oldModeName /= modeName then
+                let
+                    oldIme =
+                        buf.ime
+                in
+                    case modeName of
+                        V.ModeNameInsert ->
+                            { oldIme | isActive = True }
+
+                        _ ->
+                            { oldIme | isActive = False }
+            else
+                buf.ime
     in
         { buf1
             | last = { last | motionFailed = False }
+            , ime = ime
             , view =
                 { view
                     | lines =
@@ -478,10 +492,7 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                             _ ->
                                 ""
             in
-                { buf
-                    | last =
-                        { last | inserts = inserts }
-                }
+                { buf | last = { last | inserts = inserts } }
 
         Visual _ ->
             let
@@ -602,7 +613,15 @@ runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
 runOperator count register operator buf =
     case operator of
         Move md mo ->
-            motion count md mo buf
+            case md of
+                V.MatchChar _ _ ->
+                    buf
+                        |> motion count md mo
+                        |> Tuple.mapFirst
+                            (updateIme (\ime -> { ime | isActive = False }))
+
+                _ ->
+                    motion count md mo buf
 
         Select textobj around ->
             ( select count textobj around buf, Cmd.none )
@@ -799,6 +818,13 @@ runOperator count register operator buf =
                 , Cmd.none
                 )
 
+        IMEToggleActive ->
+            ( updateIme
+                (\ime -> { ime | isActive = not ime.isActive })
+                buf
+            , Cmd.none
+            )
+
         _ ->
             ( buf, Cmd.none )
 
@@ -867,6 +893,15 @@ isExEditing op =
             True
 
         InsertString _ ->
+            True
+
+        _ ->
+            False
+
+
+isExMode mode =
+    case mode of
+        Ex _ ->
             True
 
         _ ->
@@ -1137,7 +1172,6 @@ applyVimAST replaying key ast buf =
                     { autoComplete = Nothing
                     , startCursor = buf.cursor
                     , visual = Nothing
-                    , ime = emptyIme
                     }
             else
                 buf.mode
@@ -1192,7 +1226,10 @@ applyVimAST replaying key ast buf =
                 ( buf_, cmds )
 
         doFocusInput oldBuf ( buf_, cmds ) =
-            if getModeName oldBuf.mode /= getModeName buf_.mode then
+            if
+                (oldBuf.ime.isActive /= buf_.ime.isActive)
+                    || (isExMode oldBuf.mode /= isExMode buf_.mode)
+            then
                 ( buf_, focusHiddenInput :: cmds )
             else
                 ( buf_, cmds )
@@ -1483,22 +1520,10 @@ update message buf =
         IMEMessage imeMsg ->
             case imeMsg of
                 CompositionTry s ->
-                    let
-                        ignoreWhenComposing ime =
-                            if ime.isComposing then
-                                ( buf, Cmd.none )
-                            else
-                                update (PressKeys s) buf
-                    in
-                        case buf.mode of
-                            Insert m ->
-                                ignoreWhenComposing m.ime
-
-                            Ex ex ->
-                                ignoreWhenComposing ex.ime
-
-                            _ ->
-                                ( buf, Cmd.none )
+                    if buf.ime.isComposing then
+                        ( buf, Cmd.none )
+                    else
+                        update (PressKeys s) buf
 
                 CompositionWait s ->
                     ( buf

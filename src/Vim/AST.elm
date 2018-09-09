@@ -115,6 +115,7 @@ type Operator
     | IncreaseNumber Bool
     | ColumnInsert Bool -- visual mode I/A
     | ShowInfo
+    | IMEToggleActive
 
 
 type StringType

@@ -266,7 +266,6 @@ type Mode
         { autoComplete : Maybe AutoComplete
         , startCursor : Position -- cursor position when enter insert mode
         , visual : Maybe VisualMode
-        , ime : IME
         }
     | TempNormal
     | Ex ExMode
@@ -277,7 +276,6 @@ type alias ExMode =
     , exbuf : Buffer
     , visual : Maybe VisualMode
     , message : StatusMessage
-    , ime : IME
     }
 
 
@@ -348,6 +346,7 @@ type alias Buffer =
     , syntax : Syntax
     , syntaxDirtyFrom : Int
     , lint : BufferLint
+    , ime : IME
     , cursor : Position
     , cursorColumn : Int
     , path : String
@@ -385,14 +384,16 @@ type alias Buffer =
 
 
 type alias IME =
-    { isComposing : Bool
+    { isActive : Bool
+    , isComposing : Bool
     , compositionText : String
     }
 
 
 emptyIme : IME
 emptyIme =
-    { isComposing = False
+    { isActive = False
+    , isComposing = False
     , compositionText = ""
     }
 
@@ -410,7 +411,6 @@ emptyExBuffer =
                 { autoComplete = Nothing
                 , startCursor = ( 0, 0 )
                 , visual = Nothing
-                , ime = emptyIme
                 }
         , lines = B.empty
     }
@@ -418,29 +418,10 @@ emptyExBuffer =
 
 updateIme : (IME -> IME) -> Buffer -> Buffer
 updateIme fnupdate buf =
-    case buf.mode of
-        Insert m ->
-            let
-                ime =
-                    fnupdate m.ime
-            in
-                if m.ime == ime then
-                    buf
-                else
-                    { buf | mode = Insert { m | ime = ime } }
-
-        Ex ex ->
-            let
-                ime =
-                    fnupdate ex.ime
-            in
-                if ex.ime == ime then
-                    buf
-                else
-                    { buf | mode = Ex { ex | ime = ime } }
-
-        _ ->
-            buf
+    if fnupdate buf.ime == buf.ime then
+        buf
+    else
+        { buf | ime = fnupdate buf.ime }
 
 
 emptyView : View
@@ -512,6 +493,7 @@ emptyBuffer =
     , syntax = Array.empty
     , syntaxDirtyFrom = 0
     , lint = { items = [], count = 0 }
+    , ime = emptyIme
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""

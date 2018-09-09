@@ -85,7 +85,7 @@ pageTitle buf =
 pageDom : Buffer -> Html Msg
 pageDom buf =
     let
-        { mode, cursor, lines, syntax, continuation, view, history } =
+        { mode, cursor, lines, syntax, continuation, view, history, ime } =
             buf
 
         { fontInfo } =
@@ -204,7 +204,7 @@ pageDom buf =
                         :: lazy4 renderLint fontInfo scrollTop1 lines buf.lint.items
                         :: lazy renderLines view.lines
                         :: div [ class "ruler" ] []
-                        :: renderCursor fontInfo mode lines "" maybeCursor
+                        :: renderCursor fontInfo ime lines "" maybeCursor
                         :: renderTip
                             buf.view.size.width
                             buf.lint.items
@@ -220,6 +220,7 @@ pageDom buf =
                 ]
              , renderStatusBar
                 fontInfo
+                ime
                 (Buf.isDirty buf)
                 mode
                 continuation
@@ -334,10 +335,10 @@ renderStatusBarRight continuation name items =
         ]
 
 
-renderInputSafari : FontInfo -> IME -> Html Msg
-renderInputSafari fontInfo ime =
+renderInputSafari : FontInfo -> Bool -> Html Msg
+renderInputSafari fontInfo isComposing =
     span
-        ((if ime.isComposing then
+        ((if isComposing then
             [ Events.custom "keydown"
                 (decodeKeyboardEvent True
                     |> Decode.map
@@ -465,8 +466,8 @@ renderInputChrome fontInfo ime =
         []
 
 
-renderStatusBarLeft : FontInfo -> Mode -> Html Msg
-renderStatusBarLeft fontInfo mode =
+renderStatusBarLeft : FontInfo -> IME -> Mode -> Html Msg
+renderStatusBarLeft fontInfo ime mode =
     let
         statusBar =
             Buf.getStatusBar mode
@@ -476,7 +477,7 @@ renderStatusBarLeft fontInfo mode =
                 Just ( y, x ) ->
                     [ renderCursorInner True
                         fontInfo
-                        mode
+                        ime
                         (B.fromString statusBar.text)
                         "ex-cursor"
                         0
@@ -527,7 +528,7 @@ renderMatchedCursor fontInfo lines mode cursor matchedCursor =
                             (\( y, x ) ->
                                 renderCursorInner False
                                     fontInfo
-                                    mode
+                                    emptyIme
                                     lines
                                     "matched-cursor"
                                     y
@@ -540,18 +541,19 @@ renderMatchedCursor fontInfo lines mode cursor matchedCursor =
 
 renderStatusBar :
     FontInfo
+    -> IME
     -> Bool
     -> Mode
     -> String
     -> List LintError
     -> String
     -> Html Msg
-renderStatusBar fontInfo dirty mode continuation items name =
+renderStatusBar fontInfo ime dirty mode continuation items name =
     div
         [ class "status"
         , classList [ ( "dirty", dirty ) ]
         ]
-        [ lazy2 renderStatusBarLeft fontInfo mode
+        [ lazy3 renderStatusBarLeft fontInfo ime mode
         , lazy3 renderStatusBarRight continuation name items
         ]
 
@@ -669,30 +671,25 @@ noCompositionInput =
 renderCursorInner :
     Bool
     -> FontInfo
-    -> Mode
+    -> IME
     -> B.TextBuffer
     -> String
     -> Int
     -> Int
     -> Html Msg
-renderCursorInner isMainCursor fontInfo mode lines classname y x =
+renderCursorInner isMainCursor fontInfo ime lines classname y x =
     let
         ( ( by, bx ), ( ey, ex ) ) =
             cursorPoint fontInfo lines y x
 
-        ( hiddenInput, isComposing ) =
+        imeIsActive =
+            isMainCursor && ime.isActive
+
+        imeIsComposing =
             if isMainCursor then
-                case mode of
-                    Insert { ime } ->
-                        ( lazy2 renderInputSafari fontInfo ime, ime.isComposing )
-
-                    Ex { ime } ->
-                        ( lazy2 renderInputSafari fontInfo ime, ime.isComposing )
-
-                    _ ->
-                        ( noCompositionInput, False )
+                ime.isComposing
             else
-                ( noCompositionInput, False )
+                False
     in
         div
             ([ class "cursor"
@@ -701,28 +698,35 @@ renderCursorInner isMainCursor fontInfo mode lines classname y x =
              , style "top" <| rem y
              , style "width" <| px (ex - bx)
              ]
-                ++ (if isComposing then
-                        [ style "opacity" "1"
-                        , style "background" "none"
-                        ]
+                ++ (if imeIsComposing then
+                        [ class "cursor-ime-composing" ]
+                    else
+                        []
+                   )
+                ++ (if imeIsActive then
+                        [ class "cursor-ime-active" ]
                     else
                         []
                    )
             )
-            [ hiddenInput ]
+            [ if imeIsActive then
+                lazy2 renderInputSafari fontInfo imeIsComposing
+              else
+                noCompositionInput
+            ]
 
 
 renderCursor :
     FontInfo
-    -> Mode
+    -> IME
     -> B.TextBuffer
     -> String
     -> Maybe Position
     -> Html Msg
-renderCursor fontInfo mode lines classname cursor =
+renderCursor fontInfo ime lines classname cursor =
     case cursor of
         Just ( y, x ) ->
-            lazy7 renderCursorInner True fontInfo mode lines classname y x
+            lazy7 renderCursorInner True fontInfo ime lines classname y x
 
         _ ->
             text ""

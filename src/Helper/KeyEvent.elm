@@ -1,6 +1,7 @@
 module Helper.KeyEvent exposing (decodeKeyboardEvent)
 
-import Json.Decode exposing (Decoder, map, map5, field, andThen, maybe, succeed, fail, bool, string)
+import Json.Decode exposing (Decoder)
+import Json.Decode as Decode
 import Dict exposing (Dict)
 import Helper.Helper exposing (isSingleChar, regex)
 import Vim.Helper exposing (escapeKey)
@@ -9,13 +10,13 @@ import Regex as Re
 
 decodeKeyboardEvent : Bool -> Decoder String
 decodeKeyboardEvent replaceFullWidthToHalfWidth =
-    map5 (toKey replaceFullWidthToHalfWidth)
-        (field "ctrlKey" bool)
-        (field "altKey" bool)
-        (field "shiftKey" bool)
-        (field "metaKey" bool)
-        (field "key" string
-            |> map
+    Decode.map5 (toKey replaceFullWidthToHalfWidth)
+        (Decode.field "ctrlKey" Decode.bool)
+        (Decode.field "altKey" Decode.bool)
+        (Decode.field "shiftKey" Decode.bool)
+        (Decode.field "metaKey" Decode.bool)
+        (Decode.field "key" Decode.string
+            |> Decode.map
                 (\key ->
                     if key == " " then
                         "Space"
@@ -31,12 +32,12 @@ decodeKeyboardEvent replaceFullWidthToHalfWidth =
                                 key
                 )
         )
-        |> andThen
+        |> Decode.andThen
             (\key ->
                 if String.isEmpty key then
-                    fail "empty key"
+                    Decode.fail "empty key"
                 else
-                    succeed key
+                    Decode.succeed key
             )
 
 

@@ -1363,7 +1363,6 @@ getStatusBar :
         { text : String
         , cursor : Maybe Position
         , error : Bool
-        , ime : IME
         }
 getStatusBar mode =
     case mode of
@@ -1386,7 +1385,6 @@ getStatusBar mode =
 
                     _ ->
                         False
-            , ime = emptyIme
             }
 
         Visual { tipe } ->
@@ -1402,28 +1400,24 @@ getStatusBar mode =
                         "-- Visual --"
             , cursor = Nothing
             , error = False
-            , ime = emptyIme
             }
 
-        Insert { ime } ->
+        Insert _ ->
             { text = "-- Insert --"
             , cursor = Nothing
             , error = False
-            , ime = ime
             }
 
         TempNormal ->
             { text = "-- (Insert) --"
             , cursor = Nothing
             , error = False
-            , ime = emptyIme
             }
 
-        Ex { exbuf, ime } ->
+        Ex { exbuf } ->
             { text = B.toString exbuf.lines
             , cursor = Just exbuf.cursor
             , error = False
-            , ime = ime
             }
 
 

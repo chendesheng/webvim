@@ -72,6 +72,7 @@ insertCommands =
             , define "<c-y>" <| InsertString CharAbroveCursor
             , define "<c-p>" (SelectAutoComplete False)
             , define "<c-n>" (SelectAutoComplete True)
+            , define "<s-enter>" IMEToggleActive
             , P.succeed
                 [ PopMode
                 , PushComplete
@@ -398,17 +399,22 @@ motion isVisual map gMotion =
                 [ PushKey trigger ]
                 (P.succeed
                     (\ch ->
-                        [ map
-                            (MatchChar ch before)
-                            { forward = forward
-                            , inclusive = True
-                            , crossLine = False
-                            , linewise = False
-                            }
-                            |> PushOperator
-                        , PushKey (trigger ++ ch)
-                        , PushComplete
-                        ]
+                        if ch == "<s-enter>" then
+                            [ PushOperator IMEToggleActive
+                            , PushKey trigger
+                            ]
+                        else
+                            [ map
+                                (MatchChar ch before)
+                                { forward = forward
+                                , inclusive = True
+                                , crossLine = False
+                                , linewise = False
+                                }
+                                |> PushOperator
+                            , PushKey (trigger ++ ch)
+                            , PushComplete
+                            ]
                     )
                     |= keyParser
                 )

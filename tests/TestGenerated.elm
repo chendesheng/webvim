@@ -343,7 +343,6 @@ parseMode cursor statusBar =
             { autoComplete = Nothing
             , startCursor = cursor
             , visual = Nothing
-            , ime = emptyIme
             }
     else if
         String.startsWith
@@ -392,7 +391,6 @@ parseMode cursor statusBar =
                         ]
             , visual = Nothing
             , message = EmptyMessage
-            , ime = emptyIme
             }
     else if String.startsWith "/" statusBar then
         Ex
@@ -410,7 +408,6 @@ parseMode cursor statusBar =
                         ]
             , visual = Nothing
             , message = EmptyMessage
-            , ime = emptyIme
             }
     else if String.startsWith "?" statusBar then
         Ex
@@ -428,7 +425,6 @@ parseMode cursor statusBar =
                         ]
             , visual = Nothing
             , message = EmptyMessage
-            , ime = emptyIme
             }
     else if
         String.startsWith "-- Normal --"
