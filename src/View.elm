@@ -334,18 +334,28 @@ renderStatusBarRight continuation name items =
         ]
 
 
-isComoboKey key =
-    String.startsWith "<s-" key
-        || String.startsWith "<c-" key
-        || String.startsWith "<a-" key
-        || String.startsWith "<m-" key
-
-
 renderInputSafari : FontInfo -> IME -> Html Msg
 renderInputSafari fontInfo ime =
     span
         ((if ime.isComposing then
-            []
+            [ Events.custom "keydown"
+                (decodeKeyboardEvent True
+                    |> Decode.map
+                        (\key ->
+                            if key == "<escape>" then
+                                { message = PressKeys key
+                                , stopPropagation = True
+                                , preventDefault = True
+                                }
+                            else
+                                { message = NoneMessage
+                                , stopPropagation = False
+                                , preventDefault = False
+                                }
+                         --|> Debug.log "keydown"
+                        )
+                )
+            ]
           else
             [ onKeyDownPressKeys False
             , style "opacity" "0"
@@ -651,6 +661,7 @@ noCompositionInput =
         , tabindex 0
         , autofocus True
         , onKeyDownPressKeys True
+        , style "opacity" "0"
         ]
         []
 
@@ -695,7 +706,7 @@ renderCursorInner isMainCursor fontInfo mode lines classname y x =
                         , style "background" "none"
                         ]
                     else
-                        [ style "opacity" "0.5" ]
+                        []
                    )
             )
             [ hiddenInput ]
