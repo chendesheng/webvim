@@ -39,11 +39,6 @@ decodeKeyboardEvent replaceFullWidthToHalfWidth =
             )
 
 
-shiftedKeys : String
-shiftedKeys =
-    "~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?～！¥…（）—+「」：“《》？"
-
-
 shiftComboMap : Dict.Dict String String
 shiftComboMap =
     Dict.fromList
@@ -107,12 +102,7 @@ toKey replaceFullWidthToHalfWidth ctrl alt shift meta key =
                     "a-"
                   else
                     ""
-                , if
-                    shift
-                        && (not singleChar
-                                || (not <| String.contains key2 shiftedKeys)
-                           )
-                  then
+                , if shift && not singleChar then
                     "s-"
                   else
                     ""
