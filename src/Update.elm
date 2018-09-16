@@ -15,6 +15,7 @@ import Helper.Helper
         , nthList
         , regexWith
         , inc
+        , replaceHomeDir
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -1056,7 +1057,10 @@ execute count register str buf =
             else
                 jumpToPath
                     True
-                    (normalizePath buf.config.pathSeperator path)
+                    (path
+                        |> normalizePath buf.config.pathSeperator
+                        |> replaceHomeDir buf.config.homedir
+                    )
                     Nothing
                     buf
 
@@ -1084,7 +1088,11 @@ execute count register str buf =
             ( Buf.infoMessage buf.cwd buf, Cmd.none )
 
         [ "cd", cwd ] ->
-            ( buf, sendCd buf.config.service cwd )
+            ( buf
+            , cwd
+                |> replaceHomeDir buf.config.homedir
+                |> sendCd buf.config.service
+            )
 
         [ s ] ->
             case String.toInt s of
@@ -1800,8 +1808,9 @@ getViewHeight heightPx lineHeightPx statusBarHeight =
 init : Flags -> ( Buffer, Cmd Msg )
 init flags =
     let
-        { cwd, fontInfo, service, buffers } =
+        { cwd, fontInfo, service, buffers, homedir } =
             flags
+                |> Debug.log "flags"
 
         lineHeight =
             fontInfo.lineHeight
@@ -1848,6 +1857,7 @@ init flags =
                             | service = service
                             , pathSeperator = pathSeperator
                             , fontInfo = fontInfo
+                            , homedir = homedir
                         }
                     , registers =
                         Decode.decodeValue registersDecoder registers

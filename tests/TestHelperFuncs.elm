@@ -28,14 +28,13 @@ suite =
                     "/users/webvim/src/main.elm"
                     "src/main.elm"
                 , testUnix
-                    "/users/me/webvim/"
+                    "/users/me/webvim"
                     "/users/me/.elm/0.19/main.elm"
                     "../.elm/0.19/main.elm"
                 , testUnix "/a/b/" "/a/c/d.elm" "../c/d.elm"
-                , testUnix "/a/c/d.elm" "/a/b/" "../b/"
                 , testWin "c:\\a\\b\\" "c:\\c\\d\\" "..\\..\\c\\d\\"
                 , testWin "c:\\" "c:\\c\\d\\" "c\\d\\"
-                , testWin "c:\\a.elm" "c:\\c\\d\\" "c\\d\\"
+                , testWin "c:\\a\\b" "c:\\c\\d\\" "..\\..\\c\\d\\"
                 ]
             )
         , describe "resolvePath"

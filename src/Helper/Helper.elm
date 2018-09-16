@@ -284,6 +284,14 @@ escapeRegex =
         Re.replace re (\{ match } -> "\\" ++ match)
 
 
+replaceHomeDir : String -> String -> String
+replaceHomeDir homedir path =
+    if String.startsWith "~" path then
+        homedir ++ String.slice 1 (String.length path) path
+    else
+        path
+
+
 normalizePath : String -> String -> String
 normalizePath sep path =
     let
@@ -347,18 +355,23 @@ resolvePath sep dir path =
                     |> String.join sep
 
 
-{-| Calcuate relative path between two normalized absolute paths. Directries must ends with a path seperator.
+{-| Calcuate relative path between two normalized absolute paths.
+`from` must be a directory, `to` can be a file or a directory.
 
     relativePath "/users/webvim/" "/users/webvim/src/main.elm" == "src/main.elm"
 
     relativePath "/a/b/" "/a/c/d.elm" == "../c/d.elm"
 
-    relativePath "/a/c/d.elm" "/a/b/" == "../../b"
-
 -}
 relativePath : String -> String -> String -> String
-relativePath sep from to =
+relativePath sep from_ to =
     let
+        from =
+            if String.endsWith sep from_ then
+                from_
+            else
+                from_ ++ sep
+
         commonAncestors a b ancestors =
             case a of
                 x :: xs ->
@@ -385,6 +398,22 @@ relativePath sep from to =
     in
         (List.repeat (List.length fromParts - 1) ".." ++ toParts)
             |> String.join sep
+
+
+{-| Return ext name (always lower case) of a path, including '.'. Return empty stirng if not found
+-}
+extname : String -> String
+extname path =
+    let
+        re =
+            regex "[.][a-zA-Z]+$"
+    in
+        case Re.find re path of
+            ext :: _ ->
+                String.toLower ext.match
+
+            _ ->
+                ""
 
 
 nthList : Int -> List a -> Maybe a

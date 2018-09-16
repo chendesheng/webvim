@@ -14,6 +14,9 @@ import Helper.Helper
         , nthList
         , floorFromZero
         , keepOneOrMore
+        , replaceHomeDir
+        , extname
+        , relativePath
         )
 import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
@@ -206,6 +209,16 @@ editBuffer info buf =
             )
 
 
+isLintEnabled config name =
+    if config.lint && extname name == ".elm" then
+        name
+            |> relativePath config.pathSeperator config.homedir
+            |> String.startsWith (".elm" ++ config.pathSeperator)
+            |> not
+    else
+        config.lint
+
+
 newBuffer : BufferInfo -> Buffer -> Buffer
 newBuffer info buf =
     let
@@ -219,6 +232,15 @@ newBuffer info buf =
             Buf.configs
                 |> Dict.get ext
                 |> Maybe.withDefault defaultBufferConfig
+
+        config1 =
+            { config
+                | service = buf.config.service
+                , pathSeperator = buf.config.pathSeperator
+                , syntax = info.syntax
+                , fontInfo = buf.config.fontInfo
+                , homedir = buf.config.homedir
+            }
 
         ( lines, syntax ) =
             Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
@@ -236,11 +258,8 @@ newBuffer info buf =
             | lines = lines
             , mode = Normal { message = EmptyMessage }
             , config =
-                { config
-                    | service = buf.config.service
-                    , pathSeperator = buf.config.pathSeperator
-                    , syntax = info.syntax
-                    , fontInfo = buf.config.fontInfo
+                { config1
+                    | lint = isLintEnabled config1 path
                 }
             , view =
                 { emptyView

@@ -840,6 +840,7 @@ bootDecoder flags =
                     else
                         flags.cwd
                 , pathSeperator = pathSeperator
+                , homedir = homedir
             }
         )
         (Decode.field "homedir" Decode.string)

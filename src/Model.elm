@@ -87,6 +87,7 @@ type alias Flags =
     , cwd : String
     , pathSeperator : String
     , fontInfo : FontInfo
+    , homedir : String
     }
 
 
@@ -439,6 +440,7 @@ type alias BufferConfig =
     , indent : IndentConfig
     , syntax : Bool
     , fontInfo : FontInfo
+    , homedir : String
     }
 
 
@@ -458,6 +460,7 @@ defaultBufferConfig =
         , size = 0
         , name = ""
         }
+    , homedir = ""
     }
 
 

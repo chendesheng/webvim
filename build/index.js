@@ -129,6 +129,7 @@ const flags = {
   cwd: sessionStorage.getItem('cwd') || '',
   pathSeperator: '',
   fontInfo: measureFont(),
+  homedir: '',
 };
 
 const applyCss = (url) => {
