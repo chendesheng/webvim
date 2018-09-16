@@ -29,57 +29,33 @@ type alias CodePoint =
     Int
 
 
-type alias FontWidth =
-    { from : CodePoint
-    , to : CodePoint
-    , width : Float
-    }
-
-
 type alias FontInfo =
     { name : String
-    , widths : List FontWidth
-    , asciiCharWidth : Float
+    , widths : List ( String, Float )
     , lineHeight : Int
     , size : Int -- pt
-    , widthByType : List ( String, Float )
     }
 
 
 charWidth : FontInfo -> Char -> Float
-charWidth { widths, asciiCharWidth } ch =
-    widths
-        |> findFirst
-            (\{ from, to } ->
-                let
-                    codePoint =
-                        Char.toCode ch
-                in
-                    from <= codePoint && codePoint < to
-            )
-        |> Maybe.map .width
-        |> Maybe.withDefault asciiCharWidth
-
-
-charWidthByType : FontInfo -> Char -> Float
-charWidthByType { widthByType, asciiCharWidth } ch =
+charWidth { widths } ch =
     let
         dict =
-            Dict.fromList widthByType
+            Dict.fromList widths
 
         codePoint =
             Char.toCode ch
 
         widthType =
-            charWidthType codePoint
+            charWidthType ch
     in
-        widthByType
+        widths
             |> findFirst
                 (\( tipe, width ) ->
                     tipe == widthType
                 )
             |> Maybe.map Tuple.second
-            |> Maybe.withDefault asciiCharWidth
+            |> Maybe.withDefault 10
 
 
 stringWidth : FontInfo -> Int -> Int -> String -> Int
@@ -98,7 +74,7 @@ cursorCharWidth fontInfo x s =
         |> String.dropLeft x
         |> String.uncons
         |> Maybe.map (Tuple.first >> charWidth fontInfo)
-        |> Maybe.withDefault fontInfo.asciiCharWidth
+        |> Maybe.withDefault (charWidth fontInfo '0')
         |> round
 
 
@@ -478,11 +454,9 @@ defaultBufferConfig =
     , syntax = True
     , fontInfo =
         { widths = []
-        , asciiCharWidth = 0
         , lineHeight = 0
         , size = 0
         , name = ""
-        , widthByType = []
         }
     }
 
