@@ -10,7 +10,6 @@ import Helper.Helper
         , isSpace
         , notSpace
         , resolvePath
-        , relativePath
         , normalizePath
         , nthList
         , floorFromZero

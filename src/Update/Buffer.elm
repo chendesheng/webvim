@@ -1468,4 +1468,14 @@ switchVisualEnd buf =
 
 shortPath : Buffer -> String
 shortPath buf =
-    relativePath buf.config.pathSeperator buf.cwd buf.path
+    let
+        sep =
+            buf.config.pathSeperator
+
+        from =
+            if String.endsWith sep buf.cwd then
+                buf.cwd
+            else
+                buf.cwd ++ sep
+    in
+        relativePath sep from buf.path

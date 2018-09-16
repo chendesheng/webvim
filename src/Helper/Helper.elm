@@ -347,7 +347,7 @@ resolvePath sep dir path =
                     |> String.join sep
 
 
-{-| Calcuate relative path between two normalized absolute paths
+{-| Calcuate relative path between two normalized absolute paths. Directries must ends with a path seperator.
 
     relativePath "/users/webvim/" "/users/webvim/src/main.elm" == "src/main.elm"
 

@@ -14,7 +14,6 @@ import Helper.Helper
         , normalizePath
         , nthList
         , regexWith
-        , relativePath
         , inc
         )
 import Vim.Parser exposing (parse)
