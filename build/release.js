@@ -22,7 +22,7 @@ const packagejson = JSON.parse(read('package.json'));
 const version = packagejson.version;
 
 const optimizeByGoogleClosureCompiler = (version, commit, code) => {
-  console.log('Optimizing');
+  console.log('GoogleClosreCompiler');
   const flags = {
     jsCode: [{
       src: code,
@@ -30,25 +30,32 @@ const optimizeByGoogleClosureCompiler = (version, commit, code) => {
     compilationLevel: 'ADVANCED',
     warningLevel: 'VERBOSE',
   };
+  return generateMetaInfo(version, commit, compile(flags).compiledCode);
+};
+
+function generateMetaInfo(version, commit, code) {
   return `/**
   * compiled at ${new Date()}
   * version ${version}
   * commit ${commit}
   */
-  ${compile(flags).compiledCode}`;
+  ${code}`;
+}
+
+const elmMinify = (path) => {
+  console.log('Elm minify...');
+  shell(`./node_modules/.bin/elm-minify ${path} --replace`);
 };
 
 const releaseFrontEnd = () => {
-  shell('elm make src/Main.elm --output dist/.bundle.js --optimize');
+  const bundlepath = 'dist/.bundle.js';
+  shell(`elm make src/Main.elm --output ${bundlepath} --optimize`);
+  elmMinify(bundlepath);
 
-  const code = optimizeByGoogleClosureCompiler(
-    version,
-    commit,
-    [read('dist/.bundle.js'),
-      read('build/index.js')
-        .replace(/\n\s*service:.*8899.*,\s*\n/, '\nservice:"",\n'),
-    ].join('\n'));
-
+  const code = generateMetaInfo(version, commit, [read('dist/.bundle.js'),
+    read('build/index.js')
+      .replace(/\n\s*service:.*8899.*,\s*\n/, '\nservice:"",\n'),
+  ].join('\n'));
   const placeholder = '<!-- inject index.js -->';
   const htmlfile = read('build/template.html');
   const css = read('dist/style.min.css');

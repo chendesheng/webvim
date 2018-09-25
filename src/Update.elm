@@ -1810,8 +1810,8 @@ init flags =
     let
         { cwd, fontInfo, service, buffers, homedir } =
             flags
-                |> Debug.log "flags"
 
+        --|> Debug.log "flags"
         lineHeight =
             fontInfo.lineHeight
 
