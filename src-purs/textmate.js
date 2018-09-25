@@ -35,8 +35,16 @@ function loadVscodeExtensions(dir, allExtensions) {
     if (contributes.grammars) {
       contributes.grammars.forEach(function(grammar) {
         grammar.path = path.join(extensionFolder, grammar.path);
-        allExtensions.grammars[grammar.language] = grammar;
+        if (grammar.language) {
+          allExtensions.grammars[grammar.language] = grammar;
+        }
         allExtensions.scopeNames[grammar.scopeName] = grammar;
+        if (grammar.embeddedLanguages) {
+          Object.keys(grammar.embeddedLanguages).forEach(function(scopeName) {
+            // eslint-disable-next-line
+            allExtensions.embeddedLanguages[scopeName] = grammar.embeddedLanguages[scopeName];
+          });
+        }
       });
     }
 
@@ -106,19 +114,17 @@ const vscodeExtensions = {
   scopeNames: {},
   // key: label, value theme ({label: 'Monokai', uiTheme:'vs-dark', path})
   themes: {},
+  // key: scopeName, value: languageId
+  embeddedLanguages: {},
 // TODO: snippets
 };
 
 loadVscodeExtensions(
-  path.join(__dirname, '../vscode/extensions'),
+  // vscode directory is different in dev mode
+  // eslint-disable-next-line
+  '/Applications/Visual Studio Code.app/Contents/Resources/app/extensions',
   vscodeExtensions
 ).then(function(allExtensions) {
-  return loadVscodeExtensions(
-    // vscode directory is different in dev mode
-    path.join(__dirname, '../../vscode/extensions'),
-    allExtensions
-  );
-}).then(function(allExtensions) {
   return loadVscodeExtensions(
     path.join(homedir, '.vscode/extensions'),
     allExtensions
@@ -256,6 +262,13 @@ function genThemeCss(uiTheme, theme, colorMap) {
 const registry = new Registry({
   loadGrammar: function(scopeName) {
     var grammar = vscodeExtensions.scopeNames[scopeName];
+    if (!grammar) {
+      console.log('get from embeddedLanguages: ' + scopeName);
+      var languageId = vscodeExtensions.embeddedLanguages[scopeName];
+      if (languageId) {
+        grammar = vscodeExtensions.grammars[languageId];
+      }
+    }
     // console.log('scopeName:', scopeName);
     // console.log('grammar:', grammar);
     if (grammar) {
@@ -281,7 +294,7 @@ function getGrammar(p) {
   // console.log('extension:', extension);
   if (extension) {
     const languageId = extension.id;
-    const grammar = vscodeExtensions.grammars[languageId];
+    var grammar = vscodeExtensions.grammars[languageId];
     if (grammar) {
       return registry.loadGrammar(grammar.scopeName);
     } else {
