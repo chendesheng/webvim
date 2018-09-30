@@ -58,6 +58,8 @@ type Msg
     | Lint BufferIdentifier (Result String (List LintError))
     | Tokenized BufferIdentifier (Result String TokenizeResponse)
     | ListFiles (Result String (List String))
+    | ListDirectries (Result String (List String))
+    | ListAllFiles (Result String (List String)) -- recursive
     | ReadTags (Result String Location)
     | SearchResult (Result String String)
     | SetCwd (Result String String)

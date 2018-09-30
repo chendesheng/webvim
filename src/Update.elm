@@ -16,6 +16,10 @@ import Helper.Helper
         , regexWith
         , inc
         , replaceHomeDir
+        , getLast
+        , pathFileName
+        , pathBase
+        , resolvePath
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -748,6 +752,8 @@ runOperator count register operator buf =
                                     buf
                                         |> startAutoComplete
                                             buf.config.wordChars
+                                            ""
+                                            0
                                             (Buf.toWords word buf)
                                             pos
                                             word
@@ -912,13 +918,6 @@ isExMode mode =
             False
 
 
-triggerExAutoComplete : Buffer -> Bool
-triggerExAutoComplete buf =
-    buf.lines
-        |> B.toString
-        |> String.startsWith ":e "
-
-
 setExbuf : Buffer -> ExMode -> Buffer -> Buffer
 setExbuf buf ex exbuf =
     { buf | mode = Ex { ex | exbuf = exbuf } }
@@ -937,9 +936,42 @@ applyEdit count edit register buf =
                     in
                         case buf1.mode of
                             Ex ({ exbuf } as newex) ->
-                                if triggerExAutoComplete exbuf then
-                                    if isExEditing operator then
-                                        if isAutoCompleteStarted exbuf then
+                                let
+                                    s =
+                                        B.toString exbuf.lines
+
+                                    trigger =
+                                        if String.startsWith ":o " s then
+                                            buf.cwd
+                                        else
+                                            s
+                                                |> String.trim
+                                                |> String.split " "
+                                                |> getLast
+                                                |> Maybe.withDefault ""
+                                                |> getPath
+                                                    buf.config.pathSeperator
+                                                    buf.config.homedir
+                                                    buf.cwd
+
+                                    ( getList, clearAutoComplete ) =
+                                        if String.startsWith ":o " s then
+                                            ( sendListAllFiles, False )
+                                        else if String.startsWith ":e " s then
+                                            ( sendListFiles, False )
+                                        else if String.startsWith ":cd " s then
+                                            ( sendListDirectories, False )
+                                        else
+                                            ( \a b c -> Cmd.none, True )
+                                in
+                                    if clearAutoComplete then
+                                        ( setExbuf buf1
+                                            newex
+                                            (clearExBufAutoComplete exbuf)
+                                        , cmd
+                                        )
+                                    else if isExEditing operator then
+                                        if isAutoCompleteStarted exbuf trigger then
                                             ( exbuf
                                                 |> filterAutoComplete
                                                 |> setExbuf buf1 newex
@@ -949,20 +981,14 @@ applyEdit count edit register buf =
                                             ( buf1
                                             , Cmd.batch
                                                 [ cmd
-                                                , sendListFiles
+                                                , getList
                                                     buf.config.service
                                                     buf.config.pathSeperator
-                                                    buf.cwd
+                                                    trigger
                                                 ]
                                             )
                                     else
                                         ( buf1, cmd )
-                                else
-                                    ( setExbuf buf1
-                                        newex
-                                        (clearExBufAutoComplete exbuf)
-                                    , cmd
-                                    )
 
                             _ ->
                                 ( buf1, cmd )
@@ -1045,12 +1071,8 @@ editTestBuffer path buf =
 
 execute : Maybe Int -> String -> String -> Buffer -> ( Buffer, Cmd Msg )
 execute count register str buf =
-    case
-        str
-            |> String.trim
-            |> String.split " "
-    of
-        [ "e", path ] ->
+    let
+        edit path =
             -- for unit testing
             if path == "*Test*" then
                 editTestBuffer path buf
@@ -1063,50 +1085,64 @@ execute count register str buf =
                     )
                     Nothing
                     buf
+    in
+        case
+            str
+                |> String.trim
+                |> String.split " "
+        of
+            [ "e", path ] ->
+                edit path
 
-        [ "w" ] ->
-            ( buf, sendWriteBuffer buf.config.service buf.path buf )
+            [ "o", path ] ->
+                edit path
 
-        [ "ll" ] ->
-            let
-                n =
-                    (Maybe.withDefault 1 count) - 1
-            in
-                case nthList n buf.locationList of
-                    Just loc ->
-                        jumpToLocation True loc buf
+            [ "w" ] ->
+                ( buf, sendWriteBuffer buf.config.service buf.path buf )
+
+            [ "ll" ] ->
+                let
+                    n =
+                        (Maybe.withDefault 1 count) - 1
+                in
+                    case nthList n buf.locationList of
+                        Just loc ->
+                            jumpToLocation True loc buf
+
+                        _ ->
+                            ( Buf.errorMessage "location not found" buf
+                            , Cmd.none
+                            )
+
+            [ "f", s ] ->
+                ( buf, sendSearch buf.config.service buf.cwd s )
+
+            [ "cd" ] ->
+                ( Buf.infoMessage buf.cwd buf, Cmd.none )
+
+            [ "cd", cwd ] ->
+                ( buf
+                , cwd
+                    |> resolvePath
+                        buf.config.pathSeperator
+                        buf.cwd
+                    |> replaceHomeDir buf.config.homedir
+                    |> sendCd buf.config.service
+                )
+
+            [ s ] ->
+                case String.toInt s of
+                    Just n ->
+                        runOperator (Just n)
+                            register
+                            (V.Move V.BufferBottom V.emptyMotionOption)
+                            buf
 
                     _ ->
-                        ( Buf.errorMessage "location not found" buf
-                        , Cmd.none
-                        )
+                        ( buf, Cmd.none )
 
-        [ "f", s ] ->
-            ( buf, sendSearch buf.config.service buf.cwd s )
-
-        [ "cd" ] ->
-            ( Buf.infoMessage buf.cwd buf, Cmd.none )
-
-        [ "cd", cwd ] ->
-            ( buf
-            , cwd
-                |> replaceHomeDir buf.config.homedir
-                |> sendCd buf.config.service
-            )
-
-        [ s ] ->
-            case String.toInt s of
-                Just n ->
-                    runOperator (Just n)
-                        register
-                        (V.Move V.BufferBottom V.emptyMotionOption)
-                        buf
-
-                _ ->
-                    ( buf, Cmd.none )
-
-        _ ->
-            ( buf, Cmd.none )
+            _ ->
+                ( buf, Cmd.none )
 
 
 handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
@@ -1517,6 +1553,22 @@ update message buf =
         SearchResult result ->
             onSearch result buf
 
+        ListAllFiles resp ->
+            case resp of
+                Ok files ->
+                    ( listAllFiles files buf, Cmd.none )
+
+                Err _ ->
+                    ( buf, Cmd.none )
+
+        ListDirectries resp ->
+            case resp of
+                Ok files ->
+                    ( listFiles files buf, Cmd.none )
+
+                Err _ ->
+                    ( buf, Cmd.none )
+
         ListFiles resp ->
             case resp of
                 Ok files ->
@@ -1764,35 +1816,85 @@ onWrite result buf =
             )
 
 
+getPath : String -> String -> String -> String -> String
+getPath sep homedir cwd s1 =
+    let
+        s =
+            replaceHomeDir homedir s1
+
+        base =
+            if s == homedir then
+                s
+            else
+                pathBase sep s
+    in
+        resolvePath sep cwd base
+
+
+fileNameWordChars : String
+fileNameWordChars =
+    "/\\-._"
+
+
+listAllFiles : List String -> Buffer -> Buffer
+listAllFiles files buf =
+    case buf.mode of
+        Ex ({ exbuf } as ex) ->
+            setExbuf buf
+                ex
+                (startAutoComplete
+                    fileNameWordChars
+                    buf.cwd
+                    2
+                    files
+                    ( 0, 3 )
+                    ""
+                    exbuf
+                )
+
+        _ ->
+            buf
+
+
 listFiles : List String -> Buffer -> Buffer
 listFiles files buf =
-    let
-        fileNameWordChars =
-            "/\\-._"
-    in
-        case buf.mode of
-            Ex ({ exbuf } as ex) ->
+    case buf.mode of
+        Ex ({ exbuf } as ex) ->
+            let
+                sep =
+                    buf.config.pathSeperator
+            in
                 setExbuf buf
                     ex
-                    (case autoCompleteTarget fileNameWordChars exbuf of
-                        Just ( pos, word ) ->
-                            startAutoComplete fileNameWordChars
+                    (case
+                        exbuf.lines
+                            |> B.toString
+                            |> String.split " "
+                     of
+                        [ prefix, path ] ->
+                            startAutoComplete
+                                fileNameWordChars
+                                (getPath sep buf.config.homedir buf.cwd path)
+                                (String.length prefix)
                                 files
-                                pos
-                                word
+                                ( 0
+                                , ((path
+                                        |> pathBase sep
+                                        |> String.length
+                                   )
+                                    + String.length prefix
+                                    + String.length sep
+                                  )
+                                )
+                                ""
                                 exbuf
 
                         _ ->
-                            startAutoComplete
-                                fileNameWordChars
-                                files
-                                exbuf.cursor
-                                ""
-                                exbuf
+                            exbuf
                     )
 
-            _ ->
-                buf
+        _ ->
+            buf
 
 
 initCommand : Flags -> Cmd Msg

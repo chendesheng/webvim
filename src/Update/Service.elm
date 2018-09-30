@@ -707,10 +707,44 @@ parseFileList sep resp =
             Err <| errorMessage err
 
 
+sendListAllFiles : String -> String -> String -> Cmd Msg
+sendListAllFiles url sep cwd =
+    Http.getString (url ++ "/ls?cwd=" ++ cwd)
+        |> Http.send (parseFileList sep >> ListAllFiles)
+
+
 sendListFiles : String -> String -> String -> Cmd Msg
 sendListFiles url sep cwd =
-    Http.getString (url ++ "/ls?cwd=" ++ cwd)
-        |> Http.send (parseFileList sep >> ListFiles)
+    let
+        trimSep s =
+            if String.endsWith sep s then
+                String.dropRight (String.length sep) s
+            else
+                s
+    in
+        Http.getString (url ++ "/ld?cwd=" ++ cwd)
+            |> Http.send
+                (parseFileList sep
+                    >> (Result.map (List.map trimSep))
+                    >> ListFiles
+                )
+
+
+sendListDirectories : String -> String -> String -> Cmd Msg
+sendListDirectories url sep cwd =
+    let
+        trimSep s =
+            if String.endsWith sep s then
+                Just <| String.dropRight (String.length sep) s
+            else
+                Nothing
+    in
+        Http.getString (url ++ "/ld?cwd=" ++ cwd)
+            |> Http.send
+                (parseFileList sep
+                    >> (Result.map (List.filterMap trimSep))
+                    >> ListDirectries
+                )
 
 
 sendReadClipboard : Bool -> Key -> String -> AST -> Cmd Msg

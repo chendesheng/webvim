@@ -6,7 +6,7 @@ import Dict
 
 
 normalKeymap =
-    [ ( "<c-p>", ":e<space>" )
+    [ ( "<c-p>", ":o<space>" )
     , ( "<c-,>", ":f<space>" )
     , ( "<c-s>", ":w<enter>" )
     , ( "<a-s>", ":w<enter>" )

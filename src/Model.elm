@@ -233,6 +233,10 @@ type alias AutoComplete =
     , scrollTop : Int
     , pos : Position
     , wordChars : String
+
+    -- if trigger changed then source list need re-populated
+    , trigger : String
+    , menuLeftOffset : Int
     }
 
 

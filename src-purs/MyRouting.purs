@@ -22,6 +22,7 @@ data DynamicActions
   = ReadFile NonEmptyString
   | WriteFile NonEmptyString
   | ListFiles NonEmptyString
+  | ListDirectory NonEmptyString
   | Search NonEmptyString NonEmptyString
   | ReadClipboard
   | WriteClipboard
@@ -81,6 +82,7 @@ routingDynamicGet :: Match DynamicActions
 routingDynamicGet = oneOf
   [ ReadFile <$> (root *> lit "read" *> paramPath)
   , ListFiles <$> (root *> lit "ls" *> paramCwd)
+  , ListDirectory <$> (root *> lit "ld" *> paramCwd)
   , Search <$> (root *> lit "search" *> paramCwd) <*> (nonemptyParam "s")
   , ReadClipboard <$ (root *> lit "clipboard")
   , Lint <$> (root *> lit "lint" *> paramPath)

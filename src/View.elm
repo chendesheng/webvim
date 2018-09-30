@@ -1238,7 +1238,7 @@ renderAutoCompleteMenu :
     -> Html msg
 renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth auto =
     let
-        { matches, select, scrollTop, pos } =
+        { matches, select, scrollTop, pos, menuLeftOffset } =
             auto
 
         index =
@@ -1287,9 +1287,12 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth aut
             ([ class "auto-complete"
              ]
                 ++ (if isEx then
-                        [ class "auto-complete-ex" ]
+                        [ class "auto-complete-ex"
+                        , style "left" <| ch (menuLeftOffset + 1)
+                        ]
                     else
-                        [ style "left" <| ch (x + gutterWidth)
+                        [ style "left" <|
+                            ch (x + gutterWidth)
                         , style "top" <|
                             String.fromInt
                                 ((y + 1 - viewScrollTop)

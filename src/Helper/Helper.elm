@@ -221,6 +221,25 @@ maybeAndThen2 f ma mb =
         ma
 
 
+{-| return characters after last slash, return orignal path if no slash
+-}
+pathFileName : String -> String -> String
+pathFileName sep path =
+    path
+        |> String.split sep
+        |> getLast
+        |> Maybe.withDefault path
+
+
+pathBase : String -> String -> String
+pathBase sep path =
+    let
+        name =
+            pathFileName sep path
+    in
+        String.dropRight (String.length name) path
+
+
 isAbsolutePath : String -> String -> Bool
 isAbsolutePath sep =
     if sep == "/" then

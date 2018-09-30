@@ -42,6 +42,7 @@ import Node.Process as Process
 import Prelude
 import Shell (execAsync)
 import Data.String (Pattern(..), stripSuffix)
+--import Data.String.Common (joinWith)
 import Node.FS.Stats (isDirectory)
 
 
@@ -107,6 +108,13 @@ listFiles resp cwd = do
   affLog ("listFiles: " <> show cwd)
   let outputStream = responseAsStream resp
   result <- execAsync (Just cwd) "git ls-files" Nothing
+  affWriteStdout outputStream result
+
+listDirectory :: Response -> String -> Aff Unit
+listDirectory resp cwd = do
+  affLog ("listDirectories: " <> show cwd)
+  let outputStream = responseAsStream resp
+  result <- execAsync (Just cwd) "ls -pa1" Nothing
   affWriteStdout outputStream result
 
 

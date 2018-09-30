@@ -7,6 +7,7 @@ import Node.HTTP (Request, Response, createServer, listen, requestMethod
   ,requestAsStream, responseAsStream)
 import File
   (listFiles
+  , listDirectory
   , readFile
   , readTags
   , searchFiles
@@ -77,6 +78,9 @@ dynamicActionHandler req resp action = do
 
     ListFiles (NonEmptyString cwd) -> 
       listFiles resp cwd
+
+    ListDirectory (NonEmptyString cwd) -> 
+      listDirectory resp cwd
 
     Search (NonEmptyString cwd) (NonEmptyString s) ->
       searchFiles resp cwd s

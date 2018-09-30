@@ -99,11 +99,16 @@ autoCompleteTarget wordChars buf =
                 )
 
 
-isAutoCompleteStarted : Buffer -> Bool
-isAutoCompleteStarted buf =
+isAutoCompleteStarted : Buffer -> String -> Bool
+isAutoCompleteStarted buf newTrigger =
     case buf.mode of
         Insert { autoComplete } ->
-            autoComplete /= Nothing
+            case autoComplete of
+                Just { trigger } ->
+                    trigger == newTrigger
+
+                _ ->
+                    False
 
         _ ->
             False
@@ -111,12 +116,14 @@ isAutoCompleteStarted buf =
 
 startAutoComplete :
     String
+    -> String
+    -> Int
     -> List String
     -> Position
     -> String
     -> Buffer
     -> Buffer
-startAutoComplete wordChars source pos word buf =
+startAutoComplete wordChars trigger menuLeftOffset source pos word buf =
     case buf.mode of
         Insert insert ->
             { buf
@@ -125,7 +132,8 @@ startAutoComplete wordChars source pos word buf =
                         { insert
                             | autoComplete =
                                 Just
-                                    { source = source
+                                    { trigger = trigger
+                                    , source = source
                                     , pos = pos
                                     , matches =
                                         word
@@ -138,6 +146,7 @@ startAutoComplete wordChars source pos word buf =
                                     , select = -1
                                     , scrollTop = 0
                                     , wordChars = wordChars
+                                    , menuLeftOffset = menuLeftOffset
                                     }
                         }
             }
@@ -178,6 +187,7 @@ filterAutoComplete buf =
                                                 |> fuzzyMatch source
                                                 |> Array.fromList
                                             )
+                                    , select = -1
                                 }
                         else
                             Nothing
