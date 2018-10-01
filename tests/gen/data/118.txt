@@ -1,0 +1,61 @@
+{
+||      important
+        ^
+|       important
+-- Normal --
+}
+
+> i<c-n>
+
+{
+||      important
+        ^
+|       important
+-- Insert --
+}
+
+> <escape>li<c-n>
+
+{
+||      importantmportant
+                 ^
+|       important
+-- Insert --
+}
+
+> <c-n>
+
+{
+||      important
+         ^
+|       important
+-- Insert --
+}
+
+> <escape>A<c-n>
+
+{
+||      important
+                 ^
+|       important
+-- Insert --
+}
+
+> <escape>j2hdwka<c-n>
+
+{
+||      important
+              ^
+|       import
+-- Insert --
+}
+
+> <escape>la<c-n>
+
+{
+||      important
+               ^
+|       import
+-- Insert --
+}
+

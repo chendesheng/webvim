@@ -23,7 +23,6 @@ import Helper.Helper
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
-import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
 import Dict exposing (Dict)
 import Update.Motion exposing (..)
@@ -35,6 +34,8 @@ import Update.Yank exposing (yank, put)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
 import Array as Array exposing (Array)
 import Internal.Jumps exposing (Location)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Internal.Position exposing (positionShiftLeft)
 import Update.AutoComplete exposing (..)
 import Update.CaseOperator exposing (applyCaseOperator)
 import Update.Replace exposing (applyReplace)
@@ -749,15 +750,31 @@ runOperator count register operator buf =
                         _ ->
                             ( case autoCompleteTarget buf.config.wordChars buf of
                                 Just ( pos, word ) ->
-                                    buf
-                                        |> startAutoComplete
-                                            buf.config.wordChars
-                                            ""
-                                            0
-                                            (Buf.toWords word buf)
-                                            pos
-                                            word
-                                        |> selectAutoComplete forward
+                                    let
+                                        exclude =
+                                            wordStringUnderCursor
+                                                buf.config.wordChars
+                                                buf.lines
+                                                (positionShiftLeft buf.cursor)
+                                                |> Maybe.map Tuple.second
+                                                |> Maybe.withDefault ""
+
+                                        words =
+                                            Buf.toWords exclude buf
+                                    in
+                                        if List.isEmpty words then
+                                            Buf.errorMessage "Pattern no found"
+                                                buf
+                                        else
+                                            buf
+                                                |> startAutoComplete
+                                                    buf.config.wordChars
+                                                    ""
+                                                    0
+                                                    words
+                                                    pos
+                                                    word
+                                                |> selectAutoComplete forward
 
                                 _ ->
                                     buf

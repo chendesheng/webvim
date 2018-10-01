@@ -6,7 +6,7 @@ import Helper.Fuzzy exposing (..)
 import Array as Array
 import Update.Buffer as Buf
 import Update.Motion exposing (wordStringUnderCursor)
-import Internal.Position exposing (Position)
+import Internal.Position exposing (Position, positionShiftLeft)
 import Helper.Helper exposing (word, rightChar)
 
 
@@ -86,17 +86,24 @@ autoCompleteTarget wordChars buf =
         ( y, x ) =
             buf.cursor
     in
-        wordStringUnderCursor
-            wordChars
-            buf.lines
-            ( y, max 0 (x - 1) )
-            |> Maybe.andThen
-                (\(( pos, s ) as result) ->
-                    if pos >= buf.cursor then
-                        Nothing
-                    else
-                        Just result
-                )
+        if x == 0 then
+            Nothing
+        else
+            wordStringUnderCursor
+                wordChars
+                buf.lines
+                ( y, x - 1 )
+                |> Maybe.andThen
+                    (\(( pos, s ) as result) ->
+                        if pos > ( y, x - 1 ) then
+                            Nothing
+                        else
+                            let
+                                ( _, x1 ) =
+                                    pos
+                            in
+                                Just ( pos, String.slice 0 (x - x1) s )
+                    )
 
 
 isAutoCompleteStarted : Buffer -> String -> Bool

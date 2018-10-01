@@ -1277,7 +1277,7 @@ bestScrollTop y height lines scrollTop =
 
 
 toWords : String -> Buffer -> List String
-toWords exclude { config, lines } =
+toWords exclude { config, lines, cursor } =
     lines
         |> B.mapLines (parseWords config.wordChars)
         |> Array.toList

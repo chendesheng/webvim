@@ -84,5 +84,10 @@ regionDecoder =
 
 
 excludeRight : ( Position, Position ) -> ( Position, Position )
-excludeRight ( p1, ( y, x ) ) =
-    ( p1, ( y, max 0 (x - 1) ) )
+excludeRight ( p1, p2 ) =
+    ( p1, positionShiftLeft p2 )
+
+
+positionShiftLeft : Position -> Position
+positionShiftLeft ( y, x ) =
+    ( y, max 0 (x - 1) )
