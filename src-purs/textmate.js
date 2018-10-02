@@ -19,6 +19,10 @@ function loadVscodeExtensions(dir, allExtensions) {
 
     if (contributes.languages) {
       contributes.languages.forEach(function(lang) {
+        if (allExtensions.languageNames.indexOf(lang.id) === -1) {
+          allExtensions.languageNames.push(lang.id);
+        }
+
         if (lang.extensions) {
           lang.extensions.forEach(function(ext) {
             allExtensions.languages[ext.toLowerCase()] = lang;
@@ -39,11 +43,28 @@ function loadVscodeExtensions(dir, allExtensions) {
           allExtensions.grammars[grammar.language] = grammar;
         }
         allExtensions.scopeNames[grammar.scopeName] = grammar;
-        if (grammar.embeddedLanguages) {
-          Object.keys(grammar.embeddedLanguages).forEach(function(scopeName) {
-            // eslint-disable-next-line
-            allExtensions.embeddedLanguages[scopeName] = grammar.embeddedLanguages[scopeName];
-          });
+        if (grammar.injectTo) {
+          for (var i = 0; i < grammar.injectTo.length; i++) {
+            var injectToScopeName = grammar.injectTo[i];
+            var scopes = allExtensions.injections[injectToScopeName] || [];
+            if (grammar.scopeName) {
+              scopes.push(grammar.scopeName);
+              allExtensions.injections[injectToScopeName] = scopes;
+            // console.log('add inject', injectToScopeName, scopes);
+            }
+          }
+
+          if (grammar.embeddedLanguages) {
+            for (var i = 0; i < grammar.injectTo.length; i++) {
+              var injectToScopeName = grammar.injectTo[i];
+              var langs = allExtensions.embeddedLanguages[injectToScopeName]
+              || [];
+              langs.push(grammar.embeddedLanguages);
+              allExtensions.embeddedLanguages[injectToScopeName] = langs;
+            // console.log('embeddedLanguages');
+            // console.log(allExtensions.embeddedLanguages);
+            }
+          }
         }
       });
     }
@@ -105,6 +126,9 @@ function loadVscodeExtensions(dir, allExtensions) {
 
 
 const vscodeExtensions = {
+  // language list
+  // use index as language id
+  languageNames: [null],
   // key: file extension (like .elm) or file name (like makefile)
   // value: language (id, extensions, aliases, config)
   languages: {},
@@ -114,8 +138,10 @@ const vscodeExtensions = {
   scopeNames: {},
   // key: label, value theme ({label: 'Monokai', uiTheme:'vs-dark', path})
   themes: {},
-  // key: scopeName, value: languageId
+  // key: scopeName, value: list of languageId
   embeddedLanguages: {},
+  // key: scopeName, value: list of string
+  injections: {},
 // TODO: snippets
 };
 
@@ -262,15 +288,6 @@ function genThemeCss(uiTheme, theme, colorMap) {
 const registry = new Registry({
   loadGrammar: function(scopeName) {
     var grammar = vscodeExtensions.scopeNames[scopeName];
-    if (!grammar) {
-      console.log('get from embeddedLanguages: ' + scopeName);
-      var languageId = vscodeExtensions.embeddedLanguages[scopeName];
-      if (languageId) {
-        grammar = vscodeExtensions.grammars[languageId];
-      }
-    }
-    // console.log('scopeName:', scopeName);
-    // console.log('grammar:', grammar);
     if (grammar) {
       return new Promise(function(resolve, reject) {
         fs.readFile(grammar.path, 'utf8', function(err, content) {
@@ -285,6 +302,11 @@ const registry = new Registry({
     }
     return null;
   },
+  getInjections: function(scopeName) {
+    // console.log('getInjections:' + scopeName);
+    // console.log(vscodeExtensions.injections[scopeName]);
+    return vscodeExtensions.injections[scopeName];
+  },
 });
 
 function getGrammar(p) {
@@ -294,9 +316,42 @@ function getGrammar(p) {
   // console.log('extension:', extension);
   if (extension) {
     const languageId = extension.id;
-    var grammar = vscodeExtensions.grammars[languageId];
+    const grammar = vscodeExtensions.grammars[languageId];
+
+    // eslint-disable-next-line
+    const embeddedLanguages = vscodeExtensions.embeddedLanguages[grammar.scopeName];
+    console.log('embeddedLanguages', embeddedLanguages);
+    const langIds = {};
+
+    if (embeddedLanguages) {
+      for (var i = 0; i < embeddedLanguages.length; i++) {
+        // lang example: { 'meta.embedded.block.haskell': 'haskell' }
+        var lang = embeddedLanguages[i];
+        console.log(lang);
+        const scopeNames = Object.keys(lang);
+        for (var j = 0; j < scopeNames.length; j++) {
+          const scopeName = scopeNames[j];
+          const n = vscodeExtensions.languageNames.indexOf(lang[scopeName]);
+          if (n !== -1) {
+            langIds[scopeName] = n;
+          }
+        }
+      }
+    }
+
+    // console.log('langIds');
+    // console.log(langIds);
+
+    const languageNumber = vscodeExtensions.languageNames.indexOf(languageId);
+    // console.log('languageNumbers', vscodeExtensions.languageNames);
+    // console.log('languageNumber', languageNumber);
+
     if (grammar) {
-      return registry.loadGrammar(grammar.scopeName);
+      return registry.loadGrammarWithEmbeddedLanguages(
+        grammar.scopeName,
+        languageNumber,
+        langIds
+      );
     } else {
       return Promise.reject('nogrammar');
     }
@@ -387,7 +442,10 @@ exports.tokenize = function(path) {
         return function() {
           const cache = allCaches[path] || [null];
           const begin = parseInt(line);
-          const lines = payload.split(/^/m);
+
+          // This is IMPORTANT:
+          //   a line must not ends with \r or \n or result will broken
+          const lines = payload.split(/\r\n|\r|\n/);
           const result = [];
           getGrammar(path).then(function(grammar) {
             // console.log('tokenize:', request.query.path)
