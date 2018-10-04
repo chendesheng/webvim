@@ -17,7 +17,7 @@ isRegisterChar : Char -> Bool
 isRegisterChar ch =
     String.any
         ((==) ch)
-        ("\"/=+_.@"
+        ("\"/=+_.@%#"
             ++ "0123456789"
             ++ "abcdefghijklmnopqrstuvwxyz"
             ++ "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
