@@ -1,4 +1,4 @@
-module Update.Yank exposing (yank, put)
+module Update.Yank exposing (yank, put, yankWholeBuffer)
 
 import Model exposing (RegisterText(..), Buffer, Mode(..))
 import Vim.AST as V exposing (Operator(..))
@@ -8,6 +8,15 @@ import Internal.TextBuffer as B
 import Update.Message exposing (..)
 import Update.Service exposing (sendWriteClipboard)
 import Dict
+
+
+yankWholeBuffer : Buffer -> ( Buffer, Cmd Msg )
+yankWholeBuffer buf =
+    ( Buf.infoMessage "Whole buffer copied." buf
+    , buf.lines
+        |> B.toString
+        |> sendWriteClipboard buf.config.service
+    )
 
 
 yank : Maybe Int -> String -> V.OperatorRange -> Buffer -> ( Buffer, Cmd Msg )

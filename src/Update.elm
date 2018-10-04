@@ -30,7 +30,7 @@ import Update.Delete exposing (..)
 import Update.Insert exposing (..)
 import Regex as Re
 import Update.Service exposing (..)
-import Update.Yank exposing (yank, put)
+import Update.Yank exposing (yank, put, yankWholeBuffer)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
 import Array as Array exposing (Array)
 import Internal.Jumps exposing (Location)
@@ -1133,6 +1133,9 @@ execute count register str buf =
 
             [ "f", s ] ->
                 ( buf, sendSearch buf.config.service buf.cwd s )
+
+            [ "copy" ] ->
+                yankWholeBuffer buf
 
             [ "cd" ] ->
                 ( Buf.infoMessage buf.cwd buf, Cmd.none )

@@ -9,10 +9,16 @@ normalKeymap =
     [ ( "<c-p>", ":o<space>" )
     , ( "<c-,>", ":f<space>" )
     , ( "<c-s>", ":w<enter>" )
-    , ( "<a-s>", ":w<enter>" )
+
+    -- for mac
     , ( "<m-s>", ":w<enter>" )
+    , ( "<m-c>", ":copy<enter>" )
     , ( "<m-v>", "\"+P" )
-    , ( "<a-v>", "\"+P" ) -- for windows
+
+    -- for windows
+    , ( "<a-s>", ":w<enter>" )
+    , ( "<a-c>", ":copy<enter>" )
+    , ( "<a-v>", "\"+P" )
     ]
 
 
