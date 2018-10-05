@@ -5,33 +5,47 @@ import Model exposing (Mode(..), Key)
 import Dict
 
 
+{-| windows doesn't have cmd key, use alt key instead
+-}
+mapCmdToAlt : List ( String, String ) -> List ( String, String )
+mapCmdToAlt k =
+    k
+        ++ List.filterMap
+            (\( key, keys ) ->
+                let
+                    key1 =
+                        String.replace "<m-" "<a-" key
+                in
+                    if key1 == key then
+                        Nothing
+                    else
+                        Just ( key1, keys )
+            )
+            k
+
+
 normalKeymap =
-    [ ( "<c-p>", ":o<space>" )
-    , ( "<c-,>", ":f<space>" )
-    , ( "<c-s>", ":w<enter>" )
-
-    -- for mac
-    , ( "<m-s>", ":w<enter>" )
-    , ( "<m-c>", ":copy<enter>" )
-    , ( "<m-v>", "\"+P" )
-
-    -- for windows
-    , ( "<a-s>", ":w<enter>" )
-    , ( "<a-c>", ":copy<enter>" )
-    , ( "<a-v>", "\"+P" )
-    ]
+    mapCmdToAlt
+        [ ( "<c-p>", ":o<space>" )
+        , ( "<c-,>", ":f<space>" )
+        , ( "<c-s>", ":w<enter>" )
+        , ( "<m-s>", ":w<enter>" )
+        , ( "<m-c>", ":copy<enter>" )
+        , ( "<m-v>", "\"+P" )
+        ]
+        |> Debug.log "normalKeymap"
 
 
 insertKeymap =
-    [ ( "<m-v>", "<c-r>+" )
-    , ( "<a-v>", "<c-r>+" )
-    ]
+    mapCmdToAlt
+        [ ( "<m-v>", "<c-r>+" )
+        ]
 
 
 visualKeymap =
-    [ ( "<m-c>", "\"+y" )
-    , ( "<a-c>", "\"+y" )
-    ]
+    mapCmdToAlt
+        [ ( "<m-c>", "\"+y" )
+        ]
 
 
 mapKeys : Mode -> String -> List Key
