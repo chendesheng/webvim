@@ -1143,10 +1143,10 @@ execute count register str buf =
             [ "cd", cwd ] ->
                 ( buf
                 , cwd
+                    |> replaceHomeDir buf.config.homedir
                     |> resolvePath
                         buf.config.pathSeperator
                         buf.cwd
-                    |> replaceHomeDir buf.config.homedir
                     |> sendCd buf.config.service
                 )
 
