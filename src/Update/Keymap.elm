@@ -33,7 +33,6 @@ normalKeymap =
         , ( "<m-c>", ":copy<enter>" )
         , ( "<m-v>", "\"+P" )
         ]
-        |> Debug.log "normalKeymap"
 
 
 insertKeymap =

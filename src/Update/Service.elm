@@ -717,15 +717,17 @@ sendListFiles : String -> String -> String -> Cmd Msg
 sendListFiles url sep cwd =
     let
         trimSep s =
-            if String.endsWith sep s then
-                String.dropRight (String.length sep) s
+            if s == "./" || s == "../" || String.toLower s == ".ds_store" then
+                Nothing
+            else if String.endsWith sep s then
+                Just <| String.dropRight (String.length sep) s
             else
-                s
+                Just <| s
     in
         Http.getString (url ++ "/ld?cwd=" ++ cwd)
             |> Http.send
                 (parseFileList sep
-                    >> (Result.map (List.map trimSep))
+                    >> (Result.map (List.filterMap trimSep))
                     >> ListFiles
                 )
 
@@ -734,7 +736,9 @@ sendListDirectories : String -> String -> String -> Cmd Msg
 sendListDirectories url sep cwd =
     let
         trimSep s =
-            if String.endsWith sep s then
+            if s == "./" || s == "../" then
+                Nothing
+            else if String.endsWith sep s then
                 Just <| String.dropRight (String.length sep) s
             else
                 Nothing
