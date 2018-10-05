@@ -320,14 +320,14 @@ function getGrammar(p) {
 
     // eslint-disable-next-line
     const embeddedLanguages = vscodeExtensions.embeddedLanguages[grammar.scopeName];
-    console.log('embeddedLanguages', embeddedLanguages);
+    // console.log('embeddedLanguages', embeddedLanguages);
     const langIds = {};
 
     if (embeddedLanguages) {
       for (var i = 0; i < embeddedLanguages.length; i++) {
         // lang example: { 'meta.embedded.block.haskell': 'haskell' }
         var lang = embeddedLanguages[i];
-        console.log(lang);
+        // console.log(lang);
         const scopeNames = Object.keys(lang);
         for (var j = 0; j < scopeNames.length; j++) {
           const scopeName = scopeNames[j];
@@ -466,7 +466,7 @@ exports.tokenize = function(path) {
               }
               const r = grammar.tokenizeLine2(line, cache[n]);
               const tokens = Array.from(r.tokens);
-              tokens.push(line.length);
+              tokens.push(line.length + 1); // TODO: support \r\n
               tokens.push(0);
               result[i] = tokens;
               // console.log('Line: #' + i + ', tokens: ' + r.tokens);
