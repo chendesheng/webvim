@@ -88,6 +88,7 @@ type alias Flags =
     , pathSeperator : String
     , fontInfo : FontInfo
     , homedir : String
+    , isSafari : Bool
     }
 
 
@@ -125,14 +126,9 @@ buffersInfoToString buffers =
 bufferInfoEncoder : BufferInfo -> Encode.Value
 bufferInfoEncoder info =
     [ ( "path", Encode.string info.path )
-    , ( "version", Encode.int info.version )
-    , ( "cursor"
-      , Encode.list Encode.int
-            [ info.cursor |> Tuple.first
-            , info.cursor |> Tuple.second
-            ]
-      )
+    , ( "cursor", cursorEncoder info.cursor )
     , ( "syntax", Encode.bool info.syntax )
+    , ( "history", historyEncoder info.history )
     ]
         |> Encode.object
 
@@ -144,31 +140,41 @@ bufferInfoToString info =
         |> Encode.encode 0
 
 
+cursorEncoder : Position -> Encode.Value
+cursorEncoder ( y, x ) =
+    Encode.list Encode.int
+        [ y, x ]
+
+
+cursorDecoder : Decode.Decoder ( Int, Int )
+cursorDecoder =
+    Decode.list Decode.int
+        |> Decode.map
+            (\xs ->
+                case xs of
+                    a :: b :: _ ->
+                        ( a, b )
+
+                    _ ->
+                        ( 0, 0 )
+            )
+
+
 bufferInfoDecoder : Decode.Decoder BufferInfo
 bufferInfoDecoder =
     Decode.map4
-        (\path version cursor syntax ->
+        (\path cursor syntax history ->
             { path = path
-            , version = version
             , cursor = cursor
             , content = Nothing
             , syntax = syntax
+            , history = history
             }
         )
         (Decode.field "path" Decode.string)
-        (Decode.field "version" Decode.int)
-        (Decode.field "cursor" (Decode.list Decode.int)
-            |> Decode.map
-                (\xs ->
-                    case xs of
-                        a :: b :: _ ->
-                            ( a, b )
-
-                        _ ->
-                            ( 0, 0 )
-                )
-        )
+        (Decode.field "cursor" cursorDecoder)
         (Decode.field "syntax" Decode.bool)
+        (Decode.field "history" historyDecoder)
 
 
 type alias Key =
@@ -179,8 +185,8 @@ type alias BufferInfo =
     { path : String
     , cursor : Position
     , content : Maybe ( B.TextBuffer, Syntax )
-    , version : Int
     , syntax : Bool
+    , history : BufferHistory
     }
 
 
@@ -189,14 +195,14 @@ emptyBufferInfo =
     { path = ""
     , cursor = ( 0, 0 )
     , content = Nothing
-    , version = 0
     , syntax = True
+    , history = emptyBufferHistory
     }
 
 
 type alias Undo =
-    { patches : List Patch
-    , cursor : Position
+    { cursor : Position
+    , patches : List Patch
     }
 
 
@@ -298,6 +304,11 @@ type alias BufferHistory =
     , redoes : List Redo
     , savePoint : Int
     , version : Int
+
+    -- from server
+    , lastModified : String
+    , changes : List Patch
+    , pendingChanges : List Patch
     }
 
 
@@ -308,6 +319,9 @@ emptyBufferHistory =
     , redoes = []
     , savePoint = 0
     , version = 0
+    , lastModified = ""
+    , changes = []
+    , pendingChanges = []
     }
 
 
@@ -368,6 +382,7 @@ type alias IME =
     { isActive : Bool
     , isComposing : Bool
     , compositionText : String
+    , isSafari : Bool
     }
 
 
@@ -376,6 +391,7 @@ emptyIme =
     { isActive = False
     , isComposing = False
     , compositionText = ""
+    , isSafari = False
     }
 
 
@@ -445,6 +461,7 @@ type alias BufferConfig =
     , syntax : Bool
     , fontInfo : FontInfo
     , homedir : String
+    , isSafari : Bool
     }
 
 
@@ -465,6 +482,7 @@ defaultBufferConfig =
         , name = ""
         }
     , homedir = ""
+    , isSafari = False
     }
 
 
@@ -570,3 +588,90 @@ registersDecoder =
         (Decode.field "value" Decode.string)
         |> Decode.list
         |> Decode.map Dict.fromList
+
+
+historyEncoder : BufferHistory -> Encode.Value
+historyEncoder { version, savePoint, undoes, redoes, changes, lastModified } =
+    Encode.object
+        [ ( "version", Encode.int version )
+        , ( "savePoint", Encode.int savePoint )
+        , ( "undoes", Encode.list undoEncoder undoes )
+        , ( "redoes", Encode.list undoEncoder redoes )
+        , ( "changes", Encode.list patchEncoder changes )
+        , ( "lastModified", Encode.string lastModified )
+        ]
+
+
+historyDecoder : Decode.Decoder BufferHistory
+historyDecoder =
+    Decode.map6
+        (\version savePoint undoes redoes changes lastModified ->
+            { undoes = undoes
+            , pending = emptyUndo
+            , redoes = redoes
+            , savePoint = savePoint
+            , version = version
+            , lastModified = lastModified
+            , changes = changes
+            , pendingChanges = []
+            }
+        )
+        (Decode.field "version" Decode.int)
+        (Decode.field "savePoint" Decode.int)
+        (Decode.field "undoes" <| Decode.list undoDecoder)
+        (Decode.field "redoes" <| Decode.list undoDecoder)
+        (Decode.field "changes" <| Decode.list patchDecoder)
+        (Decode.field "lastModified" Decode.string)
+
+
+patchEncoder : Patch -> Encode.Value
+patchEncoder p =
+    case p of
+        Deletion b e ->
+            Encode.object
+                [ ( "type", Encode.string "-" )
+                , ( "b", cursorEncoder b )
+                , ( "e", cursorEncoder e )
+                ]
+
+        Insertion pos s ->
+            Encode.object
+                [ ( "type", Encode.string "+" )
+                , ( "pos", cursorEncoder pos )
+                , ( "s", Encode.string <| B.toString s )
+                ]
+
+
+patchDecoder : Decode.Decoder Patch
+patchDecoder =
+    Decode.field "type" Decode.string
+        |> Decode.andThen
+            (\typ ->
+                if typ == "+" then
+                    Decode.map2 Insertion
+                        (Decode.field "pos" cursorDecoder)
+                        (Decode.field "s" Decode.string
+                            |> Decode.map B.fromString
+                        )
+                else if typ == "-" then
+                    Decode.map2 Deletion
+                        (Decode.field "b" cursorDecoder)
+                        (Decode.field "e" cursorDecoder)
+                else
+                    Decode.fail <| "unknown type: " ++ typ
+            )
+
+
+undoDecoder : Decode.Decoder Undo
+undoDecoder =
+    Decode.map2 Undo
+        (Decode.field "cursor" <| cursorDecoder)
+        (Decode.field "patches" <| Decode.list patchDecoder)
+
+
+undoEncoder : Undo -> Encode.Value
+undoEncoder { cursor, patches } =
+    Encode.object
+        [ ( "cursor", cursorEncoder cursor )
+        , ( "patches", Encode.list patchEncoder patches )
+        ]

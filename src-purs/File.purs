@@ -1,10 +1,11 @@
 module File where
 
+import Data.JSDate as JSDate
 import Data.Maybe (Maybe(..))
 import Data.String.Regex as Re
 import Data.String.Regex.Flags (noFlags)
 import Data.Either(Either(..))
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
 import Helper
     ( endStream
@@ -43,25 +44,24 @@ import Prelude
 import Shell (execAsync)
 import Data.String (Pattern(..), stripSuffix)
 --import Data.String.Common (joinWith)
-import Node.FS.Stats (isDirectory)
+import Node.FS.Stats (isDirectory, modifiedTime)
 
 
 readFile :: Response -> String -> Aff Unit
 readFile resp path = do
   affLog ("readFile: " <> path)
-  exists <- (FS.exists path)
-  liftEffect $
-    if exists then
-      do
-        let outputStream = responseAsStream resp
-        setHeader resp "Path" path
-        fileStream <- createReadStream path
-        void $ pipe fileStream outputStream
-    else
+  result <- attempt $ writeLastModified path resp
+  liftEffect $ case result of
+    Left _ ->
       do
         setStatusCode resp 404
         let outputStream = responseAsStream resp
         void $ writeString outputStream UTF8 path $ endStream outputStream
+    Right _ ->
+      do
+        let outputStream = responseAsStream resp
+        fileStream <- createReadStream path
+        void $ pipe fileStream outputStream
 
 
 writeFile :: Request -> Response -> String -> Aff Unit
@@ -72,33 +72,47 @@ writeFile req resp path = do
   case stripSuffix (Pattern ".elm") path of
     Just _ -> do
       affLog ("elm-format :" <> path)
-      format inputStream outputStream fileStream "elm-format --stdin"
+      format resp path inputStream outputStream fileStream "elm-format --stdin"
     _ ->
       case stripSuffix (Pattern ".js") path of
         Just _ -> do
           let cmd = if isWindows then "jsfmt.cmd" else "jsfmt"
           affLog ("jsformat :" <> path)
-          format inputStream outputStream fileStream cmd
+          format resp path inputStream outputStream fileStream cmd
         _ -> do
           affPipe inputStream fileStream
           affWaitEnd inputStream
+          writeLastModified path resp
           affWriteString outputStream "[]"
+    
   affEnd outputStream
 
+writeLastModified :: String -> Response -> Aff Unit
+writeLastModified path resp =
+  do
+    stat <- FS.stat path
+    liftEffect $ setHeader resp "last-modified"
+      (JSDate.toString $ JSDate.fromDateTime $ modifiedTime stat)
 
-format :: Readable () -> Writable () -> Writable() -> String -> Aff Unit
-format inputStream outputStream fileStream cmd = do
+
+format :: Response -> String -> Readable () -> Writable () -> Writable() -> String -> Aff Unit
+format resp path inputStream outputStream fileStream cmd = do
   input <- affReadAllString inputStream
   result <- execAsync Nothing cmd
               (Just $ createReadableStream input)
   affLog (show result.error)
   case result.error of
     Just err -> do
+      writeLastModified path resp
+
       affWriteString outputStream "[]"
       affWriteString fileStream input
     _ -> do
       formatted <- affBufferToString result.stdout
       affWriteString fileStream formatted
+
+      writeLastModified path resp
+
       --affLog $ "formatted" <> formatted
       --affLog $ diff input formatted
       affWriteString outputStream $ diff input formatted

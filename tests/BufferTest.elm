@@ -91,6 +91,11 @@ suite =
                                     }
                                 , redoes = []
                                 , version = 1
+                                , changes = []
+                                , pendingChanges =
+                                    [ Insertion ( 0, 0 ) <|
+                                        B.fromString "123"
+                                    ]
                             }
                             buf.history
                 ]
@@ -121,6 +126,11 @@ suite =
                                     }
                                 , redoes = []
                                 , version = 1
+                                , changes = []
+                                , pendingChanges =
+                                    [ Insertion ( 0, 0 ) <| B.fromString "123\n"
+                                    , Insertion ( 1, 0 ) <| B.fromString "123"
+                                    ]
                             }
                             buf.history
                 ]
@@ -155,6 +165,11 @@ suite =
                                     }
                                 , redoes = []
                                 , version = 1
+                                , pendingChanges =
+                                    [ Insertion ( 0, 0 ) <| B.fromString "123"
+                                    , Deletion ( 0, 0 ) ( 0, 2 )
+                                    ]
+                                , changes = []
                             }
                             buf.history
                 ]
@@ -235,6 +250,11 @@ suite =
                                 , redoes = []
                                 , version = 3
                                 , savePoint = 1
+                                , changes =
+                                    [ Insertion ( 0, 0 ) <|
+                                        B.fromString "123"
+                                    ]
+                                , pendingChanges = []
                             }
                             buf.history
                 ]
@@ -268,6 +288,11 @@ suite =
                                 ]
                             , savePoint = 1
                             , version = 3
+                            , changes =
+                                [ Insertion ( 0, 0 ) <| B.fromString "1234"
+                                , Deletion ( 0, 1 ) ( 0, 2 )
+                                , Insertion ( 0, 1 ) <| B.fromString "2"
+                                ]
                         }
                         buf.history
         , test "commit" <|
@@ -295,6 +320,11 @@ suite =
                             , redoes = []
                             , version = 3
                             , savePoint = 1
+                            , changes =
+                                [ Insertion ( 0, 0 ) <| B.fromString "123"
+                                , Insertion ( 0, 0 ) <| B.fromString "456"
+                                , Deletion ( 0, 1 ) ( 0, 3 )
+                                ]
                         }
                         buf.history
         , fuzz (Fuzz.list fuzzPatch) "undo random patches" <|

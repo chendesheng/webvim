@@ -43,7 +43,7 @@ type Msg
     | IMEMessage IMEMsg
     | Resize Size
     | Read (Result Http.Error BufferInfo)
-    | Write (Result String (List Patch))
+    | Write (Result String ( String, List Patch ))
     | ReadClipboard
         (Result Http.Error
             { replaying : Bool

@@ -88,8 +88,11 @@ pageDom buf =
         { mode, cursor, lines, syntax, continuation, view, history, ime } =
             buf
 
-        { fontInfo } =
+        { fontInfo, isSafari } =
             buf.config
+
+        ime1 =
+            { ime | isSafari = isSafari }
 
         scrollTop =
             view.scrollTop
@@ -204,7 +207,7 @@ pageDom buf =
                         :: lazy4 renderLint fontInfo scrollTop1 lines buf.lint.items
                         :: lazy renderLines view.lines
                         :: div [ class "ruler" ] []
-                        :: renderCursor fontInfo ime lines "" maybeCursor
+                        :: renderCursor fontInfo ime1 lines "" maybeCursor
                         :: renderTip
                             buf.view.size.width
                             buf.lint.items
@@ -220,15 +223,19 @@ pageDom buf =
                 ]
              , renderStatusBar
                 fontInfo
-                ime
+                ime1
                 (Buf.isDirty buf)
                 mode
                 continuation
                 buf.lint.items
                 buf.name
              , div [ style "display" "none" ]
-                ([ lazy saveBuffers buf.buffers
-                 , lazy saveRegisters buf.registers
+                ([ lazy saveRegisters buf.registers
+                 , div []
+                    (buf.buffers
+                        |> Dict.toList
+                        |> List.indexedMap (\i ( _, buf1 ) -> saveBuffer i buf1)
+                    )
                  , lazy saveCwd buf.cwd
                  ]
                     ++ if buf.path == "" then
@@ -236,7 +243,7 @@ pageDom buf =
                        else
                         [ lazy3 saveActiveBuffer
                             buf.path
-                            buf.history.version
+                            buf.history
                             cursor
                         ]
                 )
@@ -335,34 +342,16 @@ renderStatusBarRight continuation name items =
         ]
 
 
-renderInputSafari : FontInfo -> Bool -> Html Msg
-renderInputSafari fontInfo isComposing =
+renderInputSafari : FontInfo -> Bool -> String -> Html Msg
+renderInputSafari fontInfo isComposing _ =
     span
         ((if isComposing then
-            [ Events.custom "keydown"
-                (decodeKeyboardEvent True
-                    |> Decode.map
-                        (\key ->
-                            if key == "<escape>" then
-                                { message = PressKeys key
-                                , stopPropagation = True
-                                , preventDefault = True
-                                }
-                            else
-                                { message = NoneMessage
-                                , stopPropagation = False
-                                , preventDefault = False
-                                }
-                         --|> Debug.log "keydown"
-                        )
-                )
-            ]
+            []
           else
-            [ onKeyDownPressKeys False
-            , style "opacity" "0"
-            ]
+            [ style "opacity" "0" ]
          )
             ++ [ id "hidden-input"
+               , contenteditable True
                , Events.custom "compositionstart"
                     (Decode.field "data" Decode.string
                         |> Decode.map
@@ -371,8 +360,21 @@ renderInputSafari fontInfo isComposing =
                                 , stopPropagation = False
                                 , preventDefault = False
                                 }
+                             --|> Debug.log "compositionstart"
                             )
-                     --|> Decode.map (Debug.log "compositionstart")
+                    )
+
+               -- in safari keydown event is after `compositionstart` event
+               , Events.custom "keydown"
+                    (decodeKeyboardEvent True
+                        |> Decode.map
+                            (\key ->
+                                { message = IMEMessage <| CompositionTry key
+                                , stopPropagation = True
+                                , preventDefault = True
+                                }
+                             --|> Debug.log "keydown"
+                            )
                     )
                , Events.custom "compositionend"
                     (Decode.field "data" Decode.string
@@ -382,31 +384,29 @@ renderInputSafari fontInfo isComposing =
                                 , stopPropagation = True
                                 , preventDefault = True
                                 }
+                             --|> Debug.log "compositionend"
                             )
-                     --|> Decode.map (Debug.log "compositionend")
                     )
-               , contenteditable True
-               , Events.custom "textInput"
-                    (Decode.succeed
+               , Events.custom "textInput" <|
+                    Decode.succeed
                         { message = NoneMessage
                         , stopPropagation = True
                         , preventDefault = True
                         }
-                    )
                ]
         )
         []
 
 
-renderInputChrome : FontInfo -> IME -> Html Msg
-renderInputChrome fontInfo ime =
+renderInputChrome : FontInfo -> Bool -> String -> Html Msg
+renderInputChrome fontInfo isComposing compositionText =
     --let
     --_ =
     --Debug.log "renderInput.ime" ime
     --in
     span
-        ((if ime.isComposing then
-            [ property "textContent" (Encode.string ime.compositionText) ]
+        ((if isComposing then
+            [ property "textContent" (Encode.string compositionText) ]
           else
             [ Events.custom "keydown"
                 (decodeKeyboardEvent False
@@ -651,7 +651,6 @@ onKeyDownPressKeys replaceFullwithToHalfWidth =
                     , stopPropagation = True
                     , preventDefault = True
                     }
-                 --|> Debug.log "keydown"
                 )
         )
 
@@ -707,7 +706,14 @@ renderCursorInner isMainCursor fontInfo ime lines classname y x =
                    )
             )
             [ if imeIsActive then
-                lazy2 renderInputSafari fontInfo imeIsComposing
+                let
+                    renderInput =
+                        if ime.isSafari then
+                            renderInputSafari
+                        else
+                            renderInputChrome
+                in
+                    lazy3 renderInput fontInfo imeIsComposing ime.compositionText
               else
                 noCompositionInput
             ]
@@ -1321,24 +1327,23 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth aut
             )
 
 
-saveActiveBuffer : String -> Int -> Position -> Html msg
-saveActiveBuffer path version cursor =
+saveActiveBuffer : String -> BufferHistory -> Position -> Html msg
+saveActiveBuffer path history cursor =
     { path = path
-    , version = version
     , cursor = cursor
     , content = Nothing
     , syntax = True
+    , history = history
     }
         |> bufferInfoToString
         |> renderSessionStorageItem "activeBuffer"
 
 
-saveBuffers : Dict String BufferInfo -> Html msg
-saveBuffers buffers =
-    buffers
-        |> Dict.values
-        |> buffersInfoToString
-        |> renderSessionStorageItem "buffers"
+saveBuffer : Int -> BufferInfo -> Html msg
+saveBuffer i buf =
+    buf
+        |> bufferInfoToString
+        |> renderSessionStorageItem ("buffers[" ++ String.fromInt i ++ "]")
 
 
 saveRegisters : Dict String RegisterText -> Html msg

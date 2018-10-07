@@ -1603,7 +1603,7 @@ update message buf =
         IMEMessage imeMsg ->
             case imeMsg of
                 CompositionTry s ->
-                    if buf.ime.isComposing then
+                    if buf.ime.isComposing && s /= "<escape>" then
                         ( buf, Cmd.none )
                     else
                         update (PressKeys s) buf
@@ -1762,7 +1762,7 @@ onRead : Result Http.Error BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
 onRead result buf =
     case result of
         Ok info ->
-            editBuffer info buf
+            editBuffer True info buf
 
         Err (Http.BadStatus resp) ->
             case resp.status.code of
@@ -1789,17 +1789,24 @@ onRead result buf =
             )
 
 
-onWrite : Result a (List Patch) -> Buffer -> ( Buffer, Cmd Msg )
+onWrite : Result a ( String, List Patch ) -> Buffer -> ( Buffer, Cmd Msg )
 onWrite result buf =
     case result of
-        Ok patches ->
+        Ok ( lastModified, patches ) ->
             let
                 -- TODO: add an unified `patch` function for buffer
                 buf1 =
                     buf
                         |> Buf.transaction patches
                         |> Buf.commit
-                        |> Buf.updateSavePoint
+                        |> Buf.updateHistory
+                            (\his ->
+                                { his
+                                    | lastModified = lastModified
+                                    , savePoint = 0
+                                    , changes = []
+                                }
+                            )
                         -- keep cursor position
                         |> Buf.setCursor buf.cursor True
                         |> correctCursor
@@ -1930,7 +1937,7 @@ getViewHeight heightPx lineHeightPx statusBarHeight =
 init : Flags -> ( Buffer, Cmd Msg )
 init flags =
     let
-        { cwd, fontInfo, service, buffers, homedir } =
+        { cwd, fontInfo, service, buffers, homedir, isSafari } =
             flags
 
         --|> Debug.log "flags"
@@ -1967,19 +1974,21 @@ init flags =
             emptyBuffer.jumps
 
         ( buf, cmd ) =
-            editBuffer
+            editBuffer False
                 activeBuf
                 { emptyBuffer
                     | view = view
                     , cwd = cwd1
                     , path = activeBuf.path
                     , jumps = jumps
+                    , history = activeBuf.history
                     , config =
                         { defaultBufferConfig
                             | service = service
                             , pathSeperator = pathSeperator
                             , fontInfo = fontInfo
                             , homedir = homedir
+                            , isSafari = isSafari
                         }
                     , registers =
                         Decode.decodeValue registersDecoder registers

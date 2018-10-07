@@ -111,7 +111,7 @@ jumpTo isSaveJump info buf =
                     )
                 |> tokenizeBuffer
         else
-            editBuffer
+            editBuffer False
                 info
                 { buf | jumps = jumps }
 
@@ -152,8 +152,8 @@ jumpToPath isSaveJump path_ overrideCursor buf =
         jumpTo isSaveJump info buf
 
 
-editBuffer : BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-editBuffer info buf =
+editBuffer : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
+editBuffer restoreHistory info buf =
     if info.path /= "" && info.content == Nothing then
         ( buf
         , sendReadBuffer buf.config.service
@@ -172,12 +172,12 @@ editBuffer info buf =
                                 |> Dict.remove info.path
                                 |> Dict.insert buf.path
                                     { path = buf.path
-                                    , version = buf.history.version
                                     , content =
                                         Just
                                             ( buf.lines, buf.syntax )
                                     , cursor = buf.cursor
                                     , syntax = buf.config.syntax
+                                    , history = buf.history
                                     }
                             )
                         , registers =
@@ -193,8 +193,17 @@ editBuffer info buf =
                                                 regs
                                    )
                     }
+
+            newbuf1 =
+                if restoreHistory then
+                    newbuf
+                        |> Buf.transaction newbuf.history.changes
+                        |> Buf.setCursor newbuf.cursor False
+                        |> Buf.updateHistory (always newbuf.history)
+                else
+                    newbuf
         in
-            ( newbuf
+            ( newbuf1
             , Cmd.batch
                 [ if newbuf.config.lint then
                     sendLintProject newbuf.config.service
@@ -222,7 +231,7 @@ isLintEnabled config name =
 newBuffer : BufferInfo -> Buffer -> Buffer
 newBuffer info buf =
     let
-        { cursor, path, version, content } =
+        { cursor, path, content, history } =
             info
 
         ( name, ext ) =
@@ -240,6 +249,7 @@ newBuffer info buf =
                 , syntax = info.syntax
                 , fontInfo = buf.config.fontInfo
                 , homedir = buf.config.homedir
+                , isSafari = buf.config.isSafari
             }
 
         ( lines, syntax ) =
@@ -280,7 +290,7 @@ newBuffer info buf =
             , cursorColumn = Tuple.second cursor
             , path = path
             , name = name ++ ext
-            , history = { emptyBufferHistory | version = version }
+            , history = history
             , syntax = syntax
             , syntaxDirtyFrom = Array.length syntax
         }

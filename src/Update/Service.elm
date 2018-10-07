@@ -1,5 +1,6 @@
 module Update.Service exposing (..)
 
+import Dict exposing (Dict)
 import Http
 import Update.Message
     exposing
@@ -48,6 +49,7 @@ import Model
         , Flags
         , RichText(..)
         , TextWithStyle
+        , emptyBufferHistory
         )
 
 
@@ -187,18 +189,39 @@ lineDiffDecoder =
         |> Decode.list
 
 
+getBodyAndHeaders : String -> Http.Request ( Dict String String, String )
+getBodyAndHeaders url =
+    Http.request
+        { method = "GET"
+        , headers = []
+        , url = url
+        , body = Http.emptyBody
+        , expect =
+            Http.expectStringResponse
+                (\response ->
+                    Ok ( response.headers, response.body )
+                )
+        , timeout = Nothing
+        , withCredentials = False
+        }
+
+
 sendReadBuffer : String -> Int -> Int -> BufferInfo -> Cmd Msg
 sendReadBuffer url tokenizeLines tabSize info =
     url
         ++ "/read?path="
         ++ info.path
-        |> Http.getString
+        |> getBodyAndHeaders
         |> Http.toTask
         |> Task.andThen
-            (\s ->
+            (\( headers, s ) ->
                 let
                     lines =
                         B.fromStringExpandTabs tabSize 0 s
+
+                    lastModified =
+                        Dict.get "last-modified" headers
+                            |> Maybe.withDefault ""
                 in
                     if info.syntax then
                         sendTokenizeTask url
@@ -216,21 +239,25 @@ sendReadBuffer url tokenizeLines tabSize info =
                                         TokenizeSuccess _ syntax ->
                                             { syntax = True
                                             , content = ( lines, syntax )
+                                            , lastModified = lastModified
                                             }
 
                                         TokenizeError err ->
                                             if err == "noextension" then
                                                 { syntax = False
                                                 , content = ( lines, Array.empty )
+                                                , lastModified = lastModified
                                                 }
                                             else
                                                 { syntax = True
                                                 , content = ( lines, Array.empty )
+                                                , lastModified = lastModified
                                                 }
 
                                         _ ->
                                             { syntax = True
                                             , content = ( lines, Array.empty )
+                                            , lastModified = lastModified
                                             }
                                 )
                             |> Task.onError
@@ -238,21 +265,32 @@ sendReadBuffer url tokenizeLines tabSize info =
                                     Task.succeed
                                         { syntax = True
                                         , content = ( lines, Array.empty )
+                                        , lastModified = lastModified
                                         }
                                 )
                     else
                         Task.succeed
                             { syntax = False
                             , content = ( lines, Array.empty )
+                            , lastModified = lastModified
                             }
             )
         |> Task.attempt
             (Result.map
-                (\{ syntax, content } ->
-                    { info
-                        | content = Just content
-                        , syntax = syntax
-                    }
+                (\{ syntax, content, lastModified } ->
+                    let
+                        history =
+                            info.history
+                    in
+                        { info
+                            | content = Just content
+                            , syntax = syntax
+                            , history =
+                                if history.lastModified == lastModified then
+                                    history
+                                else
+                                    { emptyBufferHistory | lastModified = lastModified }
+                        }
                 )
                 >> Read
             )
@@ -271,16 +309,46 @@ post url body =
         }
 
 
+postRespHeaders :
+    String
+    -> Http.Body
+    -> Decode.Decoder a
+    -> Http.Request ( Dict String String, a )
+postRespHeaders url inputBody decoder =
+    Http.request
+        { method = "POST"
+        , headers = []
+        , url = url
+        , body = inputBody
+        , expect =
+            Http.expectStringResponse <|
+                \{ headers, body } ->
+                    case Decode.decodeString decoder body of
+                        Err decodeError ->
+                            Err (Decode.errorToString decodeError)
+
+                        Ok value ->
+                            Ok ( headers, value )
+        , timeout = Nothing
+        , withCredentials = False
+        }
+
+
 sendWriteBuffer : String -> String -> Buffer -> Cmd Msg
 sendWriteBuffer url path buf =
     lineDiffDecoder
-        |> Http.post
+        |> postRespHeaders
             (url ++ "/write?path=" ++ path)
             (Http.stringBody "text/plain" <| B.toString buf.lines)
         |> Http.send
             (\res ->
-                Write <|
-                    Result.mapError errorMessage res
+                case res of
+                    Ok ( headers, patches ) ->
+                        Write <|
+                            Ok ( (Dict.get "last-modified" headers |> Maybe.withDefault ""), patches )
+
+                    Err s ->
+                        Write <| Err <| errorMessage s
             )
 
 

@@ -12,7 +12,6 @@ module Update.Buffer
         , setRegister
         , setCursor
         , putString
-        , updateSavePoint
         , setShowTip
         , isDirty
         , isEditing
@@ -38,6 +37,7 @@ module Update.Buffer
         , fillEmptyViewLines
         , switchVisualEnd
         , shortPath
+        , updateHistory
         )
 
 import Internal.Position exposing (..)
@@ -515,7 +515,11 @@ transaction patches buf =
                 --    Debug.log "history" history
             in
                 { buf1
-                    | history = { history | version = history.version + 1 }
+                    | history =
+                        { history
+                            | version = history.version + 1
+                            , pendingChanges = history.pendingChanges ++ patches
+                        }
                     , jumps = applyPatchesToJumps patches buf.jumps
                     , lint =
                         { items =
@@ -629,7 +633,7 @@ commit buf =
         history =
             buf.history
 
-        { pending, undoes } =
+        { pending, undoes, pendingChanges } =
             history
     in
         case pending.patches of
@@ -644,6 +648,8 @@ commit buf =
                             , pending = emptyUndo
                             , redoes = []
                             , savePoint = history.savePoint + 1
+                            , pendingChanges = []
+                            , changes = history.changes ++ pendingChanges
                         }
                 }
 
@@ -675,15 +681,24 @@ undo buf =
                             undoPatches
 
                     undoHistory { undoes, redoes } =
-                        { history
-                            | undoes =
-                                List.tail undoes
-                                    |> Maybe.withDefault []
-                            , pending = emptyUndo
-                            , redoes = { undo_ | patches = res.patches } :: redoes
-                            , version = history.version + 1
-                            , savePoint = history.savePoint - 1
-                        }
+                        let
+                            savePoint =
+                                history.savePoint - 1
+                        in
+                            { history
+                                | undoes =
+                                    List.tail undoes
+                                        |> Maybe.withDefault []
+                                , pending = emptyUndo
+                                , redoes = { undo_ | patches = res.patches } :: redoes
+                                , version = history.version + 1
+                                , savePoint = savePoint
+                                , changes =
+                                    if savePoint == 0 then
+                                        []
+                                    else
+                                        history.changes ++ undoPatches
+                            }
 
                     view =
                         buf.view
@@ -737,15 +752,24 @@ redo buf =
                         applyPatchesToLintErrors buf.lint.items redoPatches
 
                     redoHistory { undoes, redoes } =
-                        { history
-                            | undoes = { redo_ | patches = res.patches } :: undoes
-                            , pending = emptyUndo
-                            , redoes =
-                                List.tail redoes
-                                    |> Maybe.withDefault []
-                            , version = history.version + 1
-                            , savePoint = history.savePoint + 1
-                        }
+                        let
+                            savePoint =
+                                history.savePoint + 1
+                        in
+                            { history
+                                | undoes = { redo_ | patches = res.patches } :: undoes
+                                , pending = emptyUndo
+                                , redoes =
+                                    List.tail redoes
+                                        |> Maybe.withDefault []
+                                , version = history.version + 1
+                                , savePoint = savePoint
+                                , changes =
+                                    if savePoint == 0 then
+                                        []
+                                    else
+                                        history.changes ++ redoPatches
+                            }
 
                     cursor =
                         res.patches
@@ -843,6 +867,11 @@ setCursor cursor saveColumn buf =
             else
                 buf.cursorColumn
     }
+
+
+updateHistory : (BufferHistory -> BufferHistory) -> Buffer -> Buffer
+updateHistory update buf =
+    { buf | history = update buf.history }
 
 
 putString : Bool -> RegisterText -> Buffer -> Buffer
@@ -1071,17 +1100,6 @@ configs =
         , ( ".less", cssFileDefaultConfig )
         , ( ".css", cssFileDefaultConfig )
         ]
-
-
-updateSavePoint : Buffer -> Buffer
-updateSavePoint buf =
-    let
-        history =
-            buf.history
-    in
-        { buf
-            | history = { history | savePoint = 0 }
-        }
 
 
 setShowTip : Bool -> Buffer -> Buffer

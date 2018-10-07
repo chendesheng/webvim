@@ -101,17 +101,30 @@ if (!location.hostname) {
   scheme = 'http:';
 }
 
+function storageGetArray(key) {
+  let i = 0;
+  let item = null;
+  const res = [];
+  while (item = sessionStorage.getItem(`${key}[${i}]`)) {
+    res[i] = safeJsonParse(item);
+    i++;
+  }
+  return res;
+}
+
 function main() {
   const flags = {
     service: `${scheme}//${host}:8899`,
     activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
-    buffers: safeJsonParse(sessionStorage.getItem('buffers')) || [],
+    buffers: storageGetArray('buffers'),
     registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
     height: window.innerHeight,
     cwd: sessionStorage.getItem('cwd') || '',
     pathSeperator: '',
     fontInfo: measureFont(),
     homedir: '',
+    isSafari: navigator.userAgent.indexOf('Safari') !== -1
+      && navigator.userAgent.indexOf('Chrome') === -1,
   };
 
   const applyCss = (url) => {
