@@ -366,7 +366,7 @@ renderInputSafari fontInfo isComposing _ =
 
                -- in safari keydown event is after `compositionstart` event
                , Events.custom "keydown"
-                    (decodeKeyboardEvent True
+                    (decodeKeyboardEvent False
                         |> Decode.map
                             (\key ->
                                 { message = IMEMessage <| CompositionTry key
@@ -400,13 +400,9 @@ renderInputSafari fontInfo isComposing _ =
 
 renderInputChrome : FontInfo -> Bool -> String -> Html Msg
 renderInputChrome fontInfo isComposing compositionText =
-    --let
-    --_ =
-    --Debug.log "renderInput.ime" ime
-    --in
     span
         ((if isComposing then
-            [ property "textContent" (Encode.string compositionText) ]
+            []
           else
             [ Events.custom "keydown"
                 (decodeKeyboardEvent False
