@@ -59,18 +59,21 @@ pairBracketAt top bottom lines syntax ( y, x ) =
     lines
         |> B.getLine y
         |> Maybe.map (String.slice x (x + 1))
-        |> Maybe.andThen (pairBracket top bottom lines syntax ( y, x ))
+        |> Maybe.andThen (pairBracket top bottom lines syntax ( y, x ) False)
 
 
-pairBracket : Int -> Int -> TextBuffer -> Syntax -> Position -> String -> Maybe Position
-pairBracket top bottom lines syntax ( y, x ) c =
+pairBracket : Int -> Int -> TextBuffer -> Syntax -> Position -> Bool -> String -> Maybe Position
+pairBracket top bottom lines syntax ( y, x ) ignoreTokenType c =
     case bracket c of
         Just ( toMatch, regexBrackets, forward ) ->
             let
                 tokenType =
-                    getToken ( y, x ) syntax
-                        |> Maybe.map .tipe
-                        |> Maybe.withDefault TokenOther
+                    if ignoreTokenType then
+                        TokenOther
+                    else
+                        getToken ( y, x ) syntax
+                            |> Maybe.map .tipe
+                            |> Maybe.withDefault TokenOther
 
                 -- (Position -> String -> Token -> a -> ( a, Bool ))
             in
@@ -79,7 +82,7 @@ pairBracket top bottom lines syntax ( y, x ) c =
                     (\pos line token ( blance, _ ) ->
                         let
                             --_ =
-                            --Debug.log "iterateTokens" ( forward, pos, line, token, blance )
+                            --Debug.log "iterateTokens" ( ( forward, pos, line ), token, blance )
                             ( y_, x_ ) =
                                 pos
 
@@ -124,7 +127,7 @@ pairBracket top bottom lines syntax ( y, x ) c =
                                     _ ->
                                         ( ( blance_, Nothing ), False )
                         in
-                            if tokenType == token.tipe then
+                            if ignoreTokenType || tokenType == token.tipe then
                                 line
                                     |> (if forward then
                                             String.slice x_ (x_ + token.length)

@@ -69,22 +69,19 @@ expandSingleLineTextObject wordChars textobj around line cursor =
         Quote c ->
             let
                 a =
-                    (findPosition wordChars
+                    findPosition wordChars
                         (QuoteChar c)
                         (motionOption "<]$-")
                         line
                         cursor
-                    )
 
                 --|> Debug.log "resulta"
                 b =
-                    (findPosition
-                        wordChars
+                    findPosition wordChars
                         (QuoteChar c)
                         (motionOption ">]$-")
                         line
                         cursor
-                    )
 
                 --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
                 res =
@@ -104,8 +101,7 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                                         -- cursor on top of ch and
                                         -- backward part not found
                                         -- try forward again
-                                        findPosition
-                                            wordChars
+                                        findPosition wordChars
                                             (QuoteChar c)
                                             (motionOption ">]$-")
                                             line
@@ -220,6 +216,7 @@ findPair scrollTop height syntax openChar closeChar around lines (( y, x ) as cu
                 lines
                 syntax
                 cursor
+                False
 
         genRegion p1 p2 =
             let
@@ -243,23 +240,28 @@ findPair scrollTop height syntax openChar closeChar around lines (( y, x ) as cu
                 |> pairChar
                 |> Maybe.map (genRegion cursor)
         else
-            Maybe.map2
-                genRegion
+            Maybe.map
+                (\( b, e ) -> genRegion b e)
                 (pairBracket
                     scrollTop
                     (scrollTop + height)
                     lines
                     syntax
                     cursor
+                    True
                     closeChar
-                )
-                (pairBracket
-                    scrollTop
-                    (scrollTop + height)
-                    lines
-                    syntax
-                    cursor
-                    openChar
+                    |> Maybe.andThen
+                        (\openPos ->
+                            pairBracket
+                                scrollTop
+                                (scrollTop + height)
+                                lines
+                                syntax
+                                openPos
+                                False
+                                openChar
+                                |> Maybe.map (\closePos -> ( openPos, closePos ))
+                        )
                 )
 
 
@@ -313,10 +315,6 @@ expandTextObject wordChars scrollTop height syntax textObject around lines (( y,
                         )
                     )
                 |> Maybe.andThen
-                    (\rg ->
-                        let
-                            ( a, b ) =
-                                rg
-                        in
-                            Just ( ( y, a ), ( y, b + 1 ) )
+                    (\( a, b ) ->
+                        Just ( ( y, a ), ( y, b + 1 ) )
                     )
