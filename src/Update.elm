@@ -712,6 +712,9 @@ runOperator count register operator buf =
                                                         clearExBufAutoComplete
                                                             ex.exbuf
                                                 }
+                                        , exHistory =
+                                            (s :: buf.exHistory)
+                                                |> List.take 50
                                     }
                            )
 
@@ -852,6 +855,31 @@ runOperator count register operator buf =
             , Cmd.none
             )
 
+        SelectHistory forward ->
+            case buf.mode of
+                Ex ex ->
+                    ( if isAutoCompleteStarted ex.exbuf "$$%exHistory" then
+                        ex.exbuf
+                            |> selectAutoComplete forward
+                            |> setExbuf buf ex
+                      else
+                        ex.exbuf
+                            |> startAutoComplete ""
+                                "$$%exHistory"
+                                1
+                                (List.reverse buf.exHistory)
+                                ( 0, 1 )
+                                (B.toString ex.exbuf.lines
+                                    |> String.dropLeft 1
+                                )
+                            |> selectAutoComplete forward
+                            |> setExbuf buf ex
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( buf, Cmd.none )
+
         _ ->
             ( buf, Cmd.none )
 
@@ -960,6 +988,8 @@ applyEdit count edit register buf =
                                     trigger =
                                         if String.startsWith ":o " s then
                                             buf.cwd
+                                        else if isAutoCompleteStarted exbuf "$$%exHistory" then
+                                            "$$%exHistory"
                                         else
                                             s
                                                 |> String.trim
@@ -978,6 +1008,8 @@ applyEdit count edit register buf =
                                             ( sendListFiles, False )
                                         else if String.startsWith ":cd " s then
                                             ( sendListDirectories, False )
+                                        else if isAutoCompleteStarted exbuf "$$%exHistory" then
+                                            ( \a b c -> Cmd.none, False )
                                         else
                                             ( \a b c -> Cmd.none, True )
                                 in
@@ -1944,7 +1976,7 @@ init flags =
         lineHeight =
             fontInfo.lineHeight
 
-        { activeBuffer, registers, height, pathSeperator } =
+        { activeBuffer, registers, height, pathSeperator, exHistory } =
             flags
 
         viewHeight =
@@ -1982,6 +2014,7 @@ init flags =
                     , path = activeBuf.path
                     , jumps = jumps
                     , history = activeBuf.history
+                    , exHistory = exHistory
                     , config =
                         { defaultBufferConfig
                             | service = service

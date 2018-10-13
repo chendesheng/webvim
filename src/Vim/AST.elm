@@ -112,6 +112,7 @@ type Operator
     | Replace String
     | ToggleTip
     | SelectAutoComplete Bool
+    | SelectHistory Bool
     | IncreaseNumber Bool
     | ColumnInsert Bool -- visual mode I/A
     | ShowInfo

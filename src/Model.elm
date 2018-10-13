@@ -89,6 +89,7 @@ type alias Flags =
     , fontInfo : FontInfo
     , homedir : String
     , isSafari : Bool
+    , exHistory : List String
     }
 
 
@@ -375,6 +376,7 @@ type alias Buffer =
     , buffers : Dict String BufferInfo
     , locationList : List Location
     , cwd : String
+    , exHistory : List String
     }
 
 
@@ -522,6 +524,7 @@ emptyBuffer =
     , buffers = Dict.empty
     , locationList = []
     , cwd = ""
+    , exHistory = []
     }
 
 

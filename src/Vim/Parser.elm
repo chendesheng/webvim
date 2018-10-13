@@ -208,6 +208,12 @@ linebuffer prefix map =
                         , P.succeed
                             [ PushOperator <| SelectAutoComplete False ]
                             |. P.symbol "<s-tab>"
+                        , P.succeed
+                            [ PushOperator <| SelectHistory True ]
+                            |. P.symbol "<c-n>"
+                        , P.succeed
+                            [ PushOperator <| SelectHistory False ]
+                            |. P.symbol "<c-p>"
                         , readKeyAndThen "<c-r>"
                             [ PushKey "<c-r>" ]
                             (P.oneOf

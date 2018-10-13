@@ -238,14 +238,20 @@ pageDom buf =
                     )
                  , lazy saveCwd buf.cwd
                  ]
-                    ++ if buf.path == "" then
-                        []
-                       else
-                        [ lazy3 saveActiveBuffer
+                    ++ [ lazy3 saveActiveBuffer
                             buf.path
                             buf.history
                             cursor
-                        ]
+                       , div []
+                            (List.indexedMap
+                                (\i s ->
+                                    renderSessionStorageItem
+                                        ("exHistory[" ++ String.fromInt i ++ "]")
+                                        s
+                                )
+                                buf.exHistory
+                            )
+                       ]
                 )
              ]
                 ++ (case buf.mode of

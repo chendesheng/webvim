@@ -101,12 +101,12 @@ if (!location.hostname) {
   scheme = 'http:';
 }
 
-function storageGetArray(key) {
+function storageGetArray(key, isJson) {
   let i = 0;
   let item = null;
   const res = [];
   while (item = sessionStorage.getItem(`${key}[${i}]`)) {
-    res[i] = safeJsonParse(item);
+    res[i] = isJson ? safeJsonParse(item) : item;
     i++;
   }
   return res;
@@ -116,7 +116,7 @@ function main() {
   const flags = {
     service: `${scheme}//${host}:8899`,
     activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
-    buffers: storageGetArray('buffers'),
+    buffers: storageGetArray('buffers', true),
     registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
     height: window.innerHeight,
     cwd: sessionStorage.getItem('cwd') || '',
@@ -125,6 +125,7 @@ function main() {
     homedir: '',
     isSafari: navigator.userAgent.indexOf('Safari') !== -1
       && navigator.userAgent.indexOf('Chrome') === -1,
+    exHistory: storageGetArray('exHistory', false),
   };
 
   const applyCss = (url) => {
