@@ -180,18 +180,23 @@ updateMode modeName buf =
         last =
             buf.last
 
-        newMode =
+        ( newMode, newModeName ) =
             if oldModeName == modeName then
-                buf.mode
+                ( buf.mode, oldModeName )
             else if
-                (oldModeName == V.ModeNameNormal)
+                (oldModeName /= V.ModeNameInsert)
                     && (modeName == V.ModeNameInsert)
-                    && buf.last.motionFailed
+                    && last.motionFailed
             then
                 -- Don't change to insert mode when motion failed
-                buf.mode
+                ( if oldModeName /= V.ModeNameNormal then
+                    initMode buf V.ModeNameNormal
+                  else
+                    buf.mode
+                , oldModeName
+                )
             else
-                initMode buf modeName
+                ( initMode buf modeName, modeName )
 
         setCursor mode buf_ =
             if oldModeName == V.ModeNameVisual V.VisualBlock then
@@ -221,12 +226,12 @@ updateMode modeName buf =
             Buf.finalScrollTop buf1
 
         ime =
-            if oldModeName /= modeName then
+            if oldModeName /= newModeName then
                 let
                     oldIme =
                         buf.ime
                 in
-                    case modeName of
+                    case newModeName of
                         V.ModeNameInsert ->
                             { oldIme | isActive = True }
 
@@ -237,6 +242,11 @@ updateMode modeName buf =
     in
         { buf1
             | last = { last | motionFailed = False }
+            , continuation =
+                if last.motionFailed then
+                    ""
+                else
+                    buf1.continuation
             , ime = ime
             , view =
                 { view
@@ -986,10 +996,10 @@ applyEdit count edit register buf =
                                         B.toString exbuf.lines
 
                                     trigger =
-                                        if String.startsWith ":o " s then
-                                            buf.cwd
-                                        else if isAutoCompleteStarted exbuf "$$%exHistory" then
+                                        if isAutoCompleteStarted exbuf "$$%exHistory" then
                                             "$$%exHistory"
+                                        else if String.startsWith ":o " s then
+                                            buf.cwd
                                         else
                                             s
                                                 |> String.trim
@@ -1002,14 +1012,14 @@ applyEdit count edit register buf =
                                                     buf.cwd
 
                                     ( getList, clearAutoComplete ) =
-                                        if String.startsWith ":o " s then
+                                        if isAutoCompleteStarted exbuf "$$%exHistory" then
+                                            ( \a b c -> Cmd.none, False )
+                                        else if String.startsWith ":o " s then
                                             ( sendListAllFiles, False )
                                         else if String.startsWith ":e " s then
                                             ( sendListFiles, False )
                                         else if String.startsWith ":cd " s then
                                             ( sendListDirectories, False )
-                                        else if isAutoCompleteStarted exbuf "$$%exHistory" then
-                                            ( \a b c -> Cmd.none, False )
                                         else
                                             ( \a b c -> Cmd.none, True )
                                 in

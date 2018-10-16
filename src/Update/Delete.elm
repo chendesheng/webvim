@@ -71,6 +71,9 @@ delete count register rg buf =
                                     _ ->
                                         buf_
 
+                            V.TextObject _ _ ->
+                                setMotionFailed buf_
+
                             _ ->
                                 buf_
 

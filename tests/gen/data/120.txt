@@ -1,0 +1,14 @@
+{
+||      aaa
+        ^
+-- Normal --
+}
+
+> c/bb<enter>l
+
+{
+||      aaa
+         ^
+-- Normal --
+}
+

@@ -1,0 +1,13 @@
+{
+||      aaa
+        ^
+-- Normal --
+}
+
+> cfbl
+
+{
+||      aaa
+         ^
+-- Normal --
+}
