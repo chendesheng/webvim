@@ -167,4 +167,11 @@ cd resp cwd = do
   affWriteString outputStream s
   affEnd outputStream
 
+makeDir :: Response -> String -> Aff Unit
+makeDir resp path = do
+  affLog ("makePath: " <> show path)
+  let outputStream = responseAsStream resp
+  _ <- execAsync Nothing ("mkdir -p " <> path) Nothing
+  affEnd outputStream
+
 

@@ -35,6 +35,7 @@ data DynamicActions
   | Cd (Maybe NonEmptyString)
   | Css NonEmptyString
   | Boot
+  | MkDir NonEmptyString
 
 
 nonemptyParam :: String -> Match NonEmptyString
@@ -92,6 +93,7 @@ routingDynamicGet = oneOf
   , Cd <$> (root *> lit "cd" *> optionalMatch paramCwd)
   , Css <$> (root *> lit "css" *> (nonemptyParam "theme"))
   , Boot <$ (root *> lit "boot" *> end)
+  , MkDir <$> (root *> lit "mkdir" *> paramPath)
   ]
 
 routingDynamicPost :: Match DynamicActions

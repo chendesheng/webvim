@@ -1192,6 +1192,21 @@ execute count register str buf =
                     |> sendCd buf.config.service
                 )
 
+            [ "mkdir" ] ->
+                ( Buf.errorMessage "Argument Error: mkdir path" buf
+                , Cmd.none
+                )
+
+            [ "mkdir", path ] ->
+                ( buf
+                , path
+                    |> replaceHomeDir buf.config.homedir
+                    |> resolvePath
+                        buf.config.pathSeperator
+                        buf.cwd
+                    |> sendMkDir buf.config.service
+                )
+
             [ s ] ->
                 case String.toInt s of
                     Just n ->
@@ -1705,6 +1720,14 @@ update message buf =
 
         SetCwd _ ->
             ( buf, Cmd.none )
+
+        MakeDir res ->
+            case res of
+                Ok _ ->
+                    ( buf, Cmd.none )
+
+                Err err ->
+                    ( Buf.errorMessage err buf, Cmd.none )
 
 
 onLint : BufferIdentifier -> Result a (List LintError) -> Buffer -> Buffer

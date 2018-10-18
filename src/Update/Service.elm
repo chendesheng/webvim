@@ -935,6 +935,16 @@ sendCd url cwd =
             )
 
 
+sendMkDir : String -> String -> Cmd Msg
+sendMkDir url path =
+    Http.getString (url ++ "/mkdir?path=" ++ path)
+        |> Http.send
+            (Result.mapError errorMessage
+                >> Result.map (always ())
+                >> MakeDir
+            )
+
+
 bootDecoder : Flags -> Decode.Decoder Flags
 bootDecoder flags =
     Decode.map2

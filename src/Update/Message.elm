@@ -44,6 +44,7 @@ type Msg
     | Resize Size
     | Read (Result Http.Error BufferInfo)
     | Write (Result String ( String, List Patch ))
+    | MakeDir (Result String ())
     | ReadClipboard
         (Result Http.Error
             { replaying : Bool

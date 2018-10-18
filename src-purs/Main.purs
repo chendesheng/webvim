@@ -13,6 +13,7 @@ import File
   , searchFiles
   , writeFile
   , cd
+  , makeDir
   )
 import Clipboard
     ( readClipboard
@@ -136,6 +137,8 @@ dynamicActionHandler req resp action = do
       affWriteString outputStream boot
       affEnd outputStream
 
+    MkDir (NonEmptyString path) -> do
+      makeDir resp path
 
 invalidRequest :: Response -> Aff Unit
 invalidRequest resp = do
