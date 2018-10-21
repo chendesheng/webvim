@@ -217,11 +217,7 @@ filterAutoComplete buf =
                     else
                         { buf
                             | mode =
-                                Insert
-                                    { insert
-                                        | autoComplete =
-                                            updateAutoComplete autoComplete
-                                    }
+                                Insert { insert | autoComplete = autoComplete }
                         }
 
             _ ->

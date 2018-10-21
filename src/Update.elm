@@ -20,6 +20,7 @@ import Helper.Helper
         , pathFileName
         , pathBase
         , resolvePath
+        , relativePath
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -1000,6 +1001,8 @@ applyEdit count edit register buf =
                                             "$$%exHistory"
                                         else if String.startsWith ":o " s then
                                             buf.cwd
+                                        else if String.startsWith ":b " s then
+                                            buf.cwd
                                         else
                                             s
                                                 |> String.trim
@@ -1016,6 +1019,20 @@ applyEdit count edit register buf =
                                             ( \a b c -> Cmd.none, False )
                                         else if String.startsWith ":o " s then
                                             ( sendListAllFiles, False )
+                                        else if String.startsWith ":b " s then
+                                            ( \a b c ->
+                                                Task.succeed
+                                                    (buf.buffers
+                                                        |> Dict.keys
+                                                        |> List.filter
+                                                            (\path ->
+                                                                path /= buf.path && path /= ""
+                                                            )
+                                                        |> List.map (relativePath buf.config.pathSeperator buf.cwd)
+                                                    )
+                                                    |> Task.perform ListBuffers
+                                            , False
+                                            )
                                         else if String.startsWith ":e " s then
                                             ( sendListFiles, False )
                                         else if String.startsWith ":cd " s then
@@ -1154,6 +1171,9 @@ execute count register str buf =
                 edit path
 
             [ "o", path ] ->
+                edit path
+
+            [ "b", path ] ->
                 edit path
 
             [ "w" ] ->
@@ -1633,7 +1653,7 @@ update message buf =
         ListAllFiles resp ->
             case resp of
                 Ok files ->
-                    ( listAllFiles files buf, Cmd.none )
+                    ( startExAutoComplete 2 buf.cwd files buf, Cmd.none )
 
                 Err _ ->
                     ( buf, Cmd.none )
@@ -1653,6 +1673,9 @@ update message buf =
 
                 Err _ ->
                     ( buf, Cmd.none )
+
+        ListBuffers files ->
+            ( startExAutoComplete 2 buf.cwd files buf, Cmd.none )
 
         SetCwd (Ok cwd) ->
             ( Buf.infoMessage cwd { buf | cwd = cwd }, Cmd.none )
@@ -1928,18 +1951,18 @@ fileNameWordChars =
     "/\\-._"
 
 
-listAllFiles : List String -> Buffer -> Buffer
-listAllFiles files buf =
+startExAutoComplete : Int -> String -> List String -> Buffer -> Buffer
+startExAutoComplete offset trigger candidates buf =
     case buf.mode of
         Ex ({ exbuf } as ex) ->
             setExbuf buf
                 ex
                 (startAutoComplete
                     fileNameWordChars
-                    buf.cwd
-                    2
-                    files
-                    ( 0, 3 )
+                    trigger
+                    offset
+                    candidates
+                    ( 0, offset + 1 )
                     ""
                     exbuf
                 )

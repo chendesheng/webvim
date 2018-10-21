@@ -27,6 +27,8 @@ mapCmdToAlt k =
 normalKeymap =
     mapCmdToAlt
         [ ( "<c-p>", ":o<space>" )
+        , ( "<m-p>", ":o<space>" )
+        , ( "<m-b>", ":b<space>" )
         , ( "<c-,>", ":f<space>" )
         , ( "<c-s>", ":w<enter>" )
         , ( "<m-s>", ":w<enter>" )

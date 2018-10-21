@@ -61,6 +61,7 @@ type Msg
     | ListFiles (Result String (List String))
     | ListDirectries (Result String (List String))
     | ListAllFiles (Result String (List String)) -- recursive
+    | ListBuffers (List String)
     | ReadTags (Result String Location)
     | SearchResult (Result String String)
     | SetCwd (Result String String)
