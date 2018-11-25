@@ -85,11 +85,11 @@ pageTitle buf =
 pageDom : Buffer -> Html Msg
 pageDom buf =
     let
-        { mode, cursor, lines, syntax, continuation, view, history, ime } =
+        { mode, cursor, lines, syntax, continuation, view, history } =
             buf
 
-        { fontInfo, isSafari } =
-            buf.config
+        { fontInfo, isSafari, ime } =
+            buf.global
 
         ime1 =
             { ime | isSafari = isSafari }
@@ -230,13 +230,13 @@ pageDom buf =
                 buf.lint.items
                 buf.name
              , div [ style "display" "none" ]
-                ([ lazy saveRegisters buf.registers
+                ([ lazy saveRegisters buf.global.registers
                  , div []
-                    (buf.buffers
+                    (buf.global.buffers
                         |> Dict.toList
                         |> List.indexedMap (\i ( _, buf1 ) -> saveBuffer i buf1)
                     )
-                 , lazy saveCwd buf.cwd
+                 , lazy saveCwd buf.global.cwd
                  ]
                     ++ [ lazy3 saveActiveBuffer
                             buf.path
@@ -249,7 +249,7 @@ pageDom buf =
                                         ("exHistory[" ++ String.fromInt i ++ "]")
                                         s
                                 )
-                                buf.exHistory
+                                buf.global.exHistory
                             )
                        ]
                 )

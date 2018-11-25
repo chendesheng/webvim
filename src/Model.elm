@@ -276,20 +276,17 @@ type alias ViewLine =
 
 type alias View =
     { scrollTop : Int
-
-    -- TODO: remove scrollTop
     , scrollTopPx : Int
     , scrollLeft : Int
     , startPosition : Position
-    , dataStartPosition : Position
-    , size : Size
-    , statusbarHeight : Int
-
-    -- pixel height of a line
-    , lineHeight : Int
-    , showTip : Bool
     , matchedCursor : Maybe ( Position, Position )
     , lines : List (Maybe ViewLine)
+    , size : Size
+
+    -- TODO: move to global
+    , statusbarHeight : Int
+    , showTip : Bool
+    , lineHeight : Int
     }
 
 
@@ -341,9 +338,7 @@ type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
     , syntaxDirtyFrom : Int
-    , lint : BufferLint
-    , ime : IME
-    , cursor : Position
+    , cursor : ( Int, Int )
     , cursorColumn : Int
     , path : String
     , name : String
@@ -352,8 +347,29 @@ type alias Buffer =
     , config : BufferConfig
     , view : View
     , continuation : String
-    , registers : Dict String RegisterText
+    , dirtyIndent : Int
+    , motionFailed : Bool
+    , jumps : Jumps
+    , lint : BufferLint
+    , locationList : List Location
+    , global : Global
+    }
+
+
+type alias Global =
+    { registers : Dict String RegisterText
+    , ime : IME
     , dotRegister : String
+    , buffers : Dict String BufferInfo
+    , cwd : String
+    , exHistory : List String
+    , searchHistory : List String
+    , service : String
+    , pathSeperator : String
+    , fontInfo : FontInfo
+    , homedir : String
+    , isSafari : Bool
+    , vimASTCache : Dict ( String, String ) ( V.AST, String )
     , last :
         { matchChar :
             Maybe
@@ -365,18 +381,8 @@ type alias Buffer =
         , inserts : String
         , visual : String
         , ex : String
-        , indent : Int
         , jumpToTag : Maybe Location
-
-        -- if motion failed don't change to insert mode
-        , motionFailed : Bool
         }
-    , vimASTCache : Dict ( String, String ) ( V.AST, String )
-    , jumps : Jumps
-    , buffers : Dict String BufferInfo
-    , locationList : List Location
-    , cwd : String
-    , exHistory : List String
     }
 
 
@@ -397,9 +403,9 @@ emptyIme =
     }
 
 
-cacheVimAST : ( String, String ) -> ( V.AST, String ) -> Buffer -> Buffer
-cacheVimAST k v buf =
-    { buf | vimASTCache = Dict.insert k v buf.vimASTCache }
+cacheVimAST : ( String, String ) -> ( V.AST, String ) -> Global -> Global
+cacheVimAST k v gb =
+    { gb | vimASTCache = Dict.insert k v gb.vimASTCache }
 
 
 emptyExBuffer : Buffer
@@ -417,10 +423,14 @@ emptyExBuffer =
 
 updateIme : (IME -> IME) -> Buffer -> Buffer
 updateIme fnupdate buf =
-    if fnupdate buf.ime == buf.ime then
+    if fnupdate buf.global.ime == buf.global.ime then
         buf
     else
-        { buf | ime = fnupdate buf.ime }
+        let
+            global =
+                buf.global
+        in
+            { buf | global = { global | ime = fnupdate buf.global.ime } }
 
 
 emptyView : View
@@ -429,10 +439,6 @@ emptyView =
     , scrollTopPx = 0
     , scrollLeft = 0
     , startPosition = ( 0, 0 )
-    , size = { width = 1, height = 1 }
-    , dataStartPosition = ( 0, 0 )
-    , statusbarHeight = 1
-    , lineHeight = 21
     , showTip = False
     , matchedCursor = Nothing
     , lines =
@@ -440,6 +446,9 @@ emptyView =
         , Just { lineNumber = 1, text = "", tokens = [] }
         , Nothing
         ]
+    , size = { width = 1, height = 1 }
+    , statusbarHeight = 1
+    , lineHeight = 21
     }
 
 
@@ -457,13 +466,8 @@ type alias BufferConfig =
     , tabSize : Int
     , expandTab : Bool
     , lint : Bool
-    , service : String
-    , pathSeperator : String
     , indent : IndentConfig
     , syntax : Bool
-    , fontInfo : FontInfo
-    , homedir : String
-    , isSafari : Bool
     }
 
 
@@ -473,18 +477,8 @@ defaultBufferConfig =
     , tabSize = 2
     , expandTab = True
     , lint = False
-    , service = ""
-    , pathSeperator = "/"
     , indent = AutoIndent
     , syntax = True
-    , fontInfo =
-        { widths = []
-        , lineHeight = 0
-        , size = 0
-        , name = ""
-        }
-    , homedir = ""
-    , isSafari = False
     }
 
 
@@ -493,8 +487,6 @@ emptyBuffer =
     { lines = B.fromString B.lineBreak
     , syntax = Array.empty
     , syntaxDirtyFrom = 0
-    , lint = { items = [], count = 0 }
-    , ime = emptyIme
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , path = ""
@@ -504,27 +496,54 @@ emptyBuffer =
     , config = defaultBufferConfig
     , view = emptyView
     , continuation = ""
+
+    -- temp variable
+    -- insert mode auto indent, discard when input nothing and switch back to normal mode
+    , dirtyIndent = 0
+    , motionFailed = False
+
+    -- global state will persist when swithing between buffers
+    , global = emptyGlobal
+
+    -- TODO: add a location pool, move to global
+    -- locations : Dict BufferId (Dict Int Position)
+    , jumps =
+        { backwards = []
+        , forwards = []
+        }
+    , lint = { items = [], count = 0 }
+    , locationList = []
+    }
+
+
+emptyGlobal : Global
+emptyGlobal =
+    { dotRegister = ""
+    , ime = emptyIme
+    , buffers = Dict.empty
+    , cwd = ""
+    , exHistory = []
+    , service = ""
+    , pathSeperator = "/"
+    , fontInfo =
+        { widths = []
+        , lineHeight = 0
+        , size = 0
+        , name = ""
+        }
+    , homedir = ""
+    , isSafari = False
     , registers = Dict.empty
-    , dotRegister = ""
+    , searchHistory = []
     , last =
         { matchChar = Nothing
         , matchString = Nothing
         , inserts = ""
         , visual = ""
         , ex = ""
-        , indent = 0
         , jumpToTag = Nothing
-        , motionFailed = False
         }
     , vimASTCache = Dict.empty
-    , jumps =
-        { backwards = []
-        , forwards = []
-        }
-    , buffers = Dict.empty
-    , locationList = []
-    , cwd = ""
-    , exHistory = []
     }
 
 

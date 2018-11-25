@@ -66,10 +66,10 @@ insert s buf =
                     getString buf s
 
                 lastIndent =
-                    buf.last.indent
+                    buf.dirtyIndent
             in
                 if str == B.lineBreak then
-                    if buf.last.indent > 0 then
+                    if buf.dirtyIndent > 0 then
                         let
                             keepLastIndent indent buf_ =
                                 buf_

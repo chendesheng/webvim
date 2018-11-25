@@ -15,7 +15,7 @@ yankWholeBuffer buf =
     ( Buf.infoMessage "Whole buffer copied." buf
     , buf.lines
         |> B.toString
-        |> sendWriteClipboard buf.config.service
+        |> sendWriteClipboard buf.global.service
     )
 
 
@@ -46,19 +46,25 @@ yank count register range buf =
 
         cmd =
             if register == "+" then
-                sendWriteClipboard buf.config.service s
+                sendWriteClipboard buf.global.service s
             else
                 Cmd.none
+
+        global =
+            buf.global
     in
-        ( buf
-            |> Buf.setRegister "0" txt
-            |> Buf.setRegister
-                (if register == "+" then
-                    "\""
-                 else
-                    register
-                )
-                txt
+        ( { buf
+            | global =
+                global
+                    |> Buf.setRegister "0" txt
+                    |> Buf.setRegister
+                        (if register == "+" then
+                            "\""
+                         else
+                            register
+                        )
+                        txt
+          }
         , cmd
         )
 
@@ -67,9 +73,18 @@ put : String -> Bool -> Buffer -> Buffer
 put register forward buf =
     let
         removeRegister reg buf_ =
-            { buf_ | registers = Dict.remove reg buf_.registers }
+            let
+                global =
+                    buf_.global
+            in
+                { buf_
+                    | global =
+                        { global
+                            | registers = Dict.remove reg buf_.global.registers
+                        }
+                }
     in
-        Dict.get register buf.registers
+        Dict.get register buf.global.registers
             |> Maybe.map
                 (\s ->
                     case buf.mode of

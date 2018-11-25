@@ -847,7 +847,11 @@ getLastDeleted buf =
             )
 
 
-setRegister : String -> RegisterText -> Buffer -> Buffer
+setRegister :
+    String
+    -> RegisterText
+    -> { a | registers : Dict String RegisterText }
+    -> { a | registers : Dict String RegisterText }
 setRegister reg val buf =
     { buf | registers = Dict.insert reg val buf.registers }
 
@@ -1348,11 +1352,7 @@ toWords exclude { config, lines, cursor } =
 
 setLastIndent : Int -> Buffer -> Buffer
 setLastIndent indent buf =
-    let
-        last =
-            buf.last
-    in
-        { buf | last = { last | indent = indent } }
+    { buf | dirtyIndent = indent }
 
 
 setCursorColumn : Int -> Buffer -> Buffer
@@ -1362,15 +1362,15 @@ setCursorColumn cursorColumn buf =
 
 cancelLastIndent : Buffer -> Buffer
 cancelLastIndent buf =
-    if buf.last.indent > 0 then
+    if buf.dirtyIndent > 0 then
         let
             ( y, _ ) =
                 buf.cursor
         in
             buf
-                |> transaction [ Deletion ( y, 0 ) ( y, buf.last.indent ) ]
+                |> transaction [ Deletion ( y, 0 ) ( y, buf.dirtyIndent ) ]
                 |> setLastIndent 0
-                |> setCursorColumn buf.last.indent
+                |> setCursorColumn buf.dirtyIndent
     else
         buf
 
@@ -1486,4 +1486,4 @@ switchVisualEnd buf =
 
 shortPath : Buffer -> String
 shortPath buf =
-    relativePath buf.config.pathSeperator buf.cwd buf.path
+    relativePath buf.global.pathSeperator buf.global.cwd buf.path

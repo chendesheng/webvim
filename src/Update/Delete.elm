@@ -53,11 +53,8 @@ delete count register rg buf =
             case deleteOperator count rg buf_ of
                 [] ->
                     let
-                        last =
-                            buf_.last
-
                         setMotionFailed buf__ =
-                            { buf__ | last = { last | motionFailed = True } }
+                            { buf__ | motionFailed = True }
                     in
                         case rg of
                             V.MotionRange md _ ->
@@ -163,7 +160,7 @@ saveLastDeleted linewise reg buf =
                 |> Maybe.withDefault ""
                 |> toRegisterText linewise
     in
-        Buf.setRegister reg s buf
+        { buf | global = Buf.setRegister reg s buf.global }
 
 
 join : Maybe Int -> Bool -> Buffer -> Buffer

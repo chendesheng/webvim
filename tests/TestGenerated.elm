@@ -109,8 +109,6 @@ formatBuffer buf =
         --    Debug.log "buf.lines" buf.lines
         --_ =
         --    Debug.log "middle" middle
-        --_ =
-        --    Debug.log "middle1" middle1
         middle =
             buf.view.lines
                 |> List.sortBy

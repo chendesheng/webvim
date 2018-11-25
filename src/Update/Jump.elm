@@ -72,7 +72,7 @@ tokenizeBufferCmd buf =
                 Cmd.none
             else
                 sendTokenize
-                    buf.config.service
+                    buf.global.service
                     { path = buf.path
                     , version = buf.history.version
                     , line = begin
@@ -129,12 +129,12 @@ jumpToPath isSaveJump path_ overrideCursor buf =
                 path_
             else
                 resolvePath
-                    buf.config.pathSeperator
-                    buf.cwd
+                    buf.global.pathSeperator
+                    buf.global.cwd
                     path_
 
         info =
-            buf.buffers
+            buf.global.buffers
                 |> Dict.get path
                 |> Maybe.map
                     (\info_ ->
@@ -156,42 +156,48 @@ editBuffer : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
 editBuffer restoreHistory info buf =
     if info.path /= "" && info.content == Nothing then
         ( buf
-        , sendReadBuffer buf.config.service
+        , sendReadBuffer buf.global.service
             (Tuple.first info.cursor + buf.view.size.height * 2)
             buf.config.tabSize
             info
         )
     else
         let
+            global =
+                buf.global
+
             newbuf =
                 newBuffer
                     info
                     { buf
-                        | buffers =
-                            (buf.buffers
-                                |> Dict.remove info.path
-                                |> Dict.insert buf.path
-                                    { path = buf.path
-                                    , content =
-                                        Just
-                                            ( buf.lines, buf.syntax )
-                                    , cursor = buf.cursor
-                                    , syntax = buf.config.syntax
-                                    , history = buf.history
-                                    }
-                            )
-                        , registers =
-                            buf.registers
-                                |> Dict.insert "%" (Text info.path)
-                                |> (\regs ->
-                                        if buf.path == info.path then
-                                            regs
-                                        else
-                                            Dict.insert
-                                                "#"
-                                                (Text buf.path)
-                                                regs
-                                   )
+                        | global =
+                            { global
+                                | buffers =
+                                    (buf.global.buffers
+                                        |> Dict.remove info.path
+                                        |> Dict.insert buf.path
+                                            { path = buf.path
+                                            , content =
+                                                Just
+                                                    ( buf.lines, buf.syntax )
+                                            , cursor = buf.cursor
+                                            , syntax = buf.config.syntax
+                                            , history = buf.history
+                                            }
+                                    )
+                                , registers =
+                                    buf.global.registers
+                                        |> Dict.insert "%" (Text info.path)
+                                        |> (\regs ->
+                                                if buf.path == info.path then
+                                                    regs
+                                                else
+                                                    Dict.insert
+                                                        "#"
+                                                        (Text buf.path)
+                                                        regs
+                                           )
+                            }
                     }
 
             newbuf1 =
@@ -206,8 +212,8 @@ editBuffer restoreHistory info buf =
             ( newbuf1
             , Cmd.batch
                 [ if newbuf.config.lint then
-                    sendLintProject newbuf.config.service
-                        newbuf.config.pathSeperator
+                    sendLintProject newbuf.global.service
+                        newbuf.global.pathSeperator
                         newbuf.path
                         newbuf.history.version
                         newbuf.lines
@@ -218,14 +224,14 @@ editBuffer restoreHistory info buf =
             )
 
 
-isLintEnabled config name =
-    if config.lint && extname name == ".elm" then
+isLintEnabled gb lint name =
+    if lint && extname name == ".elm" then
         name
-            |> relativePath config.pathSeperator config.homedir
-            |> String.startsWith (".elm" ++ config.pathSeperator)
+            |> relativePath gb.pathSeperator gb.homedir
+            |> String.startsWith (".elm" ++ gb.pathSeperator)
             |> not
     else
-        config.lint
+        lint
 
 
 newBuffer : BufferInfo -> Buffer -> Buffer
@@ -244,12 +250,7 @@ newBuffer info buf =
 
         config1 =
             { config
-                | service = buf.config.service
-                , pathSeperator = buf.config.pathSeperator
-                , syntax = info.syntax
-                , fontInfo = buf.config.fontInfo
-                , homedir = buf.config.homedir
-                , isSafari = buf.config.isSafari
+                | syntax = info.syntax
             }
 
         ( lines, syntax ) =
@@ -264,35 +265,40 @@ newBuffer info buf =
                 lines
                 0
     in
-        { buf
-            | lines = lines
-            , mode = Normal { message = EmptyMessage }
-            , config =
-                { config1
-                    | lint = isLintEnabled config1 path
-                }
-            , view =
-                { emptyView
-                    | size = buf.view.size
-                    , lineHeight = buf.view.lineHeight
-                    , scrollTopPx = scrollTop * buf.view.lineHeight
-                    , scrollTop = scrollTop
-                    , lines =
-                        Buf.getViewLines
-                            scrollTop
-                            (scrollTop + height + 2)
-                            lines
-                            syntax
-                            |> Buf.fillEmptyViewLines height
-                }
-            , cursor = cursor
-            , lint = { items = [], count = 0 }
-            , cursorColumn = Tuple.second cursor
-            , path = path
-            , name = name ++ ext
-            , history = history
-            , syntax = syntax
-            , syntaxDirtyFrom = Array.length syntax
+        { lines = lines
+        , mode = Normal { message = EmptyMessage }
+        , config =
+            { config1
+                | lint = isLintEnabled buf.global config1.lint path
+            }
+        , view =
+            { emptyView
+                | size = buf.view.size
+                , lineHeight = buf.view.lineHeight
+                , scrollTopPx = scrollTop * buf.view.lineHeight
+                , scrollTop = scrollTop
+                , lines =
+                    Buf.getViewLines
+                        scrollTop
+                        (scrollTop + height + 2)
+                        lines
+                        syntax
+                        |> Buf.fillEmptyViewLines height
+            }
+        , cursor = cursor
+        , lint = { items = [], count = 0 }
+        , cursorColumn = Tuple.second cursor
+        , path = path
+        , name = name ++ ext
+        , history = history
+        , syntax = syntax
+        , syntaxDirtyFrom = Array.length syntax
+        , continuation = ""
+        , dirtyIndent = 0
+        , locationList = []
+        , motionFailed = False
+        , jumps = buf.jumps
+        , global = buf.global
         }
             |> correctCursor
             |> scrollToCursor
@@ -422,7 +428,7 @@ jumpHistory isForward buf =
 
 jumpLastBuffer : Buffer -> ( Buffer, Cmd Msg )
 jumpLastBuffer buf =
-    case Dict.get "#" buf.registers of
+    case Dict.get "#" buf.global.registers of
         Just reg ->
             jumpToPath True (registerString reg) Nothing buf
 
@@ -440,9 +446,9 @@ startJumpToTag count buf =
     of
         Just ( _, s ) ->
             ( buf
-            , sendReadTags buf.config.service
-                buf.config.pathSeperator
-                buf.cwd
+            , sendReadTags buf.global.service
+                buf.global.pathSeperator
+                buf.global.cwd
                 buf.path
                 (Maybe.withDefault 1 count - 1)
                 s

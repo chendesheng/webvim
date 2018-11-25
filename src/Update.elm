@@ -178,16 +178,13 @@ updateMode modeName buf =
         oldModeName =
             getModeName buf.mode
 
-        last =
-            buf.last
-
         ( newMode, newModeName ) =
             if oldModeName == modeName then
                 ( buf.mode, oldModeName )
             else if
                 (oldModeName /= V.ModeNameInsert)
                     && (modeName == V.ModeNameInsert)
-                    && last.motionFailed
+                    && buf.motionFailed
             then
                 -- Don't change to insert mode when motion failed
                 ( if oldModeName /= V.ModeNameNormal then
@@ -226,11 +223,14 @@ updateMode modeName buf =
         scrollTo =
             Buf.finalScrollTop buf1
 
+        global =
+            buf.global
+
         ime =
             if oldModeName /= newModeName then
                 let
                     oldIme =
-                        buf.ime
+                        global.ime
                 in
                     case newModeName of
                         V.ModeNameInsert ->
@@ -239,16 +239,15 @@ updateMode modeName buf =
                         _ ->
                             { oldIme | isActive = False }
             else
-                buf.ime
+                global.ime
     in
         { buf1
-            | last = { last | motionFailed = False }
+            | motionFailed = False
             , continuation =
-                if last.motionFailed then
+                if buf.motionFailed then
                     ""
                 else
                     buf1.continuation
-            , ime = ime
             , view =
                 { view
                     | lines =
@@ -260,6 +259,7 @@ updateMode modeName buf =
                             scrollTo
                             view.lines
                 }
+            , global = { global | ime = ime }
         }
 
 
@@ -416,8 +416,11 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                     |> Tuple.first
             else
                 let
+                    global =
+                        buf.global
+
                     last =
-                        buf.last
+                        global.last
 
                     prefix1 =
                         case prefix of
@@ -460,11 +463,19 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                             case oldMode of
                                 Ex _ ->
                                     { buf
-                                        | last = { last | ex = last.ex ++ key }
+                                        | global =
+                                            { global
+                                                | last = { last | ex = last.ex ++ key }
+                                            }
                                     }
 
                                 _ ->
-                                    { buf | last = { last | ex = "" } }
+                                    { buf
+                                        | global =
+                                            { global
+                                                | last = { last | ex = "" }
+                                            }
+                                    }
 
                     buf2 =
                         Buf.setMode
@@ -494,8 +505,11 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
 
         (Insert { visual }) as data ->
             let
+                global =
+                    buf.global
+
                 last =
-                    buf.last
+                    global.last
 
                 inserts =
                     if replaying || key == "<inserts>" then
@@ -508,12 +522,20 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                             _ ->
                                 ""
             in
-                { buf | last = { last | inserts = inserts } }
+                { buf
+                    | global =
+                        { global
+                            | last = { last | inserts = inserts }
+                        }
+                }
 
         Visual _ ->
             let
+                global =
+                    buf.global
+
                 last =
-                    buf.last
+                    global.last
 
                 visual =
                     if replaying || key == "<visual>" then
@@ -526,12 +548,10 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                             _ ->
                                 ""
             in
-                { buf | last = { last | visual = visual } }
-
-
-setContinuation : String -> Buffer -> Buffer
-setContinuation s buf =
-    { buf | continuation = s }
+                { buf
+                    | global =
+                        { global | last = { last | visual = visual } }
+                }
 
 
 cmdNone : Buffer -> ( Buffer, Cmd Msg )
@@ -651,7 +671,7 @@ runOperator count register operator buf =
         InsertString s ->
             case s of
                 V.LastSavedString ->
-                    replayKeys buf.last.inserts buf
+                    replayKeys buf.global.last.inserts buf
 
                 _ ->
                     buf
@@ -694,13 +714,13 @@ runOperator count register operator buf =
             ( put register forward buf, Cmd.none )
 
         RepeatLastOperator ->
-            replayKeys buf.dotRegister buf
+            replayKeys buf.global.dotRegister buf
 
         RepeatLastVisual ->
-            replayKeys buf.last.visual buf
+            replayKeys buf.global.last.visual buf
 
         RepeatLastEx ->
-            replayKeys buf.last.ex buf
+            replayKeys buf.global.last.ex buf
 
         VisualSwitchEnd ->
             ( Buf.switchVisualEnd buf, Cmd.none )
@@ -712,21 +732,28 @@ runOperator count register operator buf =
                         |> B.toString
                         |> String.dropLeft 1
                         |> (\s ->
-                                execute count
-                                    register
-                                    s
-                                    { buf
-                                        | mode =
-                                            Ex
-                                                { ex
-                                                    | exbuf =
-                                                        clearExBufAutoComplete
-                                                            ex.exbuf
+                                let
+                                    global =
+                                        buf.global
+                                in
+                                    execute count
+                                        register
+                                        s
+                                        { buf
+                                            | mode =
+                                                Ex
+                                                    { ex
+                                                        | exbuf =
+                                                            clearExBufAutoComplete
+                                                                ex.exbuf
+                                                    }
+                                            , global =
+                                                { global
+                                                    | exHistory =
+                                                        (s :: global.exHistory)
+                                                            |> List.take 50
                                                 }
-                                        , exHistory =
-                                            (s :: buf.exHistory)
-                                                |> List.take 50
-                                    }
+                                        }
                            )
 
                 _ ->
@@ -808,7 +835,7 @@ runOperator count register operator buf =
             startJumpToTag count buf
 
         JumpBackFromTag ->
-            case buf.last.jumpToTag of
+            case buf.global.last.jumpToTag of
                 Just loc ->
                     jumpToLocation True loc buf
 
@@ -878,7 +905,7 @@ runOperator count register operator buf =
                             |> startAutoComplete ""
                                 "$$%exHistory"
                                 1
-                                (List.reverse buf.exHistory)
+                                (List.reverse buf.global.exHistory)
                                 ( 0, 1 )
                                 (B.toString ex.exbuf.lines
                                     |> String.dropLeft 1
@@ -1000,9 +1027,9 @@ applyEdit count edit register buf =
                                         if isAutoCompleteStarted exbuf "$$%exHistory" then
                                             "$$%exHistory"
                                         else if String.startsWith ":o " s then
-                                            buf.cwd
+                                            buf.global.cwd
                                         else if String.startsWith ":b " s then
-                                            buf.cwd
+                                            buf.global.cwd
                                         else
                                             s
                                                 |> String.trim
@@ -1010,9 +1037,9 @@ applyEdit count edit register buf =
                                                 |> getLast
                                                 |> Maybe.withDefault ""
                                                 |> getPath
-                                                    buf.config.pathSeperator
-                                                    buf.config.homedir
-                                                    buf.cwd
+                                                    buf.global.pathSeperator
+                                                    buf.global.homedir
+                                                    buf.global.cwd
 
                                     ( getList, clearAutoComplete ) =
                                         if isAutoCompleteStarted exbuf "$$%exHistory" then
@@ -1022,13 +1049,13 @@ applyEdit count edit register buf =
                                         else if String.startsWith ":b " s then
                                             ( \a b c ->
                                                 Task.succeed
-                                                    (buf.buffers
+                                                    (buf.global.buffers
                                                         |> Dict.keys
                                                         |> List.filter
                                                             (\path ->
                                                                 path /= buf.path && path /= ""
                                                             )
-                                                        |> List.map (relativePath buf.config.pathSeperator buf.cwd)
+                                                        |> List.map (relativePath buf.global.pathSeperator buf.global.cwd)
                                                     )
                                                     |> Task.perform ListBuffers
                                             , False
@@ -1058,8 +1085,8 @@ applyEdit count edit register buf =
                                             , Cmd.batch
                                                 [ cmd
                                                 , getList
-                                                    buf.config.service
-                                                    buf.config.pathSeperator
+                                                    buf.global.service
+                                                    buf.global.pathSeperator
                                                     trigger
                                                 ]
                                             )
@@ -1101,11 +1128,14 @@ replayKeys s buf =
         ( buf, Cmd.none )
     else
         let
+            global =
+                buf.global
+
             savedLast =
-                buf.last
+                global.last
 
             savedRegisters =
-                buf.registers
+                global.registers
 
             keys =
                 parseKeys s
@@ -1123,8 +1153,11 @@ replayKeys s buf =
                     keys
         in
             ( { buf1
-                | last = savedLast
-                , registers = savedRegisters
+                | global =
+                    { global
+                        | last = savedLast
+                        , registers = savedRegisters
+                    }
               }
             , cmd
             )
@@ -1156,8 +1189,8 @@ execute count register str buf =
                 jumpToPath
                     True
                     (path
-                        |> normalizePath buf.config.pathSeperator
-                        |> replaceHomeDir buf.config.homedir
+                        |> normalizePath buf.global.pathSeperator
+                        |> replaceHomeDir buf.global.homedir
                     )
                     Nothing
                     buf
@@ -1177,7 +1210,7 @@ execute count register str buf =
                 edit path
 
             [ "w" ] ->
-                ( buf, sendWriteBuffer buf.config.service buf.path buf )
+                ( buf, sendWriteBuffer buf.global.service buf.path buf )
 
             [ "ll" ] ->
                 let
@@ -1194,22 +1227,22 @@ execute count register str buf =
                             )
 
             [ "f", s ] ->
-                ( buf, sendSearch buf.config.service buf.cwd s )
+                ( buf, sendSearch buf.global.service buf.global.cwd s )
 
             [ "copy" ] ->
                 yankWholeBuffer buf
 
             [ "cd" ] ->
-                ( Buf.infoMessage buf.cwd buf, Cmd.none )
+                ( Buf.infoMessage buf.global.cwd buf, Cmd.none )
 
             [ "cd", cwd ] ->
                 ( buf
                 , cwd
-                    |> replaceHomeDir buf.config.homedir
+                    |> replaceHomeDir buf.global.homedir
                     |> resolvePath
-                        buf.config.pathSeperator
-                        buf.cwd
-                    |> sendCd buf.config.service
+                        buf.global.pathSeperator
+                        buf.global.cwd
+                    |> sendCd buf.global.service
                 )
 
             [ "mkdir" ] ->
@@ -1220,11 +1253,11 @@ execute count register str buf =
             [ "mkdir", path ] ->
                 ( buf
                 , path
-                    |> replaceHomeDir buf.config.homedir
+                    |> replaceHomeDir buf.global.homedir
                     |> resolvePath
-                        buf.config.pathSeperator
-                        buf.cwd
-                    |> sendMkDir buf.config.service
+                        buf.global.pathSeperator
+                        buf.global.cwd
+                    |> sendMkDir buf.global.service
                 )
 
             [ s ] ->
@@ -1249,7 +1282,7 @@ handleKeypress replaying key buf =
             ( buf.continuation, key )
 
         (( ast, continuation ) as cacheVal) =
-            case Dict.get cacheKey buf.vimASTCache of
+            case Dict.get cacheKey buf.global.vimASTCache of
                 Just resp ->
                     resp
 
@@ -1257,9 +1290,10 @@ handleKeypress replaying key buf =
                     parse buf.continuation key
 
         buf1 =
-            buf
-                |> cacheVimAST cacheKey cacheVal
-                |> setContinuation continuation
+            { buf
+                | continuation = continuation
+                , global = cacheVimAST cacheKey cacheVal buf.global
+            }
     in
         case serviceBeforeApplyVimAST replaying key ast buf1 of
             Just cmd ->
@@ -1279,7 +1313,7 @@ serviceBeforeApplyVimAST replaying key ast buf =
                         sendReadClipboard
                             replaying
                             key
-                            buf.config.service
+                            buf.global.service
                             ast
                             |> Just
                     else
@@ -1329,7 +1363,11 @@ applyVimAST replaying key ast buf =
                         buf_
 
                     s ->
-                        { buf_ | dotRegister = s }
+                        let
+                            global =
+                                buf_.global
+                        in
+                            { buf_ | global = { global | dotRegister = s } }
 
         lineDeltaMotion =
             edit
@@ -1371,7 +1409,7 @@ applyVimAST replaying key ast buf =
 
         doFocusInput oldBuf ( buf_, cmds ) =
             if
-                (oldBuf.ime.isActive /= buf_.ime.isActive)
+                (oldBuf.global.ime.isActive /= buf_.global.ime.isActive)
                     || (isExMode oldBuf.mode /= isExMode buf_.mode)
             then
                 ( buf_, focusHiddenInput :: cmds )
@@ -1484,7 +1522,7 @@ applyLintItems items buf =
             then
                 buf.path
             else
-                normalizePath buf.config.pathSeperator file
+                normalizePath buf.global.pathSeperator file
 
         normalizeRegion region =
             let
@@ -1600,9 +1638,12 @@ update message buf =
         ReadClipboard result ->
             case result of
                 Ok { replaying, key, ast, s } ->
-                    buf
-                        |> Buf.setRegister "+" (Text s)
-                        |> applyVimAST replaying key ast
+                    let
+                        global =
+                            Buf.setRegister "+" (Text s) buf.global
+                    in
+                        { buf | global = global }
+                            |> applyVimAST replaying key ast
 
                 Err s ->
                     ( buf, Cmd.none )
@@ -1620,8 +1661,8 @@ update message buf =
             if buf.config.lint then
                 ( buf
                 , sendLintOnTheFly
-                    buf.config.service
-                    buf.config.pathSeperator
+                    buf.global.service
+                    buf.global.pathSeperator
                     buf.path
                     buf.history.version
                     buf.lines
@@ -1653,7 +1694,7 @@ update message buf =
         ListAllFiles resp ->
             case resp of
                 Ok files ->
-                    ( startExAutoComplete 2 buf.cwd files buf, Cmd.none )
+                    ( startExAutoComplete 2 buf.global.cwd files buf, Cmd.none )
 
                 Err _ ->
                     ( buf, Cmd.none )
@@ -1675,15 +1716,24 @@ update message buf =
                     ( buf, Cmd.none )
 
         ListBuffers files ->
-            ( startExAutoComplete 2 buf.cwd files buf, Cmd.none )
+            ( startExAutoComplete 2 buf.global.cwd files buf, Cmd.none )
 
         SetCwd (Ok cwd) ->
-            ( Buf.infoMessage cwd { buf | cwd = cwd }, Cmd.none )
+            let
+                global =
+                    buf.global
+            in
+                ( Buf.infoMessage cwd
+                    { buf
+                        | global = { global | cwd = cwd }
+                    }
+                , Cmd.none
+                )
 
         IMEMessage imeMsg ->
             case imeMsg of
                 CompositionTry s ->
-                    if buf.ime.isComposing && s /= "<escape>" then
+                    if buf.global.ime.isComposing && s /= "<escape>" then
                         ( buf, Cmd.none )
                     else
                         update (PressKeys s) buf
@@ -1790,20 +1840,27 @@ onReadTags result buf =
     case result of
         Ok loc ->
             let
-                last =
-                    buf.last
-
                 saveLastJumpToTag buf_ =
-                    { buf_
-                        | last =
-                            { last
-                                | jumpToTag =
-                                    Just
-                                        { path = buf_.path
-                                        , cursor = buf_.cursor
+                    let
+                        global =
+                            buf_.global
+
+                        last =
+                            global.last
+                    in
+                        { buf_
+                            | global =
+                                { global
+                                    | last =
+                                        { last
+                                            | jumpToTag =
+                                                Just
+                                                    { path = buf_.path
+                                                    , cursor = buf_.cursor
+                                                    }
                                         }
-                            }
-                    }
+                                }
+                        }
             in
                 buf
                     |> Buf.clearMessage
@@ -1908,8 +1965,8 @@ onWrite result buf =
 
                 lintCmd =
                     if buf1.config.lint then
-                        sendLintProject buf1.config.service
-                            buf1.config.pathSeperator
+                        sendLintProject buf1.global.service
+                            buf1.global.pathSeperator
                             buf1.path
                             buf1.history.version
                             buf1.lines
@@ -1977,7 +2034,7 @@ listFiles files buf =
         Ex ({ exbuf } as ex) ->
             let
                 sep =
-                    buf.config.pathSeperator
+                    buf.global.pathSeperator
             in
                 setExbuf buf
                     ex
@@ -1989,7 +2046,7 @@ listFiles files buf =
                         [ prefix, path ] ->
                             startAutoComplete
                                 fileNameWordChars
-                                (getPath sep buf.config.homedir buf.cwd path)
+                                (getPath sep buf.global.homedir buf.global.cwd path)
                                 (String.length prefix)
                                 files
                                 ( 0
@@ -2066,30 +2123,27 @@ init flags =
                 activeBuf
                 { emptyBuffer
                     | view = view
-                    , cwd = cwd1
                     , path = activeBuf.path
                     , jumps = jumps
                     , history = activeBuf.history
-                    , exHistory = exHistory
-                    , config =
-                        { defaultBufferConfig
+                    , global =
+                        { emptyGlobal
                             | service = service
+                            , exHistory = exHistory
+                            , cwd = cwd1
                             , pathSeperator = pathSeperator
                             , fontInfo = fontInfo
                             , homedir = homedir
                             , isSafari = isSafari
+                            , registers =
+                                Decode.decodeValue registersDecoder registers
+                                    |> Result.withDefault Dict.empty
+                            , buffers =
+                                buffers
+                                    |> Decode.decodeValue (Decode.list bufferInfoDecoder)
+                                    |> Result.withDefault []
+                                    |> fromListBy .path
                         }
-                    , registers =
-                        Decode.decodeValue registersDecoder registers
-                            |> Result.withDefault Dict.empty
                 }
     in
-        ( { buf
-            | buffers =
-                buffers
-                    |> Decode.decodeValue (Decode.list bufferInfoDecoder)
-                    |> Result.withDefault []
-                    |> fromListBy .path
-          }
-        , Cmd.batch [ cmd, focusHiddenInput ]
-        )
+        ( buf, Cmd.batch [ cmd, focusHiddenInput ] )

@@ -104,7 +104,7 @@ saveMotion : V.MotionData -> V.MotionOption -> Buffer -> Buffer -> Buffer
 saveMotion md mo oldbuf buf =
     let
         last =
-            buf.last
+            buf.global.last
 
         last1 =
             case md of
@@ -156,15 +156,18 @@ saveMotion md mo oldbuf buf =
                                                 }
 
                                         _ ->
-                                            buf.last
+                                            buf.global.last
 
                                 _ ->
-                                    buf.last
+                                    buf.global.last
 
                 _ ->
-                    buf.last
+                    buf.global.last
+
+        global =
+            buf.global
     in
-        { buf | last = last1 }
+        { buf | global = { global | last = last1 } }
 
 
 findPositionInBuffer :
@@ -235,7 +238,7 @@ gotoMatchedString count mo buf =
                     Nothing
 
         _ ->
-            case buf.last.matchString of
+            case buf.global.last.matchString of
                 Just ( s, forward ) ->
                     let
                         forward1 =
@@ -524,7 +527,7 @@ runMotion count md mo buf =
                         |> Buf.cursorLineFirst buf.lines
 
                 V.RepeatMatchChar ->
-                    case buf.last.matchChar of
+                    case buf.global.last.matchChar of
                         Just { char, before, forward } ->
                             let
                                 mo1 =
@@ -907,7 +910,7 @@ showSuccessMessage md mo buf =
             Buf.clearMessage buf
 
         V.MatchString _ ->
-            case buf.last.matchString of
+            case buf.global.last.matchString of
                 Just ( s, _ ) ->
                     Buf.infoMessage
                         ((if mo.forward then
