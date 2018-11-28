@@ -1218,6 +1218,12 @@ scrollingStyle lineHeight topOffsetPx totalLines height scrollTop =
     ]
 
 
+renderLine : List Token -> String -> Html msg
+renderLine tokens text =
+    div []
+        (renderTokens tokens text 0)
+
+
 renderLines : List (Maybe ViewLine) -> Html msg
 renderLines viewLines =
     div
@@ -1229,7 +1235,7 @@ renderLines viewLines =
                         [ class "line"
                         , style "top" <| rem viewLine.lineNumber
                         ]
-                        (renderTokens viewLine.tokens viewLine.text 0)
+                        [ lazy2 renderLine viewLine.tokens viewLine.text ]
                 )
             )
             viewLines
