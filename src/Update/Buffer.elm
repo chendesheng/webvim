@@ -73,9 +73,9 @@ import Internal.TextBuffer as B
         , Patch(..)
         , isEmpty
         , foldlLines
-        , shiftPositionByPatch
-        , patchToLinePatch
-        , LinePatch(..)
+        , shiftPositionByRegionChange
+        , patchToRegion
+        , RegionChange(..)
         )
 import List
 import Vim.AST
@@ -102,24 +102,34 @@ import Helper.Helper exposing (parseWords, relativePath, regex)
 import Regex as Re
 
 
-applyPatchToLintError : Patch -> LintError -> Maybe LintError
+reversedPatchToRegionChange : Patch -> RegionChange
+reversedPatchToRegionChange patch =
+    case patch of
+        Insertion _ _ ->
+            RegionRemove (patchToRegion patch)
+
+        _ ->
+            RegionAdd (patchToRegion patch)
+
+
+applyPatchToLintError : RegionChange -> LintError -> Maybe LintError
 applyPatchToLintError patch ({ region, subRegion } as error) =
     let
         updateRegion ( b, e ) =
             case patch of
-                Deletion bDel eDel ->
+                RegionRemove ( bDel, eDel ) ->
                     if bDel <= b && e <= eDel then
                         Nothing
                     else
                         Just
-                            ( shiftPositionByPatch patch b
-                            , shiftPositionByPatch patch e
+                            ( shiftPositionByRegionChange patch b
+                            , shiftPositionByRegionChange patch e
                             )
 
-                Insertion pos _ ->
+                RegionAdd _ ->
                     Just
-                        ( shiftPositionByPatch patch b
-                        , shiftPositionByPatch patch e
+                        ( shiftPositionByRegionChange patch b
+                        , shiftPositionByRegionChange patch e
                         )
 
         maybeRegion =
@@ -138,7 +148,7 @@ applyPatchToLintError patch ({ region, subRegion } as error) =
                 )
 
 
-applyPatchesToLintErrors : List LintError -> List Patch -> List LintError
+applyPatchesToLintErrors : List LintError -> List RegionChange -> List LintError
 applyPatchesToLintErrors =
     List.foldl
         (\patch result ->
@@ -182,7 +192,7 @@ applyPatches patches buf =
                     , syntax = syntax2
                     , viewLines =
                         applyPatchToView
-                            (patchToLinePatch patch2)
+                            (reversedPatchToRegionChange patch2)
                             scrollTop
                             view.size.height
                             args.viewLines
@@ -343,7 +353,7 @@ applyDeletionToView from to scrollTop height viewLines =
         size =
             to - from
     in
-        if size == 0 then
+        if size <= 0 then
             viewLines
         else
             applyDeletionToViewHelper from
@@ -378,18 +388,27 @@ applyDeletionToViewHelper from to size i viewLines =
             []
 
 
-applyPatchToView : LinePatch -> Int -> Int -> List Int -> List Int
+applyPatchToView : RegionChange -> Int -> Int -> List Int -> List Int
 applyPatchToView patch scrollTop height_ viewLines =
     let
         height =
             height_ + 2
     in
         case patch of
-            LineInsertion from size ->
-                applyDeletionToView from (from + size) scrollTop height viewLines
+            RegionAdd ( ( by, bx ), ( ey, ex ) ) ->
+                applyInsertionToView by (ey - by) scrollTop height viewLines
 
-            LineDeletion from size ->
-                applyInsertionToView from size scrollTop height viewLines
+            RegionRemove ( ( by, bx ), ( ey, ex ) ) ->
+                applyDeletionToView
+                    (if bx == 0 then
+                        by
+                     else
+                        by + 1
+                    )
+                    ey
+                    scrollTop
+                    height
+                    viewLines
 
 
 {-| batch edit text, keep cursor, save history
@@ -440,7 +459,7 @@ transaction patches buf =
                                 { view
                                     | lines =
                                         applyPatchToView
-                                            (patchToLinePatch patch1)
+                                            (reversedPatchToRegionChange patch1)
                                             scrollTop
                                             view.size.height
                                             view.lines
@@ -474,7 +493,9 @@ transaction patches buf =
                         { history
                             | version = history.version + 1
                             , pendingChanges = history.pendingChanges ++ patches
-                            , diff = patches ++ history.diff
+                            , diff =
+                                List.map reversedPatchToRegionChange undoPatchs
+                                    ++ history.diff
                         }
                 }
 
@@ -632,7 +653,9 @@ undo buf =
                                         []
                                     else
                                         history.changes ++ undoPatches
-                                , diff = undoPatches ++ history.diff
+                                , diff =
+                                    List.map reversedPatchToRegionChange res.patches
+                                        ++ history.diff
                             }
 
                     view =
@@ -693,7 +716,9 @@ redo buf =
                                         []
                                     else
                                         history.changes ++ redoPatches
-                                , diff = redoPatches ++ history.diff
+                                , diff =
+                                    List.map reversedPatchToRegionChange res.patches
+                                        ++ history.diff
                             }
 
                     cursor =

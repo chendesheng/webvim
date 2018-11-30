@@ -15,7 +15,8 @@ import Internal.Position exposing (Position)
 import Internal.TextBuffer
     exposing
         ( Patch
-        , shiftPositionByPatch
+        , shiftPositionByRegionChange
+        , RegionChange
         )
 import String exposing (fromInt)
 
@@ -123,27 +124,33 @@ currentLocation { forwards } =
     List.head forwards
 
 
-applyPatchesToLocations : List Location -> List Patch -> List Location
-applyPatchesToLocations locations patches =
-    List.foldl
-        (\patch result ->
-            List.map
-                (\loc ->
-                    { loc
-                        | cursor =
-                            shiftPositionByPatch patch loc.cursor
-                    }
-                )
-                result
+applyPatchesToLocations : List Location -> List RegionChange -> List Location
+applyPatchesToLocations locations changes =
+    let
+        _ =
+            Debug.log "applyPatchesToLocations" ( locations, changes )
+    in
+        (List.foldl
+            (\change result ->
+                List.map
+                    (\loc ->
+                        { loc
+                            | cursor =
+                                shiftPositionByRegionChange change loc.cursor
+                        }
+                    )
+                    result
+            )
+            locations
+            changes
         )
-        locations
-        patches
+            |> Debug.log "result"
 
 
-applyPatchesToJumps : List Patch -> Jumps -> Jumps
-applyPatchesToJumps patches { backwards, forwards } =
+applyPatchesToJumps : List RegionChange -> Jumps -> Jumps
+applyPatchesToJumps diff { backwards, forwards } =
     { backwards =
-        applyPatchesToLocations backwards patches
+        applyPatchesToLocations backwards diff
     , forwards =
-        applyPatchesToLocations forwards patches
+        applyPatchesToLocations forwards diff
     }

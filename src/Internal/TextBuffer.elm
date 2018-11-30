@@ -24,10 +24,10 @@ module Internal.TextBuffer
         , sliceRegion
         , patchCursor
         , mergePatch
-        , shiftPositionByPatch
+        , shiftPositionByRegionChange
         , findFirstLine
-        , LinePatch(..)
-        , patchToLinePatch
+        , patchToRegion
+        , RegionChange(..)
         )
 
 import Internal.Position exposing (..)
@@ -45,27 +45,38 @@ type Patch
     | Deletion Position Position
 
 
-type LinePatch
-    = LineInsertion Int Int
-    | LineDeletion Int Int
+type RegionChange
+    = RegionAdd ( Position, Position )
+    | RegionRemove ( Position, Position )
 
 
-patchToLinePatch : Patch -> LinePatch
-patchToLinePatch patch =
+patchToRegion : Patch -> ( Position, Position )
+patchToRegion patch =
     case patch of
-        Insertion ( y, x ) lines ->
-            LineInsertion
-                y
-                (countLineBreaks lines)
+        Insertion ( y, x ) (TextBuffer buf) ->
+            ( ( y, x )
+            , let
+                n =
+                    Array.length buf
 
-        Deletion ( by, bx ) ( ey, ex ) ->
-            LineDeletion
-                (if bx == 0 then
-                    by
-                 else
-                    by + 1
-                )
-                (ey - by)
+                ln =
+                    Array.get (n - 1) buf
+              in
+                case ln of
+                    Just s ->
+                        if String.endsWith lineBreak s then
+                            ( y + n, 0 )
+                        else if n == 1 then
+                            ( y, x + String.length s )
+                        else
+                            ( y + n - 1, String.length s )
+
+                    _ ->
+                        ( y, x )
+            )
+
+        Deletion from to ->
+            ( from, to )
 
 
 patchCursor : Patch -> Position
@@ -78,14 +89,14 @@ patchCursor patch =
             pos
 
 
-shiftPositionByPatch : Patch -> Position -> Position
-shiftPositionByPatch patch pos =
+shiftPositionByRegionChange : RegionChange -> Position -> Position
+shiftPositionByRegionChange change pos =
     let
         --_ =
-        --Debug.log "patch pos" ( patch, pos, res )
+        --Debug.log "patch pos" ( change, pos, res )
         res =
-            case patch of
-                Insertion begin (TextBuffer lines) ->
+            case change of
+                RegionAdd ( begin, end ) ->
                     if pos < begin then
                         pos
                     else
@@ -96,20 +107,23 @@ shiftPositionByPatch patch pos =
                             ( by, bx ) =
                                 begin
 
+                            ( ey, ex ) =
+                                end
+
                             dy =
-                                Array.length lines - 1
+                                ey - by
 
                             dx =
-                                Array.get dy lines
-                                    |> Maybe.map String.length
-                                    |> Maybe.withDefault 0
+                                ex - bx
                         in
-                            if py == by then
-                                ( py + dy, px + dx )
+                            if dy == 0 then
+                                ( py, px + dx )
+                            else if py == by then
+                                ( py + dy, px + ex )
                             else
                                 ( py + dy, px )
 
-                Deletion begin end ->
+                RegionRemove ( begin, end ) ->
                     if pos < begin then
                         pos
                     else if pos >= end then

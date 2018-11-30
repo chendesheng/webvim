@@ -1419,7 +1419,7 @@ applyVimAST replaying key ast buf =
 
         shiftLocations buf1 =
             let
-                patches =
+                diff =
                     buf1.history.diff
 
                 global1 =
@@ -1428,19 +1428,19 @@ applyVimAST replaying key ast buf =
                 history =
                     buf1.history
             in
-                if List.isEmpty patches then
+                if List.isEmpty diff then
                     buf1
                 else
                     { buf1
                         | history = { history | diff = [] }
                         , global =
                             { global1
-                                | jumps = applyPatchesToJumps patches global1.jumps
+                                | jumps = applyPatchesToJumps diff global1.jumps
                                 , lint =
                                     { items =
                                         Buf.applyPatchesToLintErrors
                                             global1.lint.items
-                                            patches
+                                            diff
 
                                     --|> Debug.log "update lint.items"
                                     , count = global1.lint.count
@@ -1448,7 +1448,7 @@ applyVimAST replaying key ast buf =
                                 , locationList =
                                     applyPatchesToLocations
                                         global1.locationList
-                                        patches
+                                        diff
                             }
                     }
     in

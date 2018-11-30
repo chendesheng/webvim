@@ -6,7 +6,7 @@ module Model exposing (..)
 -- Model should not import Update.Message
 
 import Internal.Position exposing (..)
-import Internal.TextBuffer as B exposing (TextBuffer, Patch(..))
+import Internal.TextBuffer as B exposing (TextBuffer, Patch(..), RegionChange)
 import Dict exposing (Dict)
 import Vim.AST as V exposing (VisualType(..))
 import Internal.Syntax exposing (..)
@@ -296,7 +296,7 @@ type alias BufferHistory =
     , version : Int
 
     -- changes in current message
-    , diff : List Patch
+    , diff : List RegionChange
 
     -- from server
     , lastModified : String
