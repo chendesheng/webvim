@@ -32,12 +32,12 @@ module Update.Buffer
         , clearMessage
         , cIndentRules
         , finalScrollTop
-        , getViewLines
         , scrollViewLines
         , switchVisualEnd
         , shortPath
         , updateHistory
         , applyPatchesToLintErrors
+        , applyDiffToView
         )
 
 import Internal.Position exposing (..)
@@ -165,15 +165,11 @@ applyPatches :
         { lines : TextBuffer
         , patches : List Patch
         , syntax : Syntax
-        , viewLines : List Int
         }
 applyPatches patches buf =
     let
         lines =
             buf.lines
-
-        view =
-            buf.view
 
         scrollTop =
             finalScrollTop buf
@@ -190,18 +186,11 @@ applyPatches patches buf =
                     { lines = lines2
                     , patches = patch2 :: args.patches
                     , syntax = syntax2
-                    , viewLines =
-                        applyPatchToView
-                            (reversedPatchToRegionChange patch2)
-                            scrollTop
-                            view.size.height
-                            args.viewLines
                     }
             )
             { lines = lines
             , patches = []
             , syntax = buf.syntax
-            , viewLines = view.lines
             }
             patches
 
@@ -218,67 +207,6 @@ insert pos s =
 delete : Position -> Position -> Buffer -> Buffer
 delete from to =
     transaction [ Deletion from to ]
-
-
-minLine : Patch -> Int
-minLine patch =
-    case patch of
-        Insertion ( y, _ ) _ ->
-            y
-
-        Deletion ( y1, _ ) ( y2, _ ) ->
-            min y1 y2
-
-
-arrayLast : Array a -> Maybe a
-arrayLast arr =
-    Array.get (Array.length arr - 1) arr
-
-
-getViewLines :
-    Int
-    -> Int
-    -> B.TextBuffer
-    -> Syntax
-    -> List Int
-getViewLines begin end lines syntax =
-    if begin > end then
-        []
-    else
-        List.range begin (end - 1)
-            ++ List.range (B.count lines) (end - 1)
-
-
-max3 : Int -> Int -> Int -> Int
-max3 a b =
-    max b >> max a
-
-
-patchRegion : Patch -> ( Position, Position )
-patchRegion patch =
-    case patch of
-        Insertion ( by, bx ) s ->
-            let
-                n =
-                    B.count s - 1
-
-                ex_ =
-                    B.getLine n s
-                        |> Maybe.withDefault ""
-                        |> String.length
-
-                ex =
-                    if n == 0 then
-                        bx + ex_
-                    else
-                        ex_
-            in
-                ( ( by, bx )
-                , ( by + n, ex )
-                )
-
-        Deletion b e ->
-            ( b, e )
 
 
 applyInsertionToView : Int -> Int -> Int -> Int -> List Int -> List Int
@@ -388,13 +316,23 @@ applyDeletionToViewHelper from to size i viewLines =
             []
 
 
-applyPatchToView : RegionChange -> Int -> Int -> List Int -> List Int
-applyPatchToView patch scrollTop height_ viewLines =
+applyDiffToView : List RegionChange -> Int -> Int -> List Int -> List Int
+applyDiffToView diff scrollTop height viewLines =
+    List.foldl
+        (\change viewLines1 ->
+            applyRegionChangeToView change scrollTop height viewLines1
+        )
+        viewLines
+        diff
+
+
+applyRegionChangeToView : RegionChange -> Int -> Int -> List Int -> List Int
+applyRegionChangeToView change scrollTop height_ viewLines =
     let
         height =
             height_ + 2
     in
-        case patch of
+        case change of
             RegionAdd ( ( by, bx ), ( ey, ex ) ) ->
                 applyInsertionToView by (ey - by) scrollTop height viewLines
 
@@ -432,9 +370,6 @@ transaction patches buf =
                         ( syntax, _ ) =
                             applyPatchToSyntax patch buf_.syntax
 
-                        view =
-                            buf_.view
-
                         --_ =
                         --    Debug.log "patch1" patch1
                         --_ =
@@ -455,17 +390,6 @@ transaction patches buf =
                                         |> B.patchCursor
                                         |> Tuple.first
                                     )
-                            , view =
-                                { view
-                                    | lines =
-                                        applyPatchToView
-                                            (reversedPatchToRegionChange patch1)
-                                            scrollTop
-                                            view.size.height
-                                            view.lines
-
-                                    --|> Debug.log "view.lines after"
-                                }
                           }
                         , patch1 :: undoPatches_
                         )
@@ -657,9 +581,6 @@ undo buf =
                                     List.map reversedPatchToRegionChange res.patches
                                         ++ history.diff
                             }
-
-                    view =
-                        buf.view
                 in
                     { buf
                         | lines = res.lines
@@ -674,7 +595,6 @@ undo buf =
                                     (Tuple.first >> min buf.syntaxDirtyFrom)
                                 |> Maybe.withDefault buf.syntaxDirtyFrom
                         , history = undoHistory buf.history
-                        , view = { view | lines = res.viewLines }
                     }
             )
         |> Maybe.withDefault buf
@@ -726,9 +646,6 @@ redo buf =
                             |> List.map B.patchCursor
                             |> List.minimum
                             |> Maybe.withDefault buf.cursor
-
-                    view =
-                        buf.view
                 in
                     { buf
                         | lines = res.lines
@@ -743,7 +660,6 @@ redo buf =
                                     (Tuple.first >> min buf.syntaxDirtyFrom)
                                 |> Maybe.withDefault buf.syntaxDirtyFrom
                         , history = redoHistory buf.history
-                        , view = { view | lines = res.viewLines }
                     }
             )
         |> Maybe.withDefault buf

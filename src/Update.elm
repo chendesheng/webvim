@@ -1427,12 +1427,24 @@ applyVimAST replaying key ast buf =
 
                 history =
                     buf1.history
+
+                view =
+                    buf1.view
             in
                 if List.isEmpty diff then
                     buf1
                 else
                     { buf1
                         | history = { history | diff = [] }
+                        , view =
+                            { view
+                                | lines =
+                                    Buf.applyDiffToView
+                                        diff
+                                        view.scrollTop
+                                        view.size.height
+                                        view.lines
+                            }
                         , global =
                             { global1
                                 | jumps = applyPatchesToJumps diff global1.jumps

@@ -126,25 +126,19 @@ currentLocation { forwards } =
 
 applyPatchesToLocations : List Location -> List RegionChange -> List Location
 applyPatchesToLocations locations changes =
-    let
-        _ =
-            Debug.log "applyPatchesToLocations" ( locations, changes )
-    in
-        (List.foldl
-            (\change result ->
-                List.map
-                    (\loc ->
-                        { loc
-                            | cursor =
-                                shiftPositionByRegionChange change loc.cursor
-                        }
-                    )
-                    result
-            )
-            locations
-            changes
+    List.foldl
+        (\change result ->
+            List.map
+                (\loc ->
+                    { loc
+                        | cursor =
+                            shiftPositionByRegionChange change loc.cursor
+                    }
+                )
+                result
         )
-            |> Debug.log "result"
+        locations
+        changes
 
 
 applyPatchesToJumps : List RegionChange -> Jumps -> Jumps
