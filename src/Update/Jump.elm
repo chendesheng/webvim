@@ -58,7 +58,7 @@ tokenizeBufferCmd buf =
                 buf.syntaxDirtyFrom
 
             end =
-                Buf.finalScrollTop buf + 2 * buf.view.size.height
+                Buf.finalScrollTop buf + 2 * buf.global.size.height
 
             lines =
                 if begin < end then
@@ -108,7 +108,7 @@ jumpTo isSaveJump info buf =
                 |> Buf.setCursor cursor True
                 |> Buf.setScrollTop
                     (Buf.bestScrollTop (Tuple.first cursor)
-                        buf.view.size.height
+                        global.size.height
                         buf.lines
                         buf.view.scrollTop
                     )
@@ -160,7 +160,7 @@ editBuffer restoreHistory info buf =
     if info.path /= "" && info.content == Nothing then
         ( buf
         , sendReadBuffer buf.global.service
-            (Tuple.first info.cursor + buf.view.size.height * 2)
+            (Tuple.first info.cursor + buf.global.size.height * 2)
             buf.config.tabSize
             info
         )
@@ -260,7 +260,7 @@ newBuffer info buf =
             Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
 
         height =
-            buf.view.size.height
+            buf.global.size.height
 
         scrollTop =
             Buf.bestScrollTop (Tuple.first cursor)
@@ -276,9 +276,7 @@ newBuffer info buf =
             }
         , view =
             { emptyView
-                | size = buf.view.size
-                , lineHeight = buf.view.lineHeight
-                , scrollTopPx = scrollTop * buf.view.lineHeight
+                | scrollTopPx = scrollTop * buf.global.lineHeight
                 , scrollTop = scrollTop
                 , lines =
                     List.range scrollTop (scrollTop + height + 1)
@@ -309,7 +307,7 @@ jumpByView factor buf =
             buf.view
 
         height =
-            view.size.height
+            buf.global.size.height
 
         lineScope row =
             row

@@ -117,18 +117,18 @@ formatBuffer buf =
                         B.getLine n buf.lines
                             |> Maybe.map (addPrefix "||      ")
                     )
-                |> List.take buf.view.size.height
+                |> List.take buf.global.size.height
                 |> Array.fromList
 
         --middle1 =
         --    buf.lines
         --        |> B.sliceLines buf.view.scrollTop
-        --            (buf.view.scrollTop + buf.view.size.height)
+        --            (buf.view.scrollTop + buf.global.size.height)
         --        |> B.mapLines (addPrefix "||      ")
         bottom =
             buf.lines
                 |> B.sliceLines
-                    (buf.view.scrollTop + buf.view.size.height)
+                    (buf.view.scrollTop + buf.global.size.height)
                     (B.count buf.lines)
                 |> B.mapLines (addPrefix "|       ")
 
@@ -226,7 +226,7 @@ formatBuffer buf =
         emptyLines =
             List.repeat
                 (Basics.max
-                    (buf.view.size.height
+                    (buf.global.size.height
                         - (lines
                             |> List.filter isVisible
                             |> List.length
@@ -273,13 +273,16 @@ newBuffer mode cursor height scrollTop text =
             | cursor = cursor
             , cursorColumn = Tuple.second cursor
             , mode = mode
-            , view =
-                { view
+            , global =
+                { emptyGlobal
                     | size =
                         { width = 100
                         , height = height
                         }
-                    , scrollTop = scrollTop
+                }
+            , view =
+                { view
+                    | scrollTop = scrollTop
                     , lines =
                         List.range scrollTop (scrollTop + height + 1)
                 }
@@ -530,8 +533,8 @@ testDataParser =
                             in
                                 P.succeed
                                     { emptyBuffer
-                                        | view =
-                                            { emptyView
+                                        | global =
+                                            { emptyGlobal
                                                 | size =
                                                     { width = 1
                                                     , height = height

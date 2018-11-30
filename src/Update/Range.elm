@@ -173,7 +173,7 @@ operatorRanges count range buf =
                     |> expandTextObject
                         buf.config.wordChars
                         buf.view.scrollTop
-                        buf.view.size.height
+                        buf.global.size.height
                         buf.syntax
                         textObject
                         around

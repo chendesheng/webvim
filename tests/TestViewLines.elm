@@ -14,13 +14,13 @@ resize height buf =
     let
         view =
             buf.view
+
+        global =
+            buf.global
     in
         { buf
-            | view =
-                { view
-                    | size = { height = height, width = 1 }
-                    , lines = List.range 0 (height + 1)
-                }
+            | view = { view | lines = List.range 0 (height + 1) }
+            , global = { global | size = { height = height, width = 1 } }
         }
 
 
@@ -33,7 +33,7 @@ applyPatches height patches =
                 |> transaction patches
     in
         Expect.equal
-            (List.range buf.view.scrollTop (buf.view.scrollTop + buf.view.size.height + 1))
+            (List.range buf.view.scrollTop (buf.view.scrollTop + buf.global.size.height + 1))
             (List.sort buf.view.lines)
 
 

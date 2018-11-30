@@ -257,7 +257,7 @@ updateMode modeName buf =
                 { view
                     | lines =
                         Buf.scrollViewLines
-                            view.size.height
+                            global.size.height
                             scrollFrom
                             scrollTo
                             view.lines
@@ -449,7 +449,7 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                                                     matchAllStrings
                                                         re
                                                         scrollFrom
-                                                        (scrollFrom + buf.view.size.height)
+                                                        (scrollFrom + buf.global.size.height)
                                                         buf.lines
                                             }
 
@@ -497,7 +497,7 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                                 { view
                                     | lines =
                                         Buf.scrollViewLines
-                                            view.size.height
+                                            global.size.height
                                             scrollFrom
                                             scrollTo
                                             view.lines
@@ -619,6 +619,9 @@ scroll count value buf =
 
         scrollInner buf_ =
             let
+                size =
+                    buf_.global.size
+
                 y =
                     Tuple.first buf_.cursor
 
@@ -634,10 +637,10 @@ scroll count value buf =
                             y
 
                         V.ScrollToBottom ->
-                            y - buf_.view.size.height - 2 + 1
+                            y - size.height - 2 + 1
 
                         V.ScrollToMiddle ->
-                            y - (buf_.view.size.height - 2) // 2
+                            y - (size.height - 2) // 2
             in
                 Buf.setScrollTop (scope y1) buf_
     in
@@ -771,7 +774,7 @@ runOperator count register operator buf =
             )
 
         ToggleTip ->
-            ( Buf.setShowTip (not buf.view.showTip) buf, Cmd.none )
+            ( Buf.setShowTip (not buf.global.showTip) buf, Cmd.none )
 
         SelectAutoComplete forward ->
             case buf.mode of
@@ -1379,7 +1382,7 @@ applyVimAST replaying key ast buf =
             if
                 (pairSource oldBuf /= pairSource buf_)
                     || (oldBuf.view.scrollTop /= buf_.view.scrollTop)
-                    || (oldBuf.view.size /= buf_.view.size)
+                    || (oldBuf.global.size /= buf_.global.size)
                     || (oldBuf.lines /= buf_.lines)
                     || (oldBuf.syntax /= buf_.syntax)
             then
@@ -1417,6 +1420,7 @@ applyVimAST replaying key ast buf =
             else
                 ( buf_, cmds )
 
+        shiftLocations : Buffer -> Buffer
         shiftLocations buf1 =
             let
                 diff =
@@ -1442,7 +1446,7 @@ applyVimAST replaying key ast buf =
                                     Buf.applyDiffToView
                                         diff
                                         view.scrollTop
-                                        view.size.height
+                                        global1.size.height
                                         view.lines
                             }
                         , global =
@@ -1622,13 +1626,13 @@ onMouseWheel delta buf =
         view =
             buf.view
 
+        lineHeight =
+            buf.global.lineHeight
+
         scrollTopPx =
             (view.scrollTopPx + delta)
                 |> max 0
-                |> min ((B.count buf.lines - 2) * buf.view.lineHeight)
-
-        lineHeight =
-            buf.view.lineHeight
+                |> min ((B.count buf.lines - 2) * lineHeight)
 
         scrollTopDelta =
             scrollTopPx // lineHeight - buf.view.scrollTop
@@ -1913,19 +1917,17 @@ onResize size buf =
     let
         newHeight =
             getViewHeight size.height
-                buf.view.lineHeight
-                buf.view.statusbarHeight
+                buf.global.lineHeight
+                buf.global.statusbarHeight
+
+        global =
+            buf.global
     in
-        buf
+        { buf | global = { global | size = { width = size.width, height = newHeight } } }
             |> Buf.updateView
                 (\view ->
                     { view
-                        | size =
-                            { width =
-                                size.width
-                            , height = newHeight
-                            }
-                        , lines =
+                        | lines =
                             List.range
                                 view.scrollTop
                                 (view.scrollTop + newHeight + 1)
@@ -2125,22 +2127,13 @@ init flags =
             flags
 
         viewHeight =
-            getViewHeight height lineHeight emptyBuffer.view.statusbarHeight
+            getViewHeight height lineHeight emptyBuffer.global.statusbarHeight
 
         cwd1 =
             if String.isEmpty cwd then
                 "."
             else
                 cwd
-
-        view =
-            { emptyView
-                | lineHeight = lineHeight
-                , size =
-                    { width = 1
-                    , height = viewHeight
-                    }
-            }
 
         activeBuf =
             activeBuffer
@@ -2151,12 +2144,16 @@ init flags =
             editBuffer False
                 activeBuf
                 { emptyBuffer
-                    | view = view
+                    | view = emptyView
                     , path = activeBuf.path
                     , history = activeBuf.history
                     , global =
                         { emptyGlobal
                             | service = service
+                            , size =
+                                { width = 1
+                                , height = viewHeight
+                                }
                             , exHistory = exHistory
                             , cwd = cwd1
                             , pathSeperator = pathSeperator
@@ -2171,6 +2168,7 @@ init flags =
                                     |> Decode.decodeValue (Decode.list bufferInfoDecoder)
                                     |> Result.withDefault []
                                     |> fromListBy .path
+                            , lineHeight = lineHeight
                         }
                 }
     in

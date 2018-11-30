@@ -970,10 +970,10 @@ configs =
 setShowTip : Bool -> Buffer -> Buffer
 setShowTip showTip buf =
     let
-        view =
-            buf.view
+        global =
+            buf.global
     in
-        { buf | view = { view | showTip = showTip } }
+        { buf | global = { global | showTip = showTip } }
 
 
 isDirty : Buffer -> Bool
@@ -1101,24 +1101,31 @@ setScrollTop n buf =
     if n == buf.view.scrollTop then
         buf
     else
-        updateView
-            (\v ->
-                { v
-                    | scrollTop = n
-                    , scrollTopPx =
-                        if n == v.scrollTopPx // v.lineHeight then
-                            v.scrollTopPx
-                        else
-                            n * buf.view.lineHeight
-                    , lines =
-                        scrollViewLines
-                            v.size.height
-                            v.scrollTop
-                            n
-                            v.lines
-                }
-            )
-            buf
+        let
+            lineHeight =
+                buf.global.lineHeight
+
+            height =
+                buf.global.size.height
+        in
+            updateView
+                (\v ->
+                    { v
+                        | scrollTop = n
+                        , scrollTopPx =
+                            if n == v.scrollTopPx // lineHeight then
+                                v.scrollTopPx
+                            else
+                                n * lineHeight
+                        , lines =
+                            scrollViewLines
+                                height
+                                v.scrollTop
+                                n
+                                v.lines
+                    }
+                )
+                buf
 
 
 bestScrollTop : Int -> Int -> B.TextBuffer -> Int -> Int
@@ -1289,7 +1296,7 @@ finalScrollTop buf =
                                     (Tuple.first begin)
                                     (Tuple.first end)
                                 )
-                                buf.view.size.height
+                                buf.global.size.height
                                 buf.lines
                                 buf.view.scrollTop
 

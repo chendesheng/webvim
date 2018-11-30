@@ -273,12 +273,6 @@ type alias View =
     , scrollLeft : Int
     , matchedCursor : Maybe ( Position, Position )
     , lines : List Int
-    , size : Size
-
-    -- TODO: move to global
-    , statusbarHeight : Int
-    , showTip : Bool
-    , lineHeight : Int
     }
 
 
@@ -381,6 +375,10 @@ type alias Global =
     , jumps : Jumps
     , lint : BufferLint
     , locationList : List Location
+    , statusbarHeight : Int
+    , showTip : Bool
+    , lineHeight : Int
+    , size : Size
     }
 
 
@@ -436,12 +434,8 @@ emptyView =
     { scrollTop = 0
     , scrollTopPx = 0
     , scrollLeft = 0
-    , showTip = False
     , matchedCursor = Nothing
     , lines = [ 0, 1, 2 ]
-    , size = { width = 1, height = 1 }
-    , statusbarHeight = 1
-    , lineHeight = 21
     }
 
 
@@ -537,6 +531,10 @@ emptyGlobal =
         }
     , lint = { items = [], count = 0 }
     , locationList = []
+    , showTip = False
+    , statusbarHeight = 1
+    , lineHeight = 21
+    , size = { width = 1, height = 1 }
     }
 
 

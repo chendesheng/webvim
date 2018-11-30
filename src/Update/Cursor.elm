@@ -11,13 +11,13 @@ import Internal.Brackets exposing (pairBracketAt)
 {-| scroll to ensure pos it is insdie viewport
 -}
 scrollTo : Int -> Buffer -> Buffer
-scrollTo y ({ view, lines } as buf) =
+scrollTo y ({ view, lines, global } as buf) =
     let
         miny =
             view.scrollTop
 
         maxy =
-            miny + view.size.height - 1
+            miny + global.size.height - 1
 
         scrollTop =
             if miny > y then
@@ -109,20 +109,20 @@ correctPosition pos excludeLineBreak lines =
 {-| move cursor ensure cursor is insdie viewport
 -}
 cursorScope : Buffer -> Buffer
-cursorScope ({ view, cursor, lines } as buf) =
+cursorScope ({ view, cursor, lines, global } as buf) =
     let
         ( y, x ) =
             cursor
 
         scrollTop =
-            if remainderBy buf.view.lineHeight view.scrollTopPx > 0 then
+            if remainderBy buf.global.lineHeight view.scrollTopPx > 0 then
                 view.scrollTop + 1
             else
                 view.scrollTop
 
         maxy =
             min
-                (scrollTop + view.size.height - 1)
+                (scrollTop + global.size.height - 1)
                 (max 0 (B.count lines - 2))
 
         miny =
@@ -183,7 +183,7 @@ pairCursor buf =
                         cursor
                             |> pairBracketAt
                                 buf.view.scrollTop
-                                (buf.view.scrollTop + buf.view.size.height)
+                                (buf.view.scrollTop + buf.global.size.height)
                                 buf.lines
                                 buf.syntax
                             |> Maybe.map (Tuple.pair cursor)

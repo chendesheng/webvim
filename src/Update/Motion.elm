@@ -458,7 +458,7 @@ runMotion count md mo buf =
             bottomLine buf_ =
                 (min
                     (B.count buf_.lines - 1)
-                    (buf_.view.scrollTop + buf_.view.size.height)
+                    (buf_.view.scrollTop + buf_.global.size.height)
                 )
                     - 1
 
@@ -945,7 +945,7 @@ motion count md mo buf =
                 centerScrollTop =
                     Buf.bestScrollTop
                         (Tuple.first cursor)
-                        buf.view.size.height
+                        buf.global.size.height
                         buf.lines
                         buf.view.scrollTop
 

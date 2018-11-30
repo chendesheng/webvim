@@ -88,8 +88,11 @@ pageDom buf =
         { mode, cursor, lines, syntax, continuation, view, history } =
             buf
 
-        { fontInfo, isSafari, ime, lint } =
+        global =
             buf.global
+
+        { fontInfo, isSafari, ime, lint, lineHeight } =
+            global
 
         ime1 =
             { ime | isSafari = isSafari }
@@ -98,10 +101,10 @@ pageDom buf =
             view.scrollTop
 
         height =
-            view.size.height + 2
+            global.size.height + 2
 
         topOffsetPx =
-            remainderBy view.lineHeight view.scrollTopPx
+            remainderBy lineHeight view.scrollTopPx
 
         totalLines =
             B.count lines - 1
@@ -135,16 +138,13 @@ pageDom buf =
                     False
 
                 _ ->
-                    view.showTip
+                    global.showTip
 
         gutterWidth =
             totalLines |> String.fromInt |> String.length
 
         relativeGutterWidth =
             4
-
-        lineHeight =
-            buf.view.lineHeight
 
         scrollingCss =
             scrollingStyle
@@ -209,7 +209,7 @@ pageDom buf =
                         :: div [ class "ruler" ] []
                         :: renderCursor fontInfo ime1 lines "" maybeCursor
                         :: renderTip
-                            buf.view.size.width
+                            global.size.width
                             lint.items
                             maybeCursor
                             showTip
