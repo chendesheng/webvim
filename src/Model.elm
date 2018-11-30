@@ -267,20 +267,12 @@ type alias ExMode =
     }
 
 
-type alias ViewLine =
-    { lineNumber : Int
-    , text : String
-    , tokens : List Token
-    }
-
-
 type alias View =
     { scrollTop : Int
     , scrollTopPx : Int
     , scrollLeft : Int
-    , startPosition : Position
     , matchedCursor : Maybe ( Position, Position )
-    , lines : List (Maybe ViewLine)
+    , lines : List Int
     , size : Size
 
     -- TODO: move to global
@@ -303,8 +295,13 @@ type alias BufferHistory =
     , savePoint : Int
     , version : Int
 
+    -- changes in current message
+    , diff : List Patch
+
     -- from server
     , lastModified : String
+
+    -- for persistent
     , changes : List Patch
     , pendingChanges : List Patch
     }
@@ -320,6 +317,7 @@ emptyBufferHistory =
     , lastModified = ""
     , changes = []
     , pendingChanges = []
+    , diff = []
     }
 
 
@@ -349,9 +347,6 @@ type alias Buffer =
     , continuation : String
     , dirtyIndent : Int
     , motionFailed : Bool
-    , jumps : Jumps
-    , lint : BufferLint
-    , locationList : List Location
     , global : Global
     }
 
@@ -383,6 +378,9 @@ type alias Global =
         , ex : String
         , jumpToTag : Maybe Location
         }
+    , jumps : Jumps
+    , lint : BufferLint
+    , locationList : List Location
     }
 
 
@@ -438,14 +436,9 @@ emptyView =
     { scrollTop = 0
     , scrollTopPx = 0
     , scrollLeft = 0
-    , startPosition = ( 0, 0 )
     , showTip = False
     , matchedCursor = Nothing
-    , lines =
-        [ Just { lineNumber = 0, text = "\n", tokens = [] }
-        , Just { lineNumber = 1, text = "", tokens = [] }
-        , Nothing
-        ]
+    , lines = [ 0, 1, 2 ]
     , size = { width = 1, height = 1 }
     , statusbarHeight = 1
     , lineHeight = 21
@@ -504,15 +497,6 @@ emptyBuffer =
 
     -- global state will persist when swithing between buffers
     , global = emptyGlobal
-
-    -- TODO: add a location pool, move to global
-    -- locations : Dict BufferId (Dict Int Position)
-    , jumps =
-        { backwards = []
-        , forwards = []
-        }
-    , lint = { items = [], count = 0 }
-    , locationList = []
     }
 
 
@@ -544,6 +528,15 @@ emptyGlobal =
         , jumpToTag = Nothing
         }
     , vimASTCache = Dict.empty
+
+    -- TODO: add a location pool
+    -- locations : Dict BufferId (Dict Int Position)
+    , jumps =
+        { backwards = []
+        , forwards = []
+        }
+    , lint = { items = [], count = 0 }
+    , locationList = []
     }
 
 
@@ -636,6 +629,7 @@ historyDecoder =
             , lastModified = lastModified
             , changes = changes
             , pendingChanges = []
+            , diff = []
             }
         )
         (Decode.field "version" Decode.int)

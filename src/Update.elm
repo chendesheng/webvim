@@ -34,7 +34,12 @@ import Update.Service exposing (..)
 import Update.Yank exposing (yank, put, yankWholeBuffer)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
 import Array as Array exposing (Array)
-import Internal.Jumps exposing (Location)
+import Internal.Jumps
+    exposing
+        ( Location
+        , applyPatchesToJumps
+        , applyPatchesToLocations
+        )
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Position exposing (positionShiftLeft)
 import Update.AutoComplete exposing (..)
@@ -252,8 +257,6 @@ updateMode modeName buf =
                 { view
                     | lines =
                         Buf.scrollViewLines
-                            buf1.lines
-                            buf1.syntax
                             view.size.height
                             scrollFrom
                             scrollTo
@@ -494,8 +497,6 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                                 { view
                                     | lines =
                                         Buf.scrollViewLines
-                                            buf2.lines
-                                            buf2.syntax
                                             view.size.height
                                             scrollFrom
                                             scrollTo
@@ -1217,7 +1218,7 @@ execute count register str buf =
                     n =
                         (Maybe.withDefault 1 count) - 1
                 in
-                    case nthList n buf.locationList of
+                    case nthList n buf.global.locationList of
                         Just loc ->
                             jumpToLocation True loc buf
 
@@ -1415,6 +1416,41 @@ applyVimAST replaying key ast buf =
                 ( buf_, focusHiddenInput :: cmds )
             else
                 ( buf_, cmds )
+
+        shiftLocations buf1 =
+            let
+                patches =
+                    buf1.history.diff
+
+                global1 =
+                    buf1.global
+
+                history =
+                    buf1.history
+            in
+                if List.isEmpty patches then
+                    buf1
+                else
+                    { buf1
+                        | history = { history | diff = [] }
+                        , global =
+                            { global1
+                                | jumps = applyPatchesToJumps patches global1.jumps
+                                , lint =
+                                    { items =
+                                        Buf.applyPatchesToLintErrors
+                                            global1.lint.items
+                                            patches
+
+                                    --|> Debug.log "update lint.items"
+                                    , count = global1.lint.count
+                                    }
+                                , locationList =
+                                    applyPatchesToLocations
+                                        global1.locationList
+                                        patches
+                            }
+                    }
     in
         buf
             |> applyEdit count edit register
@@ -1426,6 +1462,7 @@ applyVimAST replaying key ast buf =
                     >> scrollToCursor
                     >> saveDotRegister replaying
                     >> setMatchedCursor buf
+                    >> shiftLocations
                 )
             |> Tuple.mapSecond List.singleton
             |> doLint buf
@@ -1448,31 +1485,10 @@ onTokenized buf resp =
 
                         view =
                             buf.view
-
-                        updateViewLineSyntax ({ lineNumber } as viewLine) =
-                            if
-                                (begin <= lineNumber)
-                                    && (lineNumber < Array.length syntax1)
-                            then
-                                case Array.get lineNumber syntax1 of
-                                    Just tokens ->
-                                        { viewLine | tokens = tokens }
-
-                                    _ ->
-                                        viewLine
-                            else
-                                viewLine
                       in
                         { buf
                             | syntax = syntax1
                             , syntaxDirtyFrom = Array.length syntax1
-                            , view =
-                                { view
-                                    | lines =
-                                        view.lines
-                                            |> List.map
-                                                (Maybe.map updateViewLineSyntax)
-                                }
                         }
                             |> pairCursor
                     , Cmd.none
@@ -1557,14 +1573,20 @@ applyLintItems items buf =
                     }
                 )
                 items
+
+        global =
+            buf.global
     in
         { buf
-            | lint =
-                { items = items1
-                , count = List.length items1
+            | global =
+                { global
+                    | lint =
+                        { items = items1
+                        , count = List.length items1
+                        }
+                    , locationList =
+                        lintErrorToLocationList items1
                 }
-            , locationList =
-                lintErrorToLocationList items1
         }
 
 
@@ -1624,7 +1646,8 @@ update message buf =
                 (\key_ ( buf_, cmds ) ->
                     let
                         ( buf1, cmd ) =
-                            handleKeypress False key_ buf_
+                            buf_
+                                |> handleKeypress False key_
                     in
                         ( buf1, cmd :: cmds )
                 )
@@ -1891,12 +1914,9 @@ onResize size buf =
                             , height = newHeight
                             }
                         , lines =
-                            Buf.getViewLines
+                            List.range
                                 view.scrollTop
-                                (view.scrollTop + newHeight + 2)
-                                buf.lines
-                                buf.syntax
-                                |> Buf.fillEmptyViewLines newHeight
+                                (view.scrollTop + newHeight + 1)
                     }
                 )
             |> cursorScope
@@ -2115,16 +2135,12 @@ init flags =
                 |> Decode.decodeValue bufferInfoDecoder
                 |> Result.withDefault emptyBufferInfo
 
-        jumps =
-            emptyBuffer.jumps
-
         ( buf, cmd ) =
             editBuffer False
                 activeBuf
                 { emptyBuffer
                     | view = view
                     , path = activeBuf.path
-                    , jumps = jumps
                     , history = activeBuf.history
                     , global =
                         { emptyGlobal

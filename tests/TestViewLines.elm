@@ -5,7 +5,7 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import Update.Buffer exposing (..)
 import TextBuffer exposing (..)
-import Model exposing (Buffer, emptyBuffer, ViewLine)
+import Model exposing (Buffer, emptyBuffer)
 import Internal.TextBuffer exposing (Patch(..), fromString)
 
 
@@ -19,14 +19,9 @@ resize height buf =
             | view =
                 { view
                     | size = { height = height, width = 1 }
-                    , lines = fillEmptyViewLines height view.lines
+                    , lines = List.range 0 (height + 1)
                 }
         }
-
-
-ignoreSyntax : ViewLine -> ViewLine
-ignoreSyntax viewLine =
-    { viewLine | tokens = [] }
 
 
 applyPatches : Int -> List Patch -> Expectation
@@ -38,16 +33,8 @@ applyPatches height patches =
                 |> transaction patches
     in
         Expect.equal
-            (getViewLines buf.view.scrollTop
-                (buf.view.scrollTop + buf.view.size.height + 2)
-                buf.lines
-                buf.syntax
-                |> List.filterMap (Maybe.map ignoreSyntax)
-            )
-            (buf.view.lines
-                |> List.filterMap (Maybe.map ignoreSyntax)
-                |> List.sortBy .lineNumber
-            )
+            (List.range buf.view.scrollTop (buf.view.scrollTop + buf.view.size.height + 1))
+            (List.sort buf.view.lines)
 
 
 suite : Test

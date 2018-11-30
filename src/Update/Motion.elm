@@ -869,6 +869,9 @@ saveCursorBeforeJump md cursorAfter buf =
 
                 _ ->
                     False
+
+        global =
+            buf.global
     in
         if buf.cursor /= cursorAfter && isJump md then
             let
@@ -877,9 +880,9 @@ saveCursorBeforeJump md cursorAfter buf =
                         { path = buf.path
                         , cursor = buf.cursor
                         }
-                        buf.jumps
+                        global.jumps
             in
-                { buf | jumps = jumps }
+                { buf | global = { global | jumps = jumps } }
         else
             buf
 

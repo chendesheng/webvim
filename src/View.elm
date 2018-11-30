@@ -88,7 +88,7 @@ pageDom buf =
         { mode, cursor, lines, syntax, continuation, view, history } =
             buf
 
-        { fontInfo, isSafari, ime } =
+        { fontInfo, isSafari, ime, lint } =
             buf.global
 
         ime1 =
@@ -204,13 +204,13 @@ pageDom buf =
                         :: renderLineGuide maybeCursor
                         :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
                         :: renderHighlights fontInfo scrollTop1 lines highlights
-                        :: lazy4 renderLint fontInfo scrollTop1 lines buf.lint.items
-                        :: lazy renderLines view.lines
+                        :: lazy4 renderLint fontInfo scrollTop1 lines lint.items
+                        :: lazy3 renderLines lines syntax view.lines
                         :: div [ class "ruler" ] []
                         :: renderCursor fontInfo ime1 lines "" maybeCursor
                         :: renderTip
                             buf.view.size.width
-                            buf.lint.items
+                            lint.items
                             maybeCursor
                             showTip
                         :: renderMatchedCursor
@@ -227,7 +227,7 @@ pageDom buf =
                 (Buf.isDirty buf)
                 mode
                 continuation
-                buf.lint.items
+                lint.items
                 buf.name
              , div [ style "display" "none" ]
                 ([ lazy saveRegisters buf.global.registers
@@ -1085,31 +1085,28 @@ renderGutterHighlight offset highlightLine =
         [ text <| String.fromInt <| (highlightLine + 1) ]
 
 
-renderGutterInner : Int -> Int -> List (Maybe ViewLine) -> Html msg
+renderGutterInner : Int -> Int -> List Int -> Html msg
 renderGutterInner totalLines highlightLine viewLines =
     div
         [ class "gutter"
         , class "absolute-gutter"
         ]
-        (List.filterMap
-            (Maybe.andThen
-                (\{ lineNumber } ->
-                    if lineNumber < totalLines then
-                        div
-                            ([ classList
-                                [ ( "line-number-highlight"
-                                  , highlightLine == lineNumber
-                                  )
-                                , ( "line-number", True )
-                                ]
-                             , style "top" <| rem lineNumber
-                             ]
-                            )
-                            [ text (String.fromInt (lineNumber + 1)) ]
-                            |> Just
-                    else
-                        Nothing
-                )
+        (List.map
+            (\lineNumber ->
+                if lineNumber < totalLines then
+                    div
+                        ([ classList
+                            [ ( "line-number-highlight"
+                              , highlightLine == lineNumber
+                              )
+                            , ( "line-number", True )
+                            ]
+                         , style "top" <| rem lineNumber
+                         ]
+                        )
+                        [ text (String.fromInt (lineNumber + 1)) ]
+                else
+                    div [] []
             )
             viewLines
         )
@@ -1120,7 +1117,7 @@ renderGutter :
     -> Int
     -> Int
     -> Int
-    -> List (Maybe ViewLine)
+    -> List Int
     -> Html msg
 renderGutter scrollingCss totalWidth highlightLine totalLines viewLines =
     div
@@ -1219,24 +1216,33 @@ scrollingStyle lineHeight topOffsetPx totalLines height scrollTop =
 
 
 renderLine : List Token -> String -> Html msg
-renderLine tokens text =
+renderLine tokens s =
     div []
-        (renderTokens tokens text 0)
+        (renderTokens tokens s 0)
 
 
-renderLines : List (Maybe ViewLine) -> Html msg
-renderLines viewLines =
+renderLines : B.TextBuffer -> Syntax -> List Int -> Html msg
+renderLines lines syntax viewLines =
     div
         [ class "lines" ]
-        (List.filterMap
-            (Maybe.map
-                (\viewLine ->
-                    div
-                        [ class "line"
-                        , style "top" <| rem viewLine.lineNumber
-                        ]
-                        [ lazy2 renderLine viewLine.tokens viewLine.text ]
-                )
+        (List.map
+            (\lineNumber ->
+                div
+                    [ class "line"
+                    , style "top" <| rem lineNumber
+                    ]
+                    (case B.getLine lineNumber lines of
+                        Just text ->
+                            case Array.get lineNumber syntax of
+                                Just tokens ->
+                                    [ lazy2 renderLine tokens text ]
+
+                                _ ->
+                                    [ lazy2 renderLine [] text ]
+
+                        _ ->
+                            []
+                    )
             )
             viewLines
         )

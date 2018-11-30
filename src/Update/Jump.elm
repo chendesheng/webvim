@@ -94,14 +94,17 @@ jumpTo isSaveJump info buf =
         { path, cursor } =
             info
 
+        global =
+            buf.global
+
         jumps =
             if isSaveJump then
-                saveJump { path = buf.path, cursor = buf.cursor } buf.jumps
+                saveJump { path = buf.path, cursor = buf.cursor } global.jumps
             else
-                buf.jumps
+                global.jumps
     in
         if path == buf.path then
-            { buf | jumps = jumps }
+            { buf | global = { global | jumps = jumps } }
                 |> Buf.setCursor cursor True
                 |> Buf.setScrollTop
                     (Buf.bestScrollTop (Tuple.first cursor)
@@ -113,7 +116,7 @@ jumpTo isSaveJump info buf =
         else
             editBuffer False
                 info
-                { buf | jumps = jumps }
+                { buf | global = { global | jumps = jumps } }
 
 
 jumpToLocation : Bool -> Location -> Buffer -> ( Buffer, Cmd Msg )
@@ -278,15 +281,9 @@ newBuffer info buf =
                 , scrollTopPx = scrollTop * buf.view.lineHeight
                 , scrollTop = scrollTop
                 , lines =
-                    Buf.getViewLines
-                        scrollTop
-                        (scrollTop + height + 2)
-                        lines
-                        syntax
-                        |> Buf.fillEmptyViewLines height
+                    List.range scrollTop (scrollTop + height + 1)
             }
         , cursor = cursor
-        , lint = { items = [], count = 0 }
         , cursorColumn = Tuple.second cursor
         , path = path
         , name = name ++ ext
@@ -295,9 +292,7 @@ newBuffer info buf =
         , syntaxDirtyFrom = Array.length syntax
         , continuation = ""
         , dirtyIndent = 0
-        , locationList = []
         , motionFailed = False
-        , jumps = buf.jumps
         , global = buf.global
         }
             |> correctCursor
@@ -406,21 +401,24 @@ locationParser =
 jumpHistory : Bool -> Buffer -> ( Buffer, Cmd Msg )
 jumpHistory isForward buf =
     let
+        global =
+            buf.global
+
         jumps =
             if isForward then
-                jumpForward buf.jumps
+                jumpForward global.jumps
             else
                 jumpBackward
                     { path = buf.path
                     , cursor = buf.cursor
                     }
-                    buf.jumps
+                    global.jumps
     in
         case currentLocation jumps of
             Just loc ->
                 jumpToLocation False
                     loc
-                    { buf | jumps = jumps }
+                    { buf | global = { global | jumps = jumps } }
 
             _ ->
                 ( buf, Cmd.none )

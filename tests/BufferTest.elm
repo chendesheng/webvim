@@ -72,6 +72,9 @@ suite =
                             B.fromString "123"
                         ]
                         emptyBuffer
+
+                history =
+                    buf.history
             in
                 [ test "result.cursor" <|
                     \_ ->
@@ -97,7 +100,7 @@ suite =
                                         B.fromString "123"
                                     ]
                             }
-                            buf.history
+                            { history | diff = [] }
                 ]
         , describe "insert patches" <|
             let
@@ -107,6 +110,9 @@ suite =
                         , Insertion ( 1, 0 ) <| B.fromString "123"
                         ]
                         emptyBuffer
+
+                history =
+                    buf.history
             in
                 [ test "result.cursor" <|
                     \_ ->
@@ -132,7 +138,7 @@ suite =
                                     , Insertion ( 1, 0 ) <| B.fromString "123"
                                     ]
                             }
-                            buf.history
+                            { history | diff = [] }
                 ]
         , describe "delete" <|
             let
@@ -142,6 +148,9 @@ suite =
                         , Deletion ( 0, 0 ) ( 0, 2 )
                         ]
                         emptyBuffer
+
+                history =
+                    buf.history
             in
                 [ test "result.cursor" <|
                     \_ ->
@@ -171,7 +180,7 @@ suite =
                                     ]
                                 , changes = []
                             }
-                            buf.history
+                            { history | diff = [] }
                 ]
         , describe "cursor" <|
             let
@@ -193,6 +202,9 @@ suite =
                         |> insert ( 0, 0 ) "123"
                         |> commit
                         |> undo
+
+                history =
+                    buf.history
             in
                 [ test "result.cursor" <|
                     \_ ->
@@ -220,7 +232,7 @@ suite =
                                     ]
                                 , version = 2
                             }
-                            buf.history
+                            { history | diff = [] }
                 ]
         , describe "redo" <|
             let
@@ -230,6 +242,9 @@ suite =
                         |> commit
                         |> undo
                         |> redo
+
+                history =
+                    buf.history
             in
                 [ test "cursor" <|
                     \_ ->
@@ -256,7 +271,7 @@ suite =
                                     ]
                                 , pendingChanges = []
                             }
-                            buf.history
+                            { history | diff = [] }
                 ]
         , test "undo emptyBuffer" <|
             \_ -> Expect.equal emptyBuffer (undo emptyBuffer)
@@ -272,6 +287,9 @@ suite =
                             |> delete ( 0, 1 ) ( 0, 2 )
                             |> commit
                             |> undo
+
+                    history =
+                        buf.history
                 in
                     Expect.equal
                         { emptyBufferHistory
@@ -294,7 +312,7 @@ suite =
                                 , Insertion ( 0, 1 ) <| B.fromString "2"
                                 ]
                         }
-                        buf.history
+                        { history | diff = [] }
         , test "commit" <|
             \_ ->
                 let
@@ -304,6 +322,9 @@ suite =
                             |> insert ( 0, 0 ) "456"
                             |> delete ( 0, 1 ) ( 0, 3 )
                             |> commit
+
+                    history =
+                        buf.history
                 in
                     Expect.equal
                         { emptyBufferHistory
@@ -326,7 +347,7 @@ suite =
                                 , Deletion ( 0, 1 ) ( 0, 3 )
                                 ]
                         }
-                        buf.history
+                        { history | diff = [] }
         , fuzz (Fuzz.list fuzzPatch) "undo random patches" <|
             \patches ->
                 let

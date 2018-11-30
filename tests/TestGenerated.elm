@@ -111,16 +111,12 @@ formatBuffer buf =
         --    Debug.log "middle" middle
         middle =
             buf.view.lines
-                |> List.sortBy
-                    (\viewLine ->
-                        case viewLine of
-                            Just line ->
-                                line.lineNumber
-
-                            _ ->
-                                0
+                |> List.sort
+                |> List.filterMap
+                    (\n ->
+                        B.getLine n buf.lines
+                            |> Maybe.map (addPrefix "||      ")
                     )
-                |> List.filterMap (Maybe.map <| .text >> addPrefix "||      ")
                 |> List.take buf.view.size.height
                 |> Array.fromList
 
@@ -285,12 +281,7 @@ newBuffer mode cursor height scrollTop text =
                         }
                     , scrollTop = scrollTop
                     , lines =
-                        Buf.getViewLines
-                            scrollTop
-                            (scrollTop + height + 2)
-                            lines
-                            emptyBuffer.syntax
-                            |> Buf.fillEmptyViewLines height
+                        List.range scrollTop (scrollTop + height + 1)
                 }
             , lines = lines
         }

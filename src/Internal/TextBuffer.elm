@@ -9,6 +9,7 @@ module Internal.TextBuffer
         , fromStringExpandTabs
         , getLine
         , count
+        , countLineBreaks
         , foldlLines
         , expandTabs
         , mapLines
@@ -25,6 +26,8 @@ module Internal.TextBuffer
         , mergePatch
         , shiftPositionByPatch
         , findFirstLine
+        , LinePatch(..)
+        , patchToLinePatch
         )
 
 import Internal.Position exposing (..)
@@ -40,6 +43,29 @@ type TextBuffer
 type Patch
     = Insertion Position TextBuffer
     | Deletion Position Position
+
+
+type LinePatch
+    = LineInsertion Int Int
+    | LineDeletion Int Int
+
+
+patchToLinePatch : Patch -> LinePatch
+patchToLinePatch patch =
+    case patch of
+        Insertion ( y, x ) lines ->
+            LineInsertion
+                y
+                (countLineBreaks lines)
+
+        Deletion ( by, bx ) ( ey, ex ) ->
+            LineDeletion
+                (if bx == 0 then
+                    by
+                 else
+                    by + 1
+                )
+                (ey - by)
 
 
 patchCursor : Patch -> Position
@@ -176,6 +202,26 @@ empty =
 count : TextBuffer -> Int
 count (TextBuffer buf) =
     Array.length buf
+
+
+{-| count how many \n
+-}
+countLineBreaks : TextBuffer -> Int
+countLineBreaks (TextBuffer buf) =
+    let
+        n =
+            Array.length buf
+    in
+        buf
+            |> Array.get (n - 1)
+            |> Maybe.map
+                (\line ->
+                    if String.endsWith lineBreak line then
+                        n
+                    else
+                        n - 1
+                )
+            |> Maybe.withDefault 0
 
 
 mapLines : (String -> b) -> TextBuffer -> Array b
