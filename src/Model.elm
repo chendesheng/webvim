@@ -278,7 +278,7 @@ type alias View =
 
 type Model
     = Booting
-    | Ready Buffer
+    | Ready Editor
     | Crashed String
 
 
@@ -326,6 +326,12 @@ type alias BufferLint =
     }
 
 
+type alias Editor =
+    { buf : Buffer
+    , global : Global
+    }
+
+
 type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
@@ -341,7 +347,6 @@ type alias Buffer =
     , continuation : String
     , dirtyIndent : Int
     , motionFailed : Bool
-    , global : Global
     }
 
 
@@ -417,16 +422,26 @@ emptyExBuffer =
     }
 
 
-updateIme : (IME -> IME) -> Buffer -> Buffer
-updateIme fnupdate buf =
-    if fnupdate buf.global.ime == buf.global.ime then
-        buf
-    else
-        let
-            global =
-                buf.global
-        in
-            { buf | global = { global | ime = fnupdate buf.global.ime } }
+updateIme : (IME -> IME) -> Global -> Global
+updateIme fnupdate global =
+    let
+        ime =
+            fnupdate global.ime
+    in
+        if ime == global.ime then
+            global
+        else
+            { global | ime = ime }
+
+
+updateBuffer : (Buffer -> Buffer) -> Editor -> Editor
+updateBuffer fn ed =
+    { ed | buf = fn ed.buf }
+
+
+updateGlobal : (Global -> Global) -> Editor -> Editor
+updateGlobal fn ed =
+    { ed | global = fn ed.global }
 
 
 emptyView : View
@@ -488,9 +503,6 @@ emptyBuffer =
     -- insert mode auto indent, discard when input nothing and switch back to normal mode
     , dirtyIndent = 0
     , motionFailed = False
-
-    -- global state will persist when swithing between buffers
-    , global = emptyGlobal
     }
 
 

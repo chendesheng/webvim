@@ -5,21 +5,28 @@ import Expect exposing (Expectation)
 import Test exposing (..)
 import Update.Buffer exposing (..)
 import TextBuffer exposing (..)
-import Model exposing (Buffer, emptyBuffer)
+import Model
+    exposing
+        ( Buffer
+        , emptyBuffer
+        , updateBuffer
+        , Editor
+        , emptyGlobal
+        )
 import Internal.TextBuffer exposing (Patch(..), fromString)
 
 
-resize : Int -> Buffer -> Buffer
-resize height buf =
+resize : Int -> Editor -> Editor
+resize height ({ buf, global } as ed) =
     let
         view =
             buf.view
-
-        global =
-            buf.global
     in
-        { buf
-            | view = { view | lines = List.range 0 (height + 1) }
+        { ed
+            | buf =
+                { buf
+                    | view = { view | lines = List.range 0 (height + 1) }
+                }
             , global = { global | size = { height = height, width = 1 } }
         }
 
@@ -27,13 +34,15 @@ resize height buf =
 applyPatches : Int -> List Patch -> Expectation
 applyPatches height patches =
     let
-        buf =
-            emptyBuffer
+        { buf, global } =
+            { buf = emptyBuffer
+            , global = emptyGlobal
+            }
                 |> resize height
-                |> transaction patches
+                |> updateBuffer (transaction patches)
     in
         Expect.equal
-            (List.range buf.view.scrollTop (buf.view.scrollTop + buf.global.size.height + 1))
+            (List.range buf.view.scrollTop (buf.view.scrollTop + global.size.height + 1))
             (List.sort buf.view.lines)
 
 

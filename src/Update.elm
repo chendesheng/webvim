@@ -177,8 +177,8 @@ getModeName mode =
             V.ModeNameEx <| prefixToString prefix
 
 
-updateMode : V.ModeName -> Buffer -> Buffer
-updateMode modeName buf =
+updateMode : V.ModeName -> Editor -> Editor
+updateMode modeName ({ global, buf } as ed) =
     let
         oldModeName =
             getModeName buf.mode
@@ -223,13 +223,10 @@ updateMode modeName buf =
             buf1.view
 
         scrollFrom =
-            Buf.finalScrollTop buf
+            Buf.finalScrollTop global.size buf
 
         scrollTo =
-            Buf.finalScrollTop buf1
-
-        global =
-            buf.global
+            Buf.finalScrollTop global.size buf1
 
         ime =
             if oldModeName /= newModeName then
@@ -246,21 +243,24 @@ updateMode modeName buf =
             else
                 global.ime
     in
-        { buf1
-            | motionFailed = False
-            , continuation =
-                if buf.motionFailed then
-                    ""
-                else
-                    buf1.continuation
-            , view =
-                { view
-                    | lines =
-                        Buf.scrollViewLines
-                            global.size.height
-                            scrollFrom
-                            scrollTo
-                            view.lines
+        { ed
+            | buf =
+                { buf1
+                    | motionFailed = False
+                    , continuation =
+                        if buf.motionFailed then
+                            ""
+                        else
+                            buf1.continuation
+                    , view =
+                        { view
+                            | lines =
+                                Buf.scrollViewLines
+                                    global.size.height
+                                    scrollFrom
+                                    scrollTo
+                                    view.lines
+                        }
                 }
             , global = { global | ime = ime }
         }
@@ -370,8 +370,8 @@ repeatInserts oldMode buf =
             []
 
 
-modeChanged : Bool -> Key -> Mode -> Bool -> Buffer -> Buffer
-modeChanged replaying key oldMode lineDeltaMotion buf =
+modeChanged : Bool -> Key -> Mode -> Bool -> Editor -> Editor
+modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
     case buf.mode of
         Normal _ ->
             let
@@ -402,26 +402,24 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                     else
                         cursor /= buf.cursor
             in
-                buf
-                    |> Buf.setCursor cursor changeColumn
-                    |> Buf.cancelLastIndent
-                    |> insert
-                    |> Buf.commit
+                updateBuffer
+                    (Buf.setCursor cursor changeColumn
+                        >> Buf.cancelLastIndent
+                        >> insert
+                        >> Buf.commit
+                    )
+                    ed
 
         TempNormal ->
-            buf
-                |> Buf.commit
+            updateBuffer Buf.commit ed
 
         Ex ({ prefix, exbuf } as ex) ->
             if B.isEmpty exbuf.lines then
-                buf
+                ed
                     |> handleKeypress False "<escape>"
                     |> Tuple.first
             else
                 let
-                    global =
-                        buf.global
-
                     last =
                         global.last
 
@@ -449,7 +447,7 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                                                     matchAllStrings
                                                         re
                                                         scrollFrom
-                                                        (scrollFrom + buf.global.size.height)
+                                                        (scrollFrom + global.size.height)
                                                         buf.lines
                                             }
 
@@ -459,56 +457,51 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                             _ ->
                                 prefix
 
-                    buf1 =
+                    global1 =
                         if replaying || key == "<exbuf>" then
-                            buf
+                            global
                         else
                             case oldMode of
                                 Ex _ ->
-                                    { buf
-                                        | global =
-                                            { global
-                                                | last = { last | ex = last.ex ++ key }
-                                            }
+                                    { global
+                                        | last = { last | ex = last.ex ++ key }
                                     }
 
                                 _ ->
-                                    { buf
-                                        | global =
-                                            { global
-                                                | last = { last | ex = "" }
-                                            }
+                                    { global
+                                        | last = { last | ex = "" }
                                     }
 
-                    buf2 =
+                    buf1 =
                         Buf.setMode
                             (Ex { ex | prefix = prefix1 })
-                            buf1
+                            buf
 
                     scrollFrom =
-                        Buf.finalScrollTop buf1
+                        Buf.finalScrollTop global.size buf
 
                     scrollTo =
-                        Buf.finalScrollTop buf2
+                        Buf.finalScrollTop global.size buf1
                 in
-                    buf2
-                        |> Buf.updateView
-                            (\view ->
-                                { view
-                                    | lines =
-                                        Buf.scrollViewLines
-                                            global.size.height
-                                            scrollFrom
-                                            scrollTo
-                                            view.lines
-                                }
-                            )
+                    { ed
+                        | buf =
+                            Buf.updateView
+                                (\view ->
+                                    { view
+                                        | lines =
+                                            Buf.scrollViewLines
+                                                global.size.height
+                                                scrollFrom
+                                                scrollTo
+                                                view.lines
+                                    }
+                                )
+                                buf1
+                        , global = global1
+                    }
 
         (Insert { visual }) as data ->
             let
-                global =
-                    buf.global
-
                 last =
                     global.last
 
@@ -523,7 +516,7 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                             _ ->
                                 ""
             in
-                { buf
+                { ed
                     | global =
                         { global
                             | last = { last | inserts = inserts }
@@ -532,9 +525,6 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
 
         Visual _ ->
             let
-                global =
-                    buf.global
-
                 last =
                     global.last
 
@@ -549,13 +539,13 @@ modeChanged replaying key oldMode lineDeltaMotion buf =
                             _ ->
                                 ""
             in
-                { buf
+                { ed
                     | global =
                         { global | last = { last | visual = visual } }
                 }
 
 
-cmdNone : Buffer -> ( Buffer, Cmd Msg )
+cmdNone : a -> ( a, Cmd Msg )
 cmdNone buf =
     ( buf, Cmd.none )
 
@@ -590,8 +580,8 @@ clearExBufAutoComplete exbuf =
     }
 
 
-scroll : Maybe Int -> V.ScrollPosition -> Buffer -> Buffer
-scroll count value buf =
+scroll : Maybe Int -> V.ScrollPosition -> Global -> Buffer -> Buffer
+scroll count value global buf =
     -- TODO: scroll in visual mode
     let
         scope n =
@@ -620,7 +610,7 @@ scroll count value buf =
         scrollInner buf_ =
             let
                 size =
-                    buf_.global.size
+                    global.size
 
                 y =
                     Tuple.first buf_.cursor
@@ -642,92 +632,106 @@ scroll count value buf =
                         V.ScrollToMiddle ->
                             y - (size.height - 2) // 2
             in
-                Buf.setScrollTop (scope y1) buf_
+                Buf.setScrollTop (scope y1) global buf_
     in
         buf
             |> setCursor
             |> scrollInner
 
 
-runOperator : Maybe Int -> String -> Operator -> Buffer -> ( Buffer, Cmd Msg )
-runOperator count register operator buf =
+runOperator : Maybe Int -> String -> Operator -> Editor -> ( Editor, Cmd Msg )
+runOperator count register operator ({ buf, global } as ed) =
     case operator of
         Move md mo ->
             case md of
                 V.MatchChar _ _ ->
-                    buf
+                    ed
                         |> motion count md mo
                         |> Tuple.mapFirst
-                            (updateIme (\ime -> { ime | isActive = False }))
+                            (\ed1 ->
+                                { ed1
+                                    | global =
+                                        updateIme (\ime -> { ime | isActive = False })
+                                            ed1.global
+                                }
+                            )
 
                 _ ->
-                    motion count md mo buf
+                    motion count md mo ed
 
         Select textobj around ->
-            ( select count textobj around buf, Cmd.none )
+            ( select count textobj around ed, Cmd.none )
 
         Scroll value ->
-            buf
-                |> scroll count value
-                |> cursorScope
+            { ed
+                | buf =
+                    buf
+                        |> scroll count value global
+                        |> cursorScope global
+            }
                 |> cmdNone
 
         InsertString s ->
             case s of
                 V.LastSavedString ->
-                    replayKeys buf.global.last.inserts buf
+                    replayKeys global.last.inserts ed
 
                 _ ->
-                    buf
-                        |> insert s
-                        |> filterAutoComplete
+                    { ed
+                        | buf =
+                            buf
+                                |> insert s
+                                |> filterAutoComplete
+                    }
                         |> cmdNone
 
         Delete rg ->
-            buf
+            ed
                 |> delete count register rg
-                |> filterAutoComplete
+                |> updateBuffer filterAutoComplete
                 |> cmdNone
 
         Yank rg ->
-            yank count register rg buf
+            yank count register rg ed
 
         V.Undo ->
-            ( Buf.undo buf, Cmd.none )
+            ( updateBuffer Buf.undo ed, Cmd.none )
 
         Redo ->
-            buf
-                |> Buf.redo
-                |> Buf.indentCursorToLineFirst
+            ed
+                |> updateBuffer
+                    (Buf.redo >> Buf.indentCursorToLineFirst)
                 |> cmdNone
 
         OpenNewLine forward ->
-            buf
-                |> openNewLine
-                    (if forward then
-                        Tuple.first buf.cursor + 1
-                     else
-                        Tuple.first buf.cursor
+            ed
+                |> updateBuffer
+                    (openNewLine
+                        (if forward then
+                            Tuple.first buf.cursor + 1
+                         else
+                            Tuple.first buf.cursor
+                        )
                     )
                 |> cmdNone
 
         JumpByView factor ->
-            ( jumpByView factor buf, Cmd.none )
+            ( { ed | buf = jumpByView factor global buf }, Cmd.none )
 
         Put forward ->
-            ( put register forward buf, Cmd.none )
+            ( put register forward ed, Cmd.none )
 
         RepeatLastOperator ->
-            replayKeys buf.global.dotRegister buf
+            replayKeys global.dotRegister ed
 
         RepeatLastVisual ->
-            replayKeys buf.global.last.visual buf
+            replayKeys global.last.visual ed
 
         RepeatLastEx ->
-            replayKeys buf.global.last.ex buf
+            replayKeys global.last.ex ed
 
         VisualSwitchEnd ->
-            ( Buf.switchVisualEnd buf, Cmd.none )
+            ( updateBuffer Buf.switchVisualEnd ed, Cmd.none )
 
         Execute ->
             case buf.mode of
@@ -736,130 +740,143 @@ runOperator count register operator buf =
                         |> B.toString
                         |> String.dropLeft 1
                         |> (\s ->
-                                let
-                                    global =
-                                        buf.global
-                                in
-                                    execute count
-                                        register
-                                        s
-                                        { buf
-                                            | mode =
-                                                Ex
-                                                    { ex
-                                                        | exbuf =
-                                                            clearExBufAutoComplete
-                                                                ex.exbuf
-                                                    }
-                                            , global =
-                                                { global
-                                                    | exHistory =
-                                                        (s :: global.exHistory)
-                                                            |> List.take 50
-                                                }
-                                        }
+                                execute count
+                                    register
+                                    s
+                                    { ed
+                                        | buf =
+                                            { buf
+                                                | mode =
+                                                    Ex
+                                                        { ex
+                                                            | exbuf =
+                                                                clearExBufAutoComplete
+                                                                    ex.exbuf
+                                                        }
+                                            }
+                                        , global =
+                                            { global
+                                                | exHistory =
+                                                    (s :: global.exHistory)
+                                                        |> List.take 50
+                                            }
+                                    }
                            )
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         Join collapseSpaces ->
-            ( join count collapseSpaces buf, Cmd.none )
+            ( updateBuffer (join count collapseSpaces) ed, Cmd.none )
 
         Replace ch ->
-            ( buf
-                |> applyReplace count ch
-                |> updateIme (\ime -> { ime | isActive = False })
+            ( ed
+                |> updateBuffer (applyReplace count ch global)
+                |> updateGlobal (updateIme (\ime -> { ime | isActive = False }))
             , Cmd.none
             )
 
         ToggleTip ->
-            ( Buf.setShowTip (not buf.global.showTip) buf, Cmd.none )
+            ( updateGlobal (Buf.setShowTip (not global.showTip)) ed
+            , Cmd.none
+            )
 
         SelectAutoComplete forward ->
             case buf.mode of
                 Ex ex ->
-                    ( ex.exbuf
-                        |> selectAutoComplete forward
-                        |> setExbuf buf ex
+                    ( { ed
+                        | buf =
+                            ex.exbuf
+                                |> selectAutoComplete forward
+                                |> setExbuf buf ex
+                      }
                     , Cmd.none
                     )
 
                 Insert { autoComplete } ->
                     case autoComplete of
                         Just _ ->
-                            ( selectAutoComplete forward buf
+                            ( updateBuffer (selectAutoComplete forward) ed
                             , Cmd.none
                             )
 
                         _ ->
-                            ( case autoCompleteTarget buf.config.wordChars buf of
-                                Just ( pos, word ) ->
-                                    let
-                                        exclude =
-                                            wordStringUnderCursor
-                                                buf.config.wordChars
-                                                buf.lines
-                                                (positionShiftLeft buf.cursor)
-                                                |> Maybe.map Tuple.second
-                                                |> Maybe.withDefault ""
+                            ( { ed
+                                | buf =
+                                    case autoCompleteTarget buf.config.wordChars buf of
+                                        Just ( pos, word ) ->
+                                            let
+                                                exclude =
+                                                    wordStringUnderCursor
+                                                        buf.config.wordChars
+                                                        buf.lines
+                                                        (positionShiftLeft buf.cursor)
+                                                        |> Maybe.map Tuple.second
+                                                        |> Maybe.withDefault ""
 
-                                        words =
-                                            Buf.toWords exclude buf
-                                    in
-                                        if List.isEmpty words then
-                                            Buf.errorMessage "Pattern no found"
-                                                buf
-                                        else
+                                                words =
+                                                    Buf.toWords exclude buf
+                                            in
+                                                if List.isEmpty words then
+                                                    Buf.errorMessage "Pattern no found"
+                                                        buf
+                                                else
+                                                    buf
+                                                        |> startAutoComplete
+                                                            buf.config.wordChars
+                                                            ""
+                                                            0
+                                                            words
+                                                            pos
+                                                            word
+                                                        |> selectAutoComplete forward
+
+                                        _ ->
                                             buf
-                                                |> startAutoComplete
-                                                    buf.config.wordChars
-                                                    ""
-                                                    0
-                                                    words
-                                                    pos
-                                                    word
-                                                |> selectAutoComplete forward
-
-                                _ ->
-                                    buf
+                              }
                             , Cmd.none
                             )
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         JumpHistory isForward ->
-            jumpHistory isForward buf
+            jumpHistory isForward ed
 
         JumpLastBuffer ->
-            jumpLastBuffer buf
+            jumpLastBuffer ed
 
         JumpToTag ->
-            startJumpToTag count buf
+            startJumpToTag count ed
 
         JumpBackFromTag ->
-            case buf.global.last.jumpToTag of
+            case global.last.jumpToTag of
                 Just loc ->
-                    jumpToLocation True loc buf
+                    jumpToLocation True loc ed
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         JumpToFile ->
-            jumpToFile buf
+            jumpToFile ed
 
         Indent forward range ->
-            ( applyIndent count forward range buf, Cmd.none )
+            ( { ed | buf = applyIndent count forward range global buf }
+            , Cmd.none
+            )
 
         IncreaseNumber larger ->
-            ( increaseNumber count larger buf, Cmd.none )
+            ( { ed | buf = increaseNumber count larger buf }
+            , Cmd.none
+            )
 
         CaseOperator changeCase range ->
-            ( applyCaseOperator count changeCase range buf, Cmd.none )
+            ( { ed | buf = applyCaseOperator count changeCase range global buf }
+            , Cmd.none
+            )
 
         ColumnInsert append ->
-            ( columnInsert append buf, Cmd.none )
+            ( { ed | buf = columnInsert append buf }, Cmd.none )
 
         ShowInfo ->
             let
@@ -869,61 +886,69 @@ runOperator count register operator buf =
                 ( y, x ) =
                     buf.cursor
             in
-                ( Buf.infoMessage
-                    ((buf |> Buf.shortPath |> quote)
-                        ++ " line "
-                        ++ (y
-                                |> inc
-                                |> String.fromInt
-                           )
-                        ++ " of "
-                        ++ (B.count buf.lines |> String.fromInt)
-                        ++ " --"
-                        ++ (y * 100 // n |> String.fromInt)
-                        ++ "%-- col "
-                        ++ (x
-                                |> inc
-                                |> String.fromInt
-                           )
+                ( updateBuffer
+                    (Buf.infoMessage
+                        ((buf |> Buf.shortPath global |> quote)
+                            ++ " line "
+                            ++ (y
+                                    |> inc
+                                    |> String.fromInt
+                               )
+                            ++ " of "
+                            ++ (B.count buf.lines |> String.fromInt)
+                            ++ " --"
+                            ++ (y * 100 // n |> String.fromInt)
+                            ++ "%-- col "
+                            ++ (x
+                                    |> inc
+                                    |> String.fromInt
+                               )
+                        )
                     )
-                    buf
+                    ed
                 , Cmd.none
                 )
 
         IMEToggleActive ->
-            ( updateIme
-                (\ime -> { ime | isActive = not ime.isActive })
-                buf
+            ( { ed
+                | global =
+                    updateIme
+                        (\ime -> { ime | isActive = not ime.isActive })
+                        global
+              }
             , Cmd.none
             )
 
         SelectHistory forward ->
             case buf.mode of
                 Ex ex ->
-                    ( if isAutoCompleteStarted ex.exbuf "$$%exHistory" then
-                        ex.exbuf
-                            |> selectAutoComplete forward
-                            |> setExbuf buf ex
-                      else
-                        ex.exbuf
-                            |> startAutoComplete ""
-                                "$$%exHistory"
-                                1
-                                (List.reverse buf.global.exHistory)
-                                ( 0, 1 )
-                                (B.toString ex.exbuf.lines
-                                    |> String.dropLeft 1
-                                )
-                            |> selectAutoComplete forward
-                            |> setExbuf buf ex
+                    ( { ed
+                        | buf =
+                            if isAutoCompleteStarted ex.exbuf "$$%exHistory" then
+                                ex.exbuf
+                                    |> selectAutoComplete forward
+                                    |> setExbuf buf ex
+                            else
+                                ex.exbuf
+                                    |> startAutoComplete ""
+                                        "$$%exHistory"
+                                        1
+                                        (List.reverse global.exHistory)
+                                        ( 0, 1 )
+                                        (B.toString ex.exbuf.lines
+                                            |> String.dropLeft 1
+                                        )
+                                    |> selectAutoComplete forward
+                                    |> setExbuf buf ex
+                      }
                     , Cmd.none
                     )
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
 
 quote : String -> String
@@ -1010,18 +1035,20 @@ setExbuf buf ex exbuf =
     { buf | mode = Ex { ex | exbuf = exbuf } }
 
 
-applyEdit : Maybe Int -> Maybe Operator -> String -> Buffer -> ( Buffer, Cmd Msg )
-applyEdit count edit register buf =
+applyEdit : Maybe Int -> Maybe Operator -> String -> Editor -> ( Editor, Cmd Msg )
+applyEdit count edit register ({ buf } as ed) =
     case edit of
         Just operator ->
             case buf.mode of
                 Ex ex ->
                     let
-                        ( buf1, cmd ) =
-                            buf
-                                |> runOperator count register operator
+                        ( ed1, cmd ) =
+                            runOperator count register operator ed
+
+                        global =
+                            ed1.global
                     in
-                        case buf1.mode of
+                        case ed1.buf.mode of
                             Ex ({ exbuf } as newex) ->
                                 let
                                     s =
@@ -1031,9 +1058,9 @@ applyEdit count edit register buf =
                                         if isAutoCompleteStarted exbuf "$$%exHistory" then
                                             "$$%exHistory"
                                         else if String.startsWith ":o " s then
-                                            buf.global.cwd
+                                            global.cwd
                                         else if String.startsWith ":b " s then
-                                            buf.global.cwd
+                                            global.cwd
                                         else
                                             s
                                                 |> String.trim
@@ -1041,9 +1068,9 @@ applyEdit count edit register buf =
                                                 |> getLast
                                                 |> Maybe.withDefault ""
                                                 |> getPath
-                                                    buf.global.pathSeperator
-                                                    buf.global.homedir
-                                                    buf.global.cwd
+                                                    global.pathSeperator
+                                                    global.homedir
+                                                    global.cwd
 
                                     ( getList, clearAutoComplete ) =
                                         if isAutoCompleteStarted exbuf "$$%exHistory" then
@@ -1053,13 +1080,13 @@ applyEdit count edit register buf =
                                         else if String.startsWith ":b " s then
                                             ( \a b c ->
                                                 Task.succeed
-                                                    (buf.global.buffers
+                                                    (global.buffers
                                                         |> Dict.keys
                                                         |> List.filter
                                                             (\path ->
                                                                 path /= buf.path && path /= ""
                                                             )
-                                                        |> List.map (relativePath buf.global.pathSeperator buf.global.cwd)
+                                                        |> List.map (relativePath global.pathSeperator global.cwd)
                                                     )
                                                     |> Task.perform ListBuffers
                                             , False
@@ -1072,40 +1099,45 @@ applyEdit count edit register buf =
                                             ( \a b c -> Cmd.none, True )
                                 in
                                     if clearAutoComplete then
-                                        ( setExbuf buf1
-                                            newex
-                                            (clearExBufAutoComplete exbuf)
+                                        ( { ed1
+                                            | buf =
+                                                setExbuf ed1.buf
+                                                    newex
+                                                    (clearExBufAutoComplete exbuf)
+                                          }
                                         , cmd
                                         )
                                     else if isExEditing operator then
                                         if isAutoCompleteStarted exbuf trigger then
-                                            ( exbuf
-                                                |> filterAutoComplete
-                                                |> setExbuf buf1 newex
+                                            ( { ed1
+                                                | buf =
+                                                    exbuf
+                                                        |> filterAutoComplete
+                                                        |> setExbuf ed1.buf newex
+                                              }
                                             , cmd
                                             )
                                         else
-                                            ( buf1
+                                            ( ed1
                                             , Cmd.batch
                                                 [ cmd
                                                 , getList
-                                                    buf.global.service
-                                                    buf.global.pathSeperator
+                                                    global.service
+                                                    global.pathSeperator
                                                     trigger
                                                 ]
                                             )
                                     else
-                                        ( buf1, cmd )
+                                        ( ed1, cmd )
 
                             _ ->
-                                ( buf1, cmd )
+                                ( ed1, cmd )
 
                 _ ->
-                    buf
-                        |> runOperator count register operator
+                    runOperator count register operator ed
 
         Nothing ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
 
 isEnterInsertMode : Maybe Operator -> Bool
@@ -1126,15 +1158,12 @@ isEnterInsertMode edit =
             False
 
 
-replayKeys : String -> Buffer -> ( Buffer, Cmd Msg )
-replayKeys s buf =
+replayKeys : String -> Editor -> ( Editor, Cmd Msg )
+replayKeys s ({ buf, global } as ed) =
     if s == "" then
-        ( buf, Cmd.none )
+        ( ed, Cmd.none )
     else
         let
-            global =
-                buf.global
-
             savedLast =
                 global.last
 
@@ -1144,19 +1173,19 @@ replayKeys s buf =
             keys =
                 parseKeys s
 
-            ( buf1, cmd ) =
+            ( ed1, cmd ) =
                 List.foldl
-                    (\key ( buf_, cmd_ ) ->
+                    (\key ( ed_, cmd_ ) ->
                         let
-                            ( buf__, cmd1 ) =
-                                handleKeypress True key buf_
+                            ( ed__, cmd1 ) =
+                                handleKeypress True key ed_
                         in
-                            ( buf__, Cmd.batch [ cmd_, cmd1 ] )
+                            ( ed__, Cmd.batch [ cmd_, cmd1 ] )
                     )
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
                     keys
         in
-            ( { buf1
+            ( { ed1
                 | global =
                     { global
                         | last = savedLast
@@ -1167,8 +1196,8 @@ replayKeys s buf =
             )
 
 
-editTestBuffer : String -> Buffer -> ( Buffer, Cmd Msg )
-editTestBuffer path buf =
+editTestBuffer : String -> Editor -> ( Editor, Cmd Msg )
+editTestBuffer path ({ buf } as ed) =
     Ok
         { emptyBufferInfo
             | content =
@@ -1179,25 +1208,25 @@ editTestBuffer path buf =
             , path = path
         }
         |> Read
-        |> (\msg -> update msg buf)
+        |> (\msg -> update msg ed)
 
 
-execute : Maybe Int -> String -> String -> Buffer -> ( Buffer, Cmd Msg )
-execute count register str buf =
+execute : Maybe Int -> String -> String -> Editor -> ( Editor, Cmd Msg )
+execute count register str ({ buf, global } as ed) =
     let
         edit path =
             -- for unit testing
             if path == "*Test*" then
-                editTestBuffer path buf
+                editTestBuffer path ed
             else
                 jumpToPath
                     True
                     (path
-                        |> normalizePath buf.global.pathSeperator
-                        |> replaceHomeDir buf.global.homedir
+                        |> normalizePath global.pathSeperator
+                        |> replaceHomeDir global.homedir
                     )
                     Nothing
-                    buf
+                    ed
     in
         case
             str
@@ -1214,54 +1243,54 @@ execute count register str buf =
                 edit path
 
             [ "w" ] ->
-                ( buf, sendWriteBuffer buf.global.service buf.path buf )
+                ( ed, sendWriteBuffer global.service buf.path buf )
 
             [ "ll" ] ->
                 let
                     n =
                         (Maybe.withDefault 1 count) - 1
                 in
-                    case nthList n buf.global.locationList of
+                    case nthList n global.locationList of
                         Just loc ->
-                            jumpToLocation True loc buf
+                            jumpToLocation True loc ed
 
                         _ ->
-                            ( Buf.errorMessage "location not found" buf
+                            ( { ed | buf = Buf.errorMessage "location not found" buf }
                             , Cmd.none
                             )
 
             [ "f", s ] ->
-                ( buf, sendSearch buf.global.service buf.global.cwd s )
+                ( ed, sendSearch global.service global.cwd s )
 
             [ "copy" ] ->
-                yankWholeBuffer buf
+                yankWholeBuffer ed
 
             [ "cd" ] ->
-                ( Buf.infoMessage buf.global.cwd buf, Cmd.none )
+                ( { ed | buf = Buf.infoMessage global.cwd buf }, Cmd.none )
 
             [ "cd", cwd ] ->
-                ( buf
+                ( ed
                 , cwd
-                    |> replaceHomeDir buf.global.homedir
+                    |> replaceHomeDir global.homedir
                     |> resolvePath
-                        buf.global.pathSeperator
-                        buf.global.cwd
-                    |> sendCd buf.global.service
+                        global.pathSeperator
+                        global.cwd
+                    |> sendCd global.service
                 )
 
             [ "mkdir" ] ->
-                ( Buf.errorMessage "Argument Error: mkdir path" buf
+                ( { ed | buf = Buf.errorMessage "Argument Error: mkdir path" buf }
                 , Cmd.none
                 )
 
             [ "mkdir", path ] ->
-                ( buf
+                ( ed
                 , path
-                    |> replaceHomeDir buf.global.homedir
+                    |> replaceHomeDir global.homedir
                     |> resolvePath
-                        buf.global.pathSeperator
-                        buf.global.cwd
-                    |> sendMkDir buf.global.service
+                        global.pathSeperator
+                        global.cwd
+                    |> sendMkDir global.service
                 )
 
             [ s ] ->
@@ -1270,45 +1299,48 @@ execute count register str buf =
                         runOperator (Just n)
                             register
                             (V.Move V.BufferBottom V.emptyMotionOption)
-                            buf
+                            ed
 
                     _ ->
-                        ( buf, Cmd.none )
+                        ( ed, Cmd.none )
 
             _ ->
-                ( buf, Cmd.none )
+                ( ed, Cmd.none )
 
 
-handleKeypress : Bool -> Key -> Buffer -> ( Buffer, Cmd Msg )
-handleKeypress replaying key buf =
+handleKeypress : Bool -> Key -> Editor -> ( Editor, Cmd Msg )
+handleKeypress replaying key ({ buf, global } as ed) =
     let
         cacheKey =
             ( buf.continuation, key )
 
         (( ast, continuation ) as cacheVal) =
-            case Dict.get cacheKey buf.global.vimASTCache of
+            case Dict.get cacheKey global.vimASTCache of
                 Just resp ->
                     resp
 
                 _ ->
                     parse buf.continuation key
 
-        buf1 =
-            { buf
-                | continuation = continuation
-                , global = cacheVimAST cacheKey cacheVal buf.global
+        ed1 =
+            { ed
+                | buf =
+                    { buf
+                        | continuation = continuation
+                    }
+                , global = cacheVimAST cacheKey cacheVal global
             }
     in
-        case serviceBeforeApplyVimAST replaying key ast buf1 of
+        case serviceBeforeApplyVimAST replaying key ast global.service of
             Just cmd ->
-                ( buf1, cmd )
+                ( ed1, cmd )
 
             _ ->
-                applyVimAST replaying key ast buf1
+                applyVimAST replaying key ast ed1
 
 
-serviceBeforeApplyVimAST : Bool -> Key -> AST -> Buffer -> Maybe (Cmd Msg)
-serviceBeforeApplyVimAST replaying key ast buf =
+serviceBeforeApplyVimAST : Bool -> Key -> AST -> String -> Maybe (Cmd Msg)
+serviceBeforeApplyVimAST replaying key ast service =
     case ast.edit of
         Just op ->
             case op of
@@ -1317,7 +1349,7 @@ serviceBeforeApplyVimAST replaying key ast buf =
                         sendReadClipboard
                             replaying
                             key
-                            buf.global.service
+                            service
                             ast
                             |> Just
                     else
@@ -1337,8 +1369,8 @@ focusHiddenInput =
         (Dom.focus "hidden-input")
 
 
-applyVimAST : Bool -> Key -> AST -> Buffer -> ( Buffer, Cmd Msg )
-applyVimAST replaying key ast buf =
+applyVimAST : Bool -> Key -> AST -> Editor -> ( Editor, Cmd Msg )
+applyVimAST replaying key ast ({ buf } as ed) =
     let
         { count, edit, modeName, register, recordKeys } =
             ast
@@ -1358,76 +1390,83 @@ applyVimAST replaying key ast buf =
             else
                 buf.mode
 
-        saveDotRegister replaying_ buf_ =
+        saveDotRegister replaying_ global_ =
             if replaying_ then
-                buf_
+                global_
             else
                 case recordKeys of
                     "" ->
-                        buf_
+                        global_
 
                     s ->
-                        let
-                            global =
-                                buf_.global
-                        in
-                            { buf_ | global = { global | dotRegister = s } }
+                        { global_ | dotRegister = s }
 
         lineDeltaMotion =
             edit
                 |> Maybe.map isLineDeltaMotion
                 |> Maybe.withDefault False
 
-        setMatchedCursor oldBuf buf_ =
-            if
-                (pairSource oldBuf /= pairSource buf_)
-                    || (oldBuf.view.scrollTop /= buf_.view.scrollTop)
-                    || (oldBuf.global.size /= buf_.global.size)
-                    || (oldBuf.lines /= buf_.lines)
-                    || (oldBuf.syntax /= buf_.syntax)
-            then
-                pairCursor buf_
-            else
-                buf_
+        setMatchedCursor : Editor -> Editor -> Editor
+        setMatchedCursor oldEd ed_ =
+            let
+                oldBuf =
+                    oldEd.buf
 
-        doTokenize oldBuf ( buf_, cmds ) =
-            if (oldBuf.path == buf_.path) || (Buf.isEditing oldBuf buf_) then
-                ( buf_, (debounceTokenize 100) :: cmds )
-            else
-                ( buf_, cmds )
+                buf_ =
+                    ed_.buf
+            in
+                if
+                    (pairSource oldBuf /= pairSource buf_)
+                        || (oldBuf.view.scrollTop /= buf_.view.scrollTop)
+                        || (oldEd.global.size /= ed_.global.size)
+                        || (oldBuf.lines /= buf_.lines)
+                        || (oldBuf.syntax /= buf_.syntax)
+                then
+                    updateBuffer (pairCursor ed_.global.size) ed_
+                else
+                    ed_
 
-        doLint oldBuf ( buf_, cmds ) =
-            if Buf.isEditing oldBuf buf_ then
+        doTokenize oldBuf ( ed_, cmds ) =
+            if (oldBuf.path == ed_.buf.path) || (Buf.isEditing oldBuf ed_.buf) then
+                ( ed_, (debounceTokenize 100) :: cmds )
+            else
+                ( ed_, cmds )
+
+        doLint oldBuf ( ed_, cmds ) =
+            if Buf.isEditing oldBuf ed_.buf then
                 let
                     delay =
-                        case buf_.mode of
+                        case ed_.buf.mode of
                             Insert _ ->
                                 500
 
                             _ ->
                                 0
                 in
-                    ( buf_, debounceLint delay :: cmds )
+                    ( ed_, debounceLint delay :: cmds )
             else
-                ( buf_, cmds )
+                ( ed_, cmds )
 
-        doFocusInput oldBuf ( buf_, cmds ) =
+        doFocusInput oldEd ( ed_, cmds ) =
             if
-                (oldBuf.global.ime.isActive /= buf_.global.ime.isActive)
-                    || (isExMode oldBuf.mode /= isExMode buf_.mode)
+                (oldEd.global.ime.isActive /= ed_.global.ime.isActive)
+                    || (isExMode oldEd.buf.mode /= isExMode ed_.buf.mode)
             then
-                ( buf_, focusHiddenInput :: cmds )
+                ( ed_, focusHiddenInput :: cmds )
             else
-                ( buf_, cmds )
+                ( ed_, cmds )
 
-        shiftLocations : Buffer -> Buffer
-        shiftLocations buf1 =
+        shiftLocations : Editor -> Editor
+        shiftLocations ed1 =
             let
+                buf1 =
+                    ed1.buf
+
                 diff =
                     buf1.history.diff
 
                 global1 =
-                    buf1.global
+                    ed1.global
 
                 history =
                     buf1.history
@@ -1436,18 +1475,21 @@ applyVimAST replaying key ast buf =
                     buf1.view
             in
                 if List.isEmpty diff then
-                    buf1
+                    ed1
                 else
-                    { buf1
-                        | history = { history | diff = [] }
-                        , view =
-                            { view
-                                | lines =
-                                    Buf.applyDiffToView
-                                        diff
-                                        view.scrollTop
-                                        global1.size.height
-                                        view.lines
+                    { ed1
+                        | buf =
+                            { buf1
+                                | history = { history | diff = [] }
+                                , view =
+                                    { view
+                                        | lines =
+                                            Buf.applyDiffToView
+                                                diff
+                                                view.scrollTop
+                                                global1.size.height
+                                                view.lines
+                                    }
                             }
                         , global =
                             { global1
@@ -1468,27 +1510,27 @@ applyVimAST replaying key ast buf =
                             }
                     }
     in
-        buf
+        ed
             |> applyEdit count edit register
             |> Tuple.mapFirst
                 (updateMode modeName
-                    >> correctLines
+                    >> updateBuffer correctLines
                     >> modeChanged replaying key oldMode lineDeltaMotion
-                    >> correctCursor
-                    >> scrollToCursor
-                    >> saveDotRegister replaying
-                    >> setMatchedCursor buf
+                    >> updateBuffer correctCursor
+                    >> updateBuffer (scrollToCursor ed.global)
+                    >> updateGlobal (saveDotRegister replaying)
+                    >> setMatchedCursor ed
                     >> shiftLocations
                 )
             |> Tuple.mapSecond List.singleton
             |> doLint buf
             |> doTokenize buf
-            |> doFocusInput buf
+            |> doFocusInput ed
             |> Tuple.mapSecond Cmd.batch
 
 
-onTokenized : Buffer -> Result error TokenizeResponse -> ( Buffer, Cmd Msg )
-onTokenized buf resp =
+onTokenized : Editor -> Result error TokenizeResponse -> ( Editor, Cmd Msg )
+onTokenized ({ buf, global } as ed) resp =
     case resp of
         Ok payload ->
             case payload of
@@ -1502,26 +1544,35 @@ onTokenized buf resp =
                         view =
                             buf.view
                       in
-                        { buf
-                            | syntax = syntax1
-                            , syntaxDirtyFrom = Array.length syntax1
+                        { ed
+                            | buf =
+                                { buf
+                                    | syntax = syntax1
+                                    , syntaxDirtyFrom = Array.length syntax1
+                                }
+                                    |> pairCursor global.size
                         }
-                            |> pairCursor
                     , Cmd.none
                     )
 
                 LineTokenizeSuccess begin tokens ->
                     tokenizeBuffer
-                        { buf
-                            | syntax = Array.set begin tokens buf.syntax
-                            , syntaxDirtyFrom = begin + 1
+                        { ed
+                            | buf =
+                                { buf
+                                    | syntax = Array.set begin tokens buf.syntax
+                                    , syntaxDirtyFrom = begin + 1
+                                }
                         }
 
                 TokenizeCacheMiss ->
                     tokenizeBuffer
-                        { buf
-                            | syntax = Array.empty
-                            , syntaxDirtyFrom = 0
+                        { ed
+                            | buf =
+                                { buf
+                                    | syntax = Array.empty
+                                    , syntaxDirtyFrom = 0
+                                }
                         }
 
                 TokenizeError s ->
@@ -1529,20 +1580,23 @@ onTokenized buf resp =
                         config =
                             buf.config
                     in
-                        ( { buf
-                            | syntax = Array.empty
-                            , syntaxDirtyFrom = 0
-                            , config = { config | syntax = False }
+                        ( { ed
+                            | buf =
+                                { buf
+                                    | syntax = Array.empty
+                                    , syntaxDirtyFrom = 0
+                                    , config = { config | syntax = False }
+                                }
                           }
                         , Cmd.none
                         )
 
         Err _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
 
-applyLintItems : List LintError -> Buffer -> Buffer
-applyLintItems items buf =
+applyLintItems : List LintError -> Buffer -> Global -> Global
+applyLintItems items buf global =
     let
         normalizeFile file =
             if
@@ -1554,7 +1608,7 @@ applyLintItems items buf =
             then
                 buf.path
             else
-                normalizePath buf.global.pathSeperator file
+                normalizePath global.pathSeperator file
 
         normalizeRegion region =
             let
@@ -1589,20 +1643,14 @@ applyLintItems items buf =
                     }
                 )
                 items
-
-        global =
-            buf.global
     in
-        { buf
-            | global =
-                { global
-                    | lint =
-                        { items = items1
-                        , count = List.length items1
-                        }
-                    , locationList =
-                        lintErrorToLocationList items1
+        { global
+            | lint =
+                { items = items1
+                , count = List.length items1
                 }
+            , locationList =
+                lintErrorToLocationList items1
         }
 
 
@@ -1620,14 +1668,14 @@ lintErrorToLocationList items =
         items
 
 
-onMouseWheel : Int -> Buffer -> ( Buffer, Cmd Msg )
-onMouseWheel delta buf =
+onMouseWheel : Int -> Editor -> ( Editor, Cmd Msg )
+onMouseWheel delta ({ buf, global } as ed) =
     let
         view =
             buf.view
 
         lineHeight =
-            buf.global.lineHeight
+            global.lineHeight
 
         scrollTopPx =
             (view.scrollTopPx + delta)
@@ -1637,8 +1685,11 @@ onMouseWheel delta buf =
         scrollTopDelta =
             scrollTopPx // lineHeight - buf.view.scrollTop
     in
-        { buf
-            | view = { view | scrollTopPx = scrollTopPx }
+        { ed
+            | buf =
+                { buf
+                    | view = { view | scrollTopPx = scrollTopPx }
+                }
         }
             |> applyVimAST False
                 "<mousewheel>"
@@ -1651,153 +1702,146 @@ onMouseWheel delta buf =
                 }
 
 
-update : Msg -> Buffer -> ( Buffer, Cmd Msg )
-update message buf =
+update : Msg -> Editor -> ( Editor, Cmd Msg )
+update message ({ buf, global } as ed) =
     case message of
         MouseWheel delta ->
-            onMouseWheel delta buf
+            onMouseWheel delta ed
 
         PressKeys keys ->
             List.foldl
-                (\key_ ( buf_, cmds ) ->
+                (\key_ ( ed_, cmds ) ->
                     let
-                        ( buf1, cmd ) =
-                            buf_
-                                |> handleKeypress False key_
+                        ( ed__, cmd ) =
+                            handleKeypress False key_ ed_
                     in
-                        ( buf1, cmd :: cmds )
+                        ( ed__, cmd :: cmds )
                 )
-                ( buf, [] )
+                ( ed, [] )
                 (mapKeys buf.mode keys)
                 |> Tuple.mapSecond (List.reverse >> Cmd.batch)
 
         Resize size ->
-            onResize size buf
+            onResize size ed
 
         ReadClipboard result ->
             case result of
                 Ok { replaying, key, ast, s } ->
-                    let
-                        global =
-                            Buf.setRegister "+" (Text s) buf.global
-                    in
-                        { buf | global = global }
-                            |> applyVimAST replaying key ast
+                    { ed | global = Buf.setRegister "+" (Text s) global }
+                        |> applyVimAST replaying key ast
 
                 Err s ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         WriteClipboard _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
         Read result ->
-            onRead result buf
+            onRead result ed
 
         Write result ->
-            onWrite result buf
+            onWrite result ed
 
         SendLint ->
             if buf.config.lint then
-                ( buf
+                ( ed
                 , sendLintOnTheFly
-                    buf.global.service
-                    buf.global.pathSeperator
+                    global.service
+                    global.pathSeperator
                     buf.path
                     buf.history.version
                     buf.lines
                 )
             else
-                ( buf, Cmd.none )
+                ( ed, Cmd.none )
 
         Lint id resp ->
-            ( onLint id resp buf, Cmd.none )
+            ( updateGlobal (onLint id resp buf) ed, Cmd.none )
 
         Tokenized ( path, version ) resp ->
             if
                 (path == buf.path)
                     && (version == buf.history.version)
             then
-                onTokenized buf resp
+                onTokenized ed resp
             else
-                ( buf, Cmd.none )
+                ( ed, Cmd.none )
 
         SendTokenize ->
-            ( buf, tokenizeBufferCmd buf )
+            ( ed, tokenizeBufferCmd ed )
 
         ReadTags result ->
-            onReadTags result buf
+            onReadTags result ed
 
         SearchResult result ->
-            onSearch result buf
+            onSearch result ed
 
         ListAllFiles resp ->
             case resp of
                 Ok files ->
-                    ( startExAutoComplete 2 buf.global.cwd files buf, Cmd.none )
+                    ( updateBuffer (startExAutoComplete 2 global.cwd files) ed, Cmd.none )
 
                 Err _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         ListDirectries resp ->
             case resp of
                 Ok files ->
-                    ( listFiles files buf, Cmd.none )
+                    ( updateBuffer (listFiles files global) ed, Cmd.none )
 
                 Err _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         ListFiles resp ->
             case resp of
                 Ok files ->
-                    ( listFiles files buf, Cmd.none )
+                    ( updateBuffer (listFiles files global) ed, Cmd.none )
 
                 Err _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         ListBuffers files ->
-            ( startExAutoComplete 2 buf.global.cwd files buf, Cmd.none )
+            ( updateBuffer (startExAutoComplete 2 global.cwd files) ed, Cmd.none )
 
         SetCwd (Ok cwd) ->
-            let
-                global =
-                    buf.global
-            in
-                ( Buf.infoMessage cwd
-                    { buf
-                        | global = { global | cwd = cwd }
-                    }
-                , Cmd.none
-                )
+            ( { ed
+                | buf = Buf.infoMessage cwd buf
+                , global = { global | cwd = cwd }
+              }
+            , Cmd.none
+            )
 
         IMEMessage imeMsg ->
             case imeMsg of
                 CompositionTry s ->
-                    if buf.global.ime.isComposing && s /= "<escape>" then
-                        ( buf, Cmd.none )
+                    if global.ime.isComposing && s /= "<escape>" then
+                        ( ed, Cmd.none )
                     else
-                        update (PressKeys s) buf
+                        update (PressKeys s) ed
 
                 CompositionWait s ->
-                    ( buf
+                    ( ed
                     , Process.sleep 10
                         |> Task.attempt
                             (always (IMEMessage (CompositionTry s)))
                     )
 
                 CompositionStart s ->
-                    ( updateIme
-                        (\ime ->
-                            { ime
-                                | isComposing = True
-                                , compositionText = s
-                            }
+                    ( updateGlobal
+                        (updateIme
+                            (\ime ->
+                                { ime
+                                    | isComposing = True
+                                    , compositionText = s
+                                }
+                            )
                         )
-                        buf
+                        ed
                     , Cmd.none
                     )
 
                 CompositionCommit keys ->
-                    buf
+                    ed
                         |> update (PressKeys keys)
                         |> Tuple.mapSecond
                             (\cmd ->
@@ -1810,56 +1854,58 @@ update message buf =
                             )
 
                 CompositionEnd ->
-                    ( updateIme
-                        (\ime ->
-                            { ime
-                                | isComposing = False
-                                , compositionText = ""
-                            }
+                    ( updateGlobal
+                        (updateIme
+                            (\ime ->
+                                { ime
+                                    | isComposing = False
+                                    , compositionText = ""
+                                }
+                            )
                         )
-                        buf
+                        ed
                     , Cmd.none
                     )
 
                 IMEFocus ->
-                    ( buf, focusHiddenInput )
+                    ( ed, focusHiddenInput )
 
         NoneMessage ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
         Boot _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
         SetCwd _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
         MakeDir res ->
             case res of
                 Ok _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
                 Err err ->
-                    ( Buf.errorMessage err buf, Cmd.none )
+                    ( updateBuffer (Buf.errorMessage err) ed, Cmd.none )
 
 
-onLint : BufferIdentifier -> Result a (List LintError) -> Buffer -> Buffer
-onLint ( path, version ) resp buf =
+onLint : BufferIdentifier -> Result a (List LintError) -> Buffer -> Global -> Global
+onLint ( path, version ) resp buf global =
     if
         (path == buf.path)
             && (version == buf.history.version)
     then
         case resp of
             Ok items ->
-                applyLintItems items buf
+                applyLintItems items buf global
 
             _ ->
-                buf
+                global
     else
-        buf
+        global
 
 
-onSearch : Result a String -> Buffer -> ( Buffer, Cmd Msg )
-onSearch result buf =
+onSearch : Result a String -> Editor -> ( Editor, Cmd Msg )
+onSearch result ed =
     case result of
         Ok s ->
             jumpTo True
@@ -1868,28 +1914,31 @@ onSearch result buf =
                     , content = Just ( B.fromString s, Array.empty )
                     , syntax = False
                 }
-                buf
+                ed
 
         _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
 
-onReadTags : Result String Location -> Buffer -> ( Buffer, Cmd Msg )
-onReadTags result buf =
+onReadTags : Result String Location -> Editor -> ( Editor, Cmd Msg )
+onReadTags result ed =
     case result of
         Ok loc ->
             let
-                saveLastJumpToTag buf_ =
+                saveLastJumpToTag ed_ =
                     let
-                        global =
-                            buf_.global
+                        global_ =
+                            ed_.global
+
+                        buf_ =
+                            ed_.buf
 
                         last =
-                            global.last
+                            global_.last
                     in
-                        { buf_
+                        { ed_
                             | global =
-                                { global
+                                { global_
                                     | last =
                                         { last
                                             | jumpToTag =
@@ -1901,47 +1950,51 @@ onReadTags result buf =
                                 }
                         }
             in
-                buf
-                    |> Buf.clearMessage
+                ed
+                    |> updateBuffer Buf.clearMessage
                     |> saveLastJumpToTag
                     |> jumpToLocation True loc
 
         _ ->
-            ( Buf.errorMessage "tag not found" buf
+            ( updateBuffer (Buf.errorMessage "tag not found") ed
             , Cmd.none
             )
 
 
-onResize : Size -> Buffer -> ( Buffer, Cmd Msg )
-onResize size buf =
+onResize : Size -> Editor -> ( Editor, Cmd Msg )
+onResize size ({ buf, global } as ed) =
     let
         newHeight =
             getViewHeight size.height
-                buf.global.lineHeight
-                buf.global.statusbarHeight
-
-        global =
-            buf.global
+                global.lineHeight
+                global.statusbarHeight
     in
-        { buf | global = { global | size = { width = size.width, height = newHeight } } }
-            |> Buf.updateView
-                (\view ->
-                    { view
-                        | lines =
-                            List.range
-                                view.scrollTop
-                                (view.scrollTop + newHeight + 1)
-                    }
-                )
-            |> cursorScope
+        { ed
+            | global =
+                { global
+                    | size = { width = size.width, height = newHeight }
+                }
+            , buf =
+                buf
+                    |> Buf.updateView
+                        (\view ->
+                            { view
+                                | lines =
+                                    List.range
+                                        view.scrollTop
+                                        (view.scrollTop + newHeight + 1)
+                            }
+                        )
+                    |> cursorScope global
+        }
             |> tokenizeBuffer
 
 
-onRead : Result Http.Error BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-onRead result buf =
+onRead : Result Http.Error BufferInfo -> Editor -> ( Editor, Cmd Msg )
+onRead result ({ buf, global } as ed) =
     case result of
         Ok info ->
-            editBuffer True info buf
+            editBuffer True info ed
 
         Err (Http.BadStatus resp) ->
             case resp.status.code of
@@ -1955,21 +2008,23 @@ onRead result buf =
                                     , Array.empty
                                     )
                         }
-                        buf
+                        ed
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         _ ->
-            ( Buf.errorMessage
-                ("read " ++ Buf.shortPath buf ++ " failed")
-                buf
+            ( updateBuffer
+                (Buf.errorMessage
+                    ("read " ++ Buf.shortPath global buf ++ " failed")
+                )
+                ed
             , Cmd.none
             )
 
 
-onWrite : Result a ( String, List Patch ) -> Buffer -> ( Buffer, Cmd Msg )
-onWrite result buf =
+onWrite : Result a ( String, List Patch ) -> Editor -> ( Editor, Cmd Msg )
+onWrite result ({ buf, global } as ed) =
     case result of
         Ok ( lastModified, patches ) ->
             let
@@ -1989,35 +2044,40 @@ onWrite result buf =
                         -- keep cursor position
                         |> Buf.setCursor buf.cursor True
                         |> correctCursor
-                        |> scrollToCursor
-                        |> pairCursor
+                        |> scrollToCursor global
+                        |> pairCursor global.size
                         |> Buf.infoMessage
-                            ((buf |> Buf.shortPath |> quote) ++ " Written")
+                            ((buf |> Buf.shortPath global |> quote) ++ " Written")
 
                 syntaxBottom =
                     buf.syntaxDirtyFrom
 
                 lintCmd =
                     if buf1.config.lint then
-                        sendLintProject buf1.global.service
-                            buf1.global.pathSeperator
+                        sendLintProject global.service
+                            global.pathSeperator
                             buf1.path
                             buf1.history.version
                             buf1.lines
                     else
                         Cmd.none
+
+                ed1 =
+                    { ed | buf = buf1 }
             in
-                ( buf1
+                ( ed1
                 , Cmd.batch
                     [ lintCmd
-                    , tokenizeBufferCmd buf1
+                    , tokenizeBufferCmd ed1
                     ]
                 )
 
         _ ->
-            ( Buf.errorMessage
-                (Buf.shortPath buf ++ " save error")
-                buf
+            ( updateBuffer
+                (Buf.errorMessage
+                    (Buf.shortPath global buf ++ " save error")
+                )
+                ed
             , Cmd.none
             )
 
@@ -2062,13 +2122,13 @@ startExAutoComplete offset trigger candidates buf =
             buf
 
 
-listFiles : List String -> Buffer -> Buffer
-listFiles files buf =
+listFiles : List String -> Global -> Buffer -> Buffer
+listFiles files global buf =
     case buf.mode of
         Ex ({ exbuf } as ex) ->
             let
                 sep =
-                    buf.global.pathSeperator
+                    global.pathSeperator
             in
                 setExbuf buf
                     ex
@@ -2080,7 +2140,7 @@ listFiles files buf =
                         [ prefix, path ] ->
                             startAutoComplete
                                 fileNameWordChars
-                                (getPath sep buf.global.homedir buf.global.cwd path)
+                                (getPath sep global.homedir global.cwd path)
                                 (String.length prefix)
                                 files
                                 ( 0
@@ -2113,7 +2173,7 @@ getViewHeight heightPx lineHeightPx statusBarHeight =
     heightPx // lineHeightPx - statusBarHeight
 
 
-init : Flags -> ( Buffer, Cmd Msg )
+init : Flags -> ( Editor, Cmd Msg )
 init flags =
     let
         { cwd, fontInfo, service, buffers, homedir, isSafari } =
@@ -2127,7 +2187,7 @@ init flags =
             flags
 
         viewHeight =
-            getViewHeight height lineHeight emptyBuffer.global.statusbarHeight
+            getViewHeight height lineHeight emptyGlobal.statusbarHeight
 
         cwd1 =
             if String.isEmpty cwd then
@@ -2143,33 +2203,35 @@ init flags =
         ( buf, cmd ) =
             editBuffer False
                 activeBuf
-                { emptyBuffer
-                    | view = emptyView
-                    , path = activeBuf.path
-                    , history = activeBuf.history
-                    , global =
-                        { emptyGlobal
-                            | service = service
-                            , size =
-                                { width = 1
-                                , height = viewHeight
-                                }
-                            , exHistory = exHistory
-                            , cwd = cwd1
-                            , pathSeperator = pathSeperator
-                            , fontInfo = fontInfo
-                            , homedir = homedir
-                            , isSafari = isSafari
-                            , registers =
-                                Decode.decodeValue registersDecoder registers
-                                    |> Result.withDefault Dict.empty
-                            , buffers =
-                                buffers
-                                    |> Decode.decodeValue (Decode.list bufferInfoDecoder)
-                                    |> Result.withDefault []
-                                    |> fromListBy .path
-                            , lineHeight = lineHeight
-                        }
+                { buf =
+                    { emptyBuffer
+                        | view = emptyView
+                        , path = activeBuf.path
+                        , history = activeBuf.history
+                    }
+                , global =
+                    { emptyGlobal
+                        | service = service
+                        , size =
+                            { width = 1
+                            , height = viewHeight
+                            }
+                        , exHistory = exHistory
+                        , cwd = cwd1
+                        , pathSeperator = pathSeperator
+                        , fontInfo = fontInfo
+                        , homedir = homedir
+                        , isSafari = isSafari
+                        , registers =
+                            Decode.decodeValue registersDecoder registers
+                                |> Result.withDefault Dict.empty
+                        , buffers =
+                            buffers
+                                |> Decode.decodeValue (Decode.list bufferInfoDecoder)
+                                |> Result.withDefault []
+                                |> fromListBy .path
+                        , lineHeight = lineHeight
+                    }
                 }
     in
         ( buf, Cmd.batch [ cmd, focusHiddenInput ] )

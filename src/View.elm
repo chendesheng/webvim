@@ -68,10 +68,10 @@ translate x y =
     )
 
 
-page : Buffer -> Document Msg
-page buf =
+page : Editor -> Document Msg
+page { buf, global } =
     { title = pageTitle buf
-    , body = [ pageDom buf ]
+    , body = [ pageDom buf global ]
     }
 
 
@@ -82,14 +82,11 @@ pageTitle buf =
         buf.name
 
 
-pageDom : Buffer -> Html Msg
-pageDom buf =
+pageDom : Buffer -> Global -> Html Msg
+pageDom buf global =
     let
         { mode, cursor, lines, syntax, continuation, view, history } =
             buf
-
-        global =
-            buf.global
 
         { fontInfo, isSafari, ime, lint, lineHeight } =
             global
@@ -118,7 +115,7 @@ pageDom buf =
                     Just cursor
 
         scrollTop1 =
-            Buf.finalScrollTop buf
+            Buf.finalScrollTop global.size buf
 
         highlights =
             incrementSearchRegion mode
@@ -230,13 +227,13 @@ pageDom buf =
                 lint.items
                 buf.name
              , div [ style "display" "none" ]
-                ([ lazy saveRegisters buf.global.registers
+                ([ lazy saveRegisters global.registers
                  , div []
-                    (buf.global.buffers
+                    (global.buffers
                         |> Dict.toList
                         |> List.indexedMap (\i ( _, buf1 ) -> saveBuffer i buf1)
                     )
-                 , lazy saveCwd buf.global.cwd
+                 , lazy saveCwd global.cwd
                  ]
                     ++ [ lazy3 saveActiveBuffer
                             buf.path
@@ -249,7 +246,7 @@ pageDom buf =
                                         ("exHistory[" ++ String.fromInt i ++ "]")
                                         s
                                 )
-                                buf.global.exHistory
+                                global.exHistory
                             )
                        ]
                 )

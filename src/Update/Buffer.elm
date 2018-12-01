@@ -61,6 +61,8 @@ import Model
         , ExPrefix(..)
         , IME
         , emptyIme
+        , Global
+        , Size
         )
 import Internal.TextBuffer as B
     exposing
@@ -170,9 +172,6 @@ applyPatches patches buf =
     let
         lines =
             buf.lines
-
-        scrollTop =
-            finalScrollTop buf
     in
         List.foldl
             (\patch args ->
@@ -354,9 +353,6 @@ applyRegionChangeToView change scrollTop height_ viewLines =
 transaction : List Patch -> Buffer -> Buffer
 transaction patches buf =
     let
-        scrollTop =
-            finalScrollTop buf
-
         ( buf1, undoPatchs ) =
             List.foldl
                 (\patch ( buf_, undoPatches_ ) ->
@@ -967,13 +963,9 @@ configs =
         ]
 
 
-setShowTip : Bool -> Buffer -> Buffer
-setShowTip showTip buf =
-    let
-        global =
-            buf.global
-    in
-        { buf | global = { global | showTip = showTip } }
+setShowTip : Bool -> Global -> Global
+setShowTip showTip global =
+    { global | showTip = showTip }
 
 
 isDirty : Buffer -> Bool
@@ -1096,17 +1088,17 @@ scrollViewLines height_ from to viewLines =
             viewLines
 
 
-setScrollTop : Int -> Buffer -> Buffer
-setScrollTop n buf =
+setScrollTop : Int -> Global -> Buffer -> Buffer
+setScrollTop n global buf =
     if n == buf.view.scrollTop then
         buf
     else
         let
             lineHeight =
-                buf.global.lineHeight
+                global.lineHeight
 
             height =
-                buf.global.size.height
+                global.size.height
         in
             updateView
                 (\v ->
@@ -1283,8 +1275,8 @@ getStatusBar mode =
             }
 
 
-finalScrollTop : Buffer -> Int
-finalScrollTop buf =
+finalScrollTop : Size -> Buffer -> Int
+finalScrollTop { height } buf =
     case buf.mode of
         Ex { prefix, visual } ->
             case prefix of
@@ -1296,7 +1288,7 @@ finalScrollTop buf =
                                     (Tuple.first begin)
                                     (Tuple.first end)
                                 )
-                                buf.global.size.height
+                                height
                                 buf.lines
                                 buf.view.scrollTop
 
@@ -1328,6 +1320,6 @@ switchVisualEnd buf =
             buf
 
 
-shortPath : Buffer -> String
-shortPath buf =
-    relativePath buf.global.pathSeperator buf.global.cwd buf.path
+shortPath : Global -> Buffer -> String
+shortPath global buf =
+    relativePath global.pathSeperator global.cwd buf.path

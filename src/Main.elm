@@ -18,7 +18,7 @@ import Json.Decode as Decode
 -- 可以用中文输入法了！表情也可以输入了😄
 
 
-toModel : ( Buffer, cmd ) -> ( Model, cmd )
+toModel : ( Editor, cmd ) -> ( Model, cmd )
 toModel =
     Tuple.mapFirst Ready
 

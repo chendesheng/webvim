@@ -10,8 +10,8 @@ import Internal.Brackets exposing (pairBracketAt)
 
 {-| scroll to ensure pos it is insdie viewport
 -}
-scrollTo : Int -> Buffer -> Buffer
-scrollTo y ({ view, lines, global } as buf) =
+scrollTo : Int -> Global -> Buffer -> Buffer
+scrollTo y global ({ view, lines } as buf) =
     let
         miny =
             view.scrollTop
@@ -27,12 +27,12 @@ scrollTo y ({ view, lines, global } as buf) =
             else
                 buf.view.scrollTop
     in
-        Buf.setScrollTop scrollTop buf
+        Buf.setScrollTop scrollTop global buf
 
 
-scrollToCursor : Buffer -> Buffer
-scrollToCursor buf =
-    scrollTo (Tuple.first buf.cursor) buf
+scrollToCursor : Global -> Buffer -> Buffer
+scrollToCursor global buf =
+    scrollTo (Tuple.first buf.cursor) global buf
 
 
 correctCursor : Buffer -> Buffer
@@ -108,14 +108,14 @@ correctPosition pos excludeLineBreak lines =
 
 {-| move cursor ensure cursor is insdie viewport
 -}
-cursorScope : Buffer -> Buffer
-cursorScope ({ view, cursor, lines, global } as buf) =
+cursorScope : Global -> Buffer -> Buffer
+cursorScope global ({ view, cursor, lines } as buf) =
     let
         ( y, x ) =
             cursor
 
         scrollTop =
-            if remainderBy buf.global.lineHeight view.scrollTopPx > 0 then
+            if remainderBy global.lineHeight view.scrollTopPx > 0 then
                 view.scrollTop + 1
             else
                 view.scrollTop
@@ -170,8 +170,8 @@ pairSource buf =
             buf.cursor
 
 
-pairCursor : Buffer -> Buffer
-pairCursor buf =
+pairCursor : Size -> Buffer -> Buffer
+pairCursor size buf =
     Buf.updateView
         (\view ->
             let
@@ -183,7 +183,7 @@ pairCursor buf =
                         cursor
                             |> pairBracketAt
                                 buf.view.scrollTop
-                                (buf.view.scrollTop + buf.global.size.height)
+                                (buf.view.scrollTop + size.height)
                                 buf.lines
                                 buf.syntax
                             |> Maybe.map (Tuple.pair cursor)

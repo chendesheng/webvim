@@ -48,8 +48,8 @@ isTempBuffer path =
     String.isEmpty path || path == "[Search]"
 
 
-tokenizeBufferCmd : Buffer -> Cmd Msg
-tokenizeBufferCmd buf =
+tokenizeBufferCmd : Editor -> Cmd Msg
+tokenizeBufferCmd ({ buf, global } as ed) =
     if isTempBuffer buf.path || not buf.config.syntax then
         Cmd.none
     else
@@ -58,7 +58,7 @@ tokenizeBufferCmd buf =
                 buf.syntaxDirtyFrom
 
             end =
-                Buf.finalScrollTop buf + 2 * buf.global.size.height
+                Buf.finalScrollTop global.size buf + 2 * global.size.height
 
             lines =
                 if begin < end then
@@ -72,7 +72,7 @@ tokenizeBufferCmd buf =
                 Cmd.none
             else
                 sendTokenize
-                    buf.global.service
+                    global.service
                     { path = buf.path
                     , version = buf.history.version
                     , line = begin
@@ -83,19 +83,16 @@ tokenizeBufferCmd buf =
                     }
 
 
-tokenizeBuffer : Buffer -> ( Buffer, Cmd Msg )
-tokenizeBuffer buf =
-    ( buf, tokenizeBufferCmd buf )
+tokenizeBuffer : Editor -> ( Editor, Cmd Msg )
+tokenizeBuffer ed =
+    ( ed, tokenizeBufferCmd ed )
 
 
-jumpTo : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-jumpTo isSaveJump info buf =
+jumpTo : Bool -> BufferInfo -> Editor -> ( Editor, Cmd Msg )
+jumpTo isSaveJump info ({ global, buf } as ed) =
     let
         { path, cursor } =
             info
-
-        global =
-            buf.global
 
         jumps =
             if isSaveJump then
@@ -104,40 +101,45 @@ jumpTo isSaveJump info buf =
                 global.jumps
     in
         if path == buf.path then
-            { buf | global = { global | jumps = jumps } }
-                |> Buf.setCursor cursor True
-                |> Buf.setScrollTop
-                    (Buf.bestScrollTop (Tuple.first cursor)
-                        global.size.height
-                        buf.lines
-                        buf.view.scrollTop
-                    )
+            { ed
+                | global = { global | jumps = jumps }
+                , buf =
+                    buf
+                        |> Buf.setCursor cursor True
+                        |> Buf.setScrollTop
+                            (Buf.bestScrollTop (Tuple.first cursor)
+                                global.size.height
+                                buf.lines
+                                buf.view.scrollTop
+                            )
+                            global
+            }
                 |> tokenizeBuffer
         else
             editBuffer False
                 info
-                { buf | global = { global | jumps = jumps } }
+                { ed | global = { global | jumps = jumps } }
 
 
-jumpToLocation : Bool -> Location -> Buffer -> ( Buffer, Cmd Msg )
-jumpToLocation isSaveJump { path, cursor } buf =
-    jumpToPath isSaveJump path (Just cursor) buf
+jumpToLocation : Bool -> Location -> Editor -> ( Editor, Cmd Msg )
+jumpToLocation isSaveJump { path, cursor } ed =
+    jumpToPath isSaveJump path (Just cursor) ed
 
 
-jumpToPath : Bool -> String -> Maybe Position -> Buffer -> ( Buffer, Cmd Msg )
-jumpToPath isSaveJump path_ overrideCursor buf =
+jumpToPath : Bool -> String -> Maybe Position -> Editor -> ( Editor, Cmd Msg )
+jumpToPath isSaveJump path_ overrideCursor ({ global } as ed) =
     let
         path =
             if isTempBuffer path_ then
                 path_
             else
                 resolvePath
-                    buf.global.pathSeperator
-                    buf.global.cwd
+                    global.pathSeperator
+                    global.cwd
                     path_
 
         info =
-            buf.global.buffers
+            global.buffers
                 |> Dict.get path
                 |> Maybe.map
                     (\info_ ->
@@ -152,56 +154,51 @@ jumpToPath isSaveJump path_ overrideCursor buf =
                         , cursor = Maybe.withDefault ( 0, 0 ) overrideCursor
                     }
     in
-        jumpTo isSaveJump info buf
+        jumpTo isSaveJump info ed
 
 
-editBuffer : Bool -> BufferInfo -> Buffer -> ( Buffer, Cmd Msg )
-editBuffer restoreHistory info buf =
+editBuffer : Bool -> BufferInfo -> Editor -> ( Editor, Cmd Msg )
+editBuffer restoreHistory info ({ global, buf } as ed) =
     if info.path /= "" && info.content == Nothing then
-        ( buf
-        , sendReadBuffer buf.global.service
-            (Tuple.first info.cursor + buf.global.size.height * 2)
+        ( ed
+        , sendReadBuffer global.service
+            (Tuple.first info.cursor + global.size.height * 2)
             buf.config.tabSize
             info
         )
     else
         let
-            global =
-                buf.global
+            global1 =
+                { global
+                    | buffers =
+                        (global.buffers
+                            |> Dict.remove info.path
+                            |> Dict.insert buf.path
+                                { path = buf.path
+                                , content =
+                                    Just
+                                        ( buf.lines, buf.syntax )
+                                , cursor = buf.cursor
+                                , syntax = buf.config.syntax
+                                , history = buf.history
+                                }
+                        )
+                    , registers =
+                        global.registers
+                            |> Dict.insert "%" (Text info.path)
+                            |> (\regs ->
+                                    if buf.path == info.path then
+                                        regs
+                                    else
+                                        Dict.insert
+                                            "#"
+                                            (Text buf.path)
+                                            regs
+                               )
+                }
 
             newbuf =
-                newBuffer
-                    info
-                    { buf
-                        | global =
-                            { global
-                                | buffers =
-                                    (buf.global.buffers
-                                        |> Dict.remove info.path
-                                        |> Dict.insert buf.path
-                                            { path = buf.path
-                                            , content =
-                                                Just
-                                                    ( buf.lines, buf.syntax )
-                                            , cursor = buf.cursor
-                                            , syntax = buf.config.syntax
-                                            , history = buf.history
-                                            }
-                                    )
-                                , registers =
-                                    buf.global.registers
-                                        |> Dict.insert "%" (Text info.path)
-                                        |> (\regs ->
-                                                if buf.path == info.path then
-                                                    regs
-                                                else
-                                                    Dict.insert
-                                                        "#"
-                                                        (Text buf.path)
-                                                        regs
-                                           )
-                            }
-                    }
+                newBuffer info global1 buf
 
             newbuf1 =
                 if restoreHistory then
@@ -212,17 +209,17 @@ editBuffer restoreHistory info buf =
                 else
                     newbuf
         in
-            ( newbuf1
+            ( { ed | buf = newbuf1, global = global1 }
             , Cmd.batch
                 [ if newbuf.config.lint then
-                    sendLintProject newbuf.global.service
-                        newbuf.global.pathSeperator
+                    sendLintProject global1.service
+                        global1.pathSeperator
                         newbuf.path
                         newbuf.history.version
                         newbuf.lines
                   else
                     Cmd.none
-                , tokenizeBufferCmd newbuf
+                , tokenizeBufferCmd { ed | buf = newbuf }
                 ]
             )
 
@@ -237,8 +234,8 @@ isLintEnabled gb lint name =
         lint
 
 
-newBuffer : BufferInfo -> Buffer -> Buffer
-newBuffer info buf =
+newBuffer : BufferInfo -> Global -> Buffer -> Buffer
+newBuffer info global buf =
     let
         { cursor, path, content, history } =
             info
@@ -260,7 +257,7 @@ newBuffer info buf =
             Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
 
         height =
-            buf.global.size.height
+            global.size.height
 
         scrollTop =
             Buf.bestScrollTop (Tuple.first cursor)
@@ -272,11 +269,11 @@ newBuffer info buf =
         , mode = Normal { message = EmptyMessage }
         , config =
             { config1
-                | lint = isLintEnabled buf.global config1.lint path
+                | lint = isLintEnabled global config1.lint path
             }
         , view =
             { emptyView
-                | scrollTopPx = scrollTop * buf.global.lineHeight
+                | scrollTopPx = scrollTop * global.lineHeight
                 , scrollTop = scrollTop
                 , lines =
                     List.range scrollTop (scrollTop + height + 1)
@@ -291,14 +288,13 @@ newBuffer info buf =
         , continuation = ""
         , dirtyIndent = 0
         , motionFailed = False
-        , global = buf.global
         }
             |> correctCursor
-            |> scrollToCursor
+            |> scrollToCursor global
 
 
-jumpByView : Float -> Buffer -> Buffer
-jumpByView factor buf =
+jumpByView : Float -> Global -> Buffer -> Buffer
+jumpByView factor global buf =
     let
         forward =
             factor > 0
@@ -307,7 +303,7 @@ jumpByView factor buf =
             buf.view
 
         height =
-            buf.global.size.height
+            global.size.height
 
         lineScope row =
             row
@@ -348,7 +344,7 @@ jumpByView factor buf =
                 buf
                     |> Buf.setCursor cursor True
                     |> setVisualEnd cursor
-                    |> Buf.setScrollTop scrollTop
+                    |> Buf.setScrollTop scrollTop global
 
             Nothing ->
                 buf
@@ -396,12 +392,9 @@ locationParser =
            )
 
 
-jumpHistory : Bool -> Buffer -> ( Buffer, Cmd Msg )
-jumpHistory isForward buf =
+jumpHistory : Bool -> Editor -> ( Editor, Cmd Msg )
+jumpHistory isForward ({ global, buf } as ed) =
     let
-        global =
-            buf.global
-
         jumps =
             if isForward then
                 jumpForward global.jumps
@@ -416,24 +409,24 @@ jumpHistory isForward buf =
             Just loc ->
                 jumpToLocation False
                     loc
-                    { buf | global = { global | jumps = jumps } }
+                    { ed | global = { global | jumps = jumps } }
 
             _ ->
-                ( buf, Cmd.none )
+                ( ed, Cmd.none )
 
 
-jumpLastBuffer : Buffer -> ( Buffer, Cmd Msg )
-jumpLastBuffer buf =
-    case Dict.get "#" buf.global.registers of
+jumpLastBuffer : Editor -> ( Editor, Cmd Msg )
+jumpLastBuffer ({ global } as ed) =
+    case Dict.get "#" global.registers of
         Just reg ->
-            jumpToPath True (registerString reg) Nothing buf
+            jumpToPath True (registerString reg) Nothing ed
 
         _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
 
-startJumpToTag : Maybe Int -> Buffer -> ( Buffer, Cmd Msg )
-startJumpToTag count buf =
+startJumpToTag : Maybe Int -> Editor -> ( Editor, Cmd Msg )
+startJumpToTag count ({ buf, global } as ed) =
     case
         wordStringUnderCursor
             buf.config.wordChars
@@ -441,29 +434,29 @@ startJumpToTag count buf =
             buf.cursor
     of
         Just ( _, s ) ->
-            ( buf
-            , sendReadTags buf.global.service
-                buf.global.pathSeperator
-                buf.global.cwd
+            ( ed
+            , sendReadTags global.service
+                global.pathSeperator
+                global.cwd
                 buf.path
                 (Maybe.withDefault 1 count - 1)
                 s
             )
 
         _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )
 
 
-jumpToFile : Buffer -> ( Buffer, Cmd Msg )
-jumpToFile buf =
+jumpToFile : Editor -> ( Editor, Cmd Msg )
+jumpToFile ({ buf } as ed) =
     case wORDStringUnderCursor buf of
         Just ( _, s ) ->
             case P.run locationParser s of
                 Ok loc ->
-                    jumpToLocation True loc buf
+                    jumpToLocation True loc ed
 
                 _ ->
-                    ( buf, Cmd.none )
+                    ( ed, Cmd.none )
 
         _ ->
-            ( buf, Cmd.none )
+            ( ed, Cmd.none )

@@ -15,11 +15,11 @@ import Internal.PositionClass exposing (findLineFirst)
 import Helper.Helper exposing (getLast)
 
 
-deleteOperator : Maybe Int -> V.OperatorRange -> Buffer -> List Patch
-deleteOperator count range buf =
+deleteOperator : Maybe Int -> V.OperatorRange -> Global -> Buffer -> List Patch
+deleteOperator count range global buf =
     let
         ranges =
-            operatorRanges count range buf
+            operatorRanges count range global buf
 
         --Ex { visual } ->
         --    case visual of
@@ -40,8 +40,8 @@ deleteOperator count range buf =
             List.map (\( begin, end ) -> Deletion begin end) ranges
 
 
-delete : Maybe Int -> String -> V.OperatorRange -> Buffer -> Buffer
-delete count register rg buf =
+delete : Maybe Int -> String -> V.OperatorRange -> Editor -> Editor
+delete count register rg ({ global, buf } as ed) =
     let
         updateCursorColumn buf_ =
             { buf_ | cursorColumn = Tuple.second buf_.cursor }
@@ -49,33 +49,15 @@ delete count register rg buf =
         linewise =
             isLinewise rg buf.mode
 
-        deleteAnd f buf_ =
-            case deleteOperator count rg buf_ of
+        doDelete : Buffer -> Buffer
+        doDelete buf_ =
+            case deleteOperator count rg global buf_ of
                 [] ->
-                    let
-                        setMotionFailed buf__ =
-                            { buf__ | motionFailed = True }
-                    in
-                        case rg of
-                            V.MotionRange md _ ->
-                                case md of
-                                    V.MatchString _ ->
-                                        setMotionFailed buf_
-
-                                    V.MatchChar _ _ ->
-                                        setMotionFailed buf_
-
-                                    _ ->
-                                        buf_
-
-                            V.TextObject _ _ ->
-                                setMotionFailed buf_
-
-                            _ ->
-                                buf_
+                    { buf_ | motionFailed = True }
 
                 patches ->
                     let
+                        setCursor : Buffer -> Buffer
                         setCursor buf__ =
                             case getLast patches of
                                 Just (Deletion b e) ->
@@ -87,7 +69,6 @@ delete count register rg buf =
                         buf_
                             |> Buf.transaction patches
                             |> setCursor
-                            |> f
     in
         case buf.mode of
             Ex ({ exbuf } as ex) ->
@@ -96,37 +77,64 @@ delete count register rg buf =
                     V.MotionRange md mo ->
                         case md of
                             V.MatchString _ ->
-                                buf
-                                    |> deleteAnd
-                                        (saveLastDeleted linewise register
-                                            >> updateCursorColumn
-                                        )
-                                    |> saveMotion md mo buf
+                                let
+                                    buf1 =
+                                        doDelete buf
+                                in
+                                    if buf1.motionFailed then
+                                        { ed
+                                            | global = saveMotion md mo buf buf1 global
+                                            , buf = buf1
+                                        }
+                                    else
+                                        { ed
+                                            | global =
+                                                global
+                                                    |> saveLastDeleted linewise register buf1
+                                                    |> saveMotion md mo buf buf1
+                                            , buf = updateCursorColumn buf1
+                                        }
 
                             _ ->
-                                Buf.setMode
-                                    (Ex
-                                        { ex
-                                            | exbuf = deleteAnd identity exbuf
-                                        }
-                                    )
-                                    buf
+                                { ed
+                                    | buf =
+                                        Buf.setMode
+                                            (Ex { ex | exbuf = doDelete exbuf })
+                                            buf
+                                }
 
                     _ ->
-                        Buf.setMode
-                            (Ex { ex | exbuf = deleteAnd identity exbuf })
-                            buf
+                        { ed
+                            | buf =
+                                Buf.setMode
+                                    (Ex { ex | exbuf = doDelete exbuf })
+                                    buf
+                        }
 
             Insert _ ->
-                deleteAnd (Buf.setLastIndent 0) buf
+                { ed
+                    | buf =
+                        buf
+                            |> doDelete
+                            |> Buf.setLastIndent 0
+                }
 
             _ ->
-                deleteAnd
-                    (saveLastDeleted linewise register
-                        >> indentCursor linewise
-                        >> updateCursorColumn
-                    )
-                    buf
+                let
+                    buf1 =
+                        doDelete buf
+                in
+                    if buf1.motionFailed then
+                        { ed | buf = buf1 }
+                    else
+                        { ed
+                            | global =
+                                saveLastDeleted linewise register buf1 global
+                            , buf =
+                                buf1
+                                    |> indentCursor linewise
+                                    |> updateCursorColumn
+                        }
 
 
 indentCursor : Bool -> Buffer -> Buffer
@@ -150,8 +158,8 @@ toRegisterText linewise s =
         Text s
 
 
-saveLastDeleted : Bool -> String -> Buffer -> Buffer
-saveLastDeleted linewise reg buf =
+saveLastDeleted : Bool -> String -> Buffer -> Global -> Global
+saveLastDeleted linewise reg buf global =
     let
         s =
             buf
@@ -160,7 +168,7 @@ saveLastDeleted linewise reg buf =
                 |> Maybe.withDefault ""
                 |> toRegisterText linewise
     in
-        { buf | global = Buf.setRegister reg s buf.global }
+        Buf.setRegister reg s global
 
 
 join : Maybe Int -> Bool -> Buffer -> Buffer

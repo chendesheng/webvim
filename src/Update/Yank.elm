@@ -1,6 +1,6 @@
 module Update.Yank exposing (yank, put, yankWholeBuffer)
 
-import Model exposing (RegisterText(..), Buffer, Mode(..))
+import Model exposing (RegisterText(..), Buffer, Mode(..), Editor, Global)
 import Vim.AST as V exposing (Operator(..))
 import Update.Range exposing (operatorRanges, isLinewise)
 import Update.Buffer as Buf
@@ -10,20 +10,20 @@ import Update.Service exposing (sendWriteClipboard)
 import Dict
 
 
-yankWholeBuffer : Buffer -> ( Buffer, Cmd Msg )
-yankWholeBuffer buf =
-    ( Buf.infoMessage "Whole buffer copied." buf
+yankWholeBuffer : Editor -> ( Editor, Cmd Msg )
+yankWholeBuffer ({ buf, global } as ed) =
+    ( { ed | buf = Buf.infoMessage "Whole buffer copied." buf }
     , buf.lines
         |> B.toString
-        |> sendWriteClipboard buf.global.service
+        |> sendWriteClipboard global.service
     )
 
 
-yank : Maybe Int -> String -> V.OperatorRange -> Buffer -> ( Buffer, Cmd Msg )
-yank count register range buf =
+yank : Maybe Int -> String -> V.OperatorRange -> Editor -> ( Editor, Cmd Msg )
+yank count register range ({ global, buf } as ed) =
     let
         s =
-            operatorRanges count range buf
+            operatorRanges count range global buf
                 --|> Debug.log "operatorRanges"
                 |> List.map
                     (\rg ->
@@ -46,14 +46,11 @@ yank count register range buf =
 
         cmd =
             if register == "+" then
-                sendWriteClipboard buf.global.service s
+                sendWriteClipboard global.service s
             else
                 Cmd.none
-
-        global =
-            buf.global
     in
-        ( { buf
+        ( { ed
             | global =
                 global
                     |> Buf.setRegister "0" txt
@@ -69,42 +66,38 @@ yank count register range buf =
         )
 
 
-put : String -> Bool -> Buffer -> Buffer
-put register forward buf =
+put : String -> Bool -> Editor -> Editor
+put register forward ({ global, buf } as ed) =
     let
-        removeRegister reg buf_ =
-            let
-                global =
-                    buf_.global
-            in
-                { buf_
-                    | global =
-                        { global
-                            | registers = Dict.remove reg buf_.global.registers
-                        }
-                }
+        removeRegister reg global_ =
+            { global
+                | registers = Dict.remove reg global_.registers
+            }
     in
-        Dict.get register buf.global.registers
+        Dict.get register global.registers
             |> Maybe.map
                 (\s ->
                     case buf.mode of
                         Ex ({ exbuf } as ex) ->
-                            buf
-                                |> Buf.setMode
-                                    (Ex
-                                        { ex
-                                            | exbuf =
-                                                Buf.putString
-                                                    forward
-                                                    s
-                                                    exbuf
-                                        }
-                                    )
-                                |> removeRegister "+"
+                            { ed
+                                | buf =
+                                    Buf.setMode
+                                        (Ex
+                                            { ex
+                                                | exbuf =
+                                                    Buf.putString forward
+                                                        s
+                                                        exbuf
+                                            }
+                                        )
+                                        buf
+                                , global = removeRegister "+" global
+                            }
 
                         _ ->
-                            buf
-                                |> Buf.putString forward s
-                                |> removeRegister "+"
+                            { ed
+                                | buf = Buf.putString forward s buf
+                                , global = removeRegister "+" global
+                            }
                 )
-            |> Maybe.withDefault buf
+            |> Maybe.withDefault ed

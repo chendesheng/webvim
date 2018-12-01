@@ -19,7 +19,7 @@ import Internal.Position exposing (Position, excludeRight)
 import String
 import Internal.PositionClass exposing (..)
 import Regex as Re
-import Internal.Jumps exposing (saveJump)
+import Internal.Jumps exposing (saveJump, Location)
 import Update.Message exposing (Msg(..))
 import Internal.TextObject exposing (wordUnderCursor, wORDUnderCursor)
 import Helper.Helper exposing (repeatfn, regex, regexWith, escapeRegex)
@@ -100,11 +100,17 @@ wholeWord s =
         escapeRegex s
 
 
-saveMotion : V.MotionData -> V.MotionOption -> Buffer -> Buffer -> Buffer
-saveMotion md mo oldbuf buf =
+saveMotion :
+    V.MotionData
+    -> V.MotionOption
+    -> Buffer
+    -> Buffer
+    -> Global
+    -> Global
+saveMotion md mo oldbuf buf global =
     let
         last =
-            buf.global.last
+            global.last
 
         last1 =
             case md of
@@ -156,18 +162,15 @@ saveMotion md mo oldbuf buf =
                                                 }
 
                                         _ ->
-                                            buf.global.last
+                                            global.last
 
                                 _ ->
-                                    buf.global.last
+                                    global.last
 
                 _ ->
-                    buf.global.last
-
-        global =
-            buf.global
+                    global.last
     in
-        { buf | global = { global | last = last1 } }
+        { global | last = last1 }
 
 
 findPositionInBuffer :
@@ -226,8 +229,13 @@ findPositionInBuffer md mo y x wordChars lines =
                 Nothing
 
 
-gotoMatchedString : Maybe Int -> V.MotionOption -> Buffer -> Maybe Position
-gotoMatchedString count mo buf =
+gotoMatchedString :
+    Maybe Int
+    -> V.MotionOption
+    -> Maybe ( String, Bool )
+    -> Buffer
+    -> Maybe Position
+gotoMatchedString count mo matchStr buf =
     case buf.mode of
         Ex { prefix, exbuf } ->
             case prefix of
@@ -238,7 +246,7 @@ gotoMatchedString count mo buf =
                     Nothing
 
         _ ->
-            case buf.global.last.matchString of
+            case matchStr of
                 Just ( s, forward ) ->
                     let
                         forward1 =
@@ -448,9 +456,10 @@ runMotion :
     Maybe Int
     -> V.MotionData
     -> V.MotionOption
+    -> Global
     -> Buffer
     -> Maybe Position
-runMotion count md mo buf =
+runMotion count md mo global buf =
     if B.isEmpty buf.lines then
         Nothing
     else
@@ -458,7 +467,7 @@ runMotion count md mo buf =
             bottomLine buf_ =
                 (min
                     (B.count buf_.lines - 1)
-                    (buf_.view.scrollTop + buf_.global.size.height)
+                    (buf_.view.scrollTop + global.size.height)
                 )
                     - 1
 
@@ -527,7 +536,7 @@ runMotion count md mo buf =
                         |> Buf.cursorLineFirst buf.lines
 
                 V.RepeatMatchChar ->
-                    case buf.global.last.matchChar of
+                    case global.last.matchChar of
                         Just { char, before, forward } ->
                             let
                                 mo1 =
@@ -556,7 +565,10 @@ runMotion count md mo buf =
                 V.MatchString str ->
                     case str of
                         V.LastSavedString ->
-                            gotoMatchedString count mo buf
+                            gotoMatchedString count
+                                mo
+                                global.last.matchString
+                                buf
 
                         V.WordUnderCursor ->
                             wordStringUnderCursor
@@ -838,8 +850,8 @@ isSaveColumn md =
             True
 
 
-saveCursorBeforeJump : V.MotionData -> Position -> Buffer -> Buffer
-saveCursorBeforeJump md cursorAfter buf =
+saveCursorBeforeJump : V.MotionData -> Position -> Location -> Global -> Global
+saveCursorBeforeJump md cursorAfter loc global =
     let
         isJump md_ =
             case md_ of
@@ -869,22 +881,11 @@ saveCursorBeforeJump md cursorAfter buf =
 
                 _ ->
                     False
-
-        global =
-            buf.global
     in
-        if buf.cursor /= cursorAfter && isJump md then
-            let
-                jumps =
-                    saveJump
-                        { path = buf.path
-                        , cursor = buf.cursor
-                        }
-                        global.jumps
-            in
-                { buf | global = { global | jumps = jumps } }
+        if loc.cursor /= cursorAfter && isJump md then
+            { global | jumps = saveJump loc global.jumps }
         else
-            buf
+            global
 
 
 showErrorMessage : V.MotionData -> V.MotionOption -> Buffer -> Buffer
@@ -903,8 +904,13 @@ showErrorMessage md mo buf =
             buf
 
 
-showSuccessMessage : V.MotionData -> V.MotionOption -> Buffer -> Buffer
-showSuccessMessage md mo buf =
+showSuccessMessage :
+    V.MotionData
+    -> V.MotionOption
+    -> Maybe ( String, Bool )
+    -> Buffer
+    -> Buffer
+showSuccessMessage md mo matchStr buf =
     case md of
         V.RepeatMatchChar ->
             Buf.clearMessage buf
@@ -913,7 +919,7 @@ showSuccessMessage md mo buf =
             Buf.clearMessage buf
 
         V.MatchString _ ->
-            case buf.global.last.matchString of
+            case matchStr of
                 Just ( s, _ ) ->
                     Buf.infoMessage
                         ((if mo.forward then
@@ -936,16 +942,16 @@ motion :
     Maybe Int
     -> V.MotionData
     -> V.MotionOption
-    -> Buffer
-    -> ( Buffer, Cmd Msg )
-motion count md mo buf =
-    case runMotion count md mo buf of
+    -> Editor
+    -> ( Editor, Cmd Msg )
+motion count md mo ({ buf, global } as ed) =
+    case runMotion count md mo global buf of
         Just cursor ->
             let
                 centerScrollTop =
                     Buf.bestScrollTop
                         (Tuple.first cursor)
-                        buf.global.size.height
+                        global.size.height
                         buf.lines
                         buf.view.scrollTop
 
@@ -962,20 +968,36 @@ motion count md mo buf =
 
                         _ ->
                             buf.view.scrollTop
+
+                buf1 =
+                    buf
+                        |> Buf.setCursor cursor (isSaveColumn md)
+                        |> Buf.setScrollTop scrollTop global
+
+                global1 =
+                    global
+                        |> saveMotion md mo buf buf1
+                        |> saveCursorBeforeJump md
+                            cursor
+                            { path = buf.path, cursor = buf.cursor }
             in
-                ( buf
-                    |> saveCursorBeforeJump md cursor
-                    |> Buf.setCursor cursor (isSaveColumn md)
-                    |> Buf.setScrollTop scrollTop
-                    |> setVisualEnd cursor
-                    |> saveMotion md mo buf
-                    |> showSuccessMessage md mo
+                ( { ed
+                    | buf =
+                        buf1
+                            |> setVisualEnd cursor
+                            |> showSuccessMessage md mo global1.last.matchString
+                    , global =
+                        global1
+                  }
                 , Cmd.none
                 )
 
         Nothing ->
-            ( buf
-                |> saveMotion md mo buf
-                |> showErrorMessage md mo
+            ( { ed
+                | buf =
+                    showErrorMessage md mo buf
+                , global =
+                    saveMotion md mo buf buf global
+              }
             , Cmd.none
             )

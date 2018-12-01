@@ -42,8 +42,8 @@ replaceRegion ch b e buf =
             |> Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True
 
 
-applyReplace : Maybe Int -> String -> Buffer -> Buffer
-applyReplace count ch buf =
+applyReplace : Maybe Int -> String -> Global -> Buffer -> Buffer
+applyReplace count ch global buf =
     case buf.mode of
         Normal _ ->
             buf
@@ -63,7 +63,7 @@ applyReplace count ch buf =
         Visual _ ->
             let
                 regions =
-                    operatorRanges count (V.VisualRange False) buf
+                    operatorRanges count (V.VisualRange False) global buf
                         |> List.reverse
             in
                 List.foldl

@@ -8,63 +8,66 @@ import Update.Motion exposing (..)
 import Internal.Position exposing (excludeRight)
 
 
-select : Maybe Int -> V.TextObject -> Bool -> Buffer -> Buffer
-select count textobj around buf =
+select : Maybe Int -> V.TextObject -> Bool -> Editor -> Editor
+select count textobj around ({ buf, global } as ed) =
     case buf.mode of
         Visual { tipe, begin, end } ->
-            (if begin == end then
-                begin
-             else if buf.cursor == max begin end then
-                Tuple.mapSecond ((+) 1) (max begin end)
-             else
-                Tuple.mapSecond (\n -> n - 1) (min begin end)
-            )
-                |> expandTextObject buf.config.wordChars
-                    buf.view.scrollTop
-                    buf.global.size.height
-                    buf.syntax
-                    textobj
-                    around
-                    buf.lines
-                |> Maybe.map
-                    (\rg ->
-                        let
-                            ( a, b ) =
-                                excludeRight rg
-
-                            begin1 =
-                                if begin == end then
-                                    min a b
-                                else
-                                    a
-                                        |> min b
-                                        |> min begin
-                                        |> min end
-
-                            end1 =
-                                if begin == end then
-                                    max a b
-                                else
-                                    a
-                                        |> max b
-                                        |> max begin
-                                        |> max end
-                        in
-                            if
-                                (buf.cursor == min begin end)
-                                    && (begin /= end)
-                            then
-                                buf
-                                    |> Buf.setCursor begin1 True
-                                    |> setVisualEnd begin1
-                                    |> setVisualBegin end1
-                            else
-                                buf
-                                    |> Buf.setCursor end1 True
-                                    |> setVisualEnd end1
-                                    |> setVisualBegin begin1
+            { ed
+                | buf =
+                    (if begin == end then
+                        begin
+                     else if buf.cursor == max begin end then
+                        Tuple.mapSecond ((+) 1) (max begin end)
+                     else
+                        Tuple.mapSecond (\n -> n - 1) (min begin end)
                     )
-                |> Maybe.withDefault buf
+                        |> expandTextObject buf.config.wordChars
+                            buf.view.scrollTop
+                            global.size.height
+                            buf.syntax
+                            textobj
+                            around
+                            buf.lines
+                        |> Maybe.map
+                            (\rg ->
+                                let
+                                    ( a, b ) =
+                                        excludeRight rg
+
+                                    begin1 =
+                                        if begin == end then
+                                            min a b
+                                        else
+                                            a
+                                                |> min b
+                                                |> min begin
+                                                |> min end
+
+                                    end1 =
+                                        if begin == end then
+                                            max a b
+                                        else
+                                            a
+                                                |> max b
+                                                |> max begin
+                                                |> max end
+                                in
+                                    if
+                                        (buf.cursor == min begin end)
+                                            && (begin /= end)
+                                    then
+                                        buf
+                                            |> Buf.setCursor begin1 True
+                                            |> setVisualEnd begin1
+                                            |> setVisualBegin end1
+                                    else
+                                        buf
+                                            |> Buf.setCursor end1 True
+                                            |> setVisualEnd end1
+                                            |> setVisualBegin begin1
+                            )
+                        |> Maybe.withDefault buf
+            }
 
         _ ->
-            buf
+            ed

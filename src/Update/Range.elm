@@ -110,12 +110,13 @@ visualRegions linewise tipe begin end lines =
 operatorRanges :
     Maybe Int
     -> V.OperatorRange
+    -> Global
     -> Buffer
     -> List ( Position, Position )
-operatorRanges count range buf =
+operatorRanges count range global buf =
     case range of
         V.MotionRange md mo ->
-            case runMotion count md mo buf of
+            case runMotion count md mo global buf of
                 Just pos ->
                     let
                         begin =
@@ -173,7 +174,7 @@ operatorRanges count range buf =
                     |> expandTextObject
                         buf.config.wordChars
                         buf.view.scrollTop
-                        buf.global.size.height
+                        global.size.height
                         buf.syntax
                         textObject
                         around

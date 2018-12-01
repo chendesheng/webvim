@@ -13,12 +13,13 @@ applyCaseOperator :
     Maybe Int
     -> V.ChangeCase
     -> V.OperatorRange
+    -> Global
     -> Buffer
     -> Buffer
-applyCaseOperator count changeCase range buf =
+applyCaseOperator count changeCase range global buf =
     let
         regions =
-            operatorRanges count range buf
+            operatorRanges count range global buf
 
         setCursor regions_ buf_ =
             case getLast regions_ of

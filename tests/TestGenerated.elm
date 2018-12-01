@@ -62,22 +62,22 @@ showTestInput input =
                     "-" ++ showPosition b ++ " " ++ showPosition e
 
 
-handleKeys : List TestInput -> Buffer -> Buffer
-handleKeys inputs buf =
+handleKeys : List TestInput -> Editor -> Editor
+handleKeys inputs ed =
     List.foldl
-        (\input buf_ ->
+        (\input ed_ ->
             case input of
                 InputKey key ->
-                    buf_
+                    ed_
                         --|> Debug.log "buf_"
                         |> update (PressKeys key)
                         |> Tuple.first
 
                 --|> Debug.log "return buf"
                 ApplyPatch patch ->
-                    Buf.transaction [ patch ] buf_
+                    updateBuffer (Buf.transaction [ patch ]) ed_
         )
-        buf
+        ed
         inputs
 
 
@@ -86,8 +86,8 @@ emptyInsertMode =
     { autoComplete = Nothing, startCursor = ( 0, 0 ) }
 
 
-formatBuffer : Buffer -> String
-formatBuffer buf =
+formatBuffer : Editor -> String
+formatBuffer ({ buf, global } as ed) =
     let
         addPrefix prefix s =
             if String.isEmpty s then
@@ -117,7 +117,7 @@ formatBuffer buf =
                         B.getLine n buf.lines
                             |> Maybe.map (addPrefix "||      ")
                     )
-                |> List.take buf.global.size.height
+                |> List.take global.size.height
                 |> Array.fromList
 
         --middle1 =
@@ -128,7 +128,7 @@ formatBuffer buf =
         bottom =
             buf.lines
                 |> B.sliceLines
-                    (buf.view.scrollTop + buf.global.size.height)
+                    (buf.view.scrollTop + global.size.height)
                     (B.count buf.lines)
                 |> B.mapLines (addPrefix "|       ")
 
@@ -226,7 +226,7 @@ formatBuffer buf =
         emptyLines =
             List.repeat
                 (Basics.max
-                    (buf.global.size.height
+                    (global.size.height
                         - (lines
                             |> List.filter isVisible
                             |> List.length
@@ -246,7 +246,7 @@ formatBuffer buf =
 
 
 type alias TestCase =
-    { init : Buffer
+    { init : Editor
     , tests :
         List
             { input : List TestInput
@@ -255,7 +255,7 @@ type alias TestCase =
     }
 
 
-newBuffer : Mode -> Position -> Int -> Int -> String -> Buffer
+newBuffer : Mode -> Position -> Int -> Int -> String -> Editor
 newBuffer mode cursor height scrollTop text =
     let
         view =
@@ -269,24 +269,26 @@ newBuffer mode cursor height scrollTop text =
                     text ++ B.lineBreak
                 )
     in
-        { emptyBuffer
-            | cursor = cursor
-            , cursorColumn = Tuple.second cursor
-            , mode = mode
-            , global =
-                { emptyGlobal
-                    | size =
-                        { width = 100
-                        , height = height
-                        }
-                }
-            , view =
-                { view
-                    | scrollTop = scrollTop
-                    , lines =
-                        List.range scrollTop (scrollTop + height + 1)
-                }
-            , lines = lines
+        { buf =
+            { emptyBuffer
+                | cursor = cursor
+                , cursorColumn = Tuple.second cursor
+                , mode = mode
+                , view =
+                    { view
+                        | scrollTop = scrollTop
+                        , lines =
+                            List.range scrollTop (scrollTop + height + 1)
+                    }
+                , lines = lines
+            }
+        , global =
+            { emptyGlobal
+                | size =
+                    { width = 100
+                    , height = height
+                    }
+            }
         }
 
 
@@ -509,8 +511,8 @@ applyPatchParser p =
 testDataParser : Parser TestCase
 testDataParser =
     P.succeed
-        (\buf tests ->
-            { init = buf
+        (\ed tests ->
+            { init = ed
             , tests = tests
             }
         )
@@ -520,26 +522,23 @@ testDataParser =
                 |> P.andThen
                     (\s ->
                         if s == "" then
-                            P.succeed emptyBuffer
+                            P.succeed { global = emptyGlobal, buf = emptyBuffer }
                         else if String.startsWith "~\n" s then
                             let
                                 height =
                                     s
                                         |> String.lines
                                         |> List.length
-
-                                view =
-                                    emptyBuffer.view
                             in
                                 P.succeed
-                                    { emptyBuffer
-                                        | global =
-                                            { emptyGlobal
-                                                | size =
-                                                    { width = 1
-                                                    , height = height
-                                                    }
-                                            }
+                                    { buf = emptyBuffer
+                                    , global =
+                                        { emptyGlobal
+                                            | size =
+                                                { width = 1
+                                                , height = height
+                                                }
+                                        }
                                     }
                         else
                             let

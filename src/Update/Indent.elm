@@ -8,8 +8,8 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.PositionClass exposing (findLineFirst)
 
 
-applyIndent : Maybe Int -> Bool -> V.OperatorRange -> Buffer -> Buffer
-applyIndent count forward range buf =
+applyIndent : Maybe Int -> Bool -> V.OperatorRange -> Global -> Buffer -> Buffer
+applyIndent count forward range global buf =
     let
         genPatches y =
             if forward then
@@ -44,7 +44,7 @@ applyIndent count forward range buf =
 
         lineNumbers =
             buf
-                |> operatorRanges count range
+                |> operatorRanges count range global
                 |> List.concatMap
                     (\rg ->
                         let
