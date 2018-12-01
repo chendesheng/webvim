@@ -1481,6 +1481,20 @@ applyVimAST replaying key ast ({ buf } as ed) =
                         | buf =
                             { buf1
                                 | history = { history | diff = [] }
+                                , syntaxDirtyFrom =
+                                    diff
+                                        |> List.map
+                                            (\item ->
+                                                case item of
+                                                    B.RegionAdd ( ( m, _ ), _ ) ->
+                                                        m
+
+                                                    B.RegionRemove ( ( m, _ ), _ ) ->
+                                                        m
+                                            )
+                                        |> List.minimum
+                                        |> Maybe.map (min buf1.syntaxDirtyFrom)
+                                        |> Maybe.withDefault buf1.syntaxDirtyFrom
                                 , view =
                                     { view
                                         | lines =
@@ -2048,9 +2062,6 @@ onWrite result ({ buf, global } as ed) =
                         |> pairCursor global.size
                         |> Buf.infoMessage
                             ((buf |> Buf.shortPath global |> quote) ++ " Written")
-
-                syntaxBottom =
-                    buf.syntaxDirtyFrom
 
                 lintCmd =
                     if buf1.config.lint then

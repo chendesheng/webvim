@@ -536,3 +536,8 @@ charWidthType ch =
             "EMOJI"
         else
             "HALF"
+
+
+isPathChar : Char -> Bool
+isPathChar c =
+    notSpace c && (c /= ':')

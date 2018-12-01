@@ -336,8 +336,6 @@ type alias Buffer =
     { lines : TextBuffer
     , syntax : Syntax
     , syntaxDirtyFrom : Int
-    , cursor : ( Int, Int )
-    , cursorColumn : Int
     , path : String
     , name : String
     , mode : Mode
@@ -347,6 +345,10 @@ type alias Buffer =
     , continuation : String
     , dirtyIndent : Int
     , motionFailed : Bool
+
+    -- TODO: move to view
+    , cursor : ( Int, Int )
+    , cursorColumn : Int
     }
 
 

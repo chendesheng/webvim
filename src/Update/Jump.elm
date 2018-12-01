@@ -4,19 +4,13 @@ import Model exposing (..)
 import Update.Message exposing (..)
 import Helper.Helper
     exposing
-        ( fromListBy
-        , filename
-        , safeRegex
-        , isSpace
-        , notSpace
+        ( filename
         , resolvePath
-        , normalizePath
-        , nthList
         , floorFromZero
         , keepOneOrMore
-        , replaceHomeDir
         , extname
         , relativePath
+        , isPathChar
         )
 import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
@@ -171,7 +165,7 @@ editBuffer restoreHistory info ({ global, buf } as ed) =
             global1 =
                 { global
                     | buffers =
-                        (global.buffers
+                        global.buffers
                             |> Dict.remove info.path
                             |> Dict.insert buf.path
                                 { path = buf.path
@@ -182,7 +176,6 @@ editBuffer restoreHistory info ({ global, buf } as ed) =
                                 , syntax = buf.config.syntax
                                 , history = buf.history
                                 }
-                        )
                     , registers =
                         global.registers
                             |> Dict.insert "%" (Text info.path)
@@ -198,7 +191,7 @@ editBuffer restoreHistory info ({ global, buf } as ed) =
                 }
 
             newbuf =
-                newBuffer info global1 buf
+                newBuffer info global1
 
             newbuf1 =
                 if restoreHistory then
@@ -224,18 +217,19 @@ editBuffer restoreHistory info ({ global, buf } as ed) =
             )
 
 
-isLintEnabled gb lint name =
+isLintEnabled : Global -> String -> Bool -> Bool
+isLintEnabled global name lint =
     if lint && extname name == ".elm" then
         name
-            |> relativePath gb.pathSeperator gb.homedir
-            |> String.startsWith (".elm" ++ gb.pathSeperator)
+            |> relativePath global.pathSeperator global.homedir
+            |> String.startsWith (".elm" ++ global.pathSeperator)
             |> not
     else
         lint
 
 
-newBuffer : BufferInfo -> Global -> Buffer -> Buffer
-newBuffer info global buf =
+newBuffer : BufferInfo -> Global -> Buffer
+newBuffer info global =
     let
         { cursor, path, content, history } =
             info
@@ -269,7 +263,7 @@ newBuffer info global buf =
         , mode = Normal { message = EmptyMessage }
         , config =
             { config1
-                | lint = isLintEnabled global config1.lint path
+                | lint = isLintEnabled global path config1.lint
             }
         , view =
             { emptyView
@@ -348,11 +342,6 @@ jumpByView factor global buf =
 
             Nothing ->
                 buf
-
-
-isPathChar : Char -> Bool
-isPathChar c =
-    notSpace c && (c /= ':')
 
 
 locationParser : Parser Location

@@ -379,13 +379,6 @@ transaction patches buf =
                             | lines = lines
                             , cursor = cursor
                             , syntax = syntax
-                            , syntaxDirtyFrom =
-                                min
-                                    buf_.syntaxDirtyFrom
-                                    (patch
-                                        |> B.patchCursor
-                                        |> Tuple.first
-                                    )
                           }
                         , patch1 :: undoPatches_
                         )
@@ -583,13 +576,6 @@ undo buf =
                         , cursor = undo_.cursor
                         , cursorColumn = Tuple.second undo_.cursor
                         , syntax = res.syntax
-                        , syntaxDirtyFrom =
-                            undoPatches
-                                |> List.map B.patchCursor
-                                |> List.minimum
-                                |> Maybe.map
-                                    (Tuple.first >> min buf.syntaxDirtyFrom)
-                                |> Maybe.withDefault buf.syntaxDirtyFrom
                         , history = undoHistory buf.history
                     }
             )
@@ -648,13 +634,6 @@ redo buf =
                         , cursor = cursor
                         , cursorColumn = Tuple.second cursor
                         , syntax = res.syntax
-                        , syntaxDirtyFrom =
-                            redoPatches
-                                |> List.map B.patchCursor
-                                |> List.minimum
-                                |> Maybe.map
-                                    (Tuple.first >> min buf.syntaxDirtyFrom)
-                                |> Maybe.withDefault buf.syntaxDirtyFrom
                         , history = redoHistory buf.history
                     }
             )
