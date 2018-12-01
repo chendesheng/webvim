@@ -223,10 +223,10 @@ updateMode modeName ({ global, buf } as ed) =
             buf1.view
 
         scrollFrom =
-            Buf.finalScrollTop global.size buf
+            Buf.finalScrollTop buf.view.size buf
 
         scrollTo =
-            Buf.finalScrollTop global.size buf1
+            Buf.finalScrollTop view.size buf1
 
         ime =
             if oldModeName /= newModeName then
@@ -256,7 +256,7 @@ updateMode modeName ({ global, buf } as ed) =
                         { view
                             | lines =
                                 Buf.scrollViewLines
-                                    global.size.height
+                                    view.size.height
                                     scrollFrom
                                     scrollTo
                                     view.lines
@@ -447,7 +447,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                                                     matchAllStrings
                                                         re
                                                         scrollFrom
-                                                        (scrollFrom + global.size.height)
+                                                        (scrollFrom + buf.view.size.height)
                                                         buf.lines
                                             }
 
@@ -478,10 +478,10 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                             buf
 
                     scrollFrom =
-                        Buf.finalScrollTop global.size buf
+                        Buf.finalScrollTop buf.view.size buf
 
                     scrollTo =
-                        Buf.finalScrollTop global.size buf1
+                        Buf.finalScrollTop buf1.view.size buf1
                 in
                     { ed
                         | buf =
@@ -490,7 +490,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                                     { view
                                         | lines =
                                             Buf.scrollViewLines
-                                                global.size.height
+                                                view.size.height
                                                 scrollFrom
                                                 scrollTo
                                                 view.lines
@@ -610,7 +610,7 @@ scroll count value global buf =
         scrollInner buf_ =
             let
                 size =
-                    global.size
+                    buf_.view.size
 
                 y =
                     Tuple.first buf_.cursor
@@ -1080,7 +1080,7 @@ applyEdit count edit register ({ buf } as ed) =
                                         else if String.startsWith ":b " s then
                                             ( \a b c ->
                                                 Task.succeed
-                                                    (global.buffers
+                                                    (global.bufferInfoes
                                                         |> Dict.keys
                                                         |> List.filter
                                                             (\path ->
@@ -1418,11 +1418,11 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 if
                     (pairSource oldBuf /= pairSource buf_)
                         || (oldBuf.view.scrollTop /= buf_.view.scrollTop)
-                        || (oldEd.global.size /= ed_.global.size)
+                        || (oldBuf.view.size /= buf_.view.size)
                         || (oldBuf.lines /= buf_.lines)
                         || (oldBuf.syntax /= buf_.syntax)
                 then
-                    updateBuffer (pairCursor ed_.global.size) ed_
+                    updateBuffer (pairCursor buf_.view.size) ed_
                 else
                     ed_
 
@@ -1501,7 +1501,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                                             Buf.applyDiffToView
                                                 diff
                                                 view.scrollTop
-                                                global1.size.height
+                                                view.size.height
                                                 view.lines
                                     }
                             }
@@ -1554,9 +1554,6 @@ onTokenized ({ buf, global } as ed) resp =
                             buf.syntax
                                 |> Array.slice 0 begin
                                 |> (\s -> Array.append s syntax)
-
-                        view =
-                            buf.view
                       in
                         { ed
                             | buf =
@@ -1564,7 +1561,7 @@ onTokenized ({ buf, global } as ed) resp =
                                     | syntax = syntax1
                                     , syntaxDirtyFrom = Array.length syntax1
                                 }
-                                    |> pairCursor global.size
+                                    |> pairCursor buf.view.size
                         }
                     , Cmd.none
                     )
@@ -1984,11 +1981,7 @@ onResize size ({ buf, global } as ed) =
                 global.statusbarHeight
     in
         { ed
-            | global =
-                { global
-                    | size = { width = size.width, height = newHeight }
-                }
-            , buf =
+            | buf =
                 buf
                     |> Buf.updateView
                         (\view ->
@@ -1997,6 +1990,7 @@ onResize size ({ buf, global } as ed) =
                                     List.range
                                         view.scrollTop
                                         (view.scrollTop + newHeight + 1)
+                                , size = { width = size.width, height = newHeight }
                             }
                         )
                     |> cursorScope global
@@ -2059,7 +2053,7 @@ onWrite result ({ buf, global } as ed) =
                         |> Buf.setCursor buf.cursor True
                         |> correctCursor
                         |> scrollToCursor global
-                        |> pairCursor global.size
+                        |> pairCursor buf.view.size
                         |> Buf.infoMessage
                             ((buf |> Buf.shortPath global |> quote) ++ " Written")
 
@@ -2216,17 +2210,19 @@ init flags =
                 activeBuf
                 { buf =
                     { emptyBuffer
-                        | view = emptyView
+                        | view =
+                            { emptyView
+                                | size =
+                                    { width = 1
+                                    , height = viewHeight
+                                    }
+                            }
                         , path = activeBuf.path
                         , history = activeBuf.history
                     }
                 , global =
                     { emptyGlobal
                         | service = service
-                        , size =
-                            { width = 1
-                            , height = viewHeight
-                            }
                         , exHistory = exHistory
                         , cwd = cwd1
                         , pathSeperator = pathSeperator
@@ -2236,7 +2232,7 @@ init flags =
                         , registers =
                             Decode.decodeValue registersDecoder registers
                                 |> Result.withDefault Dict.empty
-                        , buffers =
+                        , bufferInfoes =
                             buffers
                                 |> Decode.decodeValue (Decode.list bufferInfoDecoder)
                                 |> Result.withDefault []

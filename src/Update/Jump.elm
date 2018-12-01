@@ -51,8 +51,11 @@ tokenizeBufferCmd ({ buf, global } as ed) =
             begin =
                 buf.syntaxDirtyFrom
 
+            view =
+                buf.view
+
             end =
-                Buf.finalScrollTop global.size buf + 2 * global.size.height
+                Buf.finalScrollTop view.size buf + 2 * view.size.height
 
             lines =
                 if begin < end then
@@ -102,7 +105,7 @@ jumpTo isSaveJump info ({ global, buf } as ed) =
                         |> Buf.setCursor cursor True
                         |> Buf.setScrollTop
                             (Buf.bestScrollTop (Tuple.first cursor)
-                                global.size.height
+                                buf.view.size.height
                                 buf.lines
                                 buf.view.scrollTop
                             )
@@ -133,7 +136,7 @@ jumpToPath isSaveJump path_ overrideCursor ({ global } as ed) =
                     path_
 
         info =
-            global.buffers
+            global.bufferInfoes
                 |> Dict.get path
                 |> Maybe.map
                     (\info_ ->
@@ -151,12 +154,22 @@ jumpToPath isSaveJump path_ overrideCursor ({ global } as ed) =
         jumpTo isSaveJump info ed
 
 
+
+-- jump to a buffer has three cases:
+-- 1. buffer exists in global.buffers
+--     update view.size
+-- 2. buffer exists in global.bufferInfoes
+--     read file content from server
+-- 3. new buffer
+--     the same as case 2 with an empty buffer info
+
+
 editBuffer : Bool -> BufferInfo -> Editor -> ( Editor, Cmd Msg )
 editBuffer restoreHistory info ({ global, buf } as ed) =
     if info.path /= "" && info.content == Nothing then
         ( ed
         , sendReadBuffer global.service
-            (Tuple.first info.cursor + global.size.height * 2)
+            (Tuple.first info.cursor + buf.view.size.height * 2)
             buf.config.tabSize
             info
         )
@@ -164,8 +177,8 @@ editBuffer restoreHistory info ({ global, buf } as ed) =
         let
             global1 =
                 { global
-                    | buffers =
-                        global.buffers
+                    | bufferInfoes =
+                        global.bufferInfoes
                             |> Dict.remove info.path
                             |> Dict.insert buf.path
                                 { path = buf.path
@@ -191,7 +204,7 @@ editBuffer restoreHistory info ({ global, buf } as ed) =
                 }
 
             newbuf =
-                newBuffer info global1
+                newBuffer buf.view.size info global1
 
             newbuf1 =
                 if restoreHistory then
@@ -228,8 +241,8 @@ isLintEnabled global name lint =
         lint
 
 
-newBuffer : BufferInfo -> Global -> Buffer
-newBuffer info global =
+newBuffer : Size -> BufferInfo -> Global -> Buffer
+newBuffer size info global =
     let
         { cursor, path, content, history } =
             info
@@ -251,7 +264,7 @@ newBuffer info global =
             Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
 
         height =
-            global.size.height
+            size.height
 
         scrollTop =
             Buf.bestScrollTop (Tuple.first cursor)
@@ -259,29 +272,34 @@ newBuffer info global =
                 lines
                 0
     in
-        { lines = lines
-        , mode = Normal { message = EmptyMessage }
-        , config =
-            { config1
-                | lint = isLintEnabled global path config1.lint
-            }
-        , view =
-            { emptyView
-                | scrollTopPx = scrollTop * global.lineHeight
-                , scrollTop = scrollTop
-                , lines =
-                    List.range scrollTop (scrollTop + height + 1)
-            }
-        , cursor = cursor
-        , cursorColumn = Tuple.second cursor
-        , path = path
-        , name = name ++ ext
-        , history = history
-        , syntax = syntax
-        , syntaxDirtyFrom = Array.length syntax
-        , continuation = ""
-        , dirtyIndent = 0
-        , motionFailed = False
+        { emptyBuffer
+            | lines = lines
+            , mode = Normal { message = EmptyMessage }
+            , config =
+                { config1
+                    | lint = isLintEnabled global path config1.lint
+                }
+            , view =
+                { emptyView
+                    | scrollTopPx = scrollTop * global.lineHeight
+                    , scrollTop = scrollTop
+                    , lines =
+                        List.range scrollTop (scrollTop + height + 1)
+                    , size = size
+                }
+            , cursor = cursor
+            , cursorColumn = Tuple.second cursor
+            , path = path
+            , name = name ++ ext
+            , history = history
+            , syntax = syntax
+            , syntaxDirtyFrom = Array.length syntax
+            , id =
+                global.buffers
+                    |> Dict.keys
+                    |> List.maximum
+                    |> Maybe.withDefault 0
+                    |> (+) 1
         }
             |> correctCursor
             |> scrollToCursor global
@@ -297,7 +315,7 @@ jumpByView factor global buf =
             buf.view
 
         height =
-            global.size.height
+            view.size.height
 
         lineScope row =
             row

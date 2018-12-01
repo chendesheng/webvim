@@ -17,7 +17,7 @@ scrollTo y global ({ view, lines } as buf) =
             view.scrollTop
 
         maxy =
-            miny + global.size.height - 1
+            miny + view.size.height - 1
 
         scrollTop =
             if miny > y then
@@ -122,7 +122,7 @@ cursorScope global ({ view, cursor, lines } as buf) =
 
         maxy =
             min
-                (scrollTop + global.size.height - 1)
+                (scrollTop + view.size.height - 1)
                 (max 0 (B.count lines - 2))
 
         miny =

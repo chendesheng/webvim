@@ -273,6 +273,7 @@ type alias View =
     , scrollLeft : Int
     , matchedCursor : Maybe ( Position, Position )
     , lines : List Int
+    , size : Size
     }
 
 
@@ -333,7 +334,8 @@ type alias Editor =
 
 
 type alias Buffer =
-    { lines : TextBuffer
+    { id : Int
+    , lines : TextBuffer
     , syntax : Syntax
     , syntaxDirtyFrom : Int
     , path : String
@@ -356,7 +358,8 @@ type alias Global =
     { registers : Dict String RegisterText
     , ime : IME
     , dotRegister : String
-    , buffers : Dict String BufferInfo
+    , bufferInfoes : Dict String BufferInfo
+    , buffers : Dict Int Buffer
     , cwd : String
     , exHistory : List String
     , searchHistory : List String
@@ -385,7 +388,6 @@ type alias Global =
     , statusbarHeight : Int
     , showTip : Bool
     , lineHeight : Int
-    , size : Size
     }
 
 
@@ -453,6 +455,7 @@ emptyView =
     , scrollLeft = 0
     , matchedCursor = Nothing
     , lines = [ 0, 1, 2 ]
+    , size = { width = 1, height = 1 }
     }
 
 
@@ -488,7 +491,8 @@ defaultBufferConfig =
 
 emptyBuffer : Buffer
 emptyBuffer =
-    { lines = B.fromString B.lineBreak
+    { id = 0
+    , lines = B.fromString B.lineBreak
     , syntax = Array.empty
     , syntaxDirtyFrom = 0
     , cursor = ( 0, 0 )
@@ -512,6 +516,7 @@ emptyGlobal : Global
 emptyGlobal =
     { dotRegister = ""
     , ime = emptyIme
+    , bufferInfoes = Dict.empty
     , buffers = Dict.empty
     , cwd = ""
     , exHistory = []
@@ -548,7 +553,6 @@ emptyGlobal =
     , showTip = False
     , statusbarHeight = 1
     , lineHeight = 21
-    , size = { width = 1, height = 1 }
     }
 
 

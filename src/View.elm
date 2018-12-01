@@ -98,7 +98,8 @@ pageDom buf global =
             view.scrollTop
 
         height =
-            global.size.height + 2
+            view.size.height
+                + 2
 
         topOffsetPx =
             remainderBy lineHeight view.scrollTopPx
@@ -115,7 +116,7 @@ pageDom buf global =
                     Just cursor
 
         scrollTop1 =
-            Buf.finalScrollTop global.size buf
+            Buf.finalScrollTop view.size buf
 
         highlights =
             incrementSearchRegion mode
@@ -206,7 +207,7 @@ pageDom buf global =
                         :: div [ class "ruler" ] []
                         :: renderCursor fontInfo ime1 lines "" maybeCursor
                         :: renderTip
-                            global.size.width
+                            view.size.width
                             lint.items
                             maybeCursor
                             showTip
@@ -229,7 +230,7 @@ pageDom buf global =
              , div [ style "display" "none" ]
                 ([ lazy saveRegisters global.registers
                  , div []
-                    (global.buffers
+                    (global.bufferInfoes
                         |> Dict.toList
                         |> List.indexedMap (\i ( _, buf1 ) -> saveBuffer i buf1)
                     )

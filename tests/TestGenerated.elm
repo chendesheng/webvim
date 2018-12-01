@@ -117,18 +117,18 @@ formatBuffer ({ buf, global } as ed) =
                         B.getLine n buf.lines
                             |> Maybe.map (addPrefix "||      ")
                     )
-                |> List.take global.size.height
+                |> List.take buf.view.size.height
                 |> Array.fromList
 
         --middle1 =
         --    buf.lines
         --        |> B.sliceLines buf.view.scrollTop
-        --            (buf.view.scrollTop + buf.global.size.height)
+        --            (buf.view.scrollTop + buf.view.size.height)
         --        |> B.mapLines (addPrefix "||      ")
         bottom =
             buf.lines
                 |> B.sliceLines
-                    (buf.view.scrollTop + global.size.height)
+                    (buf.view.scrollTop + buf.view.size.height)
                     (B.count buf.lines)
                 |> B.mapLines (addPrefix "|       ")
 
@@ -226,7 +226,7 @@ formatBuffer ({ buf, global } as ed) =
         emptyLines =
             List.repeat
                 (Basics.max
-                    (global.size.height
+                    (buf.view.size.height
                         - (lines
                             |> List.filter isVisible
                             |> List.length
@@ -279,16 +279,15 @@ newBuffer mode cursor height scrollTop text =
                         | scrollTop = scrollTop
                         , lines =
                             List.range scrollTop (scrollTop + height + 1)
+                        , size =
+                            { width = 100
+                            , height = height
+                            }
                     }
                 , lines = lines
             }
         , global =
-            { emptyGlobal
-                | size =
-                    { width = 100
-                    , height = height
-                    }
-            }
+            emptyGlobal
         }
 
 
@@ -531,14 +530,18 @@ testDataParser =
                                         |> List.length
                             in
                                 P.succeed
-                                    { buf = emptyBuffer
-                                    , global =
-                                        { emptyGlobal
-                                            | size =
-                                                { width = 1
-                                                , height = height
+                                    { buf =
+                                        { emptyBuffer
+                                            | view =
+                                                { emptyView
+                                                    | size =
+                                                        { width = 1
+                                                        , height = height
+                                                        }
                                                 }
                                         }
+                                    , global =
+                                        emptyGlobal
                                     }
                         else
                             let

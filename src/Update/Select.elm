@@ -23,7 +23,7 @@ select count textobj around ({ buf, global } as ed) =
                     )
                         |> expandTextObject buf.config.wordChars
                             buf.view.scrollTop
-                            global.size.height
+                            buf.view.size.height
                             buf.syntax
                             textobj
                             around

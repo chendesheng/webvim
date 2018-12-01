@@ -1077,7 +1077,7 @@ setScrollTop n global buf =
                 global.lineHeight
 
             height =
-                global.size.height
+                buf.view.size.height
         in
             updateView
                 (\v ->

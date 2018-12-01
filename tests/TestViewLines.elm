@@ -25,9 +25,12 @@ resize height ({ buf, global } as ed) =
         { ed
             | buf =
                 { buf
-                    | view = { view | lines = List.range 0 (height + 1) }
+                    | view =
+                        { view
+                            | lines = List.range 0 (height + 1)
+                            , size = { height = height, width = 1 }
+                        }
                 }
-            , global = { global | size = { height = height, width = 1 } }
         }
 
 
@@ -42,7 +45,7 @@ applyPatches height patches =
                 |> updateBuffer (transaction patches)
     in
         Expect.equal
-            (List.range buf.view.scrollTop (buf.view.scrollTop + global.size.height + 1))
+            (List.range buf.view.scrollTop (buf.view.scrollTop + buf.view.size.height + 1))
             (List.sort buf.view.lines)
 
 
