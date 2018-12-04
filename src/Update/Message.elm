@@ -6,7 +6,7 @@ import Internal.Syntax exposing (Token, Syntax)
 import Vim.AST exposing (AST)
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer as B exposing (Patch)
-import Model exposing (Key, LintError, BufferInfo, Flags, Size, IME)
+import Model exposing (Key, LintError, Buffer, Flags, Size, IME)
 
 
 type alias BufferIdentifier =
@@ -42,7 +42,7 @@ type Msg
     = PressKeys Key -- buffer id, key
     | IMEMessage IMEMsg
     | Resize Size
-    | Read (Result Http.Error BufferInfo)
+    | Read (Result Http.Error Buffer)
     | Write (Result String ( String, List Patch ))
     | MakeDir (Result String ())
     | ReadClipboard

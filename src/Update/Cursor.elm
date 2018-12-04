@@ -108,14 +108,14 @@ correctPosition pos excludeLineBreak lines =
 
 {-| move cursor ensure cursor is insdie viewport
 -}
-cursorScope : Global -> Buffer -> Buffer
-cursorScope global ({ view, cursor, lines } as buf) =
+cursorScope : Int -> Buffer -> Buffer
+cursorScope lineHeight ({ view, cursor, lines } as buf) =
     let
         ( y, x ) =
             cursor
 
         scrollTop =
-            if remainderBy global.lineHeight view.scrollTopPx > 0 then
+            if remainderBy lineHeight view.scrollTopPx > 0 then
                 view.scrollTop + 1
             else
                 view.scrollTop

@@ -18,7 +18,7 @@ import Json.Decode as Decode
 -- 可以用中文输入法了！表情也可以输入了😄
 
 
-toModel : ( Editor, cmd ) -> ( Model, cmd )
+toModel : ( Global, cmd ) -> ( Model, cmd )
 toModel =
     Tuple.mapFirst Ready
 
@@ -40,8 +40,8 @@ main =
                         , body = [ Html.text err ]
                         }
 
-                    Ready buf ->
-                        page buf
+                    Ready state ->
+                        page state
             )
         , update =
             (\msg model ->
@@ -55,8 +55,8 @@ main =
 
                     _ ->
                         case model of
-                            Ready buf ->
-                                update msg buf
+                            Ready state ->
+                                update msg state
                                     |> toModel
 
                             _ ->

@@ -43,7 +43,6 @@ import Regex as Re
 import Model
     exposing
         ( Buffer
-        , BufferInfo
         , LintError
         , Key
         , Flags
@@ -206,26 +205,29 @@ getBodyAndHeaders url =
         }
 
 
-sendReadBuffer : String -> Int -> Int -> BufferInfo -> Cmd Msg
-sendReadBuffer url tokenizeLines tabSize info =
+sendReadBuffer : String -> Int -> Buffer -> Cmd Msg
+sendReadBuffer url viewHeight buf =
     url
         ++ "/read?path="
-        ++ info.path
+        ++ buf.path
         |> getBodyAndHeaders
         |> Http.toTask
         |> Task.andThen
             (\( headers, s ) ->
                 let
                     lines =
-                        B.fromStringExpandTabs tabSize 0 s
+                        B.fromStringExpandTabs buf.config.tabSize 0 s
 
                     lastModified =
                         Dict.get "last-modified" headers
                             |> Maybe.withDefault ""
+
+                    tokenizeLines =
+                        Tuple.first buf.cursor + viewHeight * 2
                 in
-                    if info.syntax then
+                    if buf.config.syntax then
                         sendTokenizeTask url
-                            { path = info.path
+                            { path = buf.path
                             , version = 0
                             , line = 0
                             , lines =
@@ -237,53 +239,63 @@ sendReadBuffer url tokenizeLines tabSize info =
                                 (\res ->
                                     case res of
                                         TokenizeSuccess _ syntax ->
-                                            { syntax = True
-                                            , content = ( lines, syntax )
+                                            { syntaxEnabled = True
+                                            , lines = lines
+                                            , syntax = syntax
                                             , lastModified = lastModified
                                             }
 
                                         TokenizeError err ->
                                             if err == "noextension" then
-                                                { syntax = False
-                                                , content = ( lines, Array.empty )
+                                                { syntaxEnabled = False
+                                                , lines = lines
+                                                , syntax = Array.empty
                                                 , lastModified = lastModified
                                                 }
                                             else
-                                                { syntax = True
-                                                , content = ( lines, Array.empty )
+                                                { syntaxEnabled = True
+                                                , lines = lines
+                                                , syntax = Array.empty
                                                 , lastModified = lastModified
                                                 }
 
                                         _ ->
-                                            { syntax = True
-                                            , content = ( lines, Array.empty )
+                                            { syntaxEnabled = True
+                                            , lines = lines
+                                            , syntax = Array.empty
                                             , lastModified = lastModified
                                             }
                                 )
                             |> Task.onError
                                 (\_ ->
                                     Task.succeed
-                                        { syntax = True
-                                        , content = ( lines, Array.empty )
+                                        { syntaxEnabled = True
+                                        , lines = lines
+                                        , syntax = Array.empty
                                         , lastModified = lastModified
                                         }
                                 )
                     else
                         Task.succeed
-                            { syntax = False
-                            , content = ( lines, Array.empty )
+                            { syntaxEnabled = False
+                            , lines = lines
+                            , syntax = Array.empty
                             , lastModified = lastModified
                             }
             )
         |> Task.attempt
             (Result.map
-                (\{ syntax, content, lastModified } ->
+                (\{ syntax, syntaxEnabled, lines, lastModified } ->
                     let
                         history =
-                            info.history
+                            buf.history
+
+                        config =
+                            buf.config
                     in
-                        { info
-                            | content = Just content
+                        { buf
+                            | lines = lines
+                            , config = { config | syntax = syntaxEnabled }
                             , syntax = syntax
                             , history =
                                 if history.lastModified == lastModified then

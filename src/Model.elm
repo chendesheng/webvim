@@ -18,7 +18,7 @@ import Dict exposing (Dict)
 import Json.Encode as Encode
 import Json.Decode as Decode
 import Regex as Re
-import Helper.Helper exposing (findFirst, charWidthType)
+import Helper.Helper exposing (findFirst, charWidthType, filename, regex, extname, relativePath)
 
 
 type alias Size =
@@ -81,7 +81,7 @@ cursorCharWidth fontInfo x s =
 type alias Flags =
     { service : String
     , buffers : Encode.Value
-    , activeBuffer : Encode.Value
+    , activeBuffer : Int
     , registers : Encode.Value
     , height : Int
     , cwd : String
@@ -117,27 +117,29 @@ type alias LintError =
     }
 
 
-buffersInfoToString : List BufferInfo -> String
-buffersInfoToString buffers =
+buffersToString : List Buffer -> String
+buffersToString buffers =
     buffers
-        |> Encode.list bufferInfoEncoder
+        |> Encode.list bufferEncoder
         |> Encode.encode 0
 
 
-bufferInfoEncoder : BufferInfo -> Encode.Value
-bufferInfoEncoder info =
-    [ ( "path", Encode.string info.path )
-    , ( "cursor", cursorEncoder info.cursor )
-    , ( "syntax", Encode.bool info.syntax )
-    , ( "history", historyEncoder info.history )
+bufferEncoder : Buffer -> Encode.Value
+bufferEncoder buf =
+    [ ( "id", Encode.int buf.id )
+    , ( "path", Encode.string buf.path )
+    , ( "cursor", cursorEncoder buf.cursor )
+    , ( "syntax", Encode.bool buf.config.syntax )
+    , ( "history", historyEncoder buf.history )
+    , ( "scrollTop", Encode.int buf.view.scrollTop )
     ]
         |> Encode.object
 
 
-bufferInfoToString : BufferInfo -> String
-bufferInfoToString info =
-    info
-        |> bufferInfoEncoder
+bufferToString : Buffer -> String
+bufferToString buf =
+    buf
+        |> bufferEncoder
         |> Encode.encode 0
 
 
@@ -161,44 +163,170 @@ cursorDecoder =
             )
 
 
-bufferInfoDecoder : Decode.Decoder BufferInfo
-bufferInfoDecoder =
-    Decode.map4
-        (\path cursor syntax history ->
-            { path = path
-            , cursor = cursor
-            , content = Nothing
-            , syntax = syntax
-            , history = history
+cIndentRules :
+    { decrease : Re.Regex
+    , increase : Re.Regex
+    , increaseNext : Re.Regex
+    }
+cIndentRules =
+    { increase = regex "^.*\\{[^}\\\"']*$"
+    , decrease = regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
+    , increaseNext =
+        regex "^(?!.*;\\s*//).*[^\\s;{}]\\s*$"
+    }
+
+
+cssFileDefaultConfig : BufferConfig
+cssFileDefaultConfig =
+    { defaultBufferConfig
+        | tabSize = 2
+        , indent = IndentRules cIndentRules
+        , wordChars = "_-.#"
+    }
+
+
+configs : Dict String BufferConfig
+configs =
+    Dict.fromList
+        [ ( ".elm"
+          , { defaultBufferConfig
+                | tabSize = 4
+                , lint = True
+                , indent =
+                    IndentRules
+                        { increase =
+                            regex
+                                ("(^[(]?let$)|(^[(]?if)"
+                                    ++ "|(^then$)|(^else(\\s|$))|(=$)"
+                                    ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
+                                )
+                        , decrease = regex "^(then|else( if)?|of|in)"
+                        , increaseNext = regex "![\\s\\S]"
+                        }
             }
+          )
+        , ( ".js"
+          , { defaultBufferConfig
+                | tabSize = 2
+                , lint = True
+                , indent = IndentRules cIndentRules
+            }
+          )
+        , ( ".jsx"
+          , { defaultBufferConfig
+                | tabSize = 2
+                , lint = True
+                , indent = IndentRules cIndentRules
+            }
+          )
+        , ( ".purs"
+          , { defaultBufferConfig
+                | tabSize = 2
+                , indent =
+                    IndentRules
+                        { increase =
+                            regex
+                                ("(^[(]?let$)|(^[(]?if)"
+                                    ++ "|(^then$)|(^else(\\s|$))|(=$)"
+                                    ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
+                                    ++ "|(^when)|(\\sdo$)"
+                                )
+                        , decrease = regex "^(then|else( if)?|of|in)"
+                        , increaseNext = regex "![\\s\\S]"
+                        }
+            }
+          )
+        , ( ".less", cssFileDefaultConfig )
+        , ( ".css", cssFileDefaultConfig )
+        ]
+
+
+isLintEnabled : Global -> String -> Bool -> Bool
+isLintEnabled global name lint =
+    if lint && extname name == ".elm" then
+        name
+            |> relativePath global.pathSeperator global.homedir
+            |> String.startsWith (".elm" ++ global.pathSeperator)
+            |> not
+    else
+        lint
+
+
+increaseMaxId : Global -> Global
+increaseMaxId global =
+    { global | maxId = global.maxId + 1 }
+
+
+createBuffer : String -> Size -> Global -> ( Global, Buffer )
+createBuffer path size global =
+    let
+        ( name, ext ) =
+            filename path
+
+        config =
+            configs
+                |> Dict.get ext
+                |> Maybe.withDefault defaultBufferConfig
+
+        global1 =
+            increaseMaxId global
+    in
+        ( global1
+        , { emptyBuffer
+            | id = global1.maxId
+            , view =
+                { emptyView
+                    | bufId = global1.maxId
+                    , lines = List.range 0 (size.height + 1)
+                    , size = size
+                }
+            , config =
+                { config
+                    | lint = isLintEnabled global (name ++ ext) config.lint
+                }
+            , path = path
+            , name = name ++ ext
+          }
         )
+
+
+bufferDecoder : Global -> Decode.Decoder Buffer
+bufferDecoder global =
+    Decode.map6
+        (\id path cursor syntax history scrollTop ->
+            let
+                ( _, buf ) =
+                    createBuffer path { width = 0, height = 0 } global
+
+                view =
+                    buf.view
+
+                config =
+                    buf.config
+            in
+                { buf
+                    | id = id
+                    , view =
+                        { view
+                            | bufId = id
+                            , scrollTop = scrollTop
+                        }
+                    , cursor = cursor
+                    , cursorColumn = Tuple.second cursor
+                    , config = { config | syntax = syntax }
+                    , history = history
+                }
+        )
+        (Decode.field "id" Decode.int)
         (Decode.field "path" Decode.string)
         (Decode.field "cursor" cursorDecoder)
         (Decode.field "syntax" Decode.bool)
         (Decode.field "history" historyDecoder)
+        (Decode.field "scrollTop" Decode.int)
 
 
 type alias Key =
     String
-
-
-type alias BufferInfo =
-    { path : String
-    , cursor : Position
-    , content : Maybe ( B.TextBuffer, Syntax )
-    , syntax : Bool
-    , history : BufferHistory
-    }
-
-
-emptyBufferInfo : BufferInfo
-emptyBufferInfo =
-    { path = ""
-    , cursor = ( 0, 0 )
-    , content = Nothing
-    , syntax = True
-    , history = emptyBufferHistory
-    }
 
 
 type alias Undo =
@@ -268,7 +396,8 @@ type alias ExMode =
 
 
 type alias View =
-    { scrollTop : Int
+    { bufId : Int
+    , scrollTop : Int
     , scrollTopPx : Int
     , scrollLeft : Int
     , matchedCursor : Maybe ( Position, Position )
@@ -279,7 +408,7 @@ type alias View =
 
 type Model
     = Booting
-    | Ready Editor
+    | Ready Global
     | Crashed String
 
 
@@ -355,10 +484,16 @@ type alias Buffer =
 
 
 type alias Global =
-    { registers : Dict String RegisterText
+    { maxId : Int
+    , registers : Dict String RegisterText
     , ime : IME
     , dotRegister : String
-    , bufferInfoes : Dict String BufferInfo
+
+    {-
+       1. change active view and buffer
+       2. keep view change active buffer
+    -}
+    , activeView : View
     , buffers : Dict Int Buffer
     , cwd : String
     , exHistory : List String
@@ -388,6 +523,23 @@ type alias Global =
     , statusbarHeight : Int
     , showTip : Bool
     , lineHeight : Int
+    }
+
+
+isTempBuffer : String -> Bool
+isTempBuffer path =
+    String.isEmpty path || path == "[Search]"
+
+
+getActiveBuffer : Global -> Maybe Buffer
+getActiveBuffer global =
+    Dict.get global.activeView.bufId global.buffers
+
+
+setBuffer : Buffer -> Global -> Global
+setBuffer buf global =
+    { global
+        | buffers = Dict.insert buf.id buf global.buffers
     }
 
 
@@ -450,7 +602,8 @@ updateGlobal fn ed =
 
 emptyView : View
 emptyView =
-    { scrollTop = 0
+    { bufId = 0
+    , scrollTop = 0
     , scrollTopPx = 0
     , scrollLeft = 0
     , matchedCursor = Nothing
@@ -514,9 +667,10 @@ emptyBuffer =
 
 emptyGlobal : Global
 emptyGlobal =
-    { dotRegister = ""
+    { maxId = 0
+    , activeView = emptyView
+    , dotRegister = ""
     , ime = emptyIme
-    , bufferInfoes = Dict.empty
     , buffers = Dict.empty
     , cwd = ""
     , exHistory = []
@@ -637,15 +791,14 @@ historyDecoder : Decode.Decoder BufferHistory
 historyDecoder =
     Decode.map6
         (\version savePoint undoes redoes changes lastModified ->
-            { undoes = undoes
-            , pending = emptyUndo
-            , redoes = redoes
-            , savePoint = savePoint
-            , version = version
-            , lastModified = lastModified
-            , changes = changes
-            , pendingChanges = []
-            , diff = []
+            { emptyBufferHistory
+                | undoes = undoes
+                , pending = emptyUndo
+                , redoes = redoes
+                , savePoint = savePoint
+                , version = version
+                , lastModified = lastModified
+                , changes = changes
             }
         )
         (Decode.field "version" Decode.int)

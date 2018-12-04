@@ -68,11 +68,18 @@ translate x y =
     )
 
 
-page : Editor -> Document Msg
-page { buf, global } =
-    { title = pageTitle buf
-    , body = [ pageDom buf global ]
-    }
+page : Global -> Document Msg
+page global =
+    case getActiveBuffer global of
+        Just buf ->
+            { title = pageTitle buf
+            , body = [ pageDom buf global ]
+            }
+
+        _ ->
+            { title = ""
+            , body = []
+            }
 
 
 pageTitle buf =
@@ -85,8 +92,11 @@ pageTitle buf =
 pageDom : Buffer -> Global -> Html Msg
 pageDom buf global =
     let
-        { mode, cursor, lines, syntax, continuation, view, history } =
+        { mode, cursor, lines, syntax, continuation, history } =
             buf
+
+        view =
+            global.activeView
 
         { fontInfo, isSafari, ime, lint, lineHeight } =
             global
@@ -230,16 +240,14 @@ pageDom buf global =
              , div [ style "display" "none" ]
                 ([ lazy saveRegisters global.registers
                  , div []
-                    (global.bufferInfoes
-                        |> Dict.toList
-                        |> List.indexedMap (\i ( _, buf1 ) -> saveBuffer i buf1)
+                    (global.buffers
+                        |> Dict.values
+                        |> List.filter (\{ path } -> not <| isTempBuffer path)
+                        |> List.indexedMap (lazy2 saveBuffer)
                     )
                  , lazy saveCwd global.cwd
                  ]
-                    ++ [ lazy3 saveActiveBuffer
-                            buf.path
-                            buf.history
-                            cursor
+                    ++ [ lazy saveActiveBuffer global.activeView.bufId
                        , div []
                             (List.indexedMap
                                 (\i s ->
@@ -1339,22 +1347,15 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth aut
             )
 
 
-saveActiveBuffer : String -> BufferHistory -> Position -> Html msg
-saveActiveBuffer path history cursor =
-    { path = path
-    , cursor = cursor
-    , content = Nothing
-    , syntax = True
-    , history = history
-    }
-        |> bufferInfoToString
-        |> renderSessionStorageItem "activeBuffer"
+saveActiveBuffer : Int -> Html msg
+saveActiveBuffer id =
+    renderSessionStorageItem "activeBuffer" (String.fromInt id)
 
 
-saveBuffer : Int -> BufferInfo -> Html msg
+saveBuffer : Int -> Buffer -> Html msg
 saveBuffer i buf =
     buf
-        |> bufferInfoToString
+        |> bufferToString
         |> renderSessionStorageItem ("buffers[" ++ String.fromInt i ++ "]")
 
 

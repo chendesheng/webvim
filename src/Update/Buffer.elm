@@ -38,6 +38,8 @@ module Update.Buffer
         , updateHistory
         , applyPatchesToLintErrors
         , applyDiffToView
+        , addBuffer
+        , resizeView
         )
 
 import Internal.Position exposing (..)
@@ -100,7 +102,7 @@ import Internal.Syntax
         )
 import Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
-import Helper.Helper exposing (parseWords, relativePath, regex)
+import Helper.Helper exposing (parseWords, relativePath, regex, filename)
 import Regex as Re
 
 
@@ -1302,3 +1304,45 @@ switchVisualEnd buf =
 shortPath : Global -> Buffer -> String
 shortPath global buf =
     relativePath global.pathSeperator global.cwd buf.path
+
+
+activeBuffer : Int -> Global -> Global
+activeBuffer id global =
+    if global.activeView.bufId == id then
+        global
+    else
+        let
+            view =
+                global.buffers
+                    |> Dict.get id
+                    |> Maybe.map .view
+                    |> Maybe.withDefault global.activeView
+        in
+            { global | activeView = view }
+
+
+addBuffer : Bool -> Buffer -> Global -> Global
+addBuffer setActive buf global =
+    let
+        global1 =
+            { global
+                | buffers = Dict.insert buf.id buf global.buffers
+            }
+    in
+        if setActive then
+            activeBuffer buf.id global1
+        else
+            global1
+
+
+resizeView : Size -> View -> View
+resizeView size view =
+    if size == view.size then
+        view
+    else
+        { view
+            | size = size
+            , lines =
+                List.range view.scrollTop
+                    (view.scrollTop + size.height + 1)
+        }

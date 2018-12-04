@@ -115,7 +115,7 @@ function storageGetArray(key, isJson) {
 function main() {
   const flags = {
     service: `${scheme}//${host}:8899`,
-    activeBuffer: safeJsonParse(sessionStorage.getItem('activeBuffer')),
+    activeBuffer: parseInt(sessionStorage.getItem('activeBuffer')) || 0,
     buffers: storageGetArray('buffers', true),
     registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
     height: window.innerHeight,

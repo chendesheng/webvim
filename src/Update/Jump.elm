@@ -11,6 +11,7 @@ import Helper.Helper
         , extname
         , relativePath
         , isPathChar
+        , findFirst
         )
 import Internal.TextBuffer as B exposing (Patch(..))
 import Update.Buffer as Buf
@@ -37,13 +38,8 @@ import Update.Motion
         )
 
 
-isTempBuffer : String -> Bool
-isTempBuffer path =
-    String.isEmpty path || path == "[Search]"
-
-
-tokenizeBufferCmd : Editor -> Cmd Msg
-tokenizeBufferCmd ({ buf, global } as ed) =
+tokenizeBufferCmd : String -> Buffer -> Cmd Msg
+tokenizeBufferCmd url buf =
     if isTempBuffer buf.path || not buf.config.syntax then
         Cmd.none
     else
@@ -69,7 +65,7 @@ tokenizeBufferCmd ({ buf, global } as ed) =
                 Cmd.none
             else
                 sendTokenize
-                    global.service
+                    url
                     { path = buf.path
                     , version = buf.history.version
                     , line = begin
@@ -80,51 +76,13 @@ tokenizeBufferCmd ({ buf, global } as ed) =
                     }
 
 
-tokenizeBuffer : Editor -> ( Editor, Cmd Msg )
-tokenizeBuffer ed =
-    ( ed, tokenizeBufferCmd ed )
-
-
-jumpTo : Bool -> BufferInfo -> Editor -> ( Editor, Cmd Msg )
-jumpTo isSaveJump info ({ global, buf } as ed) =
-    let
-        { path, cursor } =
-            info
-
-        jumps =
-            if isSaveJump then
-                saveJump { path = buf.path, cursor = buf.cursor } global.jumps
-            else
-                global.jumps
-    in
-        if path == buf.path then
-            { ed
-                | global = { global | jumps = jumps }
-                , buf =
-                    buf
-                        |> Buf.setCursor cursor True
-                        |> Buf.setScrollTop
-                            (Buf.bestScrollTop (Tuple.first cursor)
-                                buf.view.size.height
-                                buf.lines
-                                buf.view.scrollTop
-                            )
-                            global
-            }
-                |> tokenizeBuffer
-        else
-            editBuffer False
-                info
-                { ed | global = { global | jumps = jumps } }
-
-
 jumpToLocation : Bool -> Location -> Editor -> ( Editor, Cmd Msg )
 jumpToLocation isSaveJump { path, cursor } ed =
     jumpToPath isSaveJump path (Just cursor) ed
 
 
 jumpToPath : Bool -> String -> Maybe Position -> Editor -> ( Editor, Cmd Msg )
-jumpToPath isSaveJump path_ overrideCursor ({ global } as ed) =
+jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
     let
         path =
             if isTempBuffer path_ then
@@ -135,174 +93,70 @@ jumpToPath isSaveJump path_ overrideCursor ({ global } as ed) =
                     global.cwd
                     path_
 
-        info =
-            global.bufferInfoes
-                |> Dict.get path
-                |> Maybe.map
-                    (\info_ ->
-                        { info_
-                            | cursor =
-                                Maybe.withDefault info_.cursor overrideCursor
-                        }
-                    )
-                |> Maybe.withDefault
-                    { emptyBufferInfo
-                        | path = path
-                        , cursor = Maybe.withDefault ( 0, 0 ) overrideCursor
-                    }
-    in
-        jumpTo isSaveJump info ed
-
-
-
--- jump to a buffer has three cases:
--- 1. buffer exists in global.buffers
---     update view.size
--- 2. buffer exists in global.bufferInfoes
---     read file content from server
--- 3. new buffer
---     the same as case 2 with an empty buffer info
-
-
-editBuffer : Bool -> BufferInfo -> Editor -> ( Editor, Cmd Msg )
-editBuffer restoreHistory info ({ global, buf } as ed) =
-    if info.path /= "" && info.content == Nothing then
-        ( ed
-        , sendReadBuffer global.service
-            (Tuple.first info.cursor + buf.view.size.height * 2)
-            buf.config.tabSize
-            info
-        )
-    else
-        let
-            global1 =
-                { global
-                    | bufferInfoes =
-                        global.bufferInfoes
-                            |> Dict.remove info.path
-                            |> Dict.insert buf.path
-                                { path = buf.path
-                                , content =
-                                    Just
-                                        ( buf.lines, buf.syntax )
-                                , cursor = buf.cursor
-                                , syntax = buf.config.syntax
-                                , history = buf.history
-                                }
-                    , registers =
-                        global.registers
-                            |> Dict.insert "%" (Text info.path)
-                            |> (\regs ->
-                                    if buf.path == info.path then
-                                        regs
-                                    else
-                                        Dict.insert
-                                            "#"
-                                            (Text buf.path)
-                                            regs
-                               )
-                }
-
-            newbuf =
-                newBuffer buf.view.size info global1
-
-            newbuf1 =
-                if restoreHistory then
-                    newbuf
-                        |> Buf.transaction newbuf.history.changes
-                        |> Buf.setCursor newbuf.cursor False
-                        |> Buf.updateHistory (always newbuf.history)
-                else
-                    newbuf
-        in
-            ( { ed | buf = newbuf1, global = global1 }
-            , Cmd.batch
-                [ if newbuf.config.lint then
-                    sendLintProject global1.service
-                        global1.pathSeperator
-                        newbuf.path
-                        newbuf.history.version
-                        newbuf.lines
-                  else
-                    Cmd.none
-                , tokenizeBufferCmd { ed | buf = newbuf }
-                ]
-            )
-
-
-isLintEnabled : Global -> String -> Bool -> Bool
-isLintEnabled global name lint =
-    if lint && extname name == ".elm" then
-        name
-            |> relativePath global.pathSeperator global.homedir
-            |> String.startsWith (".elm" ++ global.pathSeperator)
-            |> not
-    else
-        lint
-
-
-newBuffer : Size -> BufferInfo -> Global -> Buffer
-newBuffer size info global =
-    let
-        { cursor, path, content, history } =
-            info
-
-        ( name, ext ) =
-            filename path
-
-        config =
-            Buf.configs
-                |> Dict.get ext
-                |> Maybe.withDefault defaultBufferConfig
-
-        config1 =
-            { config
-                | syntax = info.syntax
+        updateCursor : Buffer -> Buffer
+        updateCursor b =
+            { b
+                | cursor =
+                    Maybe.withDefault b.cursor overrideCursor
             }
 
-        ( lines, syntax ) =
-            Maybe.withDefault ( emptyBuffer.lines, emptyBuffer.syntax ) content
+        jumps =
+            if isSaveJump then
+                saveJump { path = buf.path, cursor = buf.cursor } global.jumps
+            else
+                global.jumps
 
-        height =
-            size.height
-
-        scrollTop =
-            Buf.bestScrollTop (Tuple.first cursor)
-                height
-                lines
-                0
+        global1 =
+            { global
+                | jumps = jumps
+            }
     in
-        { emptyBuffer
-            | lines = lines
-            , mode = Normal { message = EmptyMessage }
-            , config =
-                { config1
-                    | lint = isLintEnabled global path config1.lint
-                }
-            , view =
-                { emptyView
-                    | scrollTopPx = scrollTop * global.lineHeight
-                    , scrollTop = scrollTop
-                    , lines =
-                        List.range scrollTop (scrollTop + height + 1)
-                    , size = size
-                }
-            , cursor = cursor
-            , cursorColumn = Tuple.second cursor
-            , path = path
-            , name = name ++ ext
-            , history = history
-            , syntax = syntax
-            , syntaxDirtyFrom = Array.length syntax
-            , id =
-                global.buffers
-                    |> Dict.keys
-                    |> List.maximum
-                    |> Maybe.withDefault 0
-                    |> (+) 1
-        }
-            |> correctCursor
-            |> scrollToCursor global
+        case
+            global1.buffers
+                |> Dict.values
+                |> findFirst (\b -> b.path == path)
+        of
+            -- buffer exists
+            Just b ->
+                ( { ed
+                    | buf = updateCursor buf
+                    , global =
+                        { global1
+                            | buffers = Dict.insert b.id b global1.buffers
+                            , activeView =
+                                Buf.resizeView
+                                    global1.activeView.size
+                                    b.view
+                        }
+                  }
+                , Cmd.none
+                  -- , Cmd.batch
+                  --     [ if b.config.lint then
+                  --         sendLintProject global.service
+                  --             global.pathSeperator
+                  --             b.path
+                  --             b.history.version
+                  --             b.lines
+                  --       else
+                  --         Cmd.none
+                  --     , tokenizeBufferCmd { ed | buf = b }
+                  --     ]
+                )
+
+            -- buffer not exists
+            _ ->
+                let
+                    ( global2, b ) =
+                        createBuffer path global1.activeView.size global1
+                in
+                    ( { ed | global = { global2 | activeView = b.view } }
+                    , b
+                        |> updateCursor
+                        |> sendReadBuffer
+                            global2.service
+                            global2.activeView.size.height
+                    )
+                        |> Debug.log "jumpToPath result"
 
 
 jumpByView : Float -> Global -> Buffer -> Buffer
