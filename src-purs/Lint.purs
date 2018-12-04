@@ -1,6 +1,6 @@
 module Lint (lint, lintOnTheFly) where
 
-import Prelude (Unit, bind, discard, pure, show, void, ($), (<>), (==), (#))
+import Prelude (Unit, bind, discard, pure, show, void, ($), (<>), (==), (/=), (#), map)
 import Effect.Aff (Aff)
 import Helper
   ( affLog
@@ -21,6 +21,7 @@ import Effect.Class (liftEffect)
 import Node.Path as Path
 import Node.FS.Aff as FS
 import Data.String as Str
+import Data.String.CodePoints (codePointFromChar)
 
 tempfile :: String
 tempfile =
@@ -47,7 +48,10 @@ elmLint req resp path = do
   absolutePath <- FS.realpath $ Path.normalize path
   cwd <- findProjectDir "elm.json" absolutePath
   void $ affLog ("elmLint: " <> absolutePath <> " in " <> show cwd)
-  result <- execAsync cwd ("elm make "
+  let cmdName = if isElmTestsModule (fromMaybe "" cwd) absolutePath
+                  then "elm-test"
+                  else "elm"
+  result <- execAsync cwd (cmdName <> " make "
                           <> absolutePath
                           <> " --report=json --output=/dev/null"
                           )
@@ -86,6 +90,13 @@ eslint req resp path = do
               (Just inputStream)
   affWriteStdout outputStream result
 
+isElmTestsModule :: String -> String -> Boolean
+isElmTestsModule cwd path =
+  path
+    # Path.relative (cwd <> Path.sep <> "tests") 
+    # Str.codePointAt 0
+    # map ((/=) (codePointFromChar '.'))
+    # fromMaybe false
 
 elmLintOnTheFly :: Request -> Response -> String -> Aff Unit
 elmLintOnTheFly req resp path = do
@@ -97,7 +108,10 @@ elmLintOnTheFly req resp path = do
   liftEffect $ do
       fileStream <- createWriteStream tempfile
       void $ pipe inputStream fileStream
-  result <- execAsync cwd ("elm make "
+  let cmdName = if isElmTestsModule (fromMaybe "" cwd) absolutePath
+                  then "elm-test"
+                  else "elm"
+  result <- execAsync cwd (cmdName <> " make "
                           <> tempfile
                           <> " --report=json --output=/dev/null"
                           )
