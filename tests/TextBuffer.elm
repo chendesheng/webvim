@@ -346,7 +346,7 @@ suite =
                 , test "before, single line" <|
                     \_ ->
                         Expect.equal
-                            ( 60, 16 )
+                            ( 60, 13 )
                             (B.shiftPositionByRegionChange
                                 (Insertion ( 57, 0 ) (B.fromString "123")
                                     |> patchToRegionChange

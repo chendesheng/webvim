@@ -117,7 +117,10 @@ shiftPositionByRegionChange change pos =
                                 ex - bx
                         in
                             if dy == 0 then
-                                ( py, px + dx )
+                                if py == by then
+                                    ( py, px + dx )
+                                else
+                                    pos
                             else if py == by then
                                 ( py + dy, px + ex )
                             else
