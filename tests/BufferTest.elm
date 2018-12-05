@@ -76,9 +76,9 @@ suite =
                 history =
                     buf.history
             in
-                [ test "result.cursor" <|
+                [ test "result.view.cursor" <|
                     \_ ->
-                        Expect.equal ( 0, 3 ) buf.cursor
+                        Expect.equal ( 0, 3 ) buf.view.cursor
                 , test "result.lines" <|
                     \_ ->
                         Expect.equal (B.fromString "123\n")
@@ -114,9 +114,9 @@ suite =
                 history =
                     buf.history
             in
-                [ test "result.cursor" <|
+                [ test "result.view.cursor" <|
                     \_ ->
-                        Expect.equal ( 1, 3 ) buf.cursor
+                        Expect.equal ( 1, 3 ) buf.view.cursor
                 , test "result.lines" <|
                     \_ ->
                         Expect.equal (B.fromString "123\n123\n")
@@ -152,9 +152,9 @@ suite =
                 history =
                     buf.history
             in
-                [ test "result.cursor" <|
+                [ test "result.view.cursor" <|
                     \_ ->
-                        Expect.equal ( 0, 1 ) buf.cursor
+                        Expect.equal ( 0, 1 ) buf.view.cursor
                 , test "result.lines" <|
                     \_ ->
                         Expect.equal (B.fromString "3\n")
@@ -191,9 +191,9 @@ suite =
                         ]
                         emptyBuffer
             in
-                [ test "result.cursor" <|
+                [ test "result.view.cursor" <|
                     \_ ->
-                        Expect.equal ( 2, 0 ) buf.cursor
+                        Expect.equal ( 2, 0 ) buf.view.cursor
                 ]
         , describe "undo insert" <|
             let
@@ -206,11 +206,11 @@ suite =
                 history =
                     buf.history
             in
-                [ test "result.cursor" <|
+                [ test "result.view.cursor" <|
                     \_ ->
                         Expect.equal
-                            emptyBuffer.cursor
-                            buf.cursor
+                            emptyBuffer.view.cursor
+                            buf.view.cursor
                 , test "result.lines" <|
                     \_ ->
                         Expect.equal
@@ -248,7 +248,7 @@ suite =
             in
                 [ test "cursor" <|
                     \_ ->
-                        Expect.equal ( 0, 0 ) buf.cursor
+                        Expect.equal ( 0, 0 ) buf.view.cursor
                 , test "lines" <|
                     \_ ->
                         Expect.equal (B.fromString "123\n") buf.lines

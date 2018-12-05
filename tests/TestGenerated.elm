@@ -26,6 +26,7 @@ import Internal.Position exposing (Position)
 import Regex as Re
 import Array as Array
 import Update.Buffer as Buf
+import Internal.Window as Win
 
 
 log : String -> (a -> b) -> a -> a
@@ -106,7 +107,7 @@ formatBuffer global =
                 |> B.mapLines (addPrefix "|       ")
 
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
 
         --_ =
         --    Debug.log "buf.view" buf.view
@@ -186,7 +187,7 @@ formatBuffer global =
                                 )
 
                 _ ->
-                    case buf_.cursor of
+                    case buf_.view.cursor of
                         ( y_, x_ ) ->
                             [ ( y_, ( x_, x_ ) ) ]
 
@@ -197,10 +198,10 @@ formatBuffer global =
                     (\( y_, ( b, e ) ) lines_ ->
                         let
                             s =
-                                if y_ == Tuple.first buf.cursor then
+                                if y_ == Tuple.first buf.view.cursor then
                                     let
                                         x_ =
-                                            Tuple.second buf.cursor
+                                            Tuple.second buf.view.cursor
                                     in
                                         ((String.repeat (8 + b) " ")
                                             ++ (String.repeat (x_ - b) "-")
@@ -276,22 +277,27 @@ newBuffer mode cursor height scrollTop text =
 
         view =
             buf.view
+
+        view1 =
+            { view
+                | cursor = cursor
+                , cursorColumn = Tuple.second cursor
+                , scrollTop = scrollTop
+                , scrollTopPx = scrollTop * global.lineHeight
+                , lines =
+                    List.range scrollTop (scrollTop + view.size.height + 1)
+            }
+
+        window =
+            Win.initWindow view1
     in
         Buf.addBuffer True
             { buf
-                | cursor = cursor
-                , cursorColumn = Tuple.second cursor
-                , mode = mode
+                | mode = mode
                 , lines = lines
-                , view =
-                    { view
-                        | scrollTop = scrollTop
-                        , scrollTopPx = scrollTop * global.lineHeight
-                        , lines =
-                            List.range scrollTop (scrollTop + view.size.height + 1)
-                    }
+                , view = view1
             }
-            global
+            { global | window = window }
 
 
 isTextLine : String -> Bool

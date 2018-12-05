@@ -19,6 +19,7 @@ import Json.Encode as Encode
 import Json.Decode as Decode
 import Regex as Re
 import Helper.Helper exposing (findFirst, charWidthType, filename, regex, extname, relativePath)
+import Internal.Window as Win exposing (Window)
 
 
 type alias Size =
@@ -128,7 +129,7 @@ bufferEncoder : Buffer -> Encode.Value
 bufferEncoder buf =
     [ ( "id", Encode.int buf.id )
     , ( "path", Encode.string buf.path )
-    , ( "cursor", cursorEncoder buf.cursor )
+    , ( "cursor", cursorEncoder buf.view.cursor )
     , ( "syntax", Encode.bool buf.config.syntax )
     , ( "history", historyEncoder buf.history )
     , ( "scrollTop", Encode.int buf.view.scrollTop )
@@ -309,10 +310,11 @@ bufferDecoder global =
                     , view =
                         { view
                             | bufId = id
+                            , cursor = cursor
+                            , cursorColumn = Tuple.second cursor
                             , scrollTop = scrollTop
+                            , scrollTopPx = view.scrollTop * global.lineHeight
                         }
-                    , cursor = cursor
-                    , cursorColumn = Tuple.second cursor
                     , config = { config | syntax = syntax }
                     , history = history
                 }
@@ -397,12 +399,18 @@ type alias ExMode =
 
 type alias View =
     { bufId : Int
+    , cursor : ( Int, Int )
+    , cursorColumn : Int
     , scrollTop : Int
     , scrollTopPx : Int
     , scrollLeft : Int
     , matchedCursor : Maybe ( Position, Position )
     , lines : List Int
     , size : Size
+
+    -- TODO: save buffer id when buffer switch
+    --       update '#' register when view switch
+    , alternativeBuf : Int
     }
 
 
@@ -476,10 +484,6 @@ type alias Buffer =
     , continuation : String
     , dirtyIndent : Int
     , motionFailed : Bool
-
-    -- TODO: move to view
-    , cursor : ( Int, Int )
-    , cursorColumn : Int
     }
 
 
@@ -493,7 +497,7 @@ type alias Global =
        1. change active view and buffer
        2. keep view change active buffer
     -}
-    , activeView : View
+    , window : Window View
     , buffers : Dict Int Buffer
     , cwd : String
     , exHistory : List String
@@ -533,7 +537,13 @@ isTempBuffer path =
 
 getActiveBuffer : Global -> Maybe Buffer
 getActiveBuffer global =
-    Dict.get global.activeView.bufId global.buffers
+    Win.getActiveView global.window
+        |> Maybe.andThen
+            (\view ->
+                Dict.get
+                    view.bufId
+                    global.buffers
+            )
 
 
 setBuffer : Buffer -> Global -> Global
@@ -603,12 +613,15 @@ updateGlobal fn ed =
 emptyView : View
 emptyView =
     { bufId = 0
+    , cursor = ( 0, 0 )
+    , cursorColumn = 0
     , scrollTop = 0
     , scrollTopPx = 0
     , scrollLeft = 0
     , matchedCursor = Nothing
     , lines = [ 0, 1, 2 ]
     , size = { width = 1, height = 1 }
+    , alternativeBuf = 0
     }
 
 
@@ -648,8 +661,6 @@ emptyBuffer =
     , lines = B.fromString B.lineBreak
     , syntax = Array.empty
     , syntaxDirtyFrom = 0
-    , cursor = ( 0, 0 )
-    , cursorColumn = 0
     , path = ""
     , name = "no name"
     , mode = Normal { message = EmptyMessage }
@@ -668,7 +679,7 @@ emptyBuffer =
 emptyGlobal : Global
 emptyGlobal =
     { maxId = 0
-    , activeView = emptyView
+    , window = Win.empty
     , dotRegister = ""
     , ime = emptyIme
     , buffers = Dict.empty

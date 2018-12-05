@@ -16,7 +16,7 @@ select count textobj around ({ buf, global } as ed) =
                 | buf =
                     (if begin == end then
                         begin
-                     else if buf.cursor == max begin end then
+                     else if buf.view.cursor == max begin end then
                         Tuple.mapSecond ((+) 1) (max begin end)
                      else
                         Tuple.mapSecond (\n -> n - 1) (min begin end)
@@ -53,7 +53,7 @@ select count textobj around ({ buf, global } as ed) =
                                                 |> max end
                                 in
                                     if
-                                        (buf.cursor == min begin end)
+                                        (buf.view.cursor == min begin end)
                                             && (begin /= end)
                                     then
                                         buf

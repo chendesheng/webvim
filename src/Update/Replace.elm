@@ -15,11 +15,11 @@ replaceChar : String -> Buffer -> Buffer
 replaceChar ch buf =
     let
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
     in
         buf
             |> Buf.transaction
-                [ Deletion buf.cursor ( y, x + 1 ) ]
+                [ Deletion buf.view.cursor ( y, x + 1 ) ]
             |> insert (V.TextLiteral ch)
 
 
@@ -55,7 +55,7 @@ applyReplace count ch global buf =
                 |> (\buf_ ->
                         let
                             ( y, x ) =
-                                buf_.cursor
+                                buf_.view.cursor
                         in
                             Buf.setCursor ( y, max 0 (x - 1) ) True buf_
                    )

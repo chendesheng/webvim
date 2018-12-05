@@ -120,16 +120,16 @@ operatorRanges count range global buf =
                 Just pos ->
                     let
                         begin =
-                            if pos > buf.cursor then
-                                buf.cursor
+                            if pos > buf.view.cursor then
+                                buf.view.cursor
                             else
                                 pos
 
                         ( endy, endx ) =
-                            if pos > buf.cursor then
+                            if pos > buf.view.cursor then
                                 pos
                             else
-                                buf.cursor
+                                buf.view.cursor
                     in
                         if mo.linewise then
                             [ ( ( Tuple.first begin, 0 )
@@ -168,9 +168,9 @@ operatorRanges count range global buf =
         V.TextObject textObject around ->
             let
                 ( y, x ) =
-                    buf.cursor
+                    buf.view.cursor
             in
-                buf.cursor
+                buf.view.cursor
                     |> expandTextObject
                         buf.config.wordChars
                         buf.view.scrollTop

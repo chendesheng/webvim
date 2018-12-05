@@ -22,7 +22,7 @@ getString buf ins =
             wordStringUnderCursor
                 buf.config.wordChars
                 buf.lines
-                buf.cursor
+                buf.view.cursor
                 |> Maybe.map Tuple.second
                 |> Maybe.withDefault ""
 
@@ -40,7 +40,7 @@ insertString s buf =
             if expandTab then
                 B.fromStringExpandTabs
                     tabSize
-                    (buf.cursor
+                    (buf.view.cursor
                         |> Tuple.second
                     )
                     s
@@ -48,7 +48,7 @@ insertString s buf =
                 B.fromString s
     in
         Buf.transaction
-            [ Insertion buf.cursor s1 ]
+            [ Insertion buf.view.cursor s1 ]
             buf
 
 
@@ -78,7 +78,7 @@ insert s buf =
                                             |> repeatSpace
                                             |> B.fromString
                                             |> Insertion
-                                                ( Tuple.first buf_.cursor, 0 )
+                                                ( Tuple.first buf_.view.cursor, 0 )
                                         ]
                                     |> Buf.setLastIndent indent
                         in
@@ -115,7 +115,7 @@ autoIndent : Buffer -> Buffer
 autoIndent buf =
     let
         ( y, _ ) =
-            buf.cursor
+            buf.view.cursor
 
         indent =
             calcIndent buf.config.indent buf.config.tabSize y buf.lines
@@ -142,10 +142,11 @@ autoIndent buf =
                     )
                 |> Maybe.withDefault []
 
+        saveLastIndent : Buffer -> Buffer
         saveLastIndent buf_ =
             let
                 ( y_, _ ) =
-                    buf_.cursor
+                    buf_.view.cursor
 
                 isBlank =
                     Re.contains (regex "\\S")

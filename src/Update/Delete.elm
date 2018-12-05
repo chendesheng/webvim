@@ -43,8 +43,13 @@ deleteOperator count range global buf =
 delete : Maybe Int -> String -> V.OperatorRange -> Editor -> Editor
 delete count register rg ({ global, buf } as ed) =
     let
+        updateCursorColumn : Buffer -> Buffer
         updateCursorColumn buf_ =
-            { buf_ | cursorColumn = Tuple.second buf_.cursor }
+            let
+                view =
+                    buf_.view
+            in
+                { buf_ | view = { view | cursorColumn = Tuple.second buf_.view.cursor } }
 
         linewise =
             isLinewise rg buf.mode
@@ -175,7 +180,7 @@ join : Maybe Int -> Bool -> Buffer -> Buffer
 join count collapseSpaces buf =
     let
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
     in
         case buf.mode of
             Visual { begin, end } ->

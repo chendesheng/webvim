@@ -22,6 +22,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Browser exposing (Document)
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
+import Internal.Window as Win
 
 
 type alias Point =
@@ -92,11 +93,15 @@ pageTitle buf =
 pageDom : Buffer -> Global -> Html Msg
 pageDom buf global =
     let
-        { mode, cursor, lines, syntax, continuation, history } =
+        { mode, lines, syntax, continuation, history } =
             buf
 
         view =
-            global.activeView
+            Win.getActiveView global.window
+                |> Maybe.withDefault emptyView
+
+        cursor =
+            view.cursor
 
         { fontInfo, isSafari, ime, lint, lineHeight } =
             global
@@ -247,7 +252,7 @@ pageDom buf global =
                     )
                  , lazy saveCwd global.cwd
                  ]
-                    ++ [ lazy saveActiveBuffer global.activeView.bufId
+                    ++ [ lazy saveActiveBuffer view.bufId
                        , div []
                             (List.indexedMap
                                 (\i s ->

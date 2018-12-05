@@ -32,13 +32,13 @@ scrollTo y global ({ view, lines } as buf) =
 
 scrollToCursor : Global -> Buffer -> Buffer
 scrollToCursor global buf =
-    scrollTo (Tuple.first buf.cursor) global buf
+    scrollTo (Tuple.first buf.view.cursor) global buf
 
 
 correctCursor : Buffer -> Buffer
 correctCursor buf =
     Buf.setCursor
-        (correctPosition buf.cursor False buf.lines)
+        (correctPosition buf.view.cursor False buf.lines)
         False
         buf
 
@@ -109,8 +109,11 @@ correctPosition pos excludeLineBreak lines =
 {-| move cursor ensure cursor is insdie viewport
 -}
 cursorScope : Int -> Buffer -> Buffer
-cursorScope lineHeight ({ view, cursor, lines } as buf) =
+cursorScope lineHeight ({ view, lines } as buf) =
     let
+        cursor =
+            view.cursor
+
         ( y, x ) =
             cursor
 
@@ -162,12 +165,12 @@ pairSource : Buffer -> Position
 pairSource buf =
     case buf.mode of
         Insert _ ->
-            buf.cursor
+            buf.view.cursor
                 |> Tuple.mapSecond
                     (\x -> Basics.max 0 (x - 1))
 
         _ ->
-            buf.cursor
+            buf.view.cursor
 
 
 pairCursor : Size -> Buffer -> Buffer

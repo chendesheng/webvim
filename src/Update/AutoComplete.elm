@@ -50,11 +50,11 @@ selectAutoComplete forward buf =
                                 |> Maybe.withDefault ""
 
                         ( y, x ) =
-                            buf.cursor
+                            buf.view.cursor
 
                         buf1 =
                             Buf.transaction
-                                [ B.Deletion pos buf.cursor
+                                [ B.Deletion pos buf.view.cursor
                                 , B.Insertion pos <|
                                     B.fromString txt
                                 ]
@@ -84,7 +84,7 @@ autoCompleteTarget : String -> Buffer -> Maybe ( Position, String )
 autoCompleteTarget wordChars buf =
     let
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
     in
         if x == 0 then
             Nothing
@@ -174,7 +174,7 @@ filterAutoComplete buf =
 
                         target =
                             buf.lines
-                                |> B.substring pos buf.cursor
+                                |> B.substring pos buf.view.cursor
                                 |> B.toString
                     in
                         if

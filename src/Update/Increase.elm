@@ -27,7 +27,7 @@ increaseNumber : Maybe Int -> Bool -> Buffer -> Buffer
 increaseNumber count larger buf =
     let
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
 
         delta =
             if larger then

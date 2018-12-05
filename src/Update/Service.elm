@@ -223,7 +223,7 @@ sendReadBuffer url viewHeight buf =
                             |> Maybe.withDefault ""
 
                     tokenizeLines =
-                        Tuple.first buf.cursor + viewHeight * 2
+                        Tuple.first buf.view.cursor + viewHeight * 2
                 in
                     if buf.config.syntax then
                         sendTokenizeTask url

@@ -43,6 +43,7 @@ import Internal.Jumps
         )
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Position exposing (positionShiftLeft)
+import Internal.Window as Win
 import Update.AutoComplete exposing (..)
 import Update.CaseOperator exposing (applyCaseOperator)
 import Update.Replace exposing (applyReplace)
@@ -89,74 +90,78 @@ prefixToString prefix =
 
 
 initMode : Buffer -> V.ModeName -> Mode
-initMode { cursor, mode } modeName =
-    case modeName of
-        V.ModeNameNormal ->
-            case mode of
-                Ex { message } ->
-                    Normal { message = message }
-
-                _ ->
-                    Normal { message = EmptyMessage }
-
-        V.ModeNameTempNormal ->
-            TempNormal
-
-        V.ModeNameInsert ->
-            Insert
-                { autoComplete = Nothing
-                , startCursor = cursor
-                , visual =
-                    case mode of
-                        Visual visual ->
-                            Just visual
-
-                        _ ->
-                            Nothing
-                }
-
-        V.ModeNameEx prefix ->
-            Ex
-                { prefix = (stringToPrefix prefix)
-                , exbuf =
-                    emptyExBuffer
-                        |> Buf.transaction
-                            [ Insertion ( 0, 0 ) <|
-                                B.fromString prefix
-                            ]
-                , visual =
-                    case mode of
-                        Visual visual ->
-                            Just visual
-
-                        _ ->
-                            Nothing
-                , message = EmptyMessage
-                }
-
-        V.ModeNameVisual tipe ->
-            Visual
-                (case mode of
-                    Visual visual ->
-                        { visual | tipe = tipe }
-
-                    Ex { visual } ->
-                        case visual of
-                            Just v ->
-                                v
-
-                            _ ->
-                                { tipe = tipe
-                                , begin = cursor
-                                , end = cursor
-                                }
+initMode { view, mode } modeName =
+    let
+        cursor =
+            view.cursor
+    in
+        case modeName of
+            V.ModeNameNormal ->
+                case mode of
+                    Ex { message } ->
+                        Normal { message = message }
 
                     _ ->
-                        { tipe = tipe
-                        , begin = cursor
-                        , end = cursor
-                        }
-                )
+                        Normal { message = EmptyMessage }
+
+            V.ModeNameTempNormal ->
+                TempNormal
+
+            V.ModeNameInsert ->
+                Insert
+                    { autoComplete = Nothing
+                    , startCursor = cursor
+                    , visual =
+                        case mode of
+                            Visual visual ->
+                                Just visual
+
+                            _ ->
+                                Nothing
+                    }
+
+            V.ModeNameEx prefix ->
+                Ex
+                    { prefix = (stringToPrefix prefix)
+                    , exbuf =
+                        emptyExBuffer
+                            |> Buf.transaction
+                                [ Insertion ( 0, 0 ) <|
+                                    B.fromString prefix
+                                ]
+                    , visual =
+                        case mode of
+                            Visual visual ->
+                                Just visual
+
+                            _ ->
+                                Nothing
+                    , message = EmptyMessage
+                    }
+
+            V.ModeNameVisual tipe ->
+                Visual
+                    (case mode of
+                        Visual visual ->
+                            { visual | tipe = tipe }
+
+                        Ex { visual } ->
+                            case visual of
+                                Just v ->
+                                    v
+
+                                _ ->
+                                    { tipe = tipe
+                                    , begin = cursor
+                                    , end = cursor
+                                    }
+
+                        _ ->
+                            { tipe = tipe
+                            , begin = cursor
+                            , end = cursor
+                            }
+                    )
 
 
 getModeName : Mode -> V.ModeName
@@ -207,7 +212,7 @@ updateMode modeName ({ global, buf } as ed) =
             if oldModeName == V.ModeNameVisual V.VisualBlock then
                 case mode of
                     Insert { startCursor } ->
-                        if startCursor /= buf_.cursor then
+                        if startCursor /= buf_.view.cursor then
                             Buf.setCursor startCursor True buf_
                         else
                             buf_
@@ -290,8 +295,8 @@ repeatInserts oldMode buf =
             case visual of
                 Just { tipe, begin, end } ->
                     if
-                        (startCursor <= buf.cursor)
-                            && (Tuple.first startCursor == Tuple.first buf.cursor)
+                        (startCursor <= buf.view.cursor)
+                            && (Tuple.first startCursor == Tuple.first buf.view.cursor)
                     then
                         case tipe of
                             V.VisualBlock ->
@@ -313,8 +318,8 @@ repeatInserts oldMode buf =
 
                                     inserts =
                                         (B.sliceRegion startCursor
-                                            ( Tuple.first buf.cursor
-                                            , Tuple.second buf.cursor + 1
+                                            ( Tuple.first buf.view.cursor
+                                            , Tuple.second buf.view.cursor + 1
                                             )
                                             buf.lines
                                         )
@@ -378,7 +383,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
         Normal _ ->
             let
                 ( y, x ) =
-                    buf.cursor
+                    buf.view.cursor
 
                 cursor =
                     case oldMode of
@@ -402,7 +407,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                     if lineDeltaMotion then
                         False
                     else
-                        cursor /= buf.cursor
+                        cursor /= buf.view.cursor
             in
                 updateBuffer
                     (Buf.setCursor cursor changeColumn
@@ -443,7 +448,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                                                 | match =
                                                     matchString forward
                                                         re
-                                                        buf.cursor
+                                                        buf.view.cursor
                                                         buf.lines
                                                 , highlights =
                                                     matchAllStrings
@@ -556,7 +561,7 @@ correctLines : Buffer -> Buffer
 correctLines buf =
     if B.isEmpty buf.lines then
         Buf.transaction
-            [ Insertion buf.cursor <|
+            [ Insertion buf.view.cursor <|
                 B.fromString B.lineBreak
             ]
             buf
@@ -602,7 +607,7 @@ scroll count value global buf =
                         _ ->
                             Buf.setCursor
                                 ( scope (n - 1)
-                                , Tuple.second buf_.cursor
+                                , Tuple.second buf_.view.cursor
                                 )
                                 False
                                 buf_
@@ -617,7 +622,7 @@ scroll count value global buf =
                     buf_.view.size
 
                 y =
-                    Tuple.first buf_.cursor
+                    Tuple.first buf_.view.cursor
 
                 y1 =
                     case value of
@@ -712,9 +717,9 @@ runOperator count register operator ({ buf, global } as ed) =
                 |> updateBuffer
                     (openNewLine
                         (if forward then
-                            Tuple.first buf.cursor + 1
+                            Tuple.first buf.view.cursor + 1
                          else
-                            Tuple.first buf.cursor
+                            Tuple.first buf.view.cursor
                         )
                     )
                 |> cmdNone
@@ -814,7 +819,7 @@ runOperator count register operator ({ buf, global } as ed) =
                                                     wordStringUnderCursor
                                                         buf.config.wordChars
                                                         buf.lines
-                                                        (positionShiftLeft buf.cursor)
+                                                        (positionShiftLeft buf.view.cursor)
                                                         |> Maybe.map Tuple.second
                                                         |> Maybe.withDefault ""
 
@@ -888,7 +893,7 @@ runOperator count register operator ({ buf, global } as ed) =
                     B.count buf.lines - 1
 
                 ( y, x ) =
-                    buf.cursor
+                    buf.view.cursor
             in
                 ( updateBuffer
                     (Buf.infoMessage
@@ -1395,7 +1400,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
             if modeName == V.ModeNameNormal && isEnterInsertMode edit then
                 Insert
                     { autoComplete = Nothing
-                    , startCursor = buf.cursor
+                    , startCursor = buf.view.cursor
                     , visual = Nothing
                     }
             else
@@ -1734,22 +1739,22 @@ onMouseWheel delta ({ buf, global } as ed) =
 updateGlobalAfterChange : Buffer -> Global -> Buffer -> Global -> Global
 updateGlobalAfterChange oldBuf oldGlobal buf global =
     let
-        activeView =
-            if buf.id == global.activeView.bufId then
-                Buf.resizeView
-                    global.activeView.size
-                    buf.view
-            else
-                Buf.resizeView
-                    oldGlobal.activeView.size
-                    global.activeView
+        window =
+            Win.updateView
+                (\view ->
+                    if buf.id == view.bufId then
+                        Buf.resizeView view.size buf.view
+                    else
+                        Buf.resizeView oldBuf.view.size view
+                )
+                global.window
 
         registers =
-            if buf.id == global.activeView.bufId then
-                global.registers
-            else
-                case getActiveBuffer global of
-                    Just { path } ->
+            case getActiveBuffer global of
+                Just { id, path } ->
+                    if id == oldBuf.id then
+                        global.registers
+                    else
                         global.registers
                             |> Dict.insert "%" (Text path)
                             |> (\regs ->
@@ -1759,13 +1764,13 @@ updateGlobalAfterChange oldBuf oldGlobal buf global =
                                         Dict.insert "#" (Text oldBuf.path) regs
                                )
 
-                    _ ->
-                        global.registers
+                _ ->
+                    global.registers
     in
         { global
             | buffers =
                 Dict.insert buf.id buf global.buffers
-            , activeView = activeView
+            , window = window
             , registers = registers
         }
 
@@ -1775,7 +1780,12 @@ withEditor fn global =
     case getActiveBuffer global of
         Just activeBuf ->
             { global = global
-            , buf = { activeBuf | view = global.activeView }
+            , buf =
+                { activeBuf
+                    | view =
+                        Win.getActiveView global.window
+                            |> Maybe.withDefault emptyView
+                }
             }
                 |> fn
                 |> Tuple.mapFirst
@@ -1849,12 +1859,23 @@ update message global =
                                 buf1 =
                                     buf
                                         |> Buf.transaction buf.history.changes
-                                        |> Buf.setCursor buf.cursor True
+                                        |> Buf.setCursor buf.view.cursor True
                                         |> Buf.updateHistory (always buf.history)
 
                                 global1 =
-                                    if buf1.id == global.activeView.bufId then
-                                        { global | activeView = buf1.view }
+                                    if
+                                        buf1.id
+                                            == (Win.getActiveView global.window
+                                                    |> Maybe.map .bufId
+                                                    |> Maybe.withDefault 0
+                                               )
+                                    then
+                                        { global
+                                            | window =
+                                                Win.updateView
+                                                    (always buf1.view)
+                                                    global.window
+                                        }
                                     else
                                         global
                             in
@@ -1866,12 +1887,12 @@ update message global =
                             case resp.status.code of
                                 404 ->
                                     let
-                                        _ =
-                                            Debug.log "404" resp
-
                                         ( global1, buf1 ) =
                                             createBuffer resp.body
-                                                global.activeView.size
+                                                (Win.getActiveView global.window
+                                                    |> Maybe.map .size
+                                                    |> Maybe.withDefault { width = 0, height = 0 }
+                                                )
                                                 global
 
                                         global2 =
@@ -2094,7 +2115,12 @@ onSearch result global =
         Ok s ->
             let
                 ( global1, buf ) =
-                    createBuffer "[Search]" global.activeView.size global
+                    createBuffer "[Search]"
+                        (Win.getActiveView global.window
+                            |> Maybe.map .size
+                            |> Maybe.withDefault { width = 0, height = 0 }
+                        )
+                        global
             in
                 Buf.addBuffer
                     True
@@ -2132,7 +2158,7 @@ onReadTags result ed =
                                             | jumpToTag =
                                                 Just
                                                     { path = buf_.path
-                                                    , cursor = buf_.cursor
+                                                    , cursor = buf_.view.cursor
                                                     }
                                         }
                                 }
@@ -2179,22 +2205,10 @@ logGlobal : String -> Global -> Global
 logGlobal message global =
     let
         _ =
-            Debug.log (message ++ " activeBuffer") global.activeView.bufId
-
-        _ =
-            Debug.log (message ++ " viewheight") global.activeView.size.height
-
-        _ =
             Debug.log (message ++ " buffers keys") (Dict.keys global.buffers)
 
         _ =
             Debug.log (message ++ " buffers") (Dict.values global.buffers |> List.map .path)
-
-        _ =
-            Debug.log (message ++ " activeView.lines") global.activeView.lines
-
-        _ =
-            Debug.log (message ++ " activeView.scrollTop") global.activeView.scrollTop
 
         _ =
             Debug.log (message ++ " max id") global.maxId
@@ -2215,9 +2229,6 @@ logEd : String -> Editor -> Editor
 logEd message ed =
     let
         _ =
-            Debug.log (message ++ " activeBuffer") ed.global.activeView.bufId
-
-        _ =
             Debug.log (message ++ " buffers") (Dict.keys ed.global.buffers)
 
         _ =
@@ -2225,9 +2236,6 @@ logEd message ed =
                 (Dict.values ed.global.buffers
                     |> List.map .path
                 )
-
-        _ =
-            Debug.log (message ++ " activeView.scrollTop") (ed.global.activeView.scrollTop)
 
         _ =
             Debug.log (message ++ " buf.view.scrollTop") (ed.buf.view.scrollTop)
@@ -2243,7 +2251,7 @@ onRead result ({ buf, global } as ed) =
                 buf2 =
                     buf1
                         |> Buf.transaction buf1.history.changes
-                        |> Buf.setCursor buf1.cursor True
+                        |> Buf.setCursor buf1.view.cursor True
                         |> Buf.updateHistory (always buf1.history)
             in
                 { ed
@@ -2293,7 +2301,7 @@ onWrite result ({ buf, global } as ed) =
                                 }
                             )
                         -- keep cursor position
-                        |> Buf.setCursor buf.cursor True
+                        |> Buf.setCursor buf.view.cursor True
                         |> correctCursor
                         |> scrollToCursor global
                         |> pairCursor buf.view.size
@@ -2461,8 +2469,7 @@ init flags =
 
         initView view =
             { view
-                | scrollTopPx = view.scrollTop * lineHeight
-                , lines = List.range view.scrollTop (view.scrollTop + viewHeight + 1)
+                | lines = List.range view.scrollTop (view.scrollTop + viewHeight + 1)
                 , size = { width = 1, height = viewHeight }
             }
 
@@ -2474,30 +2481,30 @@ init flags =
                         |> Decode.list
                     )
                 |> Result.withDefault []
-
-        readBuffers =
-            List.map
-                (sendReadBuffer global.service viewHeight)
-                decodedBuffers
     in
-        ( if List.isEmpty decodedBuffers then
-            let
-                ( global1, buf1 ) =
-                    createBuffer "" viewSize global
-            in
-                Buf.addBuffer True buf1 global1
-          else
-            { global
-                | activeView =
-                    decodedBuffers
-                        |> findFirst (\{ id } -> id == activeBuffer)
-                        |> Maybe.map .view
-                        |> Maybe.withDefault (initView emptyView)
-                , maxId =
-                    decodedBuffers
-                        |> List.map .id
-                        |> List.maximum
-                        |> Maybe.withDefault 0
-            }
-        , Cmd.batch (focusHiddenInput :: readBuffers)
+        ( case decodedBuffers of
+            firstBuf :: _ ->
+                { global
+                    | window =
+                        decodedBuffers
+                            |> findFirst (\{ id } -> id == activeBuffer)
+                            |> Maybe.map .view
+                            |> Maybe.withDefault firstBuf.view
+                            |> Win.initWindow
+                    , maxId =
+                        decodedBuffers
+                            |> List.map .id
+                            |> List.maximum
+                            |> Maybe.withDefault 0
+                }
+
+            _ ->
+                let
+                    ( global1, buf1 ) =
+                        createBuffer "" viewSize global
+                in
+                    Buf.addBuffer True buf1 global1
+        , decodedBuffers
+            |> List.map (sendReadBuffer global.service viewHeight)
+            |> Cmd.batch
         )

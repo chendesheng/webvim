@@ -104,6 +104,7 @@ import Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
 import Helper.Helper exposing (parseWords, relativePath, regex, filename)
 import Regex as Re
+import Internal.Window as Win exposing (Window)
 
 
 reversedPatchToRegionChange : Patch -> RegionChange
@@ -363,7 +364,7 @@ transaction patches buf =
                             applyPatch patch buf_.lines
 
                         cursor =
-                            updateCursor patch patch1 buf_.cursor
+                            updateCursor patch patch1 buf_.view.cursor
 
                         ( syntax, _ ) =
                             applyPatchToSyntax patch buf_.syntax
@@ -376,10 +377,12 @@ transaction patches buf =
                         --    Debug.log "lines" lines
                         --_ =
                         --    Debug.log "view" view
+                        view =
+                            buf.view
                     in
                         ( { buf_
                             | lines = lines
-                            , cursor = cursor
+                            , view = { view | cursor = cursor }
                             , syntax = syntax
                           }
                         , patch1 :: undoPatches_
@@ -398,7 +401,7 @@ transaction patches buf =
         else
             let
                 history =
-                    addPending buf.cursor undoPatchs buf1.history
+                    addPending buf.view.cursor undoPatchs buf1.history
 
                 --_ =
                 --    Debug.log "history" history
@@ -572,11 +575,17 @@ undo buf =
                                     List.map reversedPatchToRegionChange res.patches
                                         ++ history.diff
                             }
+
+                    view =
+                        buf.view
                 in
                     { buf
                         | lines = res.lines
-                        , cursor = undo_.cursor
-                        , cursorColumn = Tuple.second undo_.cursor
+                        , view =
+                            { view
+                                | cursor = undo_.cursor
+                                , cursorColumn = Tuple.second undo_.cursor
+                            }
                         , syntax = res.syntax
                         , history = undoHistory buf.history
                     }
@@ -629,12 +638,18 @@ redo buf =
                         res.patches
                             |> List.map B.patchCursor
                             |> List.minimum
-                            |> Maybe.withDefault buf.cursor
+                            |> Maybe.withDefault buf.view.cursor
+
+                    view =
+                        buf.view
                 in
                     { buf
                         | lines = res.lines
-                        , cursor = cursor
-                        , cursorColumn = Tuple.second cursor
+                        , view =
+                            { view
+                                | cursor = cursor
+                                , cursorColumn = Tuple.second cursor
+                            }
                         , syntax = res.syntax
                         , history = redoHistory buf.history
                     }
@@ -646,7 +661,7 @@ moveByClass : MotionData -> MotionOption -> Buffer -> Buffer
 moveByClass class option buf =
     let
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
     in
         buf.lines
             |> getLine y
@@ -701,14 +716,21 @@ setMode mode buf =
 
 setCursor : Position -> Bool -> Buffer -> Buffer
 setCursor cursor saveColumn buf =
-    { buf
-        | cursor = cursor
-        , cursorColumn =
-            if saveColumn then
-                Tuple.second cursor
-            else
-                buf.cursorColumn
-    }
+    let
+        view =
+            buf.view
+    in
+        { buf
+            | view =
+                { view
+                    | cursor = cursor
+                    , cursorColumn =
+                        if saveColumn then
+                            Tuple.second cursor
+                        else
+                            view.cursorColumn
+                }
+        }
 
 
 updateHistory : (BufferHistory -> BufferHistory) -> Buffer -> Buffer
@@ -720,7 +742,7 @@ putString : Bool -> RegisterText -> Buffer -> Buffer
 putString forward text buf =
     let
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
 
         tabSize =
             buf.config.tabSize
@@ -787,10 +809,10 @@ putString forward text buf =
                             to
 
                         _ ->
-                            buf_.cursor
+                            buf_.view.cursor
 
                 _ ->
-                    buf_.cursor
+                    buf_.view.cursor
     in
         buf
             |> setLastIndent 0
@@ -979,7 +1001,7 @@ indentCursorToLineFirst : Buffer -> Buffer
 indentCursorToLineFirst buf =
     let
         ( y, x ) =
-            buf.cursor
+            buf.view.cursor
 
         y1 =
             if y >= B.count buf.lines - 1 then
@@ -1116,7 +1138,7 @@ bestScrollTop y height lines scrollTop =
 
 
 toWords : String -> Buffer -> List String
-toWords exclude { config, lines, cursor } =
+toWords exclude { config, lines } =
     lines
         |> B.mapLines (parseWords config.wordChars)
         |> Array.toList
@@ -1173,8 +1195,8 @@ setLastIndent indent buf =
 
 
 setCursorColumn : Int -> Buffer -> Buffer
-setCursorColumn cursorColumn buf =
-    { buf | cursorColumn = cursorColumn }
+setCursorColumn cursorColumn ({ view } as buf) =
+    { buf | view = { view | cursorColumn = cursorColumn } }
 
 
 cancelLastIndent : Buffer -> Buffer
@@ -1182,7 +1204,7 @@ cancelLastIndent buf =
     if buf.dirtyIndent > 0 then
         let
             ( y, _ ) =
-                buf.cursor
+                buf.view.cursor
         in
             buf
                 |> transaction [ Deletion ( y, 0 ) ( y, buf.dirtyIndent ) ]
@@ -1251,7 +1273,7 @@ getStatusBar mode =
 
         Ex { exbuf } ->
             { text = B.toString exbuf.lines
-            , cursor = Just exbuf.cursor
+            , cursor = Just exbuf.view.cursor
             , error = False
             }
 
@@ -1308,17 +1330,28 @@ shortPath global buf =
 
 activeBuffer : Int -> Global -> Global
 activeBuffer id global =
-    if global.activeView.bufId == id then
+    if
+        -- same buffer
+        (case Win.getActiveView global.window of
+            Just view ->
+                view.bufId == id
+
+            _ ->
+                False
+        )
+    then
         global
     else
-        let
-            view =
-                global.buffers
-                    |> Dict.get id
-                    |> Maybe.map .view
-                    |> Maybe.withDefault global.activeView
-        in
-            { global | activeView = view }
+        case
+            global.buffers
+                |> Dict.get id
+                |> Maybe.map .view
+        of
+            Just view ->
+                { global | window = Win.updateView (always view) global.window }
+
+            _ ->
+                global
 
 
 addBuffer : Bool -> Buffer -> Global -> Global

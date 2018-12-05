@@ -36,6 +36,7 @@ import Update.Motion
         , wordStringUnderCursor
         , wORDStringUnderCursor
         )
+import Internal.Window as Win
 
 
 tokenizeBufferCmd : String -> Buffer -> Cmd Msg
@@ -94,15 +95,22 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                     path_
 
         updateCursor : Buffer -> Buffer
-        updateCursor b =
-            { b
-                | cursor =
-                    Maybe.withDefault b.cursor overrideCursor
-            }
+        updateCursor buf1 =
+            let
+                view =
+                    buf1.view
+            in
+                { buf1
+                    | view =
+                        { view
+                            | cursor =
+                                Maybe.withDefault view.cursor overrideCursor
+                        }
+                }
 
         jumps =
             if isSaveJump then
-                saveJump { path = buf.path, cursor = buf.cursor } global.jumps
+                saveJump { path = buf.path, cursor = buf.view.cursor } global.jumps
             else
                 global.jumps
 
@@ -123,10 +131,10 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                     , global =
                         { global1
                             | buffers = Dict.insert b.id b global1.buffers
-                            , activeView =
-                                Buf.resizeView
-                                    global1.activeView.size
-                                    b.view
+                            , window =
+                                Win.updateView
+                                    (\{ size } -> Buf.resizeView size b.view)
+                                    global1.window
                         }
                   }
                 , Cmd.none
@@ -147,16 +155,22 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
             _ ->
                 let
                     ( global2, b ) =
-                        createBuffer path global1.activeView.size global1
+                        createBuffer path buf.view.size global1
                 in
-                    ( { ed | global = { global2 | activeView = b.view } }
+                    ( { ed
+                        | global =
+                            { global2
+                                | window =
+                                    Win.updateView (always b.view)
+                                        global2.window
+                            }
+                      }
                     , b
                         |> updateCursor
                         |> sendReadBuffer
                             global2.service
-                            global2.activeView.size.height
+                            buf.view.size.height
                     )
-                        |> Debug.log "jumpToPath result"
 
 
 jumpByView : Float -> Global -> Buffer -> Buffer
@@ -200,7 +214,7 @@ jumpByView factor global buf =
             floorFromZero (toFloat height * factor)
 
         y =
-            lineScope (Tuple.first buf.cursor + n)
+            lineScope (Tuple.first buf.view.cursor + n)
 
         scrollTop =
             scrollScope view.scrollTop n
@@ -262,7 +276,7 @@ jumpHistory isForward ({ global, buf } as ed) =
             else
                 jumpBackward
                     { path = buf.path
-                    , cursor = buf.cursor
+                    , cursor = buf.view.cursor
                     }
                     global.jumps
     in
@@ -292,7 +306,7 @@ startJumpToTag count ({ buf, global } as ed) =
         wordStringUnderCursor
             buf.config.wordChars
             buf.lines
-            buf.cursor
+            buf.view.cursor
     of
         Just ( _, s ) ->
             ( ed

@@ -132,7 +132,7 @@ saveMotion md mo oldbuf buf global =
                                     wordStringUnderCursor
                                         oldbuf.config.wordChars
                                         oldbuf.lines
-                                        oldbuf.cursor
+                                        oldbuf.view.cursor
                                         |> Maybe.map (Tuple.second >> wholeWord)
                             in
                                 case s of
@@ -272,7 +272,7 @@ gotoMatchedString count mo matchStr buf =
                                 repeatfn
                                     (Maybe.withDefault 1 count)
                                     (findNext re)
-                                    buf.cursor
+                                    buf.view.cursor
 
                             _ ->
                                 Nothing
@@ -506,7 +506,7 @@ runMotion count md mo global buf =
                                 -(Maybe.withDefault 1 count)
 
                         ( y, x ) =
-                            buf.cursor
+                            buf.view.cursor
 
                         y1 =
                             (y + n)
@@ -516,7 +516,7 @@ runMotion count md mo global buf =
                         x1 =
                             buf.lines
                                 |> B.getLineMaxColumn y1
-                                |> min buf.cursorColumn
+                                |> min buf.view.cursorColumn
                     in
                         Just ( y1, x1 )
 
@@ -557,7 +557,7 @@ runMotion count md mo global buf =
                             in
                                 repeatfn (Maybe.withDefault 1 count)
                                     findNext
-                                    buf.cursor
+                                    buf.view.cursor
 
                         _ ->
                             Nothing
@@ -574,7 +574,7 @@ runMotion count md mo global buf =
                             wordStringUnderCursor
                                 buf.config.wordChars
                                 buf.lines
-                                buf.cursor
+                                buf.view.cursor
                                 --|> Debug.log "word under cursor"
                                 |> Maybe.andThen
                                     (\res ->
@@ -605,7 +605,7 @@ runMotion count md mo global buf =
                                                             count
                                                         )
                                                         (findNext re)
-                                                        buf.cursor
+                                                        buf.view.cursor
 
                                                 _ ->
                                                     Nothing
@@ -633,9 +633,9 @@ runMotion count md mo global buf =
                         _ ->
                             case buf.view.matchedCursor of
                                 Just ( a, b ) ->
-                                    if buf.cursor == a then
+                                    if buf.view.cursor == a then
                                         Just b
-                                    else if buf.cursor == b then
+                                    else if buf.view.cursor == b then
                                         Just a
                                     else
                                         Nothing
@@ -643,7 +643,7 @@ runMotion count md mo global buf =
                                 _ ->
                                     let
                                         ( y, x ) =
-                                            buf.cursor
+                                            buf.view.cursor
                                     in
                                         buf.lines
                                             |> B.getLine y
@@ -676,7 +676,7 @@ runMotion count md mo global buf =
                                 else
                                     Just y1
                     in
-                        buf.cursor
+                        buf.view.cursor
                             |> Tuple.first
                             |> repeatfn (Maybe.withDefault 1 count) findNext
                             |> Maybe.andThen (Buf.cursorLineFirst buf.lines)
@@ -700,7 +700,7 @@ runMotion count md mo global buf =
                             Maybe.withDefault 1 count
 
                         y =
-                            Tuple.first buf.cursor
+                            Tuple.first buf.view.cursor
                     in
                         Buf.cursorLineFirst buf.lines (y + n)
 
@@ -717,8 +717,11 @@ findPositionDeleteWordBack :
     -> Maybe Position
 findPositionDeleteWordBack count md mo startCursor buf =
     let
-        { cursor, lines, config } =
+        { lines, config } =
             buf
+
+        cursor =
+            buf.view.cursor
 
         ( y, x ) =
             cursor
@@ -761,7 +764,7 @@ findPositionDefault count md mo buf =
         repeatfn
             (Maybe.withDefault 1 count)
             findNext
-            buf.cursor
+            buf.view.cursor
 
 
 findParagraph : Bool -> Int -> B.TextBuffer -> Int
@@ -820,9 +823,9 @@ wordStringUnderCursor wordChars lines cursor =
 
 
 wORDStringUnderCursor : Buffer -> Maybe ( Position, String )
-wORDStringUnderCursor { cursor, lines } =
+wORDStringUnderCursor { view, lines } =
     lines
-        |> wORDUnderCursor cursor
+        |> wORDUnderCursor view.cursor
         |> Maybe.map
             (\rg ->
                 let
@@ -979,7 +982,7 @@ motion count md mo ({ buf, global } as ed) =
                         |> saveMotion md mo buf buf1
                         |> saveCursorBeforeJump md
                             cursor
-                            { path = buf.path, cursor = buf.cursor }
+                            { path = buf.path, cursor = buf.view.cursor }
             in
                 ( { ed
                     | buf =
