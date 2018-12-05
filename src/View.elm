@@ -71,11 +71,48 @@ translate x y =
 
 page : Global -> Document Msg
 page global =
-    case getActiveBuffer global of
-        Just buf ->
-            { title = pageTitle buf
-            , body = [ pageDom buf global ]
-            }
+    case Win.getActiveView global.window of
+        Just view ->
+            case Dict.get view.bufId global.buffers of
+                Just buf ->
+                    { title = pageTitle buf
+                    , body =
+                        let
+                            views =
+                                Win.toList global.window
+
+                            activeViewRect =
+                                views
+                                    |> List.filter (\( { bufId }, _ ) -> bufId == buf.id)
+                                    |> List.head
+                                    |> Maybe.map Tuple.second
+                                    |> Maybe.withDefault { y = 0, x = 0, width = 0, height = 0 }
+                        in
+                            [ div [ class "editor" ]
+                                [ div [ class "buffers" ]
+                                    ((List.map
+                                        (\( view1, rect ) ->
+                                            case Dict.get view1.bufId global.buffers of
+                                                Just buf1 ->
+                                                    renderBuffer rect view1 buf1 (buf1.id == buf.id) global
+
+                                                _ ->
+                                                    div [] []
+                                        )
+                                        views
+                                     )
+                                        ++ (renderAutoComplete activeViewRect view buf global)
+                                    )
+                                , renderGlobal buf global
+                                ]
+                            , renderStorage buf global
+                            ]
+                    }
+
+                _ ->
+                    { title = ""
+                    , body = []
+                    }
 
         _ ->
             { title = ""
@@ -90,15 +127,60 @@ pageTitle buf =
         buf.name
 
 
-pageDom : Buffer -> Global -> Html Msg
-pageDom buf global =
+renderGlobal buf global =
+    let
+        { fontInfo, isSafari, ime, lint, lineHeight } =
+            global
+
+        ime1 =
+            { ime | isSafari = isSafari }
+    in
+        renderStatusBar
+            fontInfo
+            ime1
+            (Buf.isDirty buf)
+            buf.mode
+            buf.continuation
+            lint.items
+            buf.name
+
+
+renderStorage : Buffer -> Global -> Html Msg
+renderStorage activeBuffer global =
+    div [ style "display" "none" ]
+        ([ lazy saveRegisters global.registers
+         , div []
+            (global.buffers
+                |> Dict.values
+                |> List.filter (\{ path } -> not <| isTempBuffer path)
+                |> List.indexedMap (lazy2 saveBuffer)
+            )
+         , lazy saveCwd global.cwd
+         ]
+            ++ [ lazy saveActiveBuffer activeBuffer.id
+               , div []
+                    (List.indexedMap
+                        (\i s ->
+                            renderSessionStorageItem
+                                ("exHistory[" ++ String.fromInt i ++ "]")
+                                s
+                        )
+                        global.exHistory
+                    )
+               ]
+        )
+
+
+percentStr : Float -> String
+percentStr f =
+    String.fromFloat (f * 100) ++ "%"
+
+
+renderBuffer : Win.WindowRect -> View -> Buffer -> Bool -> Global -> Html Msg
+renderBuffer rect view buf isActive global =
     let
         { mode, lines, syntax, continuation, history } =
             buf
-
-        view =
-            Win.getActiveView global.window
-                |> Maybe.withDefault emptyView
 
         cursor =
             view.cursor
@@ -181,129 +263,126 @@ pageDom buf global =
                 )
     in
         div
-            [ class "editor" ]
-            ([ div
-                ([ class "buffer" ]
-                    ++ case buf.mode of
-                        Ex _ ->
-                            []
+            ([ class "buffer"
+             , style "top" (percentStr rect.y)
+             , style "left" (percentStr rect.x)
+             , style "width" (percentStr rect.width)
+             , style "height" (percentStr rect.height)
+             ]
+                ++ case buf.mode of
+                    Ex _ ->
+                        []
 
-                        Insert { autoComplete } ->
-                            case autoComplete of
-                                Just _ ->
-                                    []
+                    Insert { autoComplete } ->
+                        case autoComplete of
+                            Just _ ->
+                                []
 
-                                _ ->
-                                    [ mouseWheel lineHeight ]
+                            _ ->
+                                [ mouseWheel lineHeight ]
 
-                        _ ->
-                            [ mouseWheel lineHeight ]
-                )
-                [ renderGutter
-                    scrollingCss
-                    gutterWidth
-                    relativeZeroLine
-                    totalLines
-                    view.lines
-                , lazy5 renderRelativeGutter
-                    lineHeight
-                    topOffsetPx
-                    height
-                    (relativeZeroLine - scrollTop1)
-                    (totalLines - scrollTop1)
-                , div
-                    (class "lines-container" :: scrollingCss)
-                    (renderColumnGuide fontInfo lines maybeCursor
-                        :: renderLineGuide maybeCursor
-                        :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
-                        :: renderHighlights fontInfo scrollTop1 lines highlights
-                        :: lazy4 renderLint fontInfo scrollTop1 lines lint.items
-                        :: lazy3 renderLines lines syntax view.lines
-                        :: div [ class "ruler" ] []
-                        :: renderCursor fontInfo ime1 lines "" maybeCursor
-                        :: renderTip
-                            view.size.width
-                            lint.items
-                            maybeCursor
-                            showTip
-                        :: renderMatchedCursor
-                            fontInfo
-                            lines
-                            mode
-                            cursor
-                            buf.view.matchedCursor
-                    )
-                ]
-             , renderStatusBar
-                fontInfo
-                ime1
-                (Buf.isDirty buf)
-                mode
-                continuation
-                lint.items
-                buf.name
-             , div [ style "display" "none" ]
-                ([ lazy saveRegisters global.registers
-                 , div []
-                    (global.buffers
-                        |> Dict.values
-                        |> List.filter (\{ path } -> not <| isTempBuffer path)
-                        |> List.indexedMap (lazy2 saveBuffer)
-                    )
-                 , lazy saveCwd global.cwd
-                 ]
-                    ++ [ lazy saveActiveBuffer view.bufId
-                       , div []
-                            (List.indexedMap
-                                (\i s ->
-                                    renderSessionStorageItem
-                                        ("exHistory[" ++ String.fromInt i ++ "]")
-                                        s
-                                )
-                                global.exHistory
-                            )
-                       ]
+                    _ ->
+                        [ mouseWheel lineHeight ]
+            )
+            ([ renderGutter
+                scrollingCss
+                gutterWidth
+                relativeZeroLine
+                totalLines
+                view.lines
+             , lazy5 renderRelativeGutter
+                lineHeight
+                topOffsetPx
+                height
+                (relativeZeroLine - scrollTop1)
+                (totalLines - scrollTop1)
+             , div
+                (class "lines-container" :: scrollingCss)
+                (renderColumnGuide fontInfo lines maybeCursor
+                    :: renderLineGuide maybeCursor
+                    :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
+                    :: renderHighlights fontInfo scrollTop1 lines highlights
+                    :: lazy4 renderLint fontInfo scrollTop1 lines lint.items
+                    :: lazy3 renderLines lines syntax view.lines
+                    :: div [ class "ruler" ] []
+                    :: renderCursor fontInfo ime1 lines "" maybeCursor
+                    :: renderTip
+                        view.size.width
+                        lint.items
+                        maybeCursor
+                        showTip
+                    :: renderMatchedCursor
+                        fontInfo
+                        lines
+                        mode
+                        cursor
+                        buf.view.matchedCursor
                 )
              ]
-                ++ (case buf.mode of
-                        Ex ex ->
-                            case ex.exbuf.mode of
-                                Insert { autoComplete } ->
-                                    autoComplete
-                                        |> Maybe.map
-                                            (renderAutoCompleteMenu
-                                                lineHeight
-                                                topOffsetPx
-                                                True
-                                                scrollTop
-                                                (gutterWidth
-                                                    + relativeGutterWidth
-                                                )
-                                            )
-                                        |> maybeToList
-
-                                _ ->
-                                    []
-
-                        Insert { autoComplete } ->
-                            case autoComplete of
-                                Just auto ->
-                                    [ renderAutoCompleteMenu
-                                        lineHeight
-                                        topOffsetPx
-                                        False
-                                        scrollTop
-                                        (gutterWidth + relativeGutterWidth)
-                                        auto
-                                    ]
-
-                                _ ->
-                                    []
-
-                        _ ->
-                            []
-                   )
             )
+
+
+renderAutoComplete : Win.WindowRect -> View -> Buffer -> Global -> List (Html Msg)
+renderAutoComplete rect view buf global =
+    let
+        lines =
+            buf.lines
+
+        totalLines =
+            B.count lines - 1
+
+        gutterWidth =
+            totalLines |> String.fromInt |> String.length
+
+        relativeGutterWidth =
+            4
+
+        scrollTop =
+            view.scrollTop
+
+        lineHeight =
+            global.lineHeight
+
+        topOffsetPx =
+            remainderBy lineHeight view.scrollTopPx
+    in
+        case buf.mode of
+            Ex ex ->
+                case ex.exbuf.mode of
+                    Insert { autoComplete } ->
+                        autoComplete
+                            |> Maybe.map
+                                (renderAutoCompleteMenu
+                                    Nothing
+                                    lineHeight
+                                    topOffsetPx
+                                    True
+                                    scrollTop
+                                    (gutterWidth + relativeGutterWidth)
+                                )
+                            |> maybeToList
+
+                    _ ->
+                        []
+
+            Insert { autoComplete } ->
+                case autoComplete of
+                    Just auto ->
+                        [ renderAutoCompleteMenu
+                            (Just ( rect.y, rect.x ))
+                            lineHeight
+                            topOffsetPx
+                            False
+                            scrollTop
+                            (gutterWidth + relativeGutterWidth)
+                            auto
+                        ]
+
+                    _ ->
+                        []
+
+            _ ->
+                []
 
 
 renderLintStatus : List LintError -> Html msg
@@ -1260,14 +1339,15 @@ renderLines lines syntax viewLines =
 
 
 renderAutoCompleteMenu :
-    Int
+    Maybe ( Float, Float )
+    -> Int
     -> Int
     -> Bool
     -> Int
     -> Int
     -> AutoComplete
     -> Html msg
-renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth auto =
+renderAutoCompleteMenu topLeft lineHeight topOffsetPx isEx viewScrollTop gutterWidth auto =
     let
         { matches, select, scrollTop, pos, menuLeftOffset } =
             auto
@@ -1317,6 +1397,15 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop gutterWidth aut
         div
             ([ class "auto-complete"
              ]
+                ++ (case topLeft of
+                        Just ( top, left ) ->
+                            [ style "top" (percentStr top)
+                            , style "left" (percentStr left)
+                            ]
+
+                        Nothing ->
+                            []
+                   )
                 ++ (if isEx then
                         [ class "auto-complete-ex"
                         , style "left" <| ch (menuLeftOffset + 1)

@@ -1309,6 +1309,26 @@ execute count register str ({ buf, global } as ed) =
                     |> sendMkDir global.service
                 )
 
+            [ "vsp" ] ->
+                ( { ed
+                    | global =
+                        { global
+                            | window = Win.vsplit 0.5 buf.view global.window
+                        }
+                  }
+                , Cmd.none
+                )
+
+            [ "hsp" ] ->
+                ( { ed
+                    | global =
+                        { global
+                            | window = Win.hsplit 0.5 buf.view global.window
+                        }
+                  }
+                , Cmd.none
+                )
+
             [ s ] ->
                 case String.toInt s of
                     Just n ->
@@ -2503,8 +2523,12 @@ init flags =
                     ( global1, buf1 ) =
                         createBuffer "" viewSize global
                 in
-                    Buf.addBuffer True buf1 global1
+                    Buf.addBuffer
+                        True
+                        buf1
+                        { global1 | window = Win.initWindow buf1.view }
         , decodedBuffers
             |> List.map (sendReadBuffer global.service viewHeight)
+            |> ((::) focusHiddenInput)
             |> Cmd.batch
         )
