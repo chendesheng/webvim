@@ -313,7 +313,7 @@ bufferDecoder global =
                             , cursor = cursor
                             , cursorColumn = Tuple.second cursor
                             , scrollTop = scrollTop
-                            , scrollTopPx = view.scrollTop * global.lineHeight
+                            , scrollTopPx = scrollTop * global.lineHeight
                         }
                     , config = { config | syntax = syntax }
                     , history = history

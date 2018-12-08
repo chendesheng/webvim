@@ -96,17 +96,22 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
 
         updateCursor : Buffer -> Buffer
         updateCursor buf1 =
-            let
-                view =
-                    buf1.view
-            in
-                { buf1
-                    | view =
-                        { view
-                            | cursor =
-                                Maybe.withDefault view.cursor overrideCursor
-                        }
-                }
+            case overrideCursor of
+                Just cursor ->
+                    let
+                        scrollTop =
+                            Buf.bestScrollTop
+                                (Tuple.first cursor)
+                                buf1.view.size.height
+                                buf1.lines
+                                buf1.view.scrollTop
+                    in
+                        buf1
+                            |> Buf.setCursor cursor True
+                            |> Buf.setScrollTop scrollTop global
+
+                _ ->
+                    buf1
 
         jumps =
             if isSaveJump then
@@ -126,44 +131,59 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
         of
             -- buffer exists
             Just b ->
-                ( { ed
-                    | buf =
-                        buf
-                            |> updateCursor
-                    , global =
-                        let
-                            b1 =
-                                Buf.updateView
-                                    (\v -> { v | alternativeBuf = Just buf.path })
+                if buf.id == b.id then
+                    ( { ed
+                        | buf = updateCursor buf
+                        , global = global1
+                      }
+                    , Cmd.none
+                    )
+                else
+                    ( { ed
+                        | global =
+                            let
+                                b1 =
                                     b
-                        in
-                            { global1
-                                | buffers = Dict.insert b1.id b1 global1.buffers
-                                , window =
-                                    Win.updateActiveView
-                                        (\{ size } -> Buf.resizeView size b1.view)
-                                        global1.window
-                            }
-                  }
-                , Cmd.none
-                  -- , Cmd.batch
-                  --     [ if b.config.lint then
-                  --         sendLintProject global.service
-                  --             global.pathSeperator
-                  --             b.path
-                  --             b.history.version
-                  --             b.lines
-                  --       else
-                  --         Cmd.none
-                  --     , tokenizeBufferCmd { ed | buf = b }
-                  --     ]
-                )
+                                        |> updateCursor
+                                        |> Buf.updateView
+                                            (\v -> { v | alternativeBuf = Just buf.path })
+                            in
+                                { global1
+                                    | buffers = Dict.insert b1.id b1 global1.buffers
+                                    , window =
+                                        Win.updateActiveView
+                                            (\{ size } -> Buf.resizeView size b1.view)
+                                            global1.window
+                                }
+                      }
+                    , Cmd.none
+                      -- , Cmd.batch
+                      --     [ if b.config.lint then
+                      --         sendLintProject global.service
+                      --             global.pathSeperator
+                      --             b.path
+                      --             b.history.version
+                      --             b.lines
+                      --       else
+                      --         Cmd.none
+                      --     , tokenizeBufferCmd { ed | buf = b }
+                      --     ]
+                    )
 
             -- buffer not exists
             _ ->
                 let
                     ( global2, b ) =
                         createBuffer path buf.view.size global1
+                            |> Tuple.mapSecond
+                                (updateCursor
+                                    >> Buf.updateView
+                                        (\v ->
+                                            { v
+                                                | alternativeBuf = Just buf.path
+                                            }
+                                        )
+                                )
                 in
                     ( { ed
                         | global =
@@ -173,13 +193,7 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                                         global2.window
                             }
                       }
-                    , b
-                        |> updateCursor
-                        |> Buf.updateView
-                            (\v -> { v | alternativeBuf = Just buf.path })
-                        |> sendReadBuffer
-                            global2.service
-                            buf.view.size.height
+                    , sendReadBuffer global2.service buf.view.size.height b
                     )
 
 

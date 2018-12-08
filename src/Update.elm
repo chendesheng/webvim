@@ -1497,9 +1497,18 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 else
                     ed_
 
-        doTokenize oldBuf ( ed_, cmds ) =
+        doTokenize ( ed_, cmds ) =
             if ed_.buf.config.syntax then
-                ( ed_, (debounceTokenize 100) :: cmds )
+                ( ed_
+                , (case ed_.buf.mode of
+                    Insert _ ->
+                        debounceTokenize 100
+
+                    _ ->
+                        tokenizeBufferCmd ed_.global.service buf
+                  )
+                    :: cmds
+                )
             else
                 ( ed_, cmds )
 
@@ -1609,7 +1618,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 )
             |> Tuple.mapSecond List.singleton
             |> doLint buf
-            |> doTokenize buf
+            |> doTokenize
             |> doFocusInput ed
             |> Tuple.mapSecond Cmd.batch
 
@@ -1816,27 +1825,22 @@ updateGlobalAfterChange oldBuf oldGlobal buf global =
 
 withEditor : (Editor -> ( Editor, Cmd Msg )) -> Global -> ( Global, Cmd Msg )
 withEditor fn global =
-    let
-        alternativeBuf =
-            Win.getActiveView global.window
-                |> Maybe.andThen .alternativeBuf
-    in
-        case getActiveBuffer global of
-            Just activeBuf ->
-                { global = global
-                , buf =
-                    { activeBuf
-                        | view =
-                            Win.getActiveView global.window
-                                |> Maybe.withDefault emptyView
-                    }
+    case getActiveBuffer global of
+        Just activeBuf ->
+            { global = global
+            , buf =
+                { activeBuf
+                    | view =
+                        Win.getActiveView global.window
+                            |> Maybe.withDefault emptyView
                 }
-                    |> fn
-                    |> Tuple.mapFirst
-                        (\ed -> updateGlobalAfterChange activeBuf global ed.buf ed.global)
+            }
+                |> fn
+                |> Tuple.mapFirst
+                    (\ed -> updateGlobalAfterChange activeBuf global ed.buf ed.global)
 
-            _ ->
-                ( global, Cmd.none )
+        _ ->
+            ( global, Cmd.none )
 
 
 updateActiveBuffer : (Buffer -> Buffer) -> Global -> Global
