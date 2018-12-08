@@ -211,6 +211,23 @@ percentStr f =
     String.fromFloat (f * 100) ++ "%"
 
 
+isListenMouseWheel mode showTip lint =
+    case mode of
+        Ex _ ->
+            False
+
+        Insert { autoComplete } ->
+            case autoComplete of
+                Just _ ->
+                    False
+
+                _ ->
+                    not showTip || List.isEmpty lint.items
+
+        _ ->
+            not showTip || List.isEmpty lint.items
+
+
 renderBuffer : Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
 renderBuffer rect view buf isActive global =
     let
@@ -304,20 +321,10 @@ renderBuffer rect view buf isActive global =
              , style "width" (percentStr rect.width)
              , style "height" (percentStr rect.height)
              ]
-                ++ case buf.mode of
-                    Ex _ ->
-                        []
-
-                    Insert { autoComplete } ->
-                        case autoComplete of
-                            Just _ ->
-                                []
-
-                            _ ->
-                                [ mouseWheel lineHeight ]
-
-                    _ ->
-                        [ mouseWheel lineHeight ]
+                ++ if isListenMouseWheel buf.mode showTip lint then
+                    [ mouseWheel lineHeight ]
+                   else
+                    []
             )
             ([ renderGutter
                 scrollingCss
