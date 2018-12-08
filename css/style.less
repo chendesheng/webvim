@@ -83,19 +83,38 @@ html, body {
   display: flex;
   flex-direction: row;
   flex-grow: 1;
-  width: 100%;
-  height: 100%;
   overflow-y: hidden;
+  position: relative;
 }
 
 
 .buffer {
   display: flex;
   position:absolute;
-  border-right: solid 2px #999;
-  border-bottom: solid 2px #999;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.view-border {
+  position: absolute;
+  background: #999;
+  background-clip: padding-box;
+}
+
+.border-ver {
+  border-left: solid 5px transparent;
+  border-right: solid 5px transparent;
+  width: 2px !important;
+  transform: translateX(-5px);
+  cursor: ew-resize;
+}
+
+.border-hor {
+  border-top: solid 5px transparent;
+  border-bottom: solid 5px transparent;
+  height: 2px !important;
+  transform: translateY(-5px);
+  cursor: ns-resize;
 }
 
 .lines-container {
@@ -177,6 +196,13 @@ html, body {
 
 .matched-cursor {
   opacity: 0.3;
+}
+
+.cursor.cursor-not-active,
+.matched-cursor.cursor-not-active {
+  background: transparent;
+  border: solid 1px red;
+  box-sizing: border-box;
 }
 
 .guide {
@@ -331,7 +357,7 @@ html, body {
 }
 
 .auto-complete-ex {
-  bottom: @statusbar-height;
+  bottom: 3px;
 }
 
 .cursor-ime-active {

@@ -828,6 +828,20 @@ operator isVisual isTemp =
                     )
                     keyParser
                 )
+
+        switchView =
+            readKeyAndThen "<c-w>"
+                [ PushKey "<c-w>" ]
+                (P.oneOf
+                    [ define "w" (SwitchView SwitchToNext)
+                    , define "b" (SwitchView SwitchToPrev)
+                    , define "l" (SwitchView SwitchToRight)
+                    , define "h" (SwitchView SwitchToLeft)
+                    , define "k" (SwitchView SwitchToTop)
+                    , define "j" (SwitchView SwitchToBottom)
+                    ]
+                )
+                |> dontRecord
     in
         P.oneOf
             ((if isVisual then
@@ -924,6 +938,7 @@ operator isVisual isTemp =
                     |> dontRecord
                 , define "<c-g>" ShowInfo
                     |> dontRecord
+                , switchView
                 ]
              )
                 ++ [ countPrefix

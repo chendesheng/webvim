@@ -52,7 +52,7 @@ tokenizeBufferCmd url buf =
                 buf.view
 
             end =
-                Buf.finalScrollTop view.size buf + 2 * view.size.height
+                Buf.finalScrollTop view.size view buf + 2 * view.size.height
 
             lines =
                 if begin < end then
@@ -127,15 +127,23 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
             -- buffer exists
             Just b ->
                 ( { ed
-                    | buf = updateCursor buf
+                    | buf =
+                        buf
+                            |> updateCursor
                     , global =
-                        { global1
-                            | buffers = Dict.insert b.id b global1.buffers
-                            , window =
-                                Win.updateView
-                                    (\{ size } -> Buf.resizeView size b.view)
-                                    global1.window
-                        }
+                        let
+                            b1 =
+                                Buf.updateView
+                                    (\v -> { v | alternativeBuf = Just buf.path })
+                                    b
+                        in
+                            { global1
+                                | buffers = Dict.insert b1.id b1 global1.buffers
+                                , window =
+                                    Win.updateActiveView
+                                        (\{ size } -> Buf.resizeView size b1.view)
+                                        global1.window
+                            }
                   }
                 , Cmd.none
                   -- , Cmd.batch
@@ -161,12 +169,14 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                         | global =
                             { global2
                                 | window =
-                                    Win.updateView (always b.view)
+                                    Win.updateActiveView (always b.view)
                                         global2.window
                             }
                       }
                     , b
                         |> updateCursor
+                        |> Buf.updateView
+                            (\v -> { v | alternativeBuf = Just buf.path })
                         |> sendReadBuffer
                             global2.service
                             buf.view.size.height
@@ -291,10 +301,15 @@ jumpHistory isForward ({ global, buf } as ed) =
 
 
 jumpLastBuffer : Editor -> ( Editor, Cmd Msg )
-jumpLastBuffer ({ global } as ed) =
-    case Dict.get "#" global.registers of
-        Just reg ->
-            jumpToPath True (registerString reg) Nothing ed
+jumpLastBuffer ({ global, buf } as ed) =
+    case Win.getActiveView global.window of
+        Just { alternativeBuf } ->
+            case alternativeBuf of
+                Just path ->
+                    jumpToPath True path Nothing ed
+
+                _ ->
+                    ( ed, Cmd.none )
 
         _ ->
             ( ed, Cmd.none )

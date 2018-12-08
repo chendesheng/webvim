@@ -230,10 +230,10 @@ updateMode modeName ({ global, buf } as ed) =
             buf1.view
 
         scrollFrom =
-            Buf.finalScrollTop buf.view.size buf
+            Buf.finalScrollTop buf.view.size buf.view buf
 
         scrollTo =
-            Buf.finalScrollTop view.size buf1
+            Buf.finalScrollTop view.size view buf1
 
         ime =
             if oldModeName /= newModeName then
@@ -485,10 +485,10 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                             buf
 
                     scrollFrom =
-                        Buf.finalScrollTop buf.view.size buf
+                        Buf.finalScrollTop buf.view.size buf.view buf
 
                     scrollTo =
-                        Buf.finalScrollTop buf1.view.size buf1
+                        Buf.finalScrollTop buf1.view.size buf1.view buf1
                 in
                     { ed
                         | buf =
@@ -956,8 +956,40 @@ runOperator count register operator ({ buf, global } as ed) =
                 _ ->
                     ( ed, Cmd.none )
 
+        SwitchView type_ ->
+            ( switchView type_ ed, Cmd.none )
+
         _ ->
             ( ed, Cmd.none )
+
+
+switchView : V.SwitchViewType -> Editor -> Editor
+switchView type_ ({ global } as ed) =
+    let
+        switch =
+            case type_ of
+                V.SwitchToNext ->
+                    Win.activeNextView
+
+                V.SwitchToRight ->
+                    Win.activeRightView
+
+                V.SwitchToLeft ->
+                    Win.activeLeftView
+
+                V.SwitchToBottom ->
+                    Win.activeBottomView
+
+                V.SwitchToTop ->
+                    Win.activeTopView
+
+                _ ->
+                    identity
+    in
+        { ed
+            | global =
+                { global | window = switch global.window }
+        }
 
 
 quote : String -> String
@@ -1213,16 +1245,18 @@ editTestBuffer path ({ buf, global } as ed) =
     let
         ( global1, buf1 ) =
             createBuffer path buf.view.size global
+
+        global2 =
+            Buf.addBuffer False buf1 global1
     in
-        buf1
-            |> Ok
-            |> Read
-            |> (\msg ->
-                    Buf.addBuffer True buf1 global1
-                        |> update msg
-                        |> Tuple.mapFirst
-                            (\global2 -> { ed | global = global2 })
-               )
+        jumpToPath
+            True
+            (path
+                |> normalizePath global.pathSeperator
+                |> replaceHomeDir global.homedir
+            )
+            Nothing
+            { ed | global = global2 }
 
 
 execute : Maybe Int -> String -> String -> Editor -> ( Editor, Cmd Msg )
@@ -1315,6 +1349,7 @@ execute count register str ({ buf, global } as ed) =
                         { global
                             | window = Win.vsplit 0.5 buf.view global.window
                         }
+                            |> resizeViews global.size
                   }
                 , Cmd.none
                 )
@@ -1325,6 +1360,7 @@ execute count register str ({ buf, global } as ed) =
                         { global
                             | window = Win.hsplit 0.5 buf.view global.window
                         }
+                            |> resizeViews global.size
                   }
                 , Cmd.none
                 )
@@ -1411,7 +1447,6 @@ applyVimAST replaying key ast ({ buf } as ed) =
         { count, edit, modeName, register, recordKeys } =
             ast
 
-        -- |> Debug.log key
         oldMode =
             -- For now the put operator is implemented as
             --   1) Start insert mode
@@ -1463,7 +1498,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                     ed_
 
         doTokenize oldBuf ( ed_, cmds ) =
-            if (oldBuf.path == ed_.buf.path) || (Buf.isEditing oldBuf ed_.buf) then
+            if ed_.buf.config.syntax then
                 ( ed_, (debounceTokenize 100) :: cmds )
             else
                 ( ed_, cmds )
@@ -1759,60 +1794,49 @@ onMouseWheel delta ({ buf, global } as ed) =
 updateGlobalAfterChange : Buffer -> Global -> Buffer -> Global -> Global
 updateGlobalAfterChange oldBuf oldGlobal buf global =
     let
+        isSwitchView =
+            global.window /= oldGlobal.window
+
         window =
-            Win.updateView
-                (\view ->
-                    if buf.id == view.bufId then
-                        Buf.resizeView view.size buf.view
-                    else
-                        Buf.resizeView oldBuf.view.size view
-                )
+            if isSwitchView then
                 global.window
-
-        registers =
-            case getActiveBuffer global of
-                Just { id, path } ->
-                    if id == oldBuf.id then
-                        global.registers
-                    else
-                        global.registers
-                            |> Dict.insert "%" (Text path)
-                            |> (\regs ->
-                                    if oldBuf.path == path then
-                                        regs
-                                    else
-                                        Dict.insert "#" (Text oldBuf.path) regs
-                               )
-
-                _ ->
-                    global.registers
+            else
+                Win.updateActiveView
+                    (\view ->
+                        Buf.resizeView view.size buf.view
+                    )
+                    global.window
     in
         { global
             | buffers =
                 Dict.insert buf.id buf global.buffers
             , window = window
-            , registers = registers
         }
 
 
 withEditor : (Editor -> ( Editor, Cmd Msg )) -> Global -> ( Global, Cmd Msg )
 withEditor fn global =
-    case getActiveBuffer global of
-        Just activeBuf ->
-            { global = global
-            , buf =
-                { activeBuf
-                    | view =
-                        Win.getActiveView global.window
-                            |> Maybe.withDefault emptyView
+    let
+        alternativeBuf =
+            Win.getActiveView global.window
+                |> Maybe.andThen .alternativeBuf
+    in
+        case getActiveBuffer global of
+            Just activeBuf ->
+                { global = global
+                , buf =
+                    { activeBuf
+                        | view =
+                            Win.getActiveView global.window
+                                |> Maybe.withDefault emptyView
+                    }
                 }
-            }
-                |> fn
-                |> Tuple.mapFirst
-                    (\ed -> updateGlobalAfterChange activeBuf global ed.buf ed.global)
+                    |> fn
+                    |> Tuple.mapFirst
+                        (\ed -> updateGlobalAfterChange activeBuf global ed.buf ed.global)
 
-        _ ->
-            ( global, Cmd.none )
+            _ ->
+                ( global, Cmd.none )
 
 
 updateActiveBuffer : (Buffer -> Buffer) -> Global -> Global
@@ -1847,7 +1871,16 @@ update message global =
                 global
 
         Resize size ->
-            withEditor (onResize size) global
+            --todo tokenizeBuffer
+            --, window
+            --    |> Win.toList
+            --    |> List.map
+            --        (\( rect, view ) ->
+            --            Cmd.none
+            --        )
+            --    |> Cmd.batch
+            --)
+            ( resizeViews size global, Cmd.none )
 
         ReadClipboard result ->
             case result of
@@ -1892,7 +1925,7 @@ update message global =
                                     then
                                         { global
                                             | window =
-                                                Win.updateView
+                                                Win.updateActiveView
                                                     (always buf1.view)
                                                     global.window
                                         }
@@ -2195,72 +2228,62 @@ onReadTags result ed =
             )
 
 
-onResize : Size -> Editor -> ( Editor, Cmd Msg )
-onResize size ({ buf, global } as ed) =
+resizeViews : Size -> Global -> Global
+resizeViews size global =
     let
-        newHeight =
-            getViewHeight size.height
-                global.lineHeight
-                global.statusbarHeight
+        height =
+            size.height - (global.statusbarHeight * global.lineHeight)
+
+        resizeView view ( widthPercent, heightPercent ) =
+            Buf.resizeView
+                { width = (round <| toFloat size.width * widthPercent)
+                , height =
+                    getViewHeight
+                        (round <| toFloat height * heightPercent)
+                        global.lineHeight
+                        0
+                }
+                view
+
+        window =
+            Win.mapView resizeView global.window
     in
-        { ed
-            | buf =
-                buf
-                    |> Buf.updateView
-                        (\view ->
-                            { view
-                                | lines =
-                                    List.range
-                                        view.scrollTop
-                                        (view.scrollTop + newHeight + 1)
-                                , size = { width = size.width, height = newHeight }
-                            }
-                        )
-                    |> cursorScope global.lineHeight
-        }
-            |> tokenizeBuffer
+        { global | window = window, size = size }
 
 
-logGlobal : String -> Global -> Global
-logGlobal message global =
-    let
-        _ =
-            Debug.log (message ++ " buffers keys") (Dict.keys global.buffers)
 
-        _ =
-            Debug.log (message ++ " buffers") (Dict.values global.buffers |> List.map .path)
-
-        _ =
-            Debug.log (message ++ " max id") global.maxId
-    in
-        global
-
-
-logEd2 : String -> ( Editor, Cmd a ) -> ( Editor, Cmd a )
-logEd2 message (( ed, _ ) as res) =
-    let
-        _ =
-            logEd message ed
-    in
-        res
-
-
-logEd : String -> Editor -> Editor
-logEd message ed =
-    let
-        _ =
-            Debug.log (message ++ " buffers") (Dict.keys ed.global.buffers)
-
-        _ =
-            Debug.log (message ++ " buffers")
-                (Dict.values ed.global.buffers
-                    |> List.map .path
-                )
-
-        _ =
-            Debug.log (message ++ " buf.view.scrollTop") (ed.buf.view.scrollTop)
-    in
-        ed
+--logGlobal : String -> Global -> Global
+--logGlobal message global =
+--    let
+--        _ =
+--            Debug.log (message ++ " buffers keys") (Dict.keys global.buffers)
+--        _ =
+--            Debug.log (message ++ " buffers") (Dict.values global.buffers |> List.map .path)
+--        _ =
+--            Debug.log (message ++ " max id") global.maxId
+--    in
+--        global
+--logEd2 : String -> ( Editor, Cmd a ) -> ( Editor, Cmd a )
+--logEd2 message (( ed, _ ) as res) =
+--    let
+--        _ =
+--            logEd message ed
+--    in
+--        res
+--logEd : String -> Editor -> Editor
+--logEd message ed =
+--    let
+--        _ =
+--            Debug.log (message ++ " buffers") (Dict.keys ed.global.buffers)
+--        _ =
+--            Debug.log (message ++ " buffers")
+--                (Dict.values ed.global.buffers
+--                    |> List.map .path
+--                )
+--        _ =
+--            Debug.log (message ++ " buf.view.scrollTop") (ed.buf.view.scrollTop)
+--    in
+--        ed
 
 
 onRead : Result Http.Error Buffer -> Editor -> Editor
@@ -2445,8 +2468,8 @@ initCommand =
 
 
 getViewHeight : Int -> Int -> Int -> Int
-getViewHeight heightPx lineHeightPx statusBarHeight =
-    heightPx // lineHeightPx - statusBarHeight
+getViewHeight heightPx lineHeightPx statusbarHeight =
+    heightPx // lineHeightPx - statusbarHeight
 
 
 init : Flags -> ( Global, Cmd Msg )
@@ -2485,12 +2508,13 @@ init flags =
                     Decode.decodeValue registersDecoder registers
                         |> Result.withDefault Dict.empty
                 , lineHeight = lineHeight
+                , size = { width = 1, height = height }
             }
 
         initView view =
             { view
                 | lines = List.range view.scrollTop (view.scrollTop + viewHeight + 1)
-                , size = { width = 1, height = viewHeight }
+                , size = viewSize
             }
 
         decodedBuffers =

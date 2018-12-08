@@ -1,10 +1,14 @@
 module Internal.Window
     exposing
         ( Window
-        , WindowRect
+        , Rect
         , WindowSplit(..)
         , getActiveView
         , activeNextView
+        , activeRightView
+        , activeLeftView
+        , activeBottomView
+        , activeTopView
         , setSize
         , setActive
         , vsplit
@@ -14,7 +18,11 @@ module Internal.Window
         , initWindow
         , toList
         , removeCurrent
-        , updateView
+        , mapView
+        , updateActiveView
+        , Direction
+        , toBorders
+          --        , logWindow
         )
 
 import Vim.Helper exposing (dropLast)
@@ -156,10 +164,19 @@ subtree path tree =
 
 updateSubtree : (Tree a -> Tree a) -> Zipper a -> Zipper a
 updateSubtree fn { tree, current, dirs } =
-    { tree = updateSubtreeHelper fn (List.reverse dirs) tree
-    , dirs = dirs
-    , current = fn current
-    }
+    let
+        dirs1 =
+            List.reverse dirs
+
+        tree1 =
+            updateSubtreeHelper fn dirs1 tree
+    in
+        { tree = tree1
+        , dirs = dirs
+        , current =
+            subtree dirs1 tree1
+                |> Maybe.withDefault Empty
+        }
 
 
 updateSubtreeHelper : (Tree a -> Tree a) -> List Direction -> Tree a -> Tree a
@@ -385,6 +402,178 @@ activeNextView win =
     activeNextViewHelper True win
 
 
+activeRightView : Window a -> Window a
+activeRightView win =
+    activeRightViewHelper (LeftChild :: win.dirs) win
+        |> Maybe.withDefault win
+
+
+activeLeftView : Window a -> Window a
+activeLeftView win =
+    activeLeftViewHelper (LeftChild :: win.dirs) win
+        |> Maybe.withDefault win
+
+
+activeBottomView : Window a -> Window a
+activeBottomView win =
+    activeBottomViewHelper (LeftChild :: win.dirs) win
+        |> Maybe.withDefault win
+
+
+activeTopView : Window a -> Window a
+activeTopView win =
+    activeTopViewHelper (LeftChild :: win.dirs) win
+        |> Maybe.withDefault win
+
+
+
+--logWindow : String -> (a -> String) -> Window a -> Window a
+--logWindow s f win =
+--    let
+--        _ =
+--            Debug.log s (toString f win)
+--        _ =
+--            toList win
+--                |> List.filter .isActive
+--                |> Debug.log s
+--    in
+--        win
+
+
+activeRightViewHelper : List Direction -> Window a -> Maybe (Window a)
+activeRightViewHelper dirs ({ current } as win) =
+    case dirs of
+        [] ->
+            Nothing
+
+        dir :: rest ->
+            case current of
+                Node (VSplit _) _ _ ->
+                    case dir of
+                        LeftChild ->
+                            win
+                                |> goRight
+                                |> Maybe.map goLeftMost
+
+                        RightChild ->
+                            win
+                                |> goParent
+                                |> Maybe.andThen (activeRightViewHelper rest)
+
+                Node _ _ _ ->
+                    win
+                        |> goParent
+                        |> Maybe.andThen (activeRightViewHelper rest)
+
+                _ ->
+                    Nothing
+
+
+activeLeftViewHelper : List Direction -> Window a -> Maybe (Window a)
+activeLeftViewHelper dirs ({ current } as win) =
+    case dirs of
+        [] ->
+            Nothing
+
+        dir :: rest ->
+            case current of
+                Node (VSplit _) _ _ ->
+                    case dir of
+                        LeftChild ->
+                            win
+                                |> goParent
+                                |> Maybe.andThen (activeLeftViewHelper rest)
+
+                        RightChild ->
+                            win
+                                |> goLeft
+                                |> Maybe.map goLeftMost
+
+                Node _ _ _ ->
+                    win
+                        |> goParent
+                        |> Maybe.andThen (activeLeftViewHelper rest)
+
+                _ ->
+                    Nothing
+
+
+activeBottomViewHelper : List Direction -> Window a -> Maybe (Window a)
+activeBottomViewHelper dirs ({ current } as win) =
+    case dirs of
+        [] ->
+            Nothing
+
+        dir :: rest ->
+            case current of
+                Node (HSplit _) _ _ ->
+                    case dir of
+                        LeftChild ->
+                            win
+                                |> goRight
+                                |> Maybe.map goLeftMost
+
+                        RightChild ->
+                            win
+                                |> goParent
+                                |> Maybe.andThen (activeBottomViewHelper rest)
+
+                Node _ _ _ ->
+                    win
+                        |> goParent
+                        |> Maybe.andThen (activeBottomViewHelper rest)
+
+                _ ->
+                    Nothing
+
+
+activeTopViewHelper : List Direction -> Window a -> Maybe (Window a)
+activeTopViewHelper dirs ({ current } as win) =
+    case dirs of
+        [] ->
+            Nothing
+
+        dir :: rest ->
+            case current of
+                Node (HSplit _) _ _ ->
+                    case dir of
+                        LeftChild ->
+                            win
+                                |> goParent
+                                |> Maybe.andThen (activeTopViewHelper rest)
+
+                        RightChild ->
+                            win
+                                |> goLeft
+                                |> Maybe.map goLeftMost
+
+                Node _ _ _ ->
+                    win
+                        |> goParent
+                        |> Maybe.andThen (activeTopViewHelper rest)
+
+                _ ->
+                    Nothing
+
+
+goLeftMost : Zipper a -> Zipper a
+goLeftMost ({ current } as zipper) =
+    case current of
+        Node _ Empty _ ->
+            zipper
+
+        Node _ _ _ ->
+            case goLeft zipper of
+                Just z ->
+                    goLeftMost z
+
+                _ ->
+                    zipper
+
+        _ ->
+            zipper
+
+
 activeNextViewHelper : Bool -> Window a -> Window a
 activeNextViewHelper excludeCurrent win =
     let
@@ -427,8 +616,8 @@ setActive pred win =
         |> goToView pred
 
 
-updateView : (a -> a) -> Window a -> Window a
-updateView fn =
+updateActiveView : (a -> a) -> Window a -> Window a
+updateActiveView fn =
     updateSubtree
         (\tree1 ->
             case tree1 of
@@ -438,6 +627,61 @@ updateView fn =
                 _ ->
                     tree1
         )
+
+
+mapView : (a -> ( Float, Float ) -> a) -> Window a -> Window a
+mapView fn ({ tree } as win) =
+    let
+        tree1 =
+            updateAllViewsHelper fn ( 1.0, 1.0 ) tree
+    in
+        { win
+            | tree = tree1
+            , current =
+                tree1
+                    |> subtree win.dirs
+                    |> Maybe.withDefault Empty
+        }
+
+
+updateAllViewsHelper :
+    (a -> ( Float, Float ) -> a)
+    -> ( Float, Float )
+    -> Tree (WindowSplit a)
+    -> Tree (WindowSplit a)
+updateAllViewsHelper fn size tree =
+    case tree of
+        Node sp left right ->
+            case sp of
+                VSplit percent ->
+                    let
+                        leftSize =
+                            Tuple.mapFirst ((*) percent) size
+
+                        rightSize =
+                            Tuple.mapFirst ((*) (1 - percent)) size
+                    in
+                        Node sp
+                            (updateAllViewsHelper fn leftSize left)
+                            (updateAllViewsHelper fn rightSize right)
+
+                HSplit percent ->
+                    let
+                        topSize =
+                            Tuple.mapSecond ((*) percent) size
+
+                        bottomSize =
+                            Tuple.mapSecond ((*) (1 - percent)) size
+                    in
+                        Node sp
+                            (updateAllViewsHelper fn topSize left)
+                            (updateAllViewsHelper fn bottomSize right)
+
+                NoSplit view ->
+                    Node (NoSplit (fn view size)) left right
+
+        Empty ->
+            Empty
 
 
 setPercent : Float -> WindowSplit a -> WindowSplit a
@@ -491,7 +735,7 @@ toString toStr { tree, dirs } =
     treeToString toStr tree dirs [] 0 Nothing
 
 
-type alias WindowRect =
+type alias Rect =
     { x : Float
     , y : Float
     , width : Float
@@ -499,67 +743,134 @@ type alias WindowRect =
     }
 
 
-toList : Window a -> List ( a, WindowRect )
-toList win =
-    toListHelper win.tree []
+toBorders : Window a -> List Rect
+toBorders win =
+    toBordersHelper win.tree
+        { y = 0, x = 0, width = 1.0, height = 1.0 }
 
 
-toListHelper : Tree (WindowSplit a) -> List ( a, WindowRect ) -> List ( a, WindowRect )
-toListHelper tree result =
+toBordersHelper :
+    Tree (WindowSplit a)
+    -> Rect
+    -> List Rect
+toBordersHelper tree rect =
     case tree of
         Node (NoSplit id) Empty Empty ->
-            [ ( id, { x = 0, y = 0, width = 1, height = 1 } ) ]
+            []
 
         Node (VSplit percent) left right ->
-            (toListHelper left []
-                |> List.map
-                    (Tuple.mapSecond
-                        (\rect ->
-                            { rect
-                                | width = rect.width * percent
-                                , x = rect.x * percent
-                            }
-                        )
-                    )
-            )
-                ++ (toListHelper right []
-                        |> List.map
-                            (Tuple.mapSecond
-                                (\rect ->
-                                    { rect
-                                        | width = rect.width * (1 - percent)
-                                        , x = percent + rect.x * percent
-                                    }
-                                )
-                            )
-                   )
+            { x = rect.x + rect.width * percent
+            , y = rect.y
+            , height = rect.height
+            , width = 0
+            }
+                :: toBordersHelper left
+                    { rect
+                        | width = rect.width * percent
+                        , x = rect.x * percent
+                    }
+                ++ toBordersHelper right
+                    { rect
+                        | width = rect.width * (1 - percent)
+                        , x = percent + rect.x * percent
+                    }
 
         Node (HSplit percent) left right ->
-            (toListHelper left []
-                |> List.map
-                    (Tuple.mapSecond
-                        (\rect ->
-                            { rect
-                                | height = rect.height * percent
-                                , y = rect.y * percent
-                            }
-                        )
-                    )
-            )
-                ++ (toListHelper right []
-                        |> List.map
-                            (Tuple.mapSecond
-                                (\rect ->
-                                    { rect
-                                        | height = rect.height * (1 - percent)
-                                        , y = percent + rect.y * percent
-                                    }
-                                )
-                            )
-                   )
+            { x = rect.x
+            , y = rect.y + rect.height * percent
+            , width = rect.width
+            , height = 0
+            }
+                :: toBordersHelper left
+                    { rect
+                        | height = rect.height * percent
+                        , y = rect.y * percent
+                    }
+                ++ toBordersHelper right
+                    { rect
+                        | height = rect.height * (1 - percent)
+                        , y = percent + rect.y * percent
+                    }
 
         _ ->
             []
+
+
+toList :
+    Window a
+    -> List { view : a, rect : Rect, isActive : Bool }
+toList win =
+    toListHelper win.tree win.dirs []
+
+
+toListHelper :
+    Tree (WindowSplit a)
+    -> List Direction
+    -> List Direction
+    -> List { view : a, rect : Rect, isActive : Bool }
+toListHelper tree activeDirs dirs =
+    let
+        updateRect fn res =
+            { res | rect = fn res.rect }
+    in
+        case tree of
+            Node (NoSplit id) Empty Empty ->
+                [ { view = id
+                  , rect = { x = 0, y = 0, width = 1.0, height = 1.0 }
+                  , isActive = activeDirs == dirs
+                  }
+                ]
+
+            Node (VSplit percent) left right ->
+                (toListHelper left activeDirs (LeftChild :: dirs)
+                    |> List.map
+                        (updateRect
+                            (\rect ->
+                                { rect
+                                    | width = rect.width * percent
+                                    , x = rect.x * percent
+                                }
+                            )
+                        )
+                )
+                    ++ (toListHelper right activeDirs (RightChild :: dirs)
+                            |> List.map
+                                (updateRect
+                                    (\rect ->
+                                        { rect
+                                            | width = rect.width * (1 - percent)
+                                            , x = percent + rect.x * percent
+                                        }
+                                    )
+                                )
+                       )
+
+            Node (HSplit percent) left right ->
+                (toListHelper left activeDirs (LeftChild :: dirs)
+                    |> List.map
+                        (updateRect
+                            (\rect ->
+                                { rect
+                                    | height = rect.height * percent
+                                    , y = rect.y * percent
+                                }
+                            )
+                        )
+                )
+                    ++ (toListHelper right activeDirs (RightChild :: dirs)
+                            |> List.map
+                                (updateRect
+                                    (\rect ->
+                                        { rect
+                                            | height = rect.height * (1 - percent)
+                                            , y = percent + rect.y * percent
+                                        }
+                                    )
+                                )
+                       )
+
+            _ ->
+                []
 
 
 treeToString :

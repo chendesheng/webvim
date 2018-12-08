@@ -117,6 +117,16 @@ type Operator
     | ColumnInsert Bool -- visual mode I/A
     | ShowInfo
     | IMEToggleActive
+    | SwitchView SwitchViewType
+
+
+type SwitchViewType
+    = SwitchToNext
+    | SwitchToPrev
+    | SwitchToRight
+    | SwitchToLeft
+    | SwitchToTop
+    | SwitchToBottom
 
 
 type StringType

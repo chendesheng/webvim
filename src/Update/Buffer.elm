@@ -1278,8 +1278,8 @@ getStatusBar mode =
             }
 
 
-finalScrollTop : Size -> Buffer -> Int
-finalScrollTop { height } buf =
+finalScrollTop : Size -> View -> Buffer -> Int
+finalScrollTop { height } view buf =
     case buf.mode of
         Ex { prefix, visual } ->
             case prefix of
@@ -1293,16 +1293,16 @@ finalScrollTop { height } buf =
                                 )
                                 height
                                 buf.lines
-                                buf.view.scrollTop
+                                view.scrollTop
 
                         _ ->
-                            buf.view.scrollTop
+                            view.scrollTop
 
                 _ ->
-                    buf.view.scrollTop
+                    view.scrollTop
 
         _ ->
-            buf.view.scrollTop
+            view.scrollTop
 
 
 switchVisualEnd : Buffer -> Buffer
@@ -1348,7 +1348,7 @@ activeBuffer id global =
                 |> Maybe.map .view
         of
             Just view ->
-                { global | window = Win.updateView (always view) global.window }
+                { global | window = Win.updateActiveView (always view) global.window }
 
             _ ->
                 global

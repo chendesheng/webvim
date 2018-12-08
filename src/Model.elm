@@ -410,7 +410,7 @@ type alias View =
 
     -- TODO: save buffer id when buffer switch
     --       update '#' register when view switch
-    , alternativeBuf : Int
+    , alternativeBuf : Maybe String
     }
 
 
@@ -508,6 +508,7 @@ type alias Global =
     , homedir : String
     , isSafari : Bool
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
+    , size : Size
     , last :
         { matchChar :
             Maybe
@@ -621,7 +622,7 @@ emptyView =
     , matchedCursor = Nothing
     , lines = [ 0, 1, 2 ]
     , size = { width = 1, height = 1 }
-    , alternativeBuf = 0
+    , alternativeBuf = Nothing
     }
 
 
@@ -679,6 +680,7 @@ emptyBuffer =
 emptyGlobal : Global
 emptyGlobal =
     { maxId = 0
+    , size = { width = 0, height = 0 }
     , window = Win.empty
     , dotRegister = ""
     , ime = emptyIme

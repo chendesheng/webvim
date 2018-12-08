@@ -81,26 +81,40 @@ page global =
                             views =
                                 Win.toList global.window
 
+                            borders =
+                                Win.toBorders global.window
+
                             activeViewRect =
                                 views
-                                    |> List.filter (\( { bufId }, _ ) -> bufId == buf.id)
+                                    |> List.filter .isActive
                                     |> List.head
-                                    |> Maybe.map Tuple.second
+                                    |> Maybe.map .rect
                                     |> Maybe.withDefault { y = 0, x = 0, width = 0, height = 0 }
                         in
                             [ div [ class "editor" ]
                                 [ div [ class "buffers" ]
                                     ((List.map
-                                        (\( view1, rect ) ->
-                                            case Dict.get view1.bufId global.buffers of
-                                                Just buf1 ->
-                                                    renderBuffer rect view1 buf1 (buf1.id == buf.id) global
+                                        (\item ->
+                                            let
+                                                view1 =
+                                                    item.view
 
-                                                _ ->
-                                                    div [] []
+                                                rect =
+                                                    item.rect
+
+                                                isActive =
+                                                    item.isActive
+                                            in
+                                                case Dict.get view1.bufId global.buffers of
+                                                    Just buf1 ->
+                                                        renderBuffer rect view1 buf1 isActive global
+
+                                                    _ ->
+                                                        div [] []
                                         )
                                         views
                                      )
+                                        ++ renderBorders borders
                                         ++ (renderAutoComplete activeViewRect view buf global)
                                     )
                                 , renderGlobal buf global
@@ -125,6 +139,27 @@ pageTitle buf =
         "• " ++ buf.name
     else
         buf.name
+
+
+renderBorders : List Win.Rect -> List (Html msg)
+renderBorders borders =
+    List.map
+        (\{ y, x, width, height } ->
+            div
+                [ classList
+                    [ ( "border-hor", height == 0 )
+                    , ( "border-ver", width == 0 )
+                    ]
+                , class "view-border"
+                , style "top" (percentStr y)
+                , style "left" (percentStr x)
+                , style "width" (percentStr width)
+                , style "height" (percentStr height)
+                , title "todo"
+                ]
+                []
+        )
+        borders
 
 
 renderGlobal buf global =
@@ -176,7 +211,7 @@ percentStr f =
     String.fromFloat (f * 100) ++ "%"
 
 
-renderBuffer : Win.WindowRect -> View -> Buffer -> Bool -> Global -> Html Msg
+renderBuffer : Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
 renderBuffer rect view buf isActive global =
     let
         { mode, lines, syntax, continuation, history } =
@@ -213,7 +248,7 @@ renderBuffer rect view buf isActive global =
                     Just cursor
 
         scrollTop1 =
-            Buf.finalScrollTop view.size buf
+            Buf.finalScrollTop view.size view buf
 
         highlights =
             incrementSearchRegion mode
@@ -305,13 +340,14 @@ renderBuffer rect view buf isActive global =
                     :: lazy4 renderLint fontInfo scrollTop1 lines lint.items
                     :: lazy3 renderLines lines syntax view.lines
                     :: div [ class "ruler" ] []
-                    :: renderCursor fontInfo ime1 lines "" maybeCursor
+                    :: renderCursor isActive fontInfo ime1 lines "" maybeCursor
                     :: renderTip
                         view.size.width
                         lint.items
                         maybeCursor
                         showTip
                     :: renderMatchedCursor
+                        isActive
                         fontInfo
                         lines
                         mode
@@ -322,7 +358,7 @@ renderBuffer rect view buf isActive global =
             )
 
 
-renderAutoComplete : Win.WindowRect -> View -> Buffer -> Global -> List (Html Msg)
+renderAutoComplete : Win.Rect -> View -> Buffer -> Global -> List (Html Msg)
 renderAutoComplete rect view buf global =
     let
         lines =
@@ -568,6 +604,7 @@ renderStatusBarLeft fontInfo ime mode =
             case statusBar.cursor of
                 Just ( y, x ) ->
                     [ renderCursorInner True
+                        True
                         fontInfo
                         ime
                         (B.fromString statusBar.text)
@@ -600,13 +637,14 @@ renderStatusBarLeft fontInfo ime mode =
 
 
 renderMatchedCursor :
-    FontInfo
+    Bool
+    -> FontInfo
     -> B.TextBuffer
     -> Mode
     -> Position
     -> Maybe ( Position, Position )
     -> List (Html Msg)
-renderMatchedCursor fontInfo lines mode cursor matchedCursor =
+renderMatchedCursor isActive fontInfo lines mode cursor matchedCursor =
     case mode of
         Ex _ ->
             []
@@ -618,7 +656,8 @@ renderMatchedCursor fontInfo lines mode cursor matchedCursor =
                         |> List.filter ((/=) cursor)
                         |> List.map
                             (\( y, x ) ->
-                                renderCursorInner False
+                                renderCursorInner isActive
+                                    False
                                     fontInfo
                                     emptyIme
                                     lines
@@ -761,6 +800,7 @@ noCompositionInput =
 
 renderCursorInner :
     Bool
+    -> Bool
     -> FontInfo
     -> IME
     -> B.TextBuffer
@@ -768,7 +808,7 @@ renderCursorInner :
     -> Int
     -> Int
     -> Html Msg
-renderCursorInner isMainCursor fontInfo ime lines classname y x =
+renderCursorInner isActive isMainCursor fontInfo ime lines classname y x =
     let
         ( ( by, bx ), ( ey, ex ) ) =
             cursorPoint fontInfo lines y x
@@ -782,6 +822,7 @@ renderCursorInner isMainCursor fontInfo ime lines classname y x =
         div
             ([ class "cursor"
              , class classname
+             , classList [ ( "cursor-not-active", not isActive ) ]
              , style "left" <| px bx
              , style "top" <| rem y
              , style "width" <| px (ex - bx)
@@ -812,16 +853,17 @@ renderCursorInner isMainCursor fontInfo ime lines classname y x =
 
 
 renderCursor :
-    FontInfo
+    Bool
+    -> FontInfo
     -> IME
     -> B.TextBuffer
     -> String
     -> Maybe Position
     -> Html Msg
-renderCursor fontInfo ime lines classname cursor =
+renderCursor isActive fontInfo ime lines classname cursor =
     case cursor of
         Just ( y, x ) ->
-            lazy7 renderCursorInner True fontInfo ime lines classname y x
+            lazy8 renderCursorInner isActive True fontInfo ime lines classname y x
 
         _ ->
             text ""

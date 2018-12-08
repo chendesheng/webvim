@@ -164,34 +164,42 @@ v────v────@1    50%
                             |> W.toList
                 in
                     Expect.equal list
-                        [ ( 1
-                          , { x = 0
-                            , y = 0
-                            , width = 0.25
-                            , height = 0.5
-                            }
-                          )
-                        , ( 4
-                          , { x = 0.25
-                            , y = 0
-                            , width = 0.25
-                            , height = 0.5
-                            }
-                          )
-                        , ( 3
-                          , { x = 0.5
-                            , y = 0
-                            , width = 0.5
-                            , height = 0.5
-                            }
-                          )
-                        , ( 2
-                          , { x = 0
-                            , y = 0.5
-                            , width = 1
-                            , height = 0.5
-                            }
-                          )
+                        [ { view = 1
+                          , rect =
+                                { x = 0
+                                , y = 0
+                                , width = 0.25
+                                , height = 0.5
+                                }
+                          , isActive = True
+                          }
+                        , { view = 4
+                          , rect =
+                                { x = 0.25
+                                , y = 0
+                                , width = 0.25
+                                , height = 0.5
+                                }
+                          , isActive = False
+                          }
+                        , { view = 3
+                          , rect =
+                                { x = 0.5
+                                , y = 0
+                                , width = 0.5
+                                , height = 0.5
+                                }
+                          , isActive = False
+                          }
+                        , { view = 2
+                          , rect =
+                                { x = 0
+                                , y = 0.5
+                                , width = 1
+                                , height = 0.5
+                                }
+                          , isActive = False
+                          }
                         ]
             )
         ]
