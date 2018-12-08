@@ -1256,6 +1256,7 @@ editTestBuffer path ({ buf, global } as ed) =
                 |> replaceHomeDir global.homedir
             )
             Nothing
+            replaceActiveView
             { ed | global = global2 }
 
 
@@ -1274,6 +1275,7 @@ execute count register str ({ buf, global } as ed) =
                         |> replaceHomeDir global.homedir
                     )
                     Nothing
+                    replaceActiveView
                     ed
     in
         case
@@ -1364,6 +1366,20 @@ execute count register str ({ buf, global } as ed) =
                   }
                 , Cmd.none
                 )
+
+            [ "q" ] ->
+                ( { ed
+                    | global =
+                        { global
+                            | window = Win.removeCurrent global.window
+                        }
+                            |> resizeViews global.size
+                  }
+                , Cmd.none
+                )
+
+            [ "on" ] ->
+                ( ed, Cmd.none )
 
             [ s ] ->
                 case String.toInt s of
@@ -1587,7 +1603,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                             }
                         , global =
                             { global1
-                                | jumps = applyPatchesToJumps diff global1.jumps
+                                | jumps = applyPatchesToJumps buf1.path diff global1.jumps
                                 , lint =
                                     { items =
                                         Buf.applyPatchesToLintErrors
@@ -1599,6 +1615,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                                     }
                                 , locationList =
                                     applyPatchesToLocations
+                                        buf1.path
                                         global1.locationList
                                         diff
                             }
@@ -2030,9 +2047,7 @@ update message global =
             withEditor (onReadTags result) global
 
         SearchResult result ->
-            ( onSearch result global
-            , Cmd.none
-            )
+            withEditor (onSearch result) global
 
         ListAllFiles resp ->
             case resp of
@@ -2166,29 +2181,53 @@ onLint ( path, version ) resp buf global =
         global
 
 
-onSearch : Result a String -> Global -> Global
-onSearch result global =
+onSearch : Result a String -> Editor -> ( Editor, Cmd Msg )
+onSearch result ed =
     case result of
         Ok s ->
             let
-                ( global1, buf ) =
-                    createBuffer "[Search]"
-                        (Win.getActiveView global.window
-                            |> Maybe.map .size
-                            |> Maybe.withDefault { width = 0, height = 0 }
-                        )
-                        global
+                path =
+                    "[Search]"
+
+                edit =
+                    Buf.transaction
+                        [ Insertion ( 0, 0 ) <|
+                            B.fromString <|
+                                s
+                                    ++ String.repeat 80 "="
+                                    ++ "\n"
+                                    ++ "\n"
+                        ]
             in
-                Buf.addBuffer
-                    True
-                    (Buf.transaction
-                        [ Insertion ( 0, 0 ) (B.fromString s) ]
-                        buf
-                    )
-                    global1
+                ed
+                    |> jumpToPath True
+                        path
+                        Nothing
+                        (\view window ->
+                            window
+                                |> Win.hsplit 0.3 view
+                                |> Win.activeNextView
+                        )
+                    |> Tuple.mapFirst
+                        (\({ global } as ed1) ->
+                            { ed1
+                                | global =
+                                    { global
+                                        | buffers =
+                                            Dict.update
+                                                (global.buffers
+                                                    |> Buf.findBufferId path
+                                                    |> Maybe.withDefault 0
+                                                )
+                                                (Maybe.map edit)
+                                                ed1.global.buffers
+                                    }
+                                        |> resizeViews global.size
+                            }
+                        )
 
         _ ->
-            global
+            ( ed, Cmd.none )
 
 
 onReadTags : Result String Location -> Editor -> ( Editor, Cmd Msg )

@@ -40,6 +40,8 @@ module Update.Buffer
         , applyDiffToView
         , addBuffer
         , resizeView
+        , removeBuffer
+        , findBufferId
         )
 
 import Internal.Position exposing (..)
@@ -102,7 +104,7 @@ import Internal.Syntax
         )
 import Array as Array exposing (Array)
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
-import Helper.Helper exposing (parseWords, relativePath, regex, filename)
+import Helper.Helper exposing (parseWords, relativePath, regex, filename, findFirst)
 import Regex as Re
 import Internal.Window as Win exposing (Window)
 
@@ -1366,6 +1368,22 @@ addBuffer setActive buf global =
             activeBuffer buf.id global1
         else
             global1
+
+
+findBufferId : String -> Dict Int Buffer -> Maybe Int
+findBufferId path buffers =
+    buffers
+        |> Dict.values
+        |> findFirst (.path >> ((==) path))
+        |> Maybe.map .id
+
+
+removeBuffer : Int -> Global -> Global
+removeBuffer id global =
+    { global
+        | buffers =
+            Dict.remove id global.buffers
+    }
 
 
 resizeView : Size -> View -> View

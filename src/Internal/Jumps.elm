@@ -124,16 +124,19 @@ currentLocation { forwards } =
     List.head forwards
 
 
-applyPatchesToLocations : List Location -> List RegionChange -> List Location
-applyPatchesToLocations locations changes =
+applyPatchesToLocations : String -> List Location -> List RegionChange -> List Location
+applyPatchesToLocations path locations changes =
     List.foldl
         (\change result ->
             List.map
                 (\loc ->
-                    { loc
-                        | cursor =
-                            shiftPositionByRegionChange change loc.cursor
-                    }
+                    if path == loc.path then
+                        { loc
+                            | cursor =
+                                shiftPositionByRegionChange change loc.cursor
+                        }
+                    else
+                        loc
                 )
                 result
         )
@@ -141,10 +144,10 @@ applyPatchesToLocations locations changes =
         changes
 
 
-applyPatchesToJumps : List RegionChange -> Jumps -> Jumps
-applyPatchesToJumps diff { backwards, forwards } =
+applyPatchesToJumps : String -> List RegionChange -> Jumps -> Jumps
+applyPatchesToJumps path diff { backwards, forwards } =
     { backwards =
-        applyPatchesToLocations backwards diff
+        applyPatchesToLocations path backwards diff
     , forwards =
-        applyPatchesToLocations forwards diff
+        applyPatchesToLocations path forwards diff
     }

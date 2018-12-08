@@ -77,13 +77,25 @@ tokenizeBufferCmd url buf =
                     }
 
 
+replaceActiveView : View -> Win.Window View -> Win.Window View
+replaceActiveView view =
+    Win.updateActiveView
+        (\{ size } -> Buf.resizeView size view)
+
+
 jumpToLocation : Bool -> Location -> Editor -> ( Editor, Cmd Msg )
 jumpToLocation isSaveJump { path, cursor } ed =
-    jumpToPath isSaveJump path (Just cursor) ed
+    jumpToPath isSaveJump path (Just cursor) replaceActiveView ed
 
 
-jumpToPath : Bool -> String -> Maybe Position -> Editor -> ( Editor, Cmd Msg )
-jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
+jumpToPath :
+    Bool
+    -> String
+    -> Maybe Position
+    -> (View -> Win.Window View -> Win.Window View)
+    -> Editor
+    -> ( Editor, Cmd Msg )
+jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
     let
         path =
             if isTempBuffer path_ then
@@ -151,9 +163,7 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                                 { global1
                                     | buffers = Dict.insert b1.id b1 global1.buffers
                                     , window =
-                                        Win.updateActiveView
-                                            (\{ size } -> Buf.resizeView size b1.view)
-                                            global1.window
+                                        setView b1.view global1.window
                                 }
                       }
                     , Cmd.none
@@ -189,11 +199,18 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                         | global =
                             { global2
                                 | window =
-                                    Win.updateActiveView (always b.view)
-                                        global2.window
+                                    setView b.view global2.window
                             }
+                                |> (if isTempBuffer path then
+                                        Buf.addBuffer False b
+                                    else
+                                        identity
+                                   )
                       }
-                    , sendReadBuffer global2.service buf.view.size.height b
+                    , if isTempBuffer path then
+                        Cmd.none
+                      else
+                        sendReadBuffer global2.service buf.view.size.height b
                     )
 
 
@@ -320,7 +337,7 @@ jumpLastBuffer ({ global, buf } as ed) =
         Just { alternativeBuf } ->
             case alternativeBuf of
                 Just path ->
-                    jumpToPath True path Nothing ed
+                    jumpToPath True path Nothing replaceActiveView ed
 
                 _ ->
                     ( ed, Cmd.none )
