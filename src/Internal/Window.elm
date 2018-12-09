@@ -20,7 +20,9 @@ module Internal.Window
         , removeCurrent
         , mapView
         , updateActiveView
-        , Direction
+        , updateView
+        , getView
+        , Direction(..)
         , toBorders
           --        , logWindow
         )
@@ -629,6 +631,37 @@ updateActiveView fn =
         )
 
 
+getView : List Direction -> Window a -> Maybe a
+getView dirs win =
+    case subtree dirs win.tree of
+        Just (Node (NoSplit view) left right) ->
+            Just view
+
+        _ ->
+            Nothing
+
+
+updateView : List Direction -> (a -> a) -> Window a -> Window a
+updateView dirs fn win =
+    if dirs == win.dirs then
+        updateActiveView fn win
+    else
+        { win
+            | tree =
+                updateSubtreeHelper
+                    (\tree1 ->
+                        case tree1 of
+                            Node (NoSplit view) left right ->
+                                Node (NoSplit (fn view)) left right
+
+                            _ ->
+                                tree1
+                    )
+                    (List.reverse dirs)
+                    win.tree
+        }
+
+
 mapView : (a -> ( Float, Float ) -> a) -> Window a -> Window a
 mapView fn ({ tree } as win) =
     let
@@ -798,7 +831,7 @@ toBordersHelper tree rect =
 
 toList :
     Window a
-    -> List { view : a, rect : Rect, isActive : Bool }
+    -> List { view : a, rect : Rect, isActive : Bool, dirs : List Direction }
 toList win =
     toListHelper win.tree win.dirs []
 
@@ -807,7 +840,7 @@ toListHelper :
     Tree (WindowSplit a)
     -> List Direction
     -> List Direction
-    -> List { view : a, rect : Rect, isActive : Bool }
+    -> List { view : a, rect : Rect, isActive : Bool, dirs : List Direction }
 toListHelper tree activeDirs dirs =
     let
         updateRect fn res =
@@ -818,6 +851,7 @@ toListHelper tree activeDirs dirs =
                 [ { view = id
                   , rect = { x = 0, y = 0, width = 1.0, height = 1.0 }
                   , isActive = activeDirs == dirs
+                  , dirs = dirs
                   }
                 ]
 

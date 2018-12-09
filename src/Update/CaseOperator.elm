@@ -47,7 +47,7 @@ applyCaseOperator count changeCase range global buf =
                                         |> B.fromString
                                         |> Insertion b
                                     ]
-                                |> Buf.setCursor buf_.view.cursor True
+                                |> Buf.updateView (Buf.setCursor buf_.view.cursor True)
                     in
                         case changeCase of
                             LowerCase ->
@@ -60,4 +60,4 @@ applyCaseOperator count changeCase range global buf =
                                 replaceChar swapCase buf1
                 )
                 buf
-            |> setCursor regions
+            |> Buf.updateView (setCursor regions)

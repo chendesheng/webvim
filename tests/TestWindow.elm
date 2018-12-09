@@ -1,6 +1,6 @@
 module TestWindow exposing (..)
 
-import Internal.Window as W
+import Internal.Window as W exposing (Direction(..))
 import Test exposing (..)
 import Expect exposing (Expectation)
 
@@ -172,6 +172,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = True
+                          , dirs = [ LeftChild, LeftChild, LeftChild ]
                           }
                         , { view = 4
                           , rect =
@@ -181,6 +182,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = False
+                          , dirs = [ RightChild, LeftChild, LeftChild ]
                           }
                         , { view = 3
                           , rect =
@@ -190,6 +192,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = False
+                          , dirs = [ RightChild, LeftChild ]
                           }
                         , { view = 2
                           , rect =
@@ -199,6 +202,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = False
+                          , dirs = [ RightChild ]
                           }
                         ]
             )

@@ -34,12 +34,12 @@ replaceRegion ch b e buf =
                 |> B.fromString
     in
         buf
-            |> Buf.setCursor b False
+            |> Buf.updateView (Buf.setCursor b False)
             |> Buf.transaction
                 [ Deletion b e
                 , Insertion b s
                 ]
-            |> Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True
+            |> Buf.updateView (Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True)
 
 
 applyReplace : Maybe Int -> String -> Global -> Buffer -> Buffer
@@ -57,7 +57,7 @@ applyReplace count ch global buf =
                             ( y, x ) =
                                 buf_.view.cursor
                         in
-                            Buf.setCursor ( y, max 0 (x - 1) ) True buf_
+                            Buf.updateView (Buf.setCursor ( y, max 0 (x - 1) ) True) buf_
                    )
 
         Visual _ ->

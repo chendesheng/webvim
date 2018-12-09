@@ -164,7 +164,7 @@ autoIndent buf =
     in
         buf
             |> Buf.transaction (deleteIndent ++ [ insertIndent ])
-            |> Buf.setCursorColumn indent
+            |> Buf.updateView (Buf.setCursorColumn indent)
             |> saveLastIndent
 
 
@@ -246,5 +246,5 @@ openNewLine y buf =
                     |> B.fromString
                     |> Insertion ( y1, 0 )
                 ]
-            |> Buf.setCursor ( y1, 0 ) False
+            |> Buf.updateView (Buf.setCursor ( y1, 0 ) False)
             |> autoIndent

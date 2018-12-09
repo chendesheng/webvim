@@ -92,9 +92,7 @@ increaseNumber count larger buf =
                                     buf
                                         |> Buf.transaction
                                             patches
-                                        |> Buf.setCursor
-                                            cursor
-                                            True
+                                        |> Buf.updateView (Buf.setCursor cursor True)
                             )
                 )
             |> Maybe.withDefault buf

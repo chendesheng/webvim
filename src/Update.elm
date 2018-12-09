@@ -213,7 +213,7 @@ updateMode modeName ({ global, buf } as ed) =
                 case mode of
                     Insert { startCursor } ->
                         if startCursor /= buf_.view.cursor then
-                            Buf.setCursor startCursor True buf_
+                            Buf.updateView (Buf.setCursor startCursor True) buf_
                         else
                             buf_
 
@@ -410,7 +410,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                         cursor /= buf.view.cursor
             in
                 updateBuffer
-                    (Buf.setCursor cursor changeColumn
+                    (Buf.updateView (Buf.setCursor cursor changeColumn)
                         >> Buf.cancelLastIndent
                         >> insert
                         >> Buf.commit
@@ -587,42 +587,41 @@ clearExBufAutoComplete exbuf =
     }
 
 
-scroll : Maybe Int -> V.ScrollPosition -> Global -> Buffer -> Buffer
-scroll count value global buf =
-    -- TODO: scroll in visual mode
+scroll : Maybe Int -> V.ScrollPosition -> Int -> Global -> View -> View
+scroll count value lineCounts global view =
     let
         scope n =
             n
                 |> max 0
-                |> min (B.count buf.lines - 1)
+                |> min (lineCounts - 1)
 
-        setCursor : Buffer -> Buffer
-        setCursor buf_ =
+        setCursor : View -> View
+        setCursor view_ =
             case count of
                 Just n ->
                     case value of
                         V.ScrollBy _ ->
-                            buf_
+                            view_
 
                         _ ->
                             Buf.setCursor
                                 ( scope (n - 1)
-                                , Tuple.second buf_.view.cursor
+                                , Tuple.second view_.cursor
                                 )
                                 False
-                                buf_
+                                view_
 
                 _ ->
-                    buf_
+                    view_
 
-        scrollInner : Buffer -> Buffer
-        scrollInner buf_ =
+        scrollInner : View -> View
+        scrollInner view_ =
             let
                 size =
-                    buf_.view.size
+                    view_.size
 
                 y =
-                    Tuple.first buf_.view.cursor
+                    Tuple.first view_.cursor
 
                 y1 =
                     case value of
@@ -630,7 +629,7 @@ scroll count value global buf =
                             count
                                 |> Maybe.withDefault 1
                                 |> ((*) n)
-                                |> ((+) buf_.view.scrollTop)
+                                |> ((+) view_.scrollTop)
 
                         V.ScrollToTop ->
                             y
@@ -641,9 +640,9 @@ scroll count value global buf =
                         V.ScrollToMiddle ->
                             y - (size.height - 2) // 2
             in
-                Buf.setScrollTop (scope y1) global buf_
+                Buf.setScrollTop (scope y1) global view_
     in
-        buf
+        view
             |> setCursor
             |> scrollInner
 
@@ -674,9 +673,15 @@ runOperator count register operator ({ buf, global } as ed) =
         Scroll value ->
             { ed
                 | buf =
-                    buf
-                        |> scroll count value global
-                        |> cursorScope global.lineHeight
+                    let
+                        view =
+                            buf.view
+                                |> scroll count value (B.count buf.lines) global
+                                |> cursorScope global.lineHeight buf.lines
+                    in
+                        buf
+                            |> Buf.updateView (always view)
+                            |> setVisualEnd view.cursor
             }
                 |> cmdNone
 
@@ -1017,7 +1022,7 @@ columnInsert prepend buf =
                             min bx ex
                     in
                         if prepend then
-                            Buf.setCursor ( minY, minX ) True buf
+                            Buf.updateView (Buf.setCursor ( minY, minX ) True) buf
                         else
                             let
                                 x =
@@ -1040,7 +1045,7 @@ columnInsert prepend buf =
                             in
                                 buf
                                     |> Buf.transaction patches
-                                    |> Buf.setCursor ( minY, x ) True
+                                    |> Buf.updateView (Buf.setCursor ( minY, x ) True)
 
                 _ ->
                     buf
@@ -1628,7 +1633,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                     >> updateBuffer correctLines
                     >> modeChanged replaying key oldMode lineDeltaMotion
                     >> updateBuffer correctCursor
-                    >> updateBuffer (scrollToCursor ed.global)
+                    >> updateBuffer (Buf.updateView (scrollToCursor ed.global))
                     >> updateGlobal (saveDotRegister replaying)
                     >> setMatchedCursor ed
                     >> shiftLocations
@@ -1783,8 +1788,8 @@ lintErrorToLocationList items =
         items
 
 
-onMouseWheel : Int -> Editor -> ( Editor, Cmd Msg )
-onMouseWheel delta ({ buf, global } as ed) =
+onMouseWheel : List Win.Direction -> Int -> Editor -> ( Editor, Cmd Msg )
+onMouseWheel dirs delta ({ buf, global } as ed) =
     let
         view =
             buf.view
@@ -1817,8 +1822,8 @@ onMouseWheel delta ({ buf, global } as ed) =
                 }
 
 
-updateGlobalAfterChange : Buffer -> Global -> Buffer -> Global -> Global
-updateGlobalAfterChange oldBuf oldGlobal buf global =
+updateGlobalAfterChange : List Win.Direction -> Buffer -> Global -> Buffer -> Global -> Global
+updateGlobalAfterChange dirs oldBuf oldGlobal buf global =
     let
         isSwitchView =
             global.window /= oldGlobal.window
@@ -1827,7 +1832,7 @@ updateGlobalAfterChange oldBuf oldGlobal buf global =
             if isSwitchView then
                 global.window
             else
-                Win.updateActiveView
+                Win.updateView dirs
                     (\view ->
                         Buf.resizeView view.size buf.view
                     )
@@ -1842,37 +1847,46 @@ updateGlobalAfterChange oldBuf oldGlobal buf global =
 
 withEditor : (Editor -> ( Editor, Cmd Msg )) -> Global -> ( Global, Cmd Msg )
 withEditor fn global =
-    case getActiveBuffer global of
-        Just activeBuf ->
-            { global = global
-            , buf =
-                { activeBuf
-                    | view =
-                        Win.getActiveView global.window
-                            |> Maybe.withDefault emptyView
-                }
-            }
-                |> fn
-                |> Tuple.mapFirst
-                    (\ed -> updateGlobalAfterChange activeBuf global ed.buf ed.global)
+    withEditorByView global.window.dirs fn global
 
-        _ ->
-            ( global, Cmd.none )
+
+withEditorByView :
+    List Win.Direction
+    -> (Editor -> ( Editor, Cmd Msg ))
+    -> Global
+    -> ( Global, Cmd Msg )
+withEditorByView dirs fn global =
+    let
+        view =
+            Win.getView dirs global.window
+                |> Maybe.withDefault emptyView
+    in
+        case Dict.get view.bufId global.buffers of
+            Just buf ->
+                { global = global
+                , buf = { buf | view = view }
+                }
+                    |> fn
+                    |> Tuple.mapFirst
+                        (\ed -> updateGlobalAfterChange dirs buf global ed.buf ed.global)
+
+            _ ->
+                ( global, Cmd.none )
 
 
 updateActiveBuffer : (Buffer -> Buffer) -> Global -> Global
 updateActiveBuffer fn global =
     getActiveBuffer global
         |> Maybe.map
-            (\buf -> updateGlobalAfterChange buf global (fn buf) global)
+            (\buf -> updateGlobalAfterChange global.window.dirs buf global (fn buf) global)
         |> Maybe.withDefault global
 
 
 update : Msg -> Global -> ( Global, Cmd Msg )
 update message global =
     case message of
-        MouseWheel delta ->
-            withEditor (onMouseWheel delta) global
+        MouseWheel dirs delta ->
+            withEditorByView dirs (onMouseWheel dirs delta) global
 
         PressKeys keys ->
             withEditor
@@ -1933,7 +1947,7 @@ update message global =
                                 buf1 =
                                     buf
                                         |> Buf.transaction buf.history.changes
-                                        |> Buf.setCursor buf.view.cursor True
+                                        |> Buf.updateView (Buf.setCursor buf.view.cursor True)
                                         |> Buf.updateHistory (always buf.history)
 
                                 global1 =
@@ -2337,7 +2351,7 @@ onRead result ({ buf, global } as ed) =
                 buf2 =
                     buf1
                         |> Buf.transaction buf1.history.changes
-                        |> Buf.setCursor buf1.view.cursor True
+                        |> Buf.updateView (Buf.setCursor buf1.view.cursor True)
                         |> Buf.updateHistory (always buf1.history)
             in
                 { ed
@@ -2387,9 +2401,9 @@ onWrite result ({ buf, global } as ed) =
                                 }
                             )
                         -- keep cursor position
-                        |> Buf.setCursor buf.view.cursor True
+                        |> Buf.updateView (Buf.setCursor buf.view.cursor True)
                         |> correctCursor
-                        |> scrollToCursor global
+                        |> Buf.updateView (scrollToCursor global)
                         |> pairCursor buf.view.size
                         |> Buf.infoMessage
                             ((buf |> Buf.shortPath global |> quote) ++ " Written")

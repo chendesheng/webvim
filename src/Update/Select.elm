@@ -57,12 +57,12 @@ select count textobj around ({ buf, global } as ed) =
                                             && (begin /= end)
                                     then
                                         buf
-                                            |> Buf.setCursor begin1 True
+                                            |> Buf.updateView (Buf.setCursor begin1 True)
                                             |> setVisualEnd begin1
                                             |> setVisualBegin end1
                                     else
                                         buf
-                                            |> Buf.setCursor end1 True
+                                            |> Buf.updateView (Buf.setCursor end1 True)
                                             |> setVisualEnd end1
                                             |> setVisualBegin begin1
                             )

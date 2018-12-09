@@ -7,6 +7,7 @@ import Vim.AST exposing (AST)
 import Internal.Jumps exposing (Location)
 import Internal.TextBuffer as B exposing (Patch)
 import Model exposing (Key, LintError, Buffer, Flags, Size, IME)
+import Internal.Window exposing (Direction)
 
 
 type alias BufferIdentifier =
@@ -66,5 +67,5 @@ type Msg
     | SearchResult (Result String String)
     | SetCwd (Result String String)
     | Boot (Result String Flags)
-    | MouseWheel Int
+    | MouseWheel (List Direction) Int
     | NoneMessage

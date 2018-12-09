@@ -10,8 +10,8 @@ import Internal.Brackets exposing (pairBracketAt)
 
 {-| scroll to ensure pos it is insdie viewport
 -}
-scrollTo : Int -> Global -> Buffer -> Buffer
-scrollTo y global ({ view, lines } as buf) =
+scrollTo : Int -> Global -> View -> View
+scrollTo y global view =
     let
         miny =
             view.scrollTop
@@ -25,21 +25,23 @@ scrollTo y global ({ view, lines } as buf) =
             else if y > maxy then
                 y - maxy + miny
             else
-                buf.view.scrollTop
+                miny
     in
-        Buf.setScrollTop scrollTop global buf
+        Buf.setScrollTop scrollTop global view
 
 
-scrollToCursor : Global -> Buffer -> Buffer
-scrollToCursor global buf =
-    scrollTo (Tuple.first buf.view.cursor) global buf
+scrollToCursor : Global -> View -> View
+scrollToCursor global view =
+    scrollTo (Tuple.first view.cursor) global view
 
 
 correctCursor : Buffer -> Buffer
 correctCursor buf =
-    Buf.setCursor
-        (correctPosition buf.view.cursor False buf.lines)
-        False
+    Buf.updateView
+        (Buf.setCursor
+            (correctPosition buf.view.cursor False buf.lines)
+            False
+        )
         buf
 
 
@@ -108,8 +110,8 @@ correctPosition pos excludeLineBreak lines =
 
 {-| move cursor ensure cursor is insdie viewport
 -}
-cursorScope : Int -> Buffer -> Buffer
-cursorScope lineHeight ({ view, lines } as buf) =
+cursorScope : Int -> B.TextBuffer -> View -> View
+cursorScope lineHeight lines view =
     let
         cursor =
             view.cursor
@@ -147,18 +149,16 @@ cursorScope lineHeight ({ view, lines } as buf) =
     in
         if y == y1 then
             if x == x1 then
-                buf
+                view
             else
-                Buf.setCursor ( y1, x1 ) True buf
+                Buf.setCursor ( y1, x1 ) True view
         else
             case Buf.cursorLineFirst lines y1 of
                 Just cur ->
-                    buf
-                        |> Buf.setCursor cur True
-                        |> setVisualEnd cur
+                    Buf.setCursor cur True view
 
                 _ ->
-                    buf
+                    view
 
 
 pairSource : Buffer -> Position

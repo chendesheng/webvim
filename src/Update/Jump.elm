@@ -118,9 +118,11 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                                 buf1.lines
                                 buf1.view.scrollTop
                     in
-                        buf1
-                            |> Buf.setCursor cursor True
-                            |> Buf.setScrollTop scrollTop global
+                        Buf.updateView
+                            (Buf.setCursor cursor True
+                                >> Buf.setScrollTop scrollTop global
+                            )
+                            buf1
 
                 _ ->
                     buf1
@@ -263,9 +265,11 @@ jumpByView factor global buf =
         case Buf.cursorLineFirst buf.lines y of
             Just cursor ->
                 buf
-                    |> Buf.setCursor cursor True
                     |> setVisualEnd cursor
-                    |> Buf.setScrollTop scrollTop global
+                    |> Buf.updateView
+                        (Buf.setCursor cursor True
+                            >> Buf.setScrollTop scrollTop global
+                        )
 
             Nothing ->
                 buf

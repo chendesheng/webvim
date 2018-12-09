@@ -107,7 +107,7 @@ page global =
                                             in
                                                 case Dict.get view1.bufId global.buffers of
                                                     Just buf1 ->
-                                                        renderBuffer rect view1 buf1 isActive global
+                                                        renderBuffer item.dirs rect view1 buf1 isActive global
 
                                                     _ ->
                                                         div [] []
@@ -228,8 +228,8 @@ isListenMouseWheel mode showTip lint =
             not showTip || List.isEmpty lint.items
 
 
-renderBuffer : Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
-renderBuffer rect view buf isActive global =
+renderBuffer : List Win.Direction -> Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
+renderBuffer dirs rect view buf isActive global =
     let
         { mode, lines, syntax, continuation, history } =
             buf
@@ -301,7 +301,7 @@ renderBuffer rect view buf isActive global =
                 height
                 scrollTop1
 
-        mouseWheel h =
+        mouseWheel h dirs1 =
             Events.on "mousewheel"
                 (Decode.map
                     (toFloat
@@ -309,7 +309,7 @@ renderBuffer rect view buf isActive global =
                         >> floor
                         >> Basics.min (2 * h)
                         >> Basics.max (-2 * h)
-                        >> MouseWheel
+                        >> MouseWheel dirs1
                     )
                     (Decode.at [ "deltaY" ] Decode.int)
                 )
@@ -322,7 +322,7 @@ renderBuffer rect view buf isActive global =
              , style "height" (percentStr rect.height)
              ]
                 ++ if isListenMouseWheel buf.mode showTip lint then
-                    [ mouseWheel lineHeight ]
+                    [ mouseWheel lineHeight dirs ]
                    else
                     []
             )

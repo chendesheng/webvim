@@ -716,23 +716,16 @@ setMode mode buf =
     { buf | mode = mode }
 
 
-setCursor : Position -> Bool -> Buffer -> Buffer
-setCursor cursor saveColumn buf =
-    let
-        view =
-            buf.view
-    in
-        { buf
-            | view =
-                { view
-                    | cursor = cursor
-                    , cursorColumn =
-                        if saveColumn then
-                            Tuple.second cursor
-                        else
-                            view.cursorColumn
-                }
-        }
+setCursor : Position -> Bool -> View -> View
+setCursor cursor saveColumn view =
+    { view
+        | cursor = cursor
+        , cursorColumn =
+            if saveColumn then
+                Tuple.second cursor
+            else
+                view.cursorColumn
+    }
 
 
 updateHistory : (BufferHistory -> BufferHistory) -> Buffer -> Buffer
@@ -820,15 +813,17 @@ putString forward text buf =
             |> setLastIndent 0
             |> transaction [ patch ]
             |> (\buf1 ->
-                    setCursor
-                        (case cursor of
-                            Just p ->
-                                p
+                    updateView
+                        (setCursor
+                            (case cursor of
+                                Just p ->
+                                    p
 
-                            Nothing ->
-                                getLastDeletedTo buf1
+                                Nothing ->
+                                    getLastDeletedTo buf1
+                            )
+                            True
                         )
-                        True
                         buf1
                )
 
@@ -995,7 +990,7 @@ gotoLine : Int -> Buffer -> Buffer
 gotoLine y buf =
     y
         |> cursorLineFirst buf.lines
-        |> Maybe.map (\cursor -> setCursor cursor True buf)
+        |> Maybe.map (\cursor -> updateView (setCursor cursor True) buf)
         |> Maybe.withDefault buf
 
 
@@ -1093,36 +1088,32 @@ scrollViewLines height_ from to viewLines =
             viewLines
 
 
-setScrollTop : Int -> Global -> Buffer -> Buffer
-setScrollTop n global buf =
-    if n == buf.view.scrollTop then
-        buf
+setScrollTop : Int -> Global -> View -> View
+setScrollTop n global view =
+    if n == view.scrollTop then
+        view
     else
         let
             lineHeight =
                 global.lineHeight
 
             height =
-                buf.view.size.height
+                view.size.height
         in
-            updateView
-                (\v ->
-                    { v
-                        | scrollTop = n
-                        , scrollTopPx =
-                            if n == v.scrollTopPx // lineHeight then
-                                v.scrollTopPx
-                            else
-                                n * lineHeight
-                        , lines =
-                            scrollViewLines
-                                height
-                                v.scrollTop
-                                n
-                                v.lines
-                    }
-                )
-                buf
+            { view
+                | scrollTop = n
+                , scrollTopPx =
+                    if n == view.scrollTopPx // lineHeight then
+                        view.scrollTopPx
+                    else
+                        n * lineHeight
+                , lines =
+                    scrollViewLines
+                        height
+                        view.scrollTop
+                        n
+                        view.lines
+            }
 
 
 bestScrollTop : Int -> Int -> B.TextBuffer -> Int -> Int
@@ -1196,9 +1187,9 @@ setLastIndent indent buf =
     { buf | dirtyIndent = indent }
 
 
-setCursorColumn : Int -> Buffer -> Buffer
-setCursorColumn cursorColumn ({ view } as buf) =
-    { buf | view = { view | cursorColumn = cursorColumn } }
+setCursorColumn : Int -> View -> View
+setCursorColumn cursorColumn view =
+    { view | cursorColumn = cursorColumn }
 
 
 cancelLastIndent : Buffer -> Buffer
@@ -1211,7 +1202,7 @@ cancelLastIndent buf =
             buf
                 |> transaction [ Deletion ( y, 0 ) ( y, buf.dirtyIndent ) ]
                 |> setLastIndent 0
-                |> setCursorColumn buf.dirtyIndent
+                |> updateView (setCursorColumn buf.dirtyIndent)
     else
         buf
 
@@ -1319,7 +1310,7 @@ switchVisualEnd buf =
                         , end = begin
                         }
                     )
-                |> setCursor begin True
+                |> updateView (setCursor begin True)
 
         _ ->
             buf
