@@ -227,7 +227,8 @@ sendReadBuffer url viewHeight buf =
                 in
                     if buf.config.syntax then
                         sendTokenizeTask url
-                            { path = buf.path
+                            { bufId = buf.id
+                            , path = buf.path
                             , version = 0
                             , line = 0
                             , lines =
@@ -297,6 +298,7 @@ sendReadBuffer url viewHeight buf =
                             | lines = lines
                             , config = { config | syntax = syntaxEnabled }
                             , syntax = syntax
+                            , syntaxDirtyFrom = Array.length syntax
                             , history =
                                 if history.lastModified == lastModified then
                                     history
@@ -550,14 +552,14 @@ parseLintResult sep path lines =
         )
 
 
-sendLintProject : String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
-sendLintProject url sep path version lines =
+sendLintProject : String -> String -> Int -> String -> Int -> B.TextBuffer -> Cmd Msg
+sendLintProject url sep bufId path version lines =
     Http.getString (url ++ "/lint?path=" ++ path)
-        |> Http.send (parseLintResult sep path lines >> Lint ( path, version ))
+        |> Http.send (parseLintResult sep path lines >> Lint ( bufId, version ))
 
 
-sendLintOnTheFly : String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
-sendLintOnTheFly url sep path version lines =
+sendLintOnTheFly : String -> String -> Int -> String -> Int -> B.TextBuffer -> Cmd Msg
+sendLintOnTheFly url sep bufId path version lines =
     let
         body =
             Http.stringBody "text/plain" <| B.toString lines
@@ -565,7 +567,7 @@ sendLintOnTheFly url sep path version lines =
         post (url ++ "/lint?path=" ++ path) body
             |> Http.send
                 (parseLintResult sep path lines
-                    >> Lint ( path, version )
+                    >> Lint ( bufId, version )
                 )
 
 
@@ -739,8 +741,8 @@ sendTokenizeTask url { path, line, lines } =
 
 
 sendTokenize : String -> TokenizeRequest -> Cmd Msg
-sendTokenize url ({ path, version } as req) =
-    Task.attempt (Tokenized ( path, version )) (sendTokenizeTask url req)
+sendTokenize url ({ bufId, version } as req) =
+    Task.attempt (Tokenized ( bufId, version )) (sendTokenizeTask url req)
 
 
 sendTokenizeLine : String -> TokenizeRequest -> Cmd Msg
@@ -753,12 +755,10 @@ sendTokenizeLine url req =
                         |> Result.map
                             (\r ->
                                 case r of
-                                    TokenizeSuccess i syntax ->
+                                    TokenizeSuccess n syntax ->
                                         case Array.get 0 syntax of
                                             Just tokens ->
-                                                LineTokenizeSuccess
-                                                    i
-                                                    tokens
+                                                TokenizeLineSuccess n tokens
 
                                             _ ->
                                                 r

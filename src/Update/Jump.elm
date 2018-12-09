@@ -39,42 +39,67 @@ import Update.Motion
 import Internal.Window as Win
 
 
-tokenizeBufferCmd : String -> Buffer -> Cmd Msg
-tokenizeBufferCmd url buf =
-    if isTempBuffer buf.path || not buf.config.syntax then
-        Cmd.none
-    else
+tokenizeLineCmd : String -> Int -> Buffer -> Cmd Msg
+tokenizeLineCmd url begin buf =
+    if buf.config.syntax then
         let
-            begin =
-                buf.syntaxDirtyFrom
+            view =
+                buf.view
+        in
+            case B.getLine begin buf.lines of
+                Just line ->
+                    sendTokenizeLine url
+                        { bufId = buf.id
+                        , path = buf.path
+                        , version = buf.history.version
+                        , line = begin
+                        , lines = line
+                        }
 
+                _ ->
+                    Cmd.none
+    else
+        Cmd.none
+
+
+tokenizeBufferCmd : Int -> String -> Buffer -> Cmd Msg
+tokenizeBufferCmd begin url buf =
+    if buf.config.syntax then
+        let
             view =
                 buf.view
 
-            end =
-                Buf.finalScrollTop view.size view buf + 2 * view.size.height
+            scrollTop =
+                Buf.finalScrollTop view.size view buf
 
-            lines =
-                if begin < end then
-                    buf.lines
-                        |> B.sliceLines begin end
-                        |> B.toString
-                else
-                    ""
+            scrollBottom =
+                scrollTop + view.size.height
+
+            end =
+                scrollBottom + view.size.height
         in
-            if String.isEmpty lines then
-                Cmd.none
-            else
-                sendTokenize
-                    url
-                    { path = buf.path
-                    , version = buf.history.version
-                    , line = begin
-                    , lines =
+            if begin < scrollBottom then
+                let
+                    lines =
                         buf.lines
                             |> B.sliceLines begin end
                             |> B.toString
-                    }
+                in
+                    if String.isEmpty lines then
+                        Cmd.none
+                    else
+                        sendTokenize
+                            url
+                            { bufId = buf.id
+                            , path = buf.path
+                            , version = buf.history.version
+                            , line = begin
+                            , lines = lines
+                            }
+            else
+                Cmd.none
+    else
+        Cmd.none
 
 
 replaceActiveView : View -> Win.Window View -> Win.Window View
@@ -178,7 +203,6 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                       --             b.lines
                       --       else
                       --         Cmd.none
-                      --     , tokenizeBufferCmd { ed | buf = b }
                       --     ]
                     )
 

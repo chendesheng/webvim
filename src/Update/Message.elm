@@ -11,19 +11,20 @@ import Internal.Window exposing (Direction)
 
 
 type alias BufferIdentifier =
-    -- (path, version)
-    ( String, Int )
+    -- (bufId, version)
+    ( Int, Int )
 
 
 type TokenizeResponse
     = TokenizeSuccess Int Syntax
-    | LineTokenizeSuccess Int (List Token)
+    | TokenizeLineSuccess Int (List Token)
     | TokenizeCacheMiss -- happens when server restart
     | TokenizeError String
 
 
 type alias TokenizeRequest =
-    { path : String
+    { bufId : Int
+    , path : String
     , version : Int
     , line : Int
     , lines : String

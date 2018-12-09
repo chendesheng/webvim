@@ -1518,18 +1518,18 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 else
                     ed_
 
-        doTokenize ( ed_, cmds ) =
+        doTokenize oldBuf ( ed_, cmds ) =
             if ed_.buf.config.syntax then
-                ( ed_
-                , (case ed_.buf.mode of
-                    Insert _ ->
-                        debounceTokenize 100
-
-                    _ ->
-                        tokenizeBufferCmd ed_.global.service buf
-                  )
-                    :: cmds
-                )
+                if Buf.isEditing oldBuf ed_.buf then
+                    ( ed_
+                    , tokenizeLineCmd
+                        ed_.global.service
+                        ed_.buf.syntaxDirtyFrom
+                        ed_.buf
+                        :: cmds
+                    )
+                else
+                    ( ed_, debounceTokenize 50 :: cmds )
             else
                 ( ed_, cmds )
 
@@ -1640,7 +1640,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 )
             |> Tuple.mapSecond List.singleton
             |> doLint buf
-            |> doTokenize
+            |> doTokenize buf
             |> doFocusInput ed
             |> Tuple.mapSecond Cmd.batch
 
@@ -1650,11 +1650,11 @@ onTokenized ({ buf, global } as ed) resp =
     case resp of
         Ok payload ->
             case payload of
-                TokenizeSuccess begin syntax ->
+                TokenizeSuccess n syntax ->
                     ( let
                         syntax1 =
                             buf.syntax
-                                |> Array.slice 0 begin
+                                |> Array.slice 0 n
                                 |> (\s -> Array.append s syntax)
                       in
                         { ed
@@ -1668,16 +1668,19 @@ onTokenized ({ buf, global } as ed) resp =
                     , Cmd.none
                     )
 
-                LineTokenizeSuccess begin tokens ->
+                TokenizeLineSuccess begin tokens ->
                     let
+                        syntax =
+                            Array.set begin tokens buf.syntax
+
                         buf1 =
                             { buf
-                                | syntax = Array.set begin tokens buf.syntax
+                                | syntax = syntax
                                 , syntaxDirtyFrom = begin + 1
                             }
                     in
                         ( { ed | buf = buf1 }
-                        , tokenizeBufferCmd global.service buf1
+                        , debounceTokenize 100
                         )
 
                 TokenizeCacheMiss ->
@@ -1712,7 +1715,7 @@ onTokenized ({ buf, global } as ed) resp =
 
 tokenizeBuffer : Editor -> ( Editor, Cmd Msg )
 tokenizeBuffer ed =
-    ( ed, tokenizeBufferCmd ed.global.service ed.buf )
+    ( ed, tokenizeBufferCmd ed.buf.syntaxDirtyFrom ed.global.service ed.buf )
 
 
 applyLintItems : List LintError -> Buffer -> Global -> Global
@@ -2017,6 +2020,7 @@ update message global =
                         , sendLintOnTheFly
                             global.service
                             global.pathSeperator
+                            buf.id
                             buf.path
                             buf.history.version
                             buf.lines
@@ -2035,11 +2039,11 @@ update message global =
                 )
                 global
 
-        Tokenized ( path, version ) resp ->
+        Tokenized ( bufId, version ) resp ->
             withEditor
                 (\({ buf } as ed) ->
                     if
-                        (path == buf.path)
+                        (bufId == buf.id)
                             && (version == buf.history.version)
                     then
                         onTokenized ed resp
@@ -2052,7 +2056,7 @@ update message global =
             withEditor
                 (\({ buf } as ed) ->
                     ( ed
-                    , tokenizeBufferCmd global.service buf
+                    , tokenizeBufferCmd buf.syntaxDirtyFrom global.service buf
                     )
                 )
                 global
@@ -2180,9 +2184,9 @@ update message global =
 
 
 onLint : BufferIdentifier -> Result a (List LintError) -> Buffer -> Global -> Global
-onLint ( path, version ) resp buf global =
+onLint ( bufId, version ) resp buf global =
     if
-        (path == buf.path)
+        (bufId == buf.id)
             && (version == buf.history.version)
     then
         case resp of
@@ -2412,6 +2416,7 @@ onWrite result ({ buf, global } as ed) =
                     if buf1.config.lint then
                         sendLintProject global.service
                             global.pathSeperator
+                            buf1.id
                             buf1.path
                             buf1.history.version
                             buf1.lines
@@ -2424,7 +2429,10 @@ onWrite result ({ buf, global } as ed) =
                 ( ed1
                 , Cmd.batch
                     [ lintCmd
-                    , tokenizeBufferCmd ed1.global.service ed1.buf
+                    , tokenizeBufferCmd
+                        ed1.buf.syntaxDirtyFrom
+                        ed1.global.service
+                        ed1.buf
                     ]
                 )
 

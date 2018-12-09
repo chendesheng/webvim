@@ -443,9 +443,7 @@ exports.tokenize = function(path) {
           const cache = allCaches[path] || [null];
           const begin = parseInt(line);
 
-          // This is IMPORTANT:
-          //   a line must not ends with \r or \n or result will broken
-          const lines = payload.split(/\r\n|\r|\n/);
+          const lines = payload.split(/^/m);
           const result = [];
           getGrammar(path).then(function(grammar) {
             // console.log('tokenize:', request.query.path)
@@ -464,9 +462,11 @@ exports.tokenize = function(path) {
                   type: 'cacheMiss',
                 }))();
               }
-              const r = grammar.tokenizeLine2(line, cache[n]);
+              // This is IMPORTANT:
+              //   a line must not ends with \r or \n or result will broken
+              const r = grammar.tokenizeLine2(line.trimRight(), cache[n]);
               const tokens = Array.from(r.tokens);
-              tokens.push(line.length + 1); // TODO: support \r\n
+              tokens.push(line.length + 1);
               tokens.push(0);
               result[i] = tokens;
               // console.log('Line: #' + i + ', tokens: ' + r.tokens);
