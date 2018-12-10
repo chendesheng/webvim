@@ -466,7 +466,7 @@ exports.tokenize = function(path) {
               //   a line must not ends with \r or \n or result will broken
               const r = grammar.tokenizeLine2(line.trimRight(), cache[n]);
               const tokens = Array.from(r.tokens);
-              tokens.push(line.length + 1);
+              tokens.push(line.length);
               tokens.push(0);
               result[i] = tokens;
               // console.log('Line: #' + i + ', tokens: ' + r.tokens);
