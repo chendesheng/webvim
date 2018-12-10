@@ -82,7 +82,7 @@ cursorCharWidth fontInfo x s =
 type alias Flags =
     { service : String
     , buffers : Encode.Value
-    , activeBuffer : Int
+    , window : Encode.Value
     , registers : Encode.Value
     , height : Int
     , cwd : String
@@ -127,14 +127,13 @@ buffersToString buffers =
 
 bufferEncoder : Buffer -> Encode.Value
 bufferEncoder buf =
-    [ ( "id", Encode.int buf.id )
-    , ( "path", Encode.string buf.path )
-    , ( "cursor", cursorEncoder buf.view.cursor )
-    , ( "syntax", Encode.bool buf.config.syntax )
-    , ( "history", historyEncoder buf.history )
-    , ( "scrollTop", Encode.int buf.view.scrollTop )
-    ]
-        |> Encode.object
+    Encode.object
+        [ ( "id", Encode.int buf.id )
+        , ( "path", Encode.string buf.path )
+        , ( "syntax", Encode.bool buf.config.syntax )
+        , ( "history", historyEncoder buf.history )
+        , ( "view", viewEncoder buf.view )
+        ]
 
 
 bufferToString : Buffer -> String
@@ -242,12 +241,12 @@ configs =
         ]
 
 
-isLintEnabled : Global -> String -> Bool -> Bool
-isLintEnabled global name lint =
+isLintEnabled : String -> String -> String -> Bool -> Bool
+isLintEnabled pathSeperator homedir name lint =
     if lint && extname name == ".elm" then
         name
-            |> relativePath global.pathSeperator global.homedir
-            |> String.startsWith (".elm" ++ global.pathSeperator)
+            |> relativePath pathSeperator homedir
+            |> String.startsWith (".elm" ++ pathSeperator)
             |> not
     else
         lint
@@ -283,7 +282,11 @@ createBuffer path size global =
                 }
             , config =
                 { config
-                    | lint = isLintEnabled global (name ++ ext) config.lint
+                    | lint =
+                        isLintEnabled global.pathSeperator
+                            global.homedir
+                            (name ++ ext)
+                            config.lint
                 }
             , path = path
             , name = name ++ ext
@@ -291,40 +294,85 @@ createBuffer path size global =
         )
 
 
-bufferDecoder : Global -> Decode.Decoder Buffer
-bufferDecoder global =
-    Decode.map6
-        (\id path cursor syntax history scrollTop ->
-            let
-                ( _, buf ) =
-                    createBuffer path { width = 0, height = 0 } global
+viewDecoder : Decode.Decoder View
+viewDecoder =
+    Decode.map4
+        (\bufId cursor scrollTop alternativeBuf ->
+            { emptyView
+                | bufId = bufId
+                , cursor = cursor
+                , cursorColumn = Tuple.second cursor
+                , scrollTop = scrollTop
+                , alternativeBuf = alternativeBuf
+            }
+        )
+        (Decode.field "bufId" Decode.int)
+        (Decode.field "cursor" cursorDecoder)
+        (Decode.field "scrollTop" Decode.int)
+        (Decode.field "alternativeBuf" Decode.string |> Decode.maybe)
 
-                view =
-                    buf.view
+
+viewEncoder : View -> Encode.Value
+viewEncoder view =
+    Encode.object
+        ([ ( "bufId", Encode.int view.bufId )
+         , ( "cursor", cursorEncoder view.cursor )
+         , ( "scrollTop", Encode.int view.scrollTop )
+         ]
+            ++ case view.alternativeBuf of
+                Just s ->
+                    [ ( "alternativeBuf", Encode.string s ) ]
+
+                _ ->
+                    []
+        )
+
+
+windowEncoder : Window View -> Encode.Value
+windowEncoder =
+    Win.windowEncoder viewEncoder
+
+
+windowDecoder : Decode.Decoder (Window View)
+windowDecoder =
+    Win.windowDecoder viewDecoder
+
+
+bufferDecoder : String -> String -> Decode.Decoder Buffer
+bufferDecoder pathSeperator homedir =
+    Decode.map5
+        (\id path syntax history view ->
+            let
+                ( name, ext ) =
+                    filename path
 
                 config =
-                    buf.config
+                    configs
+                        |> Dict.get ext
+                        |> Maybe.withDefault defaultBufferConfig
             in
-                { buf
+                { emptyBuffer
                     | id = id
-                    , view =
-                        { view
-                            | bufId = id
-                            , cursor = cursor
-                            , cursorColumn = Tuple.second cursor
-                            , scrollTop = scrollTop
-                            , scrollTopPx = scrollTop * global.lineHeight
-                        }
-                    , config = { config | syntax = syntax }
                     , history = history
+                    , path = path
+                    , name = name ++ ext
+                    , view = view
+                    , config =
+                        { config
+                            | lint =
+                                isLintEnabled pathSeperator
+                                    homedir
+                                    (name ++ ext)
+                                    config.lint
+                            , syntax = syntax
+                        }
                 }
         )
         (Decode.field "id" Decode.int)
         (Decode.field "path" Decode.string)
-        (Decode.field "cursor" cursorDecoder)
         (Decode.field "syntax" Decode.bool)
         (Decode.field "history" historyDecoder)
-        (Decode.field "scrollTop" Decode.int)
+        (Decode.field "view" viewDecoder)
 
 
 type alias Key =

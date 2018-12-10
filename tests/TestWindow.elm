@@ -3,6 +3,8 @@ module TestWindow exposing (..)
 import Internal.Window as W exposing (Direction(..))
 import Test exposing (..)
 import Expect exposing (Expectation)
+import Json.Decode as Decode
+import Json.Encode as Encode
 
 
 suite : Test
@@ -205,5 +207,19 @@ v────v────@1    50%
                           , path = [ RightChild ]
                           }
                         ]
+            )
+        , test "json"
+            (\_ ->
+                let
+                    win =
+                        W.initWindow 1
+                            |> W.hsplit 0.5 2
+                            |> W.vsplit 0.5 3
+                            |> W.activeNextView
+                in
+                    W.windowEncoder Encode.int win
+                        |> Decode.decodeValue (W.windowDecoder Decode.int)
+                        |> Result.withDefault (W.initWindow 1)
+                        |> Expect.equal win
             )
         ]

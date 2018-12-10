@@ -119,7 +119,7 @@ page global =
                                     )
                                 , renderGlobal buf global
                                 ]
-                            , renderStorage buf global
+                            , renderStorage global
                             ]
                     }
 
@@ -180,19 +180,19 @@ renderGlobal buf global =
             buf.name
 
 
-renderStorage : Buffer -> Global -> Html Msg
-renderStorage activeBuffer global =
+renderStorage : Global -> Html Msg
+renderStorage global =
     div [ style "display" "none" ]
         ([ lazy saveRegisters global.registers
          , div []
             (global.buffers
                 |> Dict.values
-                |> List.filter (\{ path } -> not <| isTempBuffer path)
+                --|> List.filter (\{ path } -> not <| isTempBuffer path)
                 |> List.indexedMap (lazy2 saveBuffer)
             )
          , lazy saveCwd global.cwd
          ]
-            ++ [ lazy saveActiveBuffer activeBuffer.id
+            ++ [ saveWindow global.window
                , div []
                     (List.indexedMap
                         (\i s ->
@@ -1490,9 +1490,12 @@ renderAutoCompleteMenu topLeft lineHeight topOffsetPx isEx viewScrollTop gutterW
             )
 
 
-saveActiveBuffer : Int -> Html msg
-saveActiveBuffer id =
-    renderSessionStorageItem "activeBuffer" (String.fromInt id)
+saveWindow : Win.Window View -> Html msg
+saveWindow win =
+    win
+        |> windowEncoder
+        |> Encode.encode 0
+        |> renderSessionStorageItem "window"
 
 
 saveBuffer : Int -> Buffer -> Html msg

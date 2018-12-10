@@ -25,11 +25,15 @@ module Internal.Window
         , Direction(..)
         , toBorders
         , Path
+        , windowEncoder
+        , windowDecoder
           --        , logWindow
         )
 
 import Vim.Helper exposing (dropLast)
 import Helper.Helper exposing (dropWhile)
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode
 
 
 -- Tree
@@ -993,3 +997,130 @@ treeToString toStr tree dirs currentDirs deep parent =
 
         _ ->
             ""
+
+
+treeDecoder : Decoder a -> Decoder (Tree a)
+treeDecoder decoder =
+    Decode.oneOf
+        [ Decode.null Empty
+        , Decode.lazy
+            (\_ ->
+                Decode.map3 (\a left right -> Node a left right)
+                    (Decode.field "data" decoder)
+                    (Decode.field "left" <| treeDecoder decoder)
+                    (Decode.field "right" <| treeDecoder decoder)
+            )
+        ]
+
+
+windowSplitDecoder : Decoder a -> Decoder (WindowSplit a)
+windowSplitDecoder viewDecoder =
+    Decode.field "type" Decode.string
+        |> Decode.andThen
+            (\tp ->
+                case tp of
+                    "vsplit" ->
+                        Decode.field "percent" Decode.float
+                            |> Decode.map VSplit
+
+                    "hsplit" ->
+                        Decode.field "percent" Decode.float
+                            |> Decode.map HSplit
+
+                    "nosplit" ->
+                        Decode.field "view" viewDecoder
+                            |> Decode.map NoSplit
+
+                    _ ->
+                        Decode.fail ("invalid split type: " ++ tp)
+            )
+
+
+pathDecoder : Decoder Path
+pathDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\dir ->
+                case dir of
+                    "l" ->
+                        Decode.succeed LeftChild
+
+                    "r" ->
+                        Decode.succeed RightChild
+
+                    _ ->
+                        Decode.fail ("invalid direction: " ++ dir)
+            )
+        |> Decode.list
+
+
+windowDecoder : Decoder a -> Decoder (Window a)
+windowDecoder viewDecoder =
+    Decode.map2
+        (\tree path ->
+            { tree = tree
+            , path = path
+            , current =
+                subtree (List.reverse path) tree
+                    |> Maybe.withDefault Empty
+            }
+        )
+        (Decode.field "tree" <| treeDecoder (windowSplitDecoder viewDecoder))
+        (Decode.field "path" pathDecoder)
+
+
+windowSplitEncoder : (a -> Encode.Value) -> WindowSplit a -> Encode.Value
+windowSplitEncoder viewEncoder sp =
+    case sp of
+        NoSplit a ->
+            Encode.object
+                [ ( "type", Encode.string "nosplit" )
+                , ( "view", viewEncoder a )
+                ]
+
+        VSplit percent ->
+            Encode.object
+                [ ( "type", Encode.string "vsplit" )
+                , ( "percent", Encode.float percent )
+                ]
+
+        HSplit percent ->
+            Encode.object
+                [ ( "type", Encode.string "hsplit" )
+                , ( "percent", Encode.float percent )
+                ]
+
+
+treeEncoder : (a -> Encode.Value) -> Tree (WindowSplit a) -> Encode.Value
+treeEncoder encoder tree =
+    case tree of
+        Node a left right ->
+            Encode.object
+                [ ( "data", windowSplitEncoder encoder a )
+                , ( "left", treeEncoder encoder left )
+                , ( "right", treeEncoder encoder right )
+                ]
+
+        _ ->
+            Encode.null
+
+
+pathEncoder : Path -> Encode.Value
+pathEncoder =
+    Encode.list
+        (\dir ->
+            case dir of
+                LeftChild ->
+                    Encode.string "l"
+
+                RightChild ->
+                    Encode.string "r"
+        )
+
+
+windowEncoder : (a -> Encode.Value) -> Window a -> Encode.Value
+windowEncoder viewEncoder win =
+    Encode.object
+        [ ( "tree", treeEncoder viewEncoder win.tree )
+        , ( "path", pathEncoder win.path )
+        ]

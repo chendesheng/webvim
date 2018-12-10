@@ -109,13 +109,13 @@ function storageGetArray(key, isJson) {
     res[i] = isJson ? safeJsonParse(item) : item;
     i++;
   }
-  return res;
+  return res.length > 0 ? res : null;
 }
 
 function main() {
   const flags = {
     service: `${scheme}//${host}:8899`,
-    activeBuffer: parseInt(sessionStorage.getItem('activeBuffer')) || 0,
+    window: safeJsonParse(sessionStorage.getItem('window')) || {},
     buffers: storageGetArray('buffers', true),
     registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
     height: window.innerHeight,
@@ -125,7 +125,7 @@ function main() {
     homedir: '',
     isSafari: navigator.userAgent.indexOf('Safari') !== -1
       && navigator.userAgent.indexOf('Chrome') === -1,
-    exHistory: storageGetArray('exHistory', false),
+    exHistory: storageGetArray('exHistory', false) || [],
   };
 
   const applyCss = (url) => {

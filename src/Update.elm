@@ -1536,7 +1536,6 @@ applyVimAST replaying key ast ({ buf } as ed) =
                     (pairSource oldBuf /= pairSource buf_)
                         || (oldBuf.view.scrollTop /= buf_.view.scrollTop)
                         || (oldBuf.view.size /= buf_.view.size)
-                        || (oldBuf.lines /= buf_.lines)
                         || (oldBuf.syntax /= buf_.syntax)
                 then
                     updateBuffer (pairCursor buf_.view.size) ed_
@@ -1581,75 +1580,6 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 ( ed_, focusHiddenInput :: cmds )
             else
                 ( ed_, cmds )
-
-        shiftLocations : Editor -> Editor
-        shiftLocations ed1 =
-            let
-                buf1 =
-                    ed1.buf
-
-                diff =
-                    buf1.history.diff
-
-                global1 =
-                    ed1.global
-
-                history =
-                    buf1.history
-
-                view =
-                    buf1.view
-            in
-                if List.isEmpty diff then
-                    ed1
-                else
-                    { ed1
-                        | buf =
-                            { buf1
-                                | history = { history | diff = [] }
-                                , syntaxDirtyFrom =
-                                    diff
-                                        |> List.map
-                                            (\item ->
-                                                case item of
-                                                    B.RegionAdd ( ( m, _ ), _ ) ->
-                                                        m
-
-                                                    B.RegionRemove ( ( m, _ ), _ ) ->
-                                                        m
-                                            )
-                                        |> List.minimum
-                                        |> Maybe.map (min buf1.syntaxDirtyFrom)
-                                        |> Maybe.withDefault buf1.syntaxDirtyFrom
-                                , view =
-                                    { view
-                                        | lines =
-                                            Buf.applyDiffToView
-                                                diff
-                                                view.scrollTop
-                                                view.size.height
-                                                view.lines
-                                    }
-                            }
-                        , global =
-                            { global1
-                                | jumps = applyPatchesToJumps buf1.path diff global1.jumps
-                                , lint =
-                                    { items =
-                                        Buf.applyPatchesToLintErrors
-                                            global1.lint.items
-                                            diff
-
-                                    --|> Debug.log "update lint.items"
-                                    , count = global1.lint.count
-                                    }
-                                , locationList =
-                                    applyPatchesToLocations
-                                        buf1.path
-                                        global1.locationList
-                                        diff
-                            }
-                    }
     in
         ed
             |> applyEdit count edit register
@@ -1661,13 +1591,81 @@ applyVimAST replaying key ast ({ buf } as ed) =
                     >> updateBuffer (Buf.updateView (scrollToCursor ed.global))
                     >> updateGlobal (saveDotRegister replaying)
                     >> setMatchedCursor ed
-                    >> shiftLocations
+                    >> applyDiff
                 )
             |> Tuple.mapSecond List.singleton
             |> doLint buf
             |> doTokenize buf
             |> doFocusInput ed
             |> Tuple.mapSecond Cmd.batch
+
+
+applyDiff : Editor -> Editor
+applyDiff ed =
+    let
+        buf =
+            ed.buf
+
+        diff =
+            buf.history.diff
+
+        global1 =
+            ed.global
+
+        history =
+            buf.history
+
+        view =
+            buf.view
+    in
+        if List.isEmpty diff then
+            ed
+        else
+            { ed
+                | buf =
+                    { buf
+                        | history = { history | diff = [] }
+                        , syntaxDirtyFrom =
+                            diff
+                                |> List.map
+                                    (\item ->
+                                        case item of
+                                            B.RegionAdd ( ( m, _ ), _ ) ->
+                                                m
+
+                                            B.RegionRemove ( ( m, _ ), _ ) ->
+                                                m
+                                    )
+                                |> List.minimum
+                                |> Maybe.map (min buf.syntaxDirtyFrom)
+                                |> Maybe.withDefault buf.syntaxDirtyFrom
+                        , view =
+                            { view
+                                | lines =
+                                    Buf.applyDiffToView
+                                        diff
+                                        view.scrollTop
+                                        view.size.height
+                                        view.lines
+                            }
+                    }
+                , global =
+                    { global1
+                        | jumps = applyPatchesToJumps buf.path diff global1.jumps
+                        , lint =
+                            { items =
+                                Buf.applyPatchesToLintErrors
+                                    global1.lint.items
+                                    diff
+                            , count = global1.lint.count
+                            }
+                        , locationList =
+                            applyPatchesToLocations
+                                buf.path
+                                global1.locationList
+                                diff
+                    }
+            }
 
 
 onTokenized : Editor -> Result error TokenizeResponse -> ( Editor, Cmd Msg )
@@ -1935,32 +1933,7 @@ update message global =
 
         Resize size ->
             --todo tokenizeBuffer
-            --, window
-            --    |> Win.toList
-            --    |> List.map
-            --        (\( rect, view ) ->
-            --            Cmd.none
-            --        )
-            --    |> Cmd.batch
-            --)
-            let
-                size1 =
-                    { size
-                        | height =
-                            size.height
-                                - (global.statusbarHeight * global.lineHeight)
-                    }
-            in
-                ( { global
-                    | window =
-                        resizeViews
-                            size1
-                            global.lineHeight
-                            global.window
-                    , size = size1
-                  }
-                , Cmd.none
-                )
+            ( onResize size global, Cmd.none )
 
         ReadClipboard result ->
             case result of
@@ -1994,6 +1967,8 @@ update message global =
                                         |> Buf.transaction buf.history.changes
                                         |> Buf.updateView (Buf.setCursor buf.view.cursor True)
                                         |> Buf.updateHistory (always buf.history)
+                                        |> correctCursor
+                                        |> pairCursor buf.view.size
 
                                 global1 =
                                     if
@@ -2227,6 +2202,26 @@ update message global =
                     )
 
 
+onResize : Size -> Global -> Global
+onResize size global =
+    let
+        size1 =
+            { size
+                | height =
+                    size.height
+                        - (global.statusbarHeight * global.lineHeight)
+            }
+    in
+        { global
+            | window =
+                resizeViews
+                    size1
+                    global.lineHeight
+                    global.window
+            , size = size1
+        }
+
+
 onLint : BufferIdentifier -> Result a (List LintError) -> Buffer -> Global -> Global
 onLint ( bufId, version ) resp buf global =
     if
@@ -2397,11 +2392,18 @@ onRead result ({ buf, global } as ed) =
                         |> Buf.transaction buf1.history.changes
                         |> Buf.updateView (Buf.setCursor buf1.view.cursor True)
                         |> Buf.updateHistory (always buf1.history)
+                        |> correctCursor
+                        |> pairCursor buf.view.size
             in
                 { ed
-                    | global =
-                        Buf.addBuffer False buf2 global
+                    | global = Buf.addBuffer False buf2 global
+                    , buf =
+                        if buf.id == buf2.id then
+                            buf2
+                        else
+                            buf
                 }
+                    |> applyDiff
 
         Err (Http.BadStatus resp) ->
             case resp.status.code of
@@ -2465,6 +2467,7 @@ onWrite result ({ buf, global } as ed) =
 
                 ed1 =
                     { ed | buf = buf1 }
+                        |> applyDiff
             in
                 ( ed1
                 , Cmd.batch
@@ -2587,77 +2590,83 @@ init flags =
         lineHeight =
             fontInfo.lineHeight
 
-        { activeBuffer, registers, height, pathSeperator, exHistory } =
+        { window, registers, height, pathSeperator, exHistory } =
             flags
 
         viewHeight =
             getViewHeight height lineHeight emptyGlobal.statusbarHeight
 
-        viewSize =
-            { width = 1, height = viewHeight }
-
-        global =
-            { emptyGlobal
-                | service = service
-                , exHistory = exHistory
-                , cwd =
-                    if String.isEmpty cwd then
-                        "."
-                    else
-                        cwd
-                , pathSeperator = pathSeperator
-                , fontInfo = fontInfo
-                , homedir = homedir
-                , isSafari = isSafari
-                , registers =
-                    Decode.decodeValue registersDecoder registers
-                        |> Result.withDefault Dict.empty
-                , lineHeight = lineHeight
-                , size = { width = 1, height = height }
-            }
-
-        initView view =
-            { view
-                | lines = List.range view.scrollTop (view.scrollTop + viewHeight + 1)
-                , size = viewSize
+        size =
+            { width = 1
+            , height = height - (emptyGlobal.statusbarHeight * lineHeight)
             }
 
         decodedBuffers =
             buffers
                 |> Decode.decodeValue
-                    (bufferDecoder global
-                        |> Decode.map (\b -> { b | view = initView b.view })
+                    (bufferDecoder
+                        pathSeperator
+                        homedir
                         |> Decode.list
                     )
-                |> Result.withDefault []
-    in
-        ( case decodedBuffers of
-            firstBuf :: _ ->
-                { global
-                    | window =
-                        decodedBuffers
-                            |> findFirst (\{ id } -> id == activeBuffer)
-                            |> Maybe.map .view
-                            |> Maybe.withDefault firstBuf.view
-                            |> Win.initWindow
-                    , maxId =
-                        decodedBuffers
-                            |> List.map .id
-                            |> List.maximum
-                            |> Maybe.withDefault 0
-                }
+                |> Result.map
+                    (List.map <|
+                        \b ->
+                            if isTempBuffer b.path then
+                                { b | view = initScrollTop b.view }
+                                    |> Buf.transaction b.history.changes
+                                    |> Buf.updateView
+                                        (Buf.setCursor b.view.cursor True)
+                                    |> Buf.updateHistory (always b.history)
+                                    |> correctCursor
+                                    |> pairCursor b.view.size
+                            else
+                                { b | view = initScrollTop b.view }
+                    )
+                |> Result.withDefault [ { emptyBuffer | id = 1 } ]
 
-            _ ->
-                let
-                    ( global1, buf1 ) =
-                        createBuffer "" viewSize global
-                in
-                    Buf.addBuffer
-                        True
-                        buf1
-                        { global1 | window = Win.initWindow buf1.view }
+        maxBufferId =
+            decodedBuffers
+                |> List.map .id
+                |> List.maximum
+                |> Maybe.withDefault 0
+
+        initScrollTop view =
+            { view | scrollTopPx = view.scrollTop * lineHeight }
+
+        decodedWindow =
+            Decode.decodeValue windowDecoder window
+                |> Result.withDefault
+                    (Win.initWindow { emptyView | bufId = maxBufferId })
+                |> Win.mapView (\view _ -> initScrollTop view)
+    in
+        ( { emptyGlobal
+            | service = service
+            , exHistory = exHistory
+            , cwd =
+                if String.isEmpty cwd then
+                    "."
+                else
+                    cwd
+            , pathSeperator = pathSeperator
+            , fontInfo = fontInfo
+            , homedir = homedir
+            , isSafari = isSafari
+            , registers =
+                Decode.decodeValue registersDecoder registers
+                    |> Result.withDefault Dict.empty
+            , lineHeight = lineHeight
+            , window = decodedWindow
+            , buffers =
+                decodedBuffers
+                    |> List.map (\buf -> ( buf.id, buf ))
+                    |> Dict.fromList
+            , maxId = maxBufferId
+          }
+            |> onResize size
         , decodedBuffers
-            |> List.map (sendReadBuffer global.service viewHeight)
+            |> List.filter (\{ path } -> not <| isTempBuffer path)
+            |> List.map (sendReadBuffer service viewHeight)
             |> ((::) focusHiddenInput)
             |> Cmd.batch
         )
