@@ -1376,9 +1376,10 @@ execute count register str ({ buf, global } as ed) =
                 ( { ed
                     | global =
                         { global
-                            | window = Win.vsplit 0.5 buf.view global.window
+                            | window =
+                                Win.vsplit 0.5 buf.view global.window
+                                    |> resizeViews global.size global.lineHeight
                         }
-                            |> resizeViews global.size
                   }
                 , Cmd.none
                 )
@@ -1387,9 +1388,10 @@ execute count register str ({ buf, global } as ed) =
                 ( { ed
                     | global =
                         { global
-                            | window = Win.hsplit 0.5 buf.view global.window
+                            | window =
+                                Win.hsplit 0.5 buf.view global.window
+                                    |> resizeViews global.size global.lineHeight
                         }
-                            |> resizeViews global.size
                   }
                 , Cmd.none
                 )
@@ -1398,9 +1400,10 @@ execute count register str ({ buf, global } as ed) =
                 ( { ed
                     | global =
                         { global
-                            | window = Win.removeCurrent global.window
+                            | window =
+                                Win.removeCurrent global.window
+                                    |> resizeViews global.size global.lineHeight
                         }
-                            |> resizeViews global.size
                   }
                 , Cmd.none
                 )
@@ -1940,7 +1943,24 @@ update message global =
             --        )
             --    |> Cmd.batch
             --)
-            ( resizeViews size global, Cmd.none )
+            let
+                size1 =
+                    { size
+                        | height =
+                            size.height
+                                - (global.statusbarHeight * global.lineHeight)
+                    }
+            in
+                ( { global
+                    | window =
+                        resizeViews
+                            size1
+                            global.lineHeight
+                            global.window
+                    , size = size1
+                  }
+                , Cmd.none
+                )
 
         ReadClipboard result ->
             case result of
@@ -2004,7 +2024,7 @@ update message global =
                                             createBuffer resp.body
                                                 (Win.getActiveView global.window
                                                     |> Maybe.map .size
-                                                    |> Maybe.withDefault { width = 0, height = 0 }
+                                                    |> Maybe.withDefault global.size
                                                 )
                                                 global
 
@@ -2263,8 +2283,11 @@ onSearch result ed =
                                                 )
                                                 (Maybe.map edit)
                                                 ed1.global.buffers
+                                        , window =
+                                            resizeViews global.size
+                                                global.lineHeight
+                                                global.window
                                     }
-                                        |> resizeViews global.size
                             }
                         )
 
@@ -2313,27 +2336,20 @@ onReadTags result ed =
             )
 
 
-resizeViews : Size -> Global -> Global
-resizeViews size global =
-    let
-        height =
-            size.height - (global.statusbarHeight * global.lineHeight)
-
-        resizeView view ( widthPercent, heightPercent ) =
+resizeViews : Size -> Int -> Win.Window View -> Win.Window View
+resizeViews size lineHeight =
+    Win.mapView
+        (\view ( widthPercent, heightPercent ) ->
             Buf.resizeView
-                { width = (round <| toFloat size.width * widthPercent)
+                { width = (ceiling <| toFloat size.width * widthPercent)
                 , height =
                     getViewHeight
-                        (round <| toFloat height * heightPercent)
-                        global.lineHeight
+                        (ceiling <| toFloat size.height * heightPercent)
+                        lineHeight
                         0
                 }
                 view
-
-        window =
-            Win.mapView resizeView global.window
-    in
-        { global | window = window, size = size }
+        )
 
 
 
