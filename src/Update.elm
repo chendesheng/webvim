@@ -1113,8 +1113,10 @@ applyEdit count edit register ({ buf } as ed) =
                                             global.cwd
                                         else
                                             s
-                                                |> splitFirstSpace
-                                                |> Tuple.second
+                                                |> String.trim
+                                                |> String.split " "
+                                                |> getLast
+                                                |> Maybe.withDefault ""
                                                 |> getPath
                                                     global.pathSeperator
                                                     global.homedir
@@ -2007,7 +2009,9 @@ update message global =
                                                 global
 
                                         global2 =
-                                            Buf.addBuffer False buf1 global1
+                                            global1
+                                                |> Buf.addBuffer False buf1
+                                                |> updateWindow (Win.updateActiveView (always buf1.view))
                                     in
                                         ( global2, Cmd.none )
 

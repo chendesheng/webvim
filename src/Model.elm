@@ -611,6 +611,11 @@ updateGlobal fn ed =
     { ed | global = fn ed.global }
 
 
+updateWindow : (Window View -> Window View) -> Global -> Global
+updateWindow fn global =
+    { global | window = fn global.window }
+
+
 emptyView : View
 emptyView =
     { bufId = 0
