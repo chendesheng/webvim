@@ -24,6 +24,7 @@ module Internal.Window
         , getView
         , Direction(..)
         , toBorders
+        , Path
           --        , logWindow
         )
 
@@ -44,10 +45,14 @@ type Direction
     | RightChild
 
 
+type alias Path =
+    List Direction
+
+
 type alias Zipper a =
     { tree : Tree a
     , current : Tree a
-    , dirs : List Direction
+    , path : Path
     }
 
 
@@ -57,17 +62,17 @@ searchTree :
     Bool
     -> (a -> Bool)
     -> Tree a
-    -> List Direction
-    -> Maybe ( Tree a, List Direction )
-searchTree includeCurrent pred tree dirs =
+    -> Path
+    -> Maybe ( Tree a, Path )
+searchTree includeCurrent pred tree path =
     case tree of
         Node a left right ->
             if pred a && includeCurrent then
-                Just ( tree, dirs )
+                Just ( tree, path )
             else
-                case searchTree True pred left (LeftChild :: dirs) of
+                case searchTree True pred left (LeftChild :: path) of
                     Nothing ->
-                        searchTree True pred right (RightChild :: dirs)
+                        searchTree True pred right (RightChild :: path)
 
                     res ->
                         res
@@ -79,29 +84,29 @@ searchTree includeCurrent pred tree dirs =
 {-| find start from current position (include current position)
 -}
 find : Bool -> (a -> Bool) -> Zipper a -> Maybe (Zipper a)
-find includeCurrent pred ({ tree, current, dirs } as z) =
+find includeCurrent pred ({ tree, current, path } as z) =
     case current of
         Node a _ right ->
             case searchTree includeCurrent pred current [] of
                 Nothing ->
                     case
-                        dirs
+                        path
                             |> dropWhile ((==) RightChild)
                             |> List.tail
                             |> Maybe.andThen
-                                (\dirs1 ->
-                                    subtree (List.reverse dirs1) tree
-                                        |> Maybe.map (Tuple.pair dirs1)
+                                (\path1 ->
+                                    subtree (List.reverse path1) tree
+                                        |> Maybe.map (Tuple.pair path1)
                                 )
                     of
-                        Just ( dirs1, tree1 ) ->
+                        Just ( path1, tree1 ) ->
                             case tree1 of
                                 Node _ _ right1 ->
                                     find True
                                         pred
                                         { tree = tree
                                         , current = right1
-                                        , dirs = RightChild :: dirs1
+                                        , path = RightChild :: path1
                                         }
 
                                 _ ->
@@ -110,18 +115,18 @@ find includeCurrent pred ({ tree, current, dirs } as z) =
                         _ ->
                             Nothing
 
-                Just ( tree1, dirs1 ) ->
+                Just ( tree1, path1 ) ->
                     Just
                         { tree = tree
                         , current = tree1
-                        , dirs = dirs1 ++ dirs
+                        , path = path1 ++ path
                         }
 
         Empty ->
             Nothing
 
 
-findHelper : List Direction -> (a -> Bool) -> Tree a -> Maybe ( Tree a, List Direction )
+findHelper : Path -> (a -> Bool) -> Tree a -> Maybe ( Tree a, Path )
 findHelper path pred tree =
     case tree of
         Node a left right ->
@@ -139,49 +144,44 @@ findHelper path pred tree =
             Nothing
 
 
-subtree : List Direction -> Tree a -> Maybe (Tree a)
+subtree : Path -> Tree a -> Maybe (Tree a)
 subtree path tree =
     case path of
         dir :: rest ->
-            case dir of
-                LeftChild ->
-                    case tree of
-                        Node _ left _ ->
+            case tree of
+                Node _ left right ->
+                    case dir of
+                        LeftChild ->
                             subtree rest left
 
-                        _ ->
-                            Nothing
-
-                RightChild ->
-                    case tree of
-                        Node _ _ right ->
+                        RightChild ->
                             subtree rest right
 
-                        _ ->
-                            Nothing
+                _ ->
+                    Nothing
 
         _ ->
             Just tree
 
 
 updateSubtree : (Tree a -> Tree a) -> Zipper a -> Zipper a
-updateSubtree fn { tree, current, dirs } =
+updateSubtree fn ({ tree, current, path } as zipper) =
     let
-        dirs1 =
-            List.reverse dirs
+        path1 =
+            List.reverse path
 
         tree1 =
-            updateSubtreeHelper fn dirs1 tree
+            updateSubtreeHelper fn path1 tree
     in
-        { tree = tree1
-        , dirs = dirs
-        , current =
-            subtree dirs1 tree1
-                |> Maybe.withDefault Empty
+        { zipper
+            | tree = tree1
+            , current =
+                subtree path1 tree1
+                    |> Maybe.withDefault Empty
         }
 
 
-updateSubtreeHelper : (Tree a -> Tree a) -> List Direction -> Tree a -> Tree a
+updateSubtreeHelper : (Tree a -> Tree a) -> Path -> Tree a -> Tree a
 updateSubtreeHelper fn path tree =
     case path of
         dir :: rest ->
@@ -211,20 +211,20 @@ updateSubtreeHelper fn path tree =
 
 
 goRoot : Zipper a -> Zipper a
-goRoot { tree, current, dirs } =
+goRoot { tree, current, path } =
     { tree = tree
     , current = tree
-    , dirs = []
+    , path = []
     }
 
 
 goLeft : Zipper a -> Maybe (Zipper a)
-goLeft { tree, dirs, current } =
+goLeft { tree, path, current } =
     case current of
         Node _ left _ ->
             Just
                 { tree = tree
-                , dirs = LeftChild :: dirs
+                , path = LeftChild :: path
                 , current = left
                 }
 
@@ -233,8 +233,8 @@ goLeft { tree, dirs, current } =
 
 
 goParent : Zipper a -> Maybe (Zipper a)
-goParent { tree, dirs, current } =
-    case dirs of
+goParent { tree, path, current } =
+    case path of
         [] ->
             Nothing
 
@@ -245,18 +245,18 @@ goParent { tree, dirs, current } =
                     (\tree1 ->
                         { tree = tree
                         , current = tree1
-                        , dirs = ancests
+                        , path = ancests
                         }
                     )
 
 
 goRight : Zipper a -> Maybe (Zipper a)
-goRight { tree, dirs, current } =
+goRight { tree, path, current } =
     case current of
         Node _ _ right ->
             Just
                 { tree = tree
-                , dirs = RightChild :: dirs
+                , path = RightChild :: path
                 , current = right
                 }
 
@@ -265,8 +265,8 @@ goRight { tree, dirs, current } =
 
 
 isRoot : Zipper a -> Bool
-isRoot { dirs } =
-    List.isEmpty dirs
+isRoot { path } =
+    List.isEmpty path
 
 
 
@@ -285,7 +285,7 @@ type alias Window a =
 
 empty : Window a
 empty =
-    { tree = Empty, current = Empty, dirs = [] }
+    { tree = Empty, current = Empty, path = [] }
 
 
 initWindow : a -> Window a
@@ -296,7 +296,7 @@ initWindow view =
     in
         { tree = tree
         , current = tree
-        , dirs = []
+        , path = []
         }
 
 
@@ -372,7 +372,7 @@ removeCurrent win =
         _ ->
             let
                 isLeftChild =
-                    case win.dirs of
+                    case win.path of
                         LeftChild :: _ ->
                             True
 
@@ -406,25 +406,25 @@ activeNextView win =
 
 activeRightView : Window a -> Window a
 activeRightView win =
-    activeRightViewHelper (LeftChild :: win.dirs) win
+    activeRightViewHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
 activeLeftView : Window a -> Window a
 activeLeftView win =
-    activeLeftViewHelper (LeftChild :: win.dirs) win
+    activeLeftViewHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
 activeBottomView : Window a -> Window a
 activeBottomView win =
-    activeBottomViewHelper (LeftChild :: win.dirs) win
+    activeBottomViewHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
 activeTopView : Window a -> Window a
 activeTopView win =
-    activeTopViewHelper (LeftChild :: win.dirs) win
+    activeTopViewHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
@@ -442,9 +442,9 @@ activeTopView win =
 --        win
 
 
-activeRightViewHelper : List Direction -> Window a -> Maybe (Window a)
-activeRightViewHelper dirs ({ current } as win) =
-    case dirs of
+activeRightViewHelper : Path -> Window a -> Maybe (Window a)
+activeRightViewHelper path ({ current } as win) =
+    case path of
         [] ->
             Nothing
 
@@ -471,9 +471,9 @@ activeRightViewHelper dirs ({ current } as win) =
                     Nothing
 
 
-activeLeftViewHelper : List Direction -> Window a -> Maybe (Window a)
-activeLeftViewHelper dirs ({ current } as win) =
-    case dirs of
+activeLeftViewHelper : Path -> Window a -> Maybe (Window a)
+activeLeftViewHelper path ({ current } as win) =
+    case path of
         [] ->
             Nothing
 
@@ -500,9 +500,9 @@ activeLeftViewHelper dirs ({ current } as win) =
                     Nothing
 
 
-activeBottomViewHelper : List Direction -> Window a -> Maybe (Window a)
-activeBottomViewHelper dirs ({ current } as win) =
-    case dirs of
+activeBottomViewHelper : Path -> Window a -> Maybe (Window a)
+activeBottomViewHelper path ({ current } as win) =
+    case path of
         [] ->
             Nothing
 
@@ -529,9 +529,9 @@ activeBottomViewHelper dirs ({ current } as win) =
                     Nothing
 
 
-activeTopViewHelper : List Direction -> Window a -> Maybe (Window a)
-activeTopViewHelper dirs ({ current } as win) =
-    case dirs of
+activeTopViewHelper : Path -> Window a -> Maybe (Window a)
+activeTopViewHelper path ({ current } as win) =
+    case path of
         [] ->
             Nothing
 
@@ -631,9 +631,9 @@ updateActiveView fn =
         )
 
 
-getView : List Direction -> Window a -> Maybe a
-getView dirs win =
-    case subtree dirs win.tree of
+getView : Path -> Window a -> Maybe a
+getView path win =
+    case subtree (List.reverse path) win.tree of
         Just (Node (NoSplit view) left right) ->
             Just view
 
@@ -641,9 +641,9 @@ getView dirs win =
             Nothing
 
 
-updateView : List Direction -> (a -> a) -> Window a -> Window a
-updateView dirs fn win =
-    if dirs == win.dirs then
+updateView : Path -> (a -> a) -> Window a -> Window a
+updateView path fn win =
+    if path == win.path then
         updateActiveView fn win
     else
         { win
@@ -657,7 +657,7 @@ updateView dirs fn win =
                             _ ->
                                 tree1
                     )
-                    (List.reverse dirs)
+                    (List.reverse path)
                     win.tree
         }
 
@@ -672,7 +672,7 @@ mapView fn ({ tree } as win) =
             | tree = tree1
             , current =
                 tree1
-                    |> subtree win.dirs
+                    |> subtree (List.reverse win.path)
                     |> Maybe.withDefault Empty
         }
 
@@ -737,7 +737,7 @@ setSize percent win =
             Node (NoSplit <| getActiveView win) Empty Empty
 
         ( goChild, percent_ ) =
-            case win.dirs of
+            case win.path of
                 LeftChild :: _ ->
                     ( goLeft, percent )
 
@@ -764,8 +764,8 @@ setSize percent win =
 {-| For unit test and debugging
 -}
 toString : (a -> String) -> Window a -> String
-toString toStr { tree, dirs } =
-    treeToString toStr tree dirs [] 0 Nothing
+toString toStr { tree, path } =
+    treeToString toStr tree path [] 0 Nothing
 
 
 type alias Rect =
@@ -831,17 +831,17 @@ toBordersHelper tree rect =
 
 toList :
     Window a
-    -> List { view : a, rect : Rect, isActive : Bool, dirs : List Direction }
+    -> List { view : a, rect : Rect, isActive : Bool, path : Path }
 toList win =
-    toListHelper win.tree win.dirs []
+    toListHelper win.tree win.path []
 
 
 toListHelper :
     Tree (WindowSplit a)
-    -> List Direction
-    -> List Direction
-    -> List { view : a, rect : Rect, isActive : Bool, dirs : List Direction }
-toListHelper tree activeDirs dirs =
+    -> Path
+    -> Path
+    -> List { view : a, rect : Rect, isActive : Bool, path : Path }
+toListHelper tree activeViewPath path =
     let
         updateRect fn res =
             { res | rect = fn res.rect }
@@ -850,13 +850,13 @@ toListHelper tree activeDirs dirs =
             Node (NoSplit id) Empty Empty ->
                 [ { view = id
                   , rect = { x = 0, y = 0, width = 1.0, height = 1.0 }
-                  , isActive = activeDirs == dirs
-                  , dirs = dirs
+                  , isActive = activeViewPath == path
+                  , path = path
                   }
                 ]
 
             Node (VSplit percent) left right ->
-                (toListHelper left activeDirs (LeftChild :: dirs)
+                (toListHelper left activeViewPath (LeftChild :: path)
                     |> List.map
                         (updateRect
                             (\rect ->
@@ -867,7 +867,7 @@ toListHelper tree activeDirs dirs =
                             )
                         )
                 )
-                    ++ (toListHelper right activeDirs (RightChild :: dirs)
+                    ++ (toListHelper right activeViewPath (RightChild :: path)
                             |> List.map
                                 (updateRect
                                     (\rect ->
@@ -880,7 +880,7 @@ toListHelper tree activeDirs dirs =
                        )
 
             Node (HSplit percent) left right ->
-                (toListHelper left activeDirs (LeftChild :: dirs)
+                (toListHelper left activeViewPath (LeftChild :: path)
                     |> List.map
                         (updateRect
                             (\rect ->
@@ -891,7 +891,7 @@ toListHelper tree activeDirs dirs =
                             )
                         )
                 )
-                    ++ (toListHelper right activeDirs (RightChild :: dirs)
+                    ++ (toListHelper right activeViewPath (RightChild :: path)
                             |> List.map
                                 (updateRect
                                     (\rect ->
@@ -910,8 +910,8 @@ toListHelper tree activeDirs dirs =
 treeToString :
     (a -> String)
     -> Tree (WindowSplit a)
-    -> List Direction
-    -> List Direction
+    -> Path
+    -> Path
     -> Int
     -> Maybe (Tree (WindowSplit a))
     -> String

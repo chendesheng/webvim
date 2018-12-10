@@ -107,7 +107,7 @@ page global =
                                             in
                                                 case Dict.get view1.bufId global.buffers of
                                                     Just buf1 ->
-                                                        renderBuffer item.dirs rect view1 buf1 isActive global
+                                                        renderBuffer item.path rect view1 buf1 isActive global
 
                                                     _ ->
                                                         div [] []
@@ -228,8 +228,8 @@ isListenMouseWheel mode showTip lint =
             not showTip || List.isEmpty lint.items
 
 
-renderBuffer : List Win.Direction -> Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
-renderBuffer dirs rect view buf isActive global =
+renderBuffer : Win.Path -> Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
+renderBuffer path rect view buf isActive global =
     let
         { mode, lines, syntax, continuation, history } =
             buf
@@ -301,7 +301,7 @@ renderBuffer dirs rect view buf isActive global =
                 height
                 scrollTop1
 
-        mouseWheel h dirs1 =
+        mouseWheel h path1 =
             Events.on "mousewheel"
                 (Decode.map
                     (toFloat
@@ -309,7 +309,7 @@ renderBuffer dirs rect view buf isActive global =
                         >> floor
                         >> Basics.min (2 * h)
                         >> Basics.max (-2 * h)
-                        >> MouseWheel dirs1
+                        >> MouseWheel path1
                     )
                     (Decode.at [ "deltaY" ] Decode.int)
                 )
@@ -322,7 +322,7 @@ renderBuffer dirs rect view buf isActive global =
              , style "height" (percentStr rect.height)
              ]
                 ++ if isListenMouseWheel buf.mode showTip lint then
-                    [ mouseWheel lineHeight dirs ]
+                    [ mouseWheel lineHeight path ]
                    else
                     []
             )

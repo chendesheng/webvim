@@ -172,7 +172,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = True
-                          , dirs = [ LeftChild, LeftChild, LeftChild ]
+                          , path = [ LeftChild, LeftChild, LeftChild ]
                           }
                         , { view = 4
                           , rect =
@@ -182,7 +182,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = False
-                          , dirs = [ RightChild, LeftChild, LeftChild ]
+                          , path = [ RightChild, LeftChild, LeftChild ]
                           }
                         , { view = 3
                           , rect =
@@ -192,7 +192,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = False
-                          , dirs = [ RightChild, LeftChild ]
+                          , path = [ RightChild, LeftChild ]
                           }
                         , { view = 2
                           , rect =
@@ -202,7 +202,7 @@ v────v────@1    50%
                                 , height = 0.5
                                 }
                           , isActive = False
-                          , dirs = [ RightChild ]
+                          , path = [ RightChild ]
                           }
                         ]
             )

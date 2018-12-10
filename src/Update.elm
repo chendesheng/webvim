@@ -1791,8 +1791,8 @@ lintErrorToLocationList items =
         items
 
 
-onMouseWheel : List Win.Direction -> Int -> Editor -> ( Editor, Cmd Msg )
-onMouseWheel dirs delta ({ buf, global } as ed) =
+onMouseWheel : Win.Path -> Int -> Editor -> ( Editor, Cmd Msg )
+onMouseWheel path delta ({ buf, global } as ed) =
     let
         view =
             buf.view
@@ -1825,8 +1825,8 @@ onMouseWheel dirs delta ({ buf, global } as ed) =
                 }
 
 
-updateGlobalAfterChange : List Win.Direction -> Buffer -> Global -> Buffer -> Global -> Global
-updateGlobalAfterChange dirs oldBuf oldGlobal buf global =
+updateGlobalAfterChange : Win.Path -> Buffer -> Global -> Buffer -> Global -> Global
+updateGlobalAfterChange path oldBuf oldGlobal buf global =
     let
         isSwitchView =
             global.window /= oldGlobal.window
@@ -1835,7 +1835,7 @@ updateGlobalAfterChange dirs oldBuf oldGlobal buf global =
             if isSwitchView then
                 global.window
             else
-                Win.updateView dirs
+                Win.updateView path
                     (\view ->
                         Buf.resizeView view.size buf.view
                     )
@@ -1850,18 +1850,18 @@ updateGlobalAfterChange dirs oldBuf oldGlobal buf global =
 
 withEditor : (Editor -> ( Editor, Cmd Msg )) -> Global -> ( Global, Cmd Msg )
 withEditor fn global =
-    withEditorByView global.window.dirs fn global
+    withEditorByView global.window.path fn global
 
 
 withEditorByView :
-    List Win.Direction
+    Win.Path
     -> (Editor -> ( Editor, Cmd Msg ))
     -> Global
     -> ( Global, Cmd Msg )
-withEditorByView dirs fn global =
+withEditorByView path fn global =
     let
         view =
-            Win.getView dirs global.window
+            Win.getView path global.window
                 |> Maybe.withDefault emptyView
     in
         case Dict.get view.bufId global.buffers of
@@ -1871,7 +1871,7 @@ withEditorByView dirs fn global =
                 }
                     |> fn
                     |> Tuple.mapFirst
-                        (\ed -> updateGlobalAfterChange dirs buf global ed.buf ed.global)
+                        (\ed -> updateGlobalAfterChange path buf global ed.buf ed.global)
 
             _ ->
                 ( global, Cmd.none )
@@ -1881,15 +1881,15 @@ updateActiveBuffer : (Buffer -> Buffer) -> Global -> Global
 updateActiveBuffer fn global =
     getActiveBuffer global
         |> Maybe.map
-            (\buf -> updateGlobalAfterChange global.window.dirs buf global (fn buf) global)
+            (\buf -> updateGlobalAfterChange global.window.path buf global (fn buf) global)
         |> Maybe.withDefault global
 
 
 update : Msg -> Global -> ( Global, Cmd Msg )
 update message global =
     case message of
-        MouseWheel dirs delta ->
-            withEditorByView dirs (onMouseWheel dirs delta) global
+        MouseWheel path delta ->
+            withEditorByView path (onMouseWheel path delta) global
 
         PressKeys keys ->
             withEditor
