@@ -2033,7 +2033,7 @@ update message global =
                                                 |> Buf.addBuffer False buf1
                                                 |> updateWindow (Win.updateActiveView (always buf1.view))
                                     in
-                                        ( global2, Cmd.none )
+                                        ( global2, focusHiddenInput )
 
                                 _ ->
                                     ( updateActiveBuffer

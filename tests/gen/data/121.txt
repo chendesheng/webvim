@@ -1,0 +1,23 @@
+{
+||      aaa
+        ^
+-- Normal --
+}
+
+> *
+
+{
+||      aaa
+        ^
+/\\baaa\\b
+}
+
+> *i<space><escape>n
+
+{
+||       aaa
+         ^
+/\\baaa\\b
+}
+
+
