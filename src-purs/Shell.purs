@@ -22,12 +22,20 @@ execAsync ::
     -> Maybe (Readable ())
     -> Aff ExecResult
 execAsync cwd cmd maybeInput =
-  case
-    cmd 
+  execAsyncParams cwd
+    (cmd 
       # String.split (Pattern " ")
       # Array.filter ((/=) "")
-      # Array.uncons
-  of
+    )
+    maybeInput
+
+execAsyncParams ::
+    Maybe String
+    -> Array String
+    -> Maybe (Readable ())
+    -> Aff ExecResult
+execAsyncParams cwd params maybeInput =
+  case Array.uncons params of
     Just { head : name, tail : args } ->
       makeAff (\callback -> do
         let option = defaultExecOptions
@@ -49,4 +57,4 @@ execAsync cwd cmd maybeInput =
       )
 
     _ ->
-      throwError $ error $ "invalid command: " <> cmd
+      throwError $ error $ "invalid command: " <> String.joinWith " " params

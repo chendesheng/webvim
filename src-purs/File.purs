@@ -41,7 +41,7 @@ import Node.Stream
   )
 import Node.Process as Process
 import Prelude
-import Shell (execAsync)
+import Shell (execAsync, execAsyncParams)
 import Data.String (Pattern(..), stripSuffix)
 --import Data.String.Common (joinWith)
 import Node.FS.Stats (isDirectory, modifiedTime)
@@ -136,7 +136,7 @@ searchFiles :: Response -> String -> String -> Aff Unit
 searchFiles resp cwd s = do
   affLog ("searchFiles: " <> s <> " in " <> show cwd)
   let outputStream = responseAsStream resp
-  result <- execAsync (Just cwd) ("rg --vimgrep " <> s) Nothing
+  result <- execAsyncParams (Just cwd) ["rg", "--vimgrep", s] Nothing
   affWriteStdout outputStream result
 
 

@@ -22,6 +22,8 @@ import Helper.Helper
         , resolvePath
         , relativePath
         , findFirst
+        , isSpace
+        , notSpace
         )
 import Vim.Parser exposing (parse)
 import Vim.AST as V exposing (Operator(..))
@@ -55,6 +57,8 @@ import Update.Jump exposing (..)
 import Update.Range exposing (visualRegions)
 import Browser.Dom as Dom
 import Process
+import Regex as Re exposing (Regex)
+import Parser as P exposing (Parser, (|.), (|=))
 
 
 stringToPrefix : String -> ExPrefix
@@ -1109,10 +1113,8 @@ applyEdit count edit register ({ buf } as ed) =
                                             global.cwd
                                         else
                                             s
-                                                |> String.trim
-                                                |> String.split " "
-                                                |> getLast
-                                                |> Maybe.withDefault ""
+                                                |> splitFirstSpace
+                                                |> Tuple.second
                                                 |> getPath
                                                     global.pathSeperator
                                                     global.homedir
@@ -1265,6 +1267,28 @@ editTestBuffer path ({ buf, global } as ed) =
             { ed | global = global2 }
 
 
+splitFirstSpace : String -> ( String, String )
+splitFirstSpace str =
+    str
+        |> String.trim
+        |> P.run
+            (P.succeed
+                (\a b c s ->
+                    ( String.slice 0 a s
+                    , String.slice b c s
+                    )
+                )
+                |. P.chompWhile (notSpace)
+                |= P.getOffset
+                |. P.chompWhile isSpace
+                |= P.getOffset
+                |. P.chompWhile (notSpace)
+                |= P.getOffset
+                |= P.getSource
+            )
+        |> Result.withDefault ( str, "" )
+
+
 execute : Maybe Int -> String -> String -> Editor -> ( Editor, Cmd Msg )
 execute count register str ({ buf, global } as ed) =
     let
@@ -1283,24 +1307,20 @@ execute count register str ({ buf, global } as ed) =
                     replaceActiveView
                     ed
     in
-        case
-            str
-                |> String.trim
-                |> String.split " "
-        of
-            [ "e", path ] ->
+        case splitFirstSpace str of
+            ( "e", path ) ->
                 edit path
 
-            [ "o", path ] ->
+            ( "o", path ) ->
                 edit path
 
-            [ "b", path ] ->
+            ( "b", path ) ->
                 edit path
 
-            [ "w" ] ->
+            ( "w", "" ) ->
                 ( ed, sendWriteBuffer global.service buf.path buf )
 
-            [ "ll" ] ->
+            ( "ll", "" ) ->
                 let
                     n =
                         (Maybe.withDefault 1 count) - 1
@@ -1314,18 +1334,18 @@ execute count register str ({ buf, global } as ed) =
                             , Cmd.none
                             )
 
-            [ "f", s ] ->
+            ( "f", s ) ->
                 ( ed, sendSearch global.service global.cwd s )
 
-            [ "copy" ] ->
+            ( "copy", "" ) ->
                 yankWholeBuffer ed
 
-            [ "cd" ] ->
+            ( "cd", "" ) ->
                 ( updateBuffer (Buf.infoMessage global.cwd) ed
                 , Cmd.none
                 )
 
-            [ "cd", cwd ] ->
+            ( "cd", cwd ) ->
                 ( ed
                 , cwd
                     |> replaceHomeDir global.homedir
@@ -1335,12 +1355,12 @@ execute count register str ({ buf, global } as ed) =
                     |> sendCd global.service
                 )
 
-            [ "mkdir" ] ->
+            ( "mkdir", "" ) ->
                 ( { ed | buf = Buf.errorMessage "Argument Error: mkdir path" buf }
                 , Cmd.none
                 )
 
-            [ "mkdir", path ] ->
+            ( "mkdir", path ) ->
                 ( ed
                 , path
                     |> replaceHomeDir global.homedir
@@ -1350,7 +1370,7 @@ execute count register str ({ buf, global } as ed) =
                     |> sendMkDir global.service
                 )
 
-            [ "vsp" ] ->
+            ( "vsp", "" ) ->
                 ( { ed
                     | global =
                         { global
@@ -1361,7 +1381,7 @@ execute count register str ({ buf, global } as ed) =
                 , Cmd.none
                 )
 
-            [ "hsp" ] ->
+            ( "hsp", "" ) ->
                 ( { ed
                     | global =
                         { global
@@ -1372,7 +1392,7 @@ execute count register str ({ buf, global } as ed) =
                 , Cmd.none
                 )
 
-            [ "q" ] ->
+            ( "q", "" ) ->
                 ( { ed
                     | global =
                         { global
@@ -1383,10 +1403,10 @@ execute count register str ({ buf, global } as ed) =
                 , Cmd.none
                 )
 
-            [ "on" ] ->
+            ( "on", "" ) ->
                 ( ed, Cmd.none )
 
-            [ s ] ->
+            ( s, "" ) ->
                 case String.toInt s of
                     Just n ->
                         runOperator (Just n)
