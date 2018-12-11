@@ -91,66 +91,60 @@ patchCursor patch =
 
 shiftPositionByRegionChange : RegionChange -> Position -> Position
 shiftPositionByRegionChange change pos =
-    let
-        --_ =
-        --Debug.log "patch pos" ( change, pos, res )
-        res =
-            case change of
-                RegionAdd ( begin, end ) ->
-                    if pos < begin then
+    case change of
+        RegionAdd ( begin, end ) ->
+            if pos < begin then
+                pos
+            else
+                let
+                    ( py, px ) =
                         pos
-                    else
-                        let
-                            ( py, px ) =
-                                pos
 
-                            ( by, bx ) =
-                                begin
-
-                            ( ey, ex ) =
-                                end
-
-                            dy =
-                                ey - by
-
-                            dx =
-                                ex - bx
-                        in
-                            if dy == 0 then
-                                if py == by then
-                                    ( py, px + dx )
-                                else
-                                    pos
-                            else if py == by then
-                                ( py + dy, px + ex )
-                            else
-                                ( py + dy, px )
-
-                RegionRemove ( begin, end ) ->
-                    if pos < begin then
-                        pos
-                    else if pos >= end then
-                        let
-                            ( by, bx ) =
-                                begin
-
-                            ( ey, ex ) =
-                                end
-
-                            ( py, px ) =
-                                pos
-                        in
-                            if ey == py then
-                                if by == ey then
-                                    ( py, px - (ex - bx) )
-                                else
-                                    ( py - (ey - by), px - ex )
-                            else
-                                ( py - (ey - by), px )
-                    else
+                    ( by, bx ) =
                         begin
-    in
-        res
+
+                    ( ey, ex ) =
+                        end
+
+                    dy =
+                        ey - by
+
+                    dx =
+                        ex - bx
+                in
+                    if dy == 0 then
+                        if py == by then
+                            ( py, px + dx )
+                        else
+                            pos
+                    else if py == by then
+                        ( py + dy, px + ex )
+                    else
+                        ( py + dy, px )
+
+        RegionRemove ( begin, end ) ->
+            if pos < begin then
+                pos
+            else if pos >= end then
+                let
+                    ( by, bx ) =
+                        begin
+
+                    ( ey, ex ) =
+                        end
+
+                    ( py, px ) =
+                        pos
+                in
+                    if ey == py then
+                        if by == ey then
+                            ( py, px - (ex - bx) )
+                        else
+                            ( py - (ey - by), px - ex )
+                    else
+                        ( py - (ey - by), px )
+            else
+                begin
 
 
 mergePatch : Patch -> Patch -> Maybe Patch

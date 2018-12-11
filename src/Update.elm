@@ -1618,6 +1618,7 @@ applyDiff ed =
 
         diff =
             buf.history.diff
+                |> List.reverse
 
         global1 =
             ed.global
