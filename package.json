@@ -37,7 +37,7 @@
     "chokidar": "^2.0.4",
     "clean-css": "^4.1.11",
     "debounce": "^1.1.0",
-    "elm-minify": "^1.4.0",
+    "elm-minify": "^1.5.3",
     "eslint": "^4.19.1",
     "eslint-config-google": "^0.9.1",
     "execa": "^0.10.0",

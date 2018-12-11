@@ -42,15 +42,17 @@ function generateMetaInfo(version, commit, code) {
   ${code}`;
 }
 
-const elmMinify = (path) => {
-  console.log('Elm minify...');
-  shell(`./node_modules/.bin/elm-minify ${path} --replace`);
-};
+// const elmMinify = (path) => {
+//   console.log('Elm minify...');
+//   shell(`./node_modules/.bin/elm-minify ${path} --replace`);
+// };
 
 const releaseFrontEnd = () => {
   const bundlepath = 'dist/.bundle.js';
   shell(`elm make src/Main.elm --output ${bundlepath} --optimize`);
-  elmMinify(bundlepath);
+  // elmMinify breaks a feature,
+  // elm code `case maybeRegex of` will throw exception in some cases
+  // elmMinify(bundlepath);
 
   const code = generateMetaInfo(version, commit, [read('dist/.bundle.js'),
     read('build/index.js')

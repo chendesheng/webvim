@@ -1457,6 +1457,16 @@ handleKeypress replaying key ({ buf, global } as ed) =
                 applyVimAST replaying key ast ed1
 
 
+
+--log : String -> (a -> b) -> a -> a
+--log message selector a =
+--    let
+--        _ =
+--            Debug.log message (selector a)
+--    in
+--        a
+
+
 serviceBeforeApplyVimAST : Bool -> Key -> AST -> String -> Maybe (Cmd Msg)
 serviceBeforeApplyVimAST replaying key ast service =
     case ast.edit of
@@ -1850,25 +1860,17 @@ onMouseWheel path delta ({ buf, global } as ed) =
 
 updateGlobalAfterChange : Win.Path -> Buffer -> Global -> Buffer -> Global -> Global
 updateGlobalAfterChange path oldBuf oldGlobal buf global =
-    let
-        isSwitchView =
-            global.window /= oldGlobal.window
-
-        window =
-            if isSwitchView then
-                global.window
-            else
+    { global
+        | buffers =
+            Dict.insert buf.id buf global.buffers
+        , window =
+            if global.window == oldGlobal.window then
                 Win.updateView path
-                    (\view ->
-                        Buf.resizeView view.size buf.view
-                    )
+                    (\{ size } -> Buf.resizeView size buf.view)
                     global.window
-    in
-        { global
-            | buffers =
-                Dict.insert buf.id buf global.buffers
-            , window = window
-        }
+            else
+                global.window
+    }
 
 
 withEditor : (Editor -> ( Editor, Cmd Msg )) -> Global -> ( Global, Cmd Msg )
@@ -1894,7 +1896,13 @@ withEditorByView path fn global =
                 }
                     |> fn
                     |> Tuple.mapFirst
-                        (\ed -> updateGlobalAfterChange path buf global ed.buf ed.global)
+                        (\ed ->
+                            updateGlobalAfterChange path
+                                buf
+                                global
+                                ed.buf
+                                ed.global
+                        )
 
             _ ->
                 ( global, Cmd.none )
@@ -1952,81 +1960,7 @@ update message global =
             ( global, Cmd.none )
 
         Read result ->
-            case getActiveBuffer global of
-                Just _ ->
-                    withEditor (\ed -> ( onRead result ed, Cmd.none ))
-                        global
-                        |> Tuple.mapSecond (always focusHiddenInput)
-
-                _ ->
-                    case result of
-                        Ok buf ->
-                            let
-                                buf1 =
-                                    buf
-                                        |> Buf.transaction buf.history.changes
-                                        |> Buf.updateView (Buf.setCursor buf.view.cursor True)
-                                        |> Buf.updateHistory (always buf.history)
-                                        |> correctCursor
-                                        |> pairCursor buf.view.size
-
-                                global1 =
-                                    if
-                                        buf1.id
-                                            == (Win.getActiveView global.window
-                                                    |> Maybe.map .bufId
-                                                    |> Maybe.withDefault 0
-                                               )
-                                    then
-                                        { global
-                                            | window =
-                                                Win.updateActiveView
-                                                    (always buf1.view)
-                                                    global.window
-                                        }
-                                    else
-                                        global
-                            in
-                                ( Buf.addBuffer False buf1 global1
-                                , focusHiddenInput
-                                )
-
-                        Err (Http.BadStatus resp) ->
-                            case resp.status.code of
-                                404 ->
-                                    let
-                                        ( global1, buf1 ) =
-                                            createBuffer resp.body
-                                                (Win.getActiveView global.window
-                                                    |> Maybe.map .size
-                                                    |> Maybe.withDefault global.size
-                                                )
-                                                global
-
-                                        global2 =
-                                            global1
-                                                |> Buf.addBuffer False buf1
-                                                |> updateWindow (Win.updateActiveView (always buf1.view))
-                                    in
-                                        ( global2, focusHiddenInput )
-
-                                _ ->
-                                    ( updateActiveBuffer
-                                        (Buf.errorMessage
-                                            ("read " ++ resp.body ++ " failed")
-                                        )
-                                        global
-                                    , Cmd.none
-                                    )
-
-                        _ ->
-                            ( updateActiveBuffer
-                                (Buf.errorMessage
-                                    ("read failed")
-                                )
-                                global
-                            , Cmd.none
-                            )
+            withEditor (\ed -> ( onRead result ed, focusHiddenInput )) global
 
         Write result ->
             withEditor (onWrite result) global
@@ -2338,10 +2272,8 @@ resizeViews size lineHeight =
             Buf.resizeView
                 { width = (ceiling <| toFloat size.width * widthPercent)
                 , height =
-                    getViewHeight
-                        (ceiling <| toFloat size.height * heightPercent)
-                        lineHeight
-                        0
+                    (ceiling <| toFloat size.height * heightPercent)
+                        // lineHeight
                 }
                 view
         )
@@ -2575,9 +2507,9 @@ initCommand =
     sendBoot
 
 
-getViewHeight : Int -> Int -> Int -> Int
-getViewHeight heightPx lineHeightPx statusbarHeight =
-    heightPx // lineHeightPx - statusbarHeight
+getViewHeight : Int -> Int -> Int
+getViewHeight heightPx lineHeightPx =
+    heightPx // lineHeightPx
 
 
 init : Flags -> ( Global, Cmd Msg )
@@ -2593,13 +2525,13 @@ init flags =
         { window, registers, height, pathSeperator, exHistory } =
             flags
 
-        viewHeight =
-            getViewHeight height lineHeight emptyGlobal.statusbarHeight
-
         size =
             { width = 1
-            , height = height - (emptyGlobal.statusbarHeight * lineHeight)
+            , height = height
             }
+
+        viewHeight =
+            height // lineHeight - emptyGlobal.statusbarHeight
 
         decodedBuffers =
             buffers

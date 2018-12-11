@@ -227,11 +227,7 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                                 | window =
                                     setView b.view global2.window
                             }
-                                |> (if isTempBuffer path then
-                                        Buf.addBuffer False b
-                                    else
-                                        identity
-                                   )
+                                |> Buf.addBuffer False b
                       }
                     , if isTempBuffer path then
                         Cmd.none
