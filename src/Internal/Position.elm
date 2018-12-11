@@ -1,4 +1,4 @@
-module Internal.Position exposing (..)
+module Internal.Position exposing (Position, endPositionDecoder, excludeRight, positionAdd, positionBound, positionDecoder, positionMax, positionMin, positionNeg, positionShiftLeft, positionSub, regionDecoder)
 
 import Json.Decode as Decode
 
@@ -28,8 +28,10 @@ positionBound : Position -> Position -> Position -> Position
 positionBound min max pos =
     if pos < min then
         min
+
     else if pos > max then
         max
+
     else
         pos
 
@@ -38,6 +40,7 @@ positionMin : Position -> Position -> Position
 positionMin a b =
     if a < b then
         a
+
     else
         b
 
@@ -46,6 +49,7 @@ positionMax : Position -> Position -> Position
 positionMax a b =
     if a < b then
         b
+
     else
         a
 

@@ -1,13 +1,13 @@
-module Update.Message exposing (..)
+module Update.Message exposing (BufferIdentifier, IMEMsg(..), Msg(..), TokenizeRequest, TokenizeResponse(..))
 
-import Result
 import Http
-import Internal.Syntax exposing (Token, Syntax)
-import Vim.AST exposing (AST)
 import Internal.Jumps exposing (Location)
+import Internal.Syntax exposing (Syntax, Token)
 import Internal.TextBuffer as B exposing (Patch)
-import Model exposing (Key, LintError, Buffer, Flags, Size, IME)
 import Internal.Window exposing (Path)
+import Model exposing (Buffer, Flags, IME, Key, LintError, Size)
+import Result
+import Vim.AST exposing (AST)
 
 
 type alias BufferIdentifier =

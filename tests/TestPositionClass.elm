@@ -1,14 +1,14 @@
-module TestPositionClass exposing (..)
+module TestPositionClass exposing (TestCase(..), filterByIndex, isEven, isOdd, suite)
 
 import Expect exposing (Expectation)
-import Test exposing (..)
 import Internal.PositionClass exposing (..)
+import Test exposing (..)
 import Vim.AST
     exposing
-        ( MotionData(..)
+        ( Direction(..)
+        , MotionData(..)
         , MotionOption
         , motionOption
-        , Direction(..)
         )
 
 
@@ -29,6 +29,7 @@ filterByIndex pred lst =
             (\i a ->
                 if pred i then
                     Just a
+
                 else
                     Nothing
             )
@@ -567,53 +568,53 @@ a h
 """
                         ]
         in
-            List.map
-                (\(TestCase md option testcase) ->
-                    test
-                        (String.join " "
-                            [ Debug.toString md, option, testcase ]
-                        )
-                    <|
-                        \_ ->
-                            case String.lines testcase of
-                                [ _, line, cursor, _ ] ->
-                                    let
-                                        both =
-                                            String.indexes "$" cursor
-                                                |> List.head
+        List.map
+            (\(TestCase md option testcase) ->
+                test
+                    (String.join " "
+                        [ Debug.toString md, option, testcase ]
+                    )
+                <|
+                    \_ ->
+                        case String.lines testcase of
+                            [ _, line, cursor, _ ] ->
+                                let
+                                    both =
+                                        String.indexes "$" cursor
+                                            |> List.head
 
-                                        start =
-                                            case both of
-                                                Just n ->
-                                                    n
+                                    start =
+                                        case both of
+                                            Just n ->
+                                                n
 
-                                                _ ->
-                                                    String.indexes "^" cursor
-                                                        |> List.head
-                                                        |> Maybe.withDefault 0
+                                            _ ->
+                                                String.indexes "^" cursor
+                                                    |> List.head
+                                                    |> Maybe.withDefault 0
 
-                                        result =
-                                            case both of
-                                                Just n ->
-                                                    Just n
+                                    result =
+                                        case both of
+                                            Just n ->
+                                                Just n
 
-                                                _ ->
-                                                    String.indexes "?" cursor
-                                                        |> List.head
+                                            _ ->
+                                                String.indexes "?" cursor
+                                                    |> List.head
 
-                                        mo =
-                                            motionOption option
-                                    in
-                                        Expect.equal
-                                            result
-                                            (findPosition ""
-                                                md
-                                                mo
-                                                line
-                                                start
-                                            )
+                                    mo =
+                                        motionOption option
+                                in
+                                Expect.equal
+                                    result
+                                    (findPosition ""
+                                        md
+                                        mo
+                                        line
+                                        start
+                                    )
 
-                                _ ->
-                                    Expect.fail "wrong test case"
-                )
-                cases
+                            _ ->
+                                Expect.fail "wrong test case"
+            )
+            cases

@@ -1,4 +1,27 @@
-module Vim.AST exposing (..)
+module Vim.AST exposing
+    ( AST
+    , ChangeCase(..)
+    , Direction(..)
+    , Key
+    , ModeDelta
+    , ModeName(..)
+    , MotionData(..)
+    , MotionOption
+    , Operator(..)
+    , OperatorRange(..)
+    , Register
+    , ScrollPosition(..)
+    , StateChange(..)
+    , StringType(..)
+    , SwitchViewType(..)
+    , TextObject(..)
+    , VisualType(..)
+    , defaultRegister
+    , emptyMotionOption
+    , initialMode
+    , isVisualRange
+    , motionOption
+    )
 
 
 type alias Key =
@@ -197,90 +220,105 @@ motionOption s =
         , crossLine = True
         , linewise = True
         }
+
     else if s == "<]+=" then
         { forward = False
         , inclusive = True
         , crossLine = True
         , linewise = True
         }
+
     else if s == ">)+=" then
         { forward = True
         , inclusive = False
         , crossLine = True
         , linewise = True
         }
+
     else if s == ">]$=" then
         { forward = True
         , inclusive = True
         , crossLine = False
         , linewise = True
         }
+
     else if s == ">]+-" then
         { forward = True
         , inclusive = True
         , crossLine = True
         , linewise = False
         }
+
     else if s == "<)+=" then
         { forward = False
         , inclusive = False
         , crossLine = True
         , linewise = True
         }
+
     else if s == "<]$=" then
         { forward = False
         , inclusive = True
         , crossLine = False
         , linewise = True
         }
+
     else if s == "<]+-" then
         { forward = False
         , inclusive = True
         , crossLine = True
         , linewise = False
         }
+
     else if s == ">)$=" then
         { forward = True
         , inclusive = False
         , crossLine = False
         , linewise = True
         }
+
     else if s == ">)+-" then
         { forward = True
         , inclusive = False
         , crossLine = True
         , linewise = False
         }
+
     else if s == ">]$-" then
         { forward = True
         , inclusive = True
         , crossLine = False
         , linewise = False
         }
+
     else if s == "<)$=" then
         { forward = False
         , inclusive = False
         , crossLine = False
         , linewise = True
         }
+
     else if s == "<]$-" then
         { forward = False
         , inclusive = True
         , crossLine = False
         , linewise = False
         }
+
     else if s == "<)+-" then
         { forward = False
         , inclusive = False
         , crossLine = True
         , linewise = False
         }
+
     else if s == ">)$-" then
         { forward = True
         , inclusive = False
         , crossLine = False
         , linewise = False
         }
+
     else
         emptyMotionOption
 

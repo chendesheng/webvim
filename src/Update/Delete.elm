@@ -1,18 +1,17 @@
-module Update.Delete
-    exposing
-        ( delete
-        , join
-        , toRegisterText
-        )
+module Update.Delete exposing
+    ( delete
+    , join
+    , toRegisterText
+    )
 
-import Update.Range exposing (operatorRanges, isLinewise)
-import Model exposing (..)
-import Vim.AST as V exposing (Operator(..))
+import Helper.Helper exposing (getLast)
+import Internal.PositionClass exposing (findLineFirst)
 import Internal.TextBuffer as B exposing (Patch(..))
+import Model exposing (..)
 import Update.Buffer as Buf
 import Update.Motion exposing (..)
-import Internal.PositionClass exposing (findLineFirst)
-import Helper.Helper exposing (getLast)
+import Update.Range exposing (isLinewise, operatorRanges)
+import Vim.AST as V exposing (Operator(..))
 
 
 deleteOperator : Maybe Int -> V.OperatorRange -> Global -> Buffer -> List Patch
@@ -34,10 +33,11 @@ deleteOperator count range global buf =
         --        _ ->
         --            Nothing
     in
-        if List.isEmpty ranges then
-            []
-        else
-            List.map (\( begin, end ) -> Deletion begin end) ranges
+    if List.isEmpty ranges then
+        []
+
+    else
+        List.map (\( begin, end ) -> Deletion begin end) ranges
 
 
 delete : Maybe Int -> String -> V.OperatorRange -> Editor -> Editor
@@ -49,7 +49,7 @@ delete count register rg ({ global, buf } as ed) =
                 view =
                     buf_.view
             in
-                { buf_ | view = { view | cursorColumn = Tuple.second buf_.view.cursor } }
+            { buf_ | view = { view | cursorColumn = Tuple.second buf_.view.cursor } }
 
         linewise =
             isLinewise rg buf.mode
@@ -71,81 +71,84 @@ delete count register rg ({ global, buf } as ed) =
                                 _ ->
                                     buf__
                     in
-                        buf_
-                            |> Buf.transaction patches
-                            |> setCursor
+                    buf_
+                        |> Buf.transaction patches
+                        |> setCursor
     in
-        case buf.mode of
-            Ex ({ exbuf } as ex) ->
-                -- FIXME: too hack!!
-                case rg of
-                    V.MotionRange md mo ->
-                        case md of
-                            V.MatchString _ ->
-                                let
-                                    buf1 =
-                                        doDelete buf
-                                in
-                                    if buf1.motionFailed then
-                                        { ed
-                                            | global = saveMotion md mo buf buf1 global
-                                            , buf = buf1
-                                        }
-                                    else
-                                        { ed
-                                            | global =
-                                                global
-                                                    |> saveLastDeleted linewise register buf1
-                                                    |> saveMotion md mo buf buf1
-                                            , buf = updateCursorColumn buf1
-                                        }
-
-                            _ ->
+    case buf.mode of
+        Ex ({ exbuf } as ex) ->
+            -- FIXME: too hack!!
+            case rg of
+                V.MotionRange md mo ->
+                    case md of
+                        V.MatchString _ ->
+                            let
+                                buf1 =
+                                    doDelete buf
+                            in
+                            if buf1.motionFailed then
                                 { ed
-                                    | buf =
-                                        Buf.setMode
-                                            (Ex { ex | exbuf = doDelete exbuf })
-                                            buf
+                                    | global = saveMotion md mo buf buf1 global
+                                    , buf = buf1
                                 }
 
-                    _ ->
-                        { ed
-                            | buf =
-                                Buf.setMode
-                                    (Ex { ex | exbuf = doDelete exbuf })
-                                    buf
-                        }
+                            else
+                                { ed
+                                    | global =
+                                        global
+                                            |> saveLastDeleted linewise register buf1
+                                            |> saveMotion md mo buf buf1
+                                    , buf = updateCursorColumn buf1
+                                }
 
-            Insert _ ->
+                        _ ->
+                            { ed
+                                | buf =
+                                    Buf.setMode
+                                        (Ex { ex | exbuf = doDelete exbuf })
+                                        buf
+                            }
+
+                _ ->
+                    { ed
+                        | buf =
+                            Buf.setMode
+                                (Ex { ex | exbuf = doDelete exbuf })
+                                buf
+                    }
+
+        Insert _ ->
+            { ed
+                | buf =
+                    buf
+                        |> doDelete
+                        |> Buf.setLastIndent 0
+            }
+
+        _ ->
+            let
+                buf1 =
+                    doDelete buf
+            in
+            if buf1.motionFailed then
+                { ed | buf = buf1 }
+
+            else
                 { ed
-                    | buf =
-                        buf
-                            |> doDelete
-                            |> Buf.setLastIndent 0
+                    | global =
+                        saveLastDeleted linewise register buf1 global
+                    , buf =
+                        buf1
+                            |> indentCursor linewise
+                            |> updateCursorColumn
                 }
-
-            _ ->
-                let
-                    buf1 =
-                        doDelete buf
-                in
-                    if buf1.motionFailed then
-                        { ed | buf = buf1 }
-                    else
-                        { ed
-                            | global =
-                                saveLastDeleted linewise register buf1 global
-                            , buf =
-                                buf1
-                                    |> indentCursor linewise
-                                    |> updateCursorColumn
-                        }
 
 
 indentCursor : Bool -> Buffer -> Buffer
 indentCursor linewise buf =
     if linewise then
         Buf.indentCursorToLineFirst buf
+
     else
         buf
 
@@ -156,9 +159,11 @@ toRegisterText linewise s =
         Lines
             (if String.endsWith B.lineBreak s then
                 s
+
              else
                 s ++ B.lineBreak
             )
+
     else
         Text s
 
@@ -173,7 +178,7 @@ saveLastDeleted linewise reg buf global =
                 |> Maybe.withDefault ""
                 |> toRegisterText linewise
     in
-        Buf.setRegister reg s global
+    Buf.setRegister reg s global
 
 
 join : Maybe Int -> Bool -> Buffer -> Buffer
@@ -182,33 +187,34 @@ join count collapseSpaces buf =
         ( y, x ) =
             buf.view.cursor
     in
-        case buf.mode of
-            Visual { begin, end } ->
-                let
-                    yb =
-                        Tuple.first begin
+    case buf.mode of
+        Visual { begin, end } ->
+            let
+                yb =
+                    Tuple.first begin
 
-                    ye =
-                        Tuple.first end
+                ye =
+                    Tuple.first end
 
-                    lineRange =
-                        if yb == ye then
-                            [ yb ]
-                        else
-                            List.repeat (abs (yb - ye)) (min yb ye)
-                in
-                    joinLines collapseSpaces lineRange buf
+                lineRange =
+                    if yb == ye then
+                        [ yb ]
 
-            _ ->
-                joinLines collapseSpaces
-                    (List.repeat
-                        (count
-                            |> Maybe.map (\n -> max (n - 1) 1)
-                            |> Maybe.withDefault 1
-                        )
-                        y
+                    else
+                        List.repeat (abs (yb - ye)) (min yb ye)
+            in
+            joinLines collapseSpaces lineRange buf
+
+        _ ->
+            joinLines collapseSpaces
+                (List.repeat
+                    (count
+                        |> Maybe.map (\n -> max (n - 1) 1)
+                        |> Maybe.withDefault 1
                     )
-                    buf
+                    y
+                )
+                buf
 
 
 joinLines : Bool -> List Int -> Buffer -> Buffer
@@ -235,28 +241,30 @@ joinHelper collapseSpaces y buf =
                             , findLineFirst nextLine
                             )
                         ]
-                            ++ if
-                                (line == B.lineBreak)
-                                    || (String.endsWith
+                            ++ (if
+                                    (line == B.lineBreak)
+                                        || String.endsWith
                                             (" " ++ B.lineBreak)
                                             line
-                                       )
-                               then
-                                []
-                               else
-                                [ Insertion
-                                    ( y, lineEnd - 1 )
-                                    (B.fromString " ")
-                                ]
+                                then
+                                    []
+
+                                else
+                                    [ Insertion
+                                        ( y, lineEnd - 1 )
+                                        (B.fromString " ")
+                                    ]
+                               )
+
                     else
                         [ Deletion
                             ( y, lineEnd - 1 )
                             ( y, lineEnd )
                         ]
             in
-                buf
-                    |> Buf.transaction patches
-                    |> Buf.updateView (Buf.setCursor newCursor True)
+            buf
+                |> Buf.transaction patches
+                |> Buf.updateView (Buf.setCursor newCursor True)
         )
         (B.getLine y buf.lines)
         (B.getLine (y + 1) buf.lines)

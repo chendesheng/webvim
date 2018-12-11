@@ -1,22 +1,21 @@
-module Helper.Helper exposing (..)
+module Helper.Helper exposing (arrayInsert, charAt, charWidthType, chompUntilAfter, dec, dropWhile, escapeRegex, extname, filename, findFirst, findIndex, floorFromZero, fromListBy, getLast, inc, isAbsolutePath, isBetween, isPathChar, isSingleChar, isSpace, joinPath, keepOneOrMore, keepZeroOrMore, maybeAndThen2, minMaybe, normalizePath, notSpace, nthList, oneOrMore, parseWords, pathBase, pathFileName, reEmoji, regex, regexWith, relativePath, repeatParser, repeatfn, replaceHomeDir, resolvePath, rightChar, safeRegex, spaceInline, swapCase, word)
 
-import Dict exposing (Dict)
-import Regex as Re exposing (Regex)
-import Char
-import Parser as P exposing ((|.), (|=), Parser)
 import Array as Array exposing (Array)
+import Char
+import Dict exposing (Dict)
+import Parser as P exposing ((|.), (|=), Parser)
+import Regex as Re exposing (Regex)
 
 
 repeatParser : Parser a -> Parser (List a)
 repeatParser parser =
     P.loop [] <|
-        (\items ->
+        \items ->
             P.oneOf
                 [ P.succeed (\item -> P.Loop (item :: items))
                     |= parser
                 , P.succeed (P.Done <| List.reverse items)
                 ]
-        )
 
 
 getLast : List a -> Maybe a
@@ -36,8 +35,10 @@ minMaybe : Maybe Int -> Maybe Int -> Maybe Int
 minMaybe a b =
     if a == Nothing then
         b
+
     else if b == Nothing then
         a
+
     else
         Maybe.map2 Basics.min a b
 
@@ -81,6 +82,7 @@ findFirst pred list =
         first :: rest ->
             if pred first then
                 Just first
+
             else
                 findFirst pred rest
 
@@ -96,10 +98,11 @@ findIndex =
                 first :: rest ->
                     if pred first then
                         Just i
+
                     else
                         findIndexHelper (i + 1) pred rest
     in
-        findIndexHelper 0
+    findIndexHelper 0
 
 
 repeatfn : number -> (a -> Maybe a) -> a -> Maybe a
@@ -108,6 +111,7 @@ repeatfn n f =
         fn i arg =
             if i == 0 then
                 Just arg
+
             else
                 case f arg of
                     Just arg1 ->
@@ -116,7 +120,7 @@ repeatfn n f =
                     _ ->
                         Nothing
     in
-        fn n
+    fn n
 
 
 safeRegex : String -> Maybe Regex
@@ -130,7 +134,7 @@ isSpace c =
         code =
             Char.toCode c
     in
-        code < 20 || code == 32
+    code < 20 || code == 32
 
 
 notSpace : Char -> Bool
@@ -139,7 +143,7 @@ notSpace c =
         code =
             Char.toCode c
     in
-        code >= 20 && code /= 32
+    code >= 20 && code /= 32
 
 
 isBetween : Char -> Char -> Char -> Bool
@@ -148,7 +152,7 @@ isBetween low high char =
         code =
             Char.toCode char
     in
-        (code >= Char.toCode low) && (code <= Char.toCode high)
+    (code >= Char.toCode low) && (code <= Char.toCode high)
 
 
 word : String -> Char -> Bool
@@ -187,29 +191,30 @@ parseWords wordChars str =
         isWordChars =
             word wordChars
     in
-        str
-            |> P.run
-                (P.loop []
-                    (\words ->
-                        P.oneOf
-                            [ P.succeed (P.Loop words)
-                                |. oneOrMore (not << isWordChars)
-                            , P.succeed
-                                (\s ->
-                                    P.Loop
-                                        (if String.length s >= 2 then
-                                            s :: words
-                                         else
-                                            words
-                                        )
-                                )
-                                |= keepOneOrMore isWordChars
-                            , P.succeed (P.Done words)
-                                |. P.end
-                            ]
-                    )
+    str
+        |> P.run
+            (P.loop []
+                (\words ->
+                    P.oneOf
+                        [ P.succeed (P.Loop words)
+                            |. oneOrMore (not << isWordChars)
+                        , P.succeed
+                            (\s ->
+                                P.Loop
+                                    (if String.length s >= 2 then
+                                        s :: words
+
+                                     else
+                                        words
+                                    )
+                            )
+                            |= keepOneOrMore isWordChars
+                        , P.succeed (P.Done words)
+                            |. P.end
+                        ]
                 )
-            |> Result.withDefault []
+            )
+        |> Result.withDefault []
 
 
 maybeAndThen2 : (a -> b -> Maybe c) -> Maybe a -> Maybe b -> Maybe c
@@ -237,13 +242,14 @@ pathBase sep path =
         name =
             pathFileName sep path
     in
-        String.dropRight (String.length name) path
+    String.dropRight (String.length name) path
 
 
 isAbsolutePath : String -> String -> Bool
 isAbsolutePath sep =
     if sep == "/" then
         String.startsWith "/"
+
     else
         Re.contains (regex "^[a-zA-Z]:\\\\")
 
@@ -252,8 +258,10 @@ joinPath : String -> String -> String -> String
 joinPath sep a b =
     if isAbsolutePath sep b then
         b
+
     else if String.endsWith sep a then
         a ++ b
+
     else
         a ++ sep ++ b
 
@@ -264,6 +272,7 @@ dropWhile pred items =
         x :: xs ->
             if pred x then
                 dropWhile pred xs
+
             else
                 items
 
@@ -275,6 +284,7 @@ regex : String -> Re.Regex
 regex s =
     if s == "" then
         Re.never
+
     else
         s
             |> Re.fromString
@@ -285,6 +295,7 @@ regexWith : Re.Options -> String -> Maybe Re.Regex
 regexWith option s =
     if s == "" then
         Nothing
+
     else
         Re.fromStringWith option s
 
@@ -300,13 +311,14 @@ escapeRegex =
                 "[-\\/\\\\^$*+?.()|[\\]{}]"
                 |> Maybe.withDefault Re.never
     in
-        Re.replace re (\{ match } -> "\\" ++ match)
+    Re.replace re (\{ match } -> "\\" ++ match)
 
 
 replaceHomeDir : String -> String -> String
 replaceHomeDir homedir path =
     if String.startsWith "~" path then
         homedir ++ String.slice 1 (String.length path) path
+
     else
         path
 
@@ -317,14 +329,15 @@ normalizePath sep path =
         sep1 =
             if sep == "/" then
                 "\\"
+
             else
                 "/"
     in
-        path
-            |> String.trim
-            |> Re.replace (regex "[\\\\/]+") (always sep)
-            |> String.split sep1
-            |> String.join sep
+    path
+        |> String.trim
+        |> Re.replace (regex "[\\\\/]+") (always sep)
+        |> String.split sep1
+        |> String.join sep
 
 
 {-| Resolve a relative path start from a dir.
@@ -336,6 +349,7 @@ resolvePath : String -> String -> String -> String
 resolvePath sep dir path =
     if String.isEmpty dir || isAbsolutePath sep path then
         path
+
     else
         let
             --_ =
@@ -354,6 +368,7 @@ resolvePath sep dir path =
             dropEndPathSeperator s =
                 if String.endsWith sep s then
                     String.dropRight (String.length sep) s
+
                 else
                     s
 
@@ -365,13 +380,14 @@ resolvePath sep dir path =
             m =
                 List.length dirParts
         in
-            if m >= n then
-                (List.take (m - n) dirParts ++ List.drop n parts)
-                    |> String.join sep
-            else
-                parts
-                    |> List.take (n - m)
-                    |> String.join sep
+        if m >= n then
+            (List.take (m - n) dirParts ++ List.drop n parts)
+                |> String.join sep
+
+        else
+            parts
+                |> List.take (n - m)
+                |> String.join sep
 
 
 {-| Calcuate relative path between two normalized absolute paths.
@@ -388,6 +404,7 @@ relativePath sep from_ to =
         from =
             if String.endsWith sep from_ then
                 from_
+
             else
                 from_ ++ sep
 
@@ -398,6 +415,7 @@ relativePath sep from_ to =
                         y :: ys ->
                             if x == y then
                                 commonAncestors xs ys (y :: ancestors)
+
                             else
                                 ( a, b, ancestors )
 
@@ -415,8 +433,8 @@ relativePath sep from_ to =
 
         --|> Debug.log "result"
     in
-        (List.repeat (List.length fromParts - 1) ".." ++ toParts)
-            |> String.join sep
+    (List.repeat (List.length fromParts - 1) ".." ++ toParts)
+        |> String.join sep
 
 
 {-| Return ext name (always lower case) of a path, including '.'. Return empty stirng if not found
@@ -427,12 +445,12 @@ extname path =
         re =
             regex "[.][a-zA-Z]+$"
     in
-        case Re.find re path of
-            ext :: _ ->
-                String.toLower ext.match
+    case Re.find re path of
+        ext :: _ ->
+            String.toLower ext.match
 
-            _ ->
-                ""
+        _ ->
+            ""
 
 
 nthList : Int -> List a -> Maybe a
@@ -441,6 +459,7 @@ nthList i list =
         x :: xs ->
             if i == 0 then
                 Just x
+
             else
                 nthList (i - 1) xs
 
@@ -450,7 +469,7 @@ nthList i list =
 
 arrayInsert : Int -> a -> Array a -> Array a
 arrayInsert i item arr =
-    (Array.slice i (Array.length arr) arr)
+    Array.slice i (Array.length arr) arr
         |> Array.append (Array.fromList [ item ])
         |> Array.append (Array.slice 0 i arr)
 
@@ -466,8 +485,10 @@ swapCase : Char -> Char
 swapCase ch =
     if Char.isUpper ch then
         Char.toLower ch
+
     else if Char.isLower ch then
         Char.toUpper ch
+
     else
         ch
 
@@ -476,6 +497,7 @@ floorFromZero : Float -> Int
 floorFromZero n =
     if n < 0 then
         ceiling n
+
     else
         floor n
 
@@ -524,18 +546,19 @@ charWidthType ch =
         codePoint =
             Char.toCode ch
     in
-        -- https://github.com/Microsoft/vscode/blob/3a619f24c3b7f760f283193ebd9c3ed601768a83/src/vs/base/common/strings.ts#L535
-        if
-            ((codePoint >= 0x2E80 && codePoint <= 0xD7AF)
-                || (codePoint >= 0xF900 && codePoint <= 0xFAFF)
-                || (codePoint >= 0xFF01 && codePoint <= 0xFF5E)
-            )
-        then
-            "FULL"
-        else if Re.contains reEmoji <| String.fromChar ch then
-            "EMOJI"
-        else
-            "HALF"
+    -- https://github.com/Microsoft/vscode/blob/3a619f24c3b7f760f283193ebd9c3ed601768a83/src/vs/base/common/strings.ts#L535
+    if
+        (codePoint >= 0x2E80 && codePoint <= 0xD7AF)
+            || (codePoint >= 0xF900 && codePoint <= 0xFAFF)
+            || (codePoint >= 0xFF01 && codePoint <= 0xFF5E)
+    then
+        "FULL"
+
+    else if Re.contains reEmoji <| String.fromChar ch then
+        "EMOJI"
+
+    else
+        "HALF"
 
 
 isPathChar : Char -> Bool

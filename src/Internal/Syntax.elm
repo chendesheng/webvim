@@ -1,9 +1,9 @@
-module Internal.Syntax exposing (..)
+module Internal.Syntax exposing (Syntax, Token, TokenType(..), applyPatchToSyntax, getToken, iterateTokens, splitTokens, updateToken)
 
 import Array as Array exposing (Array)
+import Internal.Position exposing (Position)
 import Internal.TextBuffer as B exposing (Patch(..))
 import List
-import Internal.Position exposing (Position)
 
 
 type TokenType
@@ -26,8 +26,9 @@ updateToken n f tokens =
         token :: rest ->
             if n <= token.length then
                 f token :: rest
+
             else
-                token :: (updateToken n f rest)
+                token :: updateToken n f rest
 
         _ ->
             []
@@ -44,20 +45,22 @@ splitTokens x_ tokens_ =
             case tokens of
                 token :: rest ->
                     if x <= token.length then
-                        ( (if x == 0 then
+                        ( if x == 0 then
                             left
-                           else
+
+                          else
                             { token | length = x } :: left
-                          )
-                        , (if x == token.length then
+                        , if x == token.length then
                             rest
-                           else
+
+                          else
                             { token | length = token.length - x }
                                 :: rest
-                          )
                         )
+
                     else if List.isEmpty rest then
                         ( token :: left, [] )
+
                     else
                         splitTokensHelper (x - token.length)
                             (token :: left)
@@ -66,7 +69,7 @@ splitTokens x_ tokens_ =
                 _ ->
                     ( [], [] )
     in
-        splitTokensHelper x_ [] tokens_
+    splitTokensHelper x_ [] tokens_
 
 
 applyPatchToSyntax : Patch -> Syntax -> ( Syntax, Maybe Int )
@@ -85,7 +88,7 @@ applyPatchToSyntax patch syntax =
                             splitTokens x tokens
 
                         { tipe, classname } =
-                            (case List.head left of
+                            case List.head left of
                                 Just x_ ->
                                     x_
 
@@ -97,14 +100,12 @@ applyPatchToSyntax patch syntax =
                                             , classname = ""
                                             , length = 0
                                             }
-                            )
 
                         expand tokens_ n =
                             case tokens_ of
                                 first :: rest ->
-                                    ({ first | length = first.length + n }
+                                    { first | length = first.length + n }
                                         :: rest
-                                    )
 
                                 _ ->
                                     [ { length = n
@@ -125,12 +126,16 @@ applyPatchToSyntax patch syntax =
                                             (expand left n
                                                 |> List.reverse
                                             )
-                                                ++ if cnt == 1 then
-                                                    right
-                                                   else
-                                                    []
+                                                ++ (if cnt == 1 then
+                                                        right
+
+                                                    else
+                                                        []
+                                                   )
+
                                         else if i == cnt - 1 then
                                             expand right n
+
                                         else
                                             [ { length = n
                                               , classname = classname
@@ -145,9 +150,9 @@ applyPatchToSyntax patch syntax =
                         bottom =
                             Array.slice (y + 1) (Array.length syntax) syntax
                     in
-                        bottom
-                            |> Array.append middle
-                            |> Array.append top
+                    bottom
+                        |> Array.append middle
+                        |> Array.append top
 
                 _ ->
                     lines
@@ -161,62 +166,64 @@ applyPatchToSyntax patch syntax =
                             )
                         |> Array.append syntax
     in
-        case patch of
-            Insertion pos lines ->
-                if B.isEmpty lines then
-                    ( syntax, Nothing )
-                else
-                    ( insert pos lines syntax
-                    , Just <| Tuple.first pos
-                    )
+    case patch of
+        Insertion pos lines ->
+            if B.isEmpty lines then
+                ( syntax, Nothing )
 
-            Deletion ( ya, xa ) ( yb, xb ) ->
-                case Array.get ya syntax of
-                    Just tokens ->
-                        let
-                            ( left, _ ) =
-                                splitTokens xa tokens
-                        in
-                            case Array.get yb syntax of
-                                Just tokens2 ->
-                                    let
-                                        ( _, right ) =
-                                            splitTokens xb tokens2
-                                    in
-                                        ( syntax
-                                            |> Array.slice 0 ya
-                                            |> (if
-                                                    List.isEmpty left
-                                                        && List.isEmpty right
-                                                then
-                                                    identity
-                                                else
-                                                    Array.push
-                                                        (List.reverse left
-                                                            ++ right
-                                                        )
-                                               )
-                                            |> (\toappend ->
-                                                    Array.append
-                                                        toappend
-                                                        (Array.slice
-                                                            (yb + 1)
-                                                            (Array.length syntax)
-                                                            syntax
-                                                        )
-                                               )
-                                        , Just ya
-                                        )
+            else
+                ( insert pos lines syntax
+                , Just <| Tuple.first pos
+                )
 
-                                _ ->
-                                    ( syntax
-                                        |> Array.slice 0 ya
-                                        |> Array.push left
-                                    , Just ya
-                                    )
+        Deletion ( ya, xa ) ( yb, xb ) ->
+            case Array.get ya syntax of
+                Just tokens ->
+                    let
+                        ( left, _ ) =
+                            splitTokens xa tokens
+                    in
+                    case Array.get yb syntax of
+                        Just tokens2 ->
+                            let
+                                ( _, right ) =
+                                    splitTokens xb tokens2
+                            in
+                            ( syntax
+                                |> Array.slice 0 ya
+                                |> (if
+                                        List.isEmpty left
+                                            && List.isEmpty right
+                                    then
+                                        identity
 
-                    _ ->
-                        ( syntax, Just ya )
+                                    else
+                                        Array.push
+                                            (List.reverse left
+                                                ++ right
+                                            )
+                                   )
+                                |> (\toappend ->
+                                        Array.append
+                                            toappend
+                                            (Array.slice
+                                                (yb + 1)
+                                                (Array.length syntax)
+                                                syntax
+                                            )
+                                   )
+                            , Just ya
+                            )
+
+                        _ ->
+                            ( syntax
+                                |> Array.slice 0 ya
+                                |> Array.push left
+                            , Just ya
+                            )
+
+                _ ->
+                    ( syntax, Just ya )
 
 
 getToken : Position -> Syntax -> Maybe Token
@@ -231,13 +238,14 @@ getToken ( y, x ) syntax =
                         token :: rest ->
                             if x_ < token.length then
                                 Just token
+
                             else
                                 getTokenHelper rest (x_ - token.length)
 
                         _ ->
                             Nothing
             in
-                getTokenHelper tokens x
+            getTokenHelper tokens x
 
         _ ->
             Nothing
@@ -268,6 +276,7 @@ iterateTokens forward fn lines syntax ( y, x ) lineLimit init =
                         x_ =
                             if x1 == -1 then
                                 String.length line
+
                             else
                                 x1
 
@@ -281,20 +290,22 @@ iterateTokens forward fn lines syntax ( y, x ) lineLimit init =
                         ( next, stop ) =
                             res
                     in
-                        if stop then
-                            res
-                        else
-                            iterateTokensHelper
-                                fn_
-                                next
-                                ( y_
-                                , if forward then
-                                    x_ + token.length
-                                  else
-                                    x_ - token.length
-                                )
-                                line
-                                restTokens
+                    if stop then
+                        res
+
+                    else
+                        iterateTokensHelper
+                            fn_
+                            next
+                            ( y_
+                            , if forward then
+                                x_ + token.length
+
+                              else
+                                x_ - token.length
+                            )
+                            line
+                            restTokens
 
                 _ ->
                     ( init_, False )
@@ -308,36 +319,42 @@ iterateTokens forward fn lines syntax ( y, x ) lineLimit init =
                     |> Maybe.map
                         (if x == -1 then
                             List.reverse
+
                          else
                             splitTokens x
                                 >> (if forward then
                                         Tuple.second
+
                                     else
                                         Tuple.first
                                    )
                         )
                 )
     in
-        case result of
-            Just ( next, stop ) ->
-                if stop then
-                    next
-                else if forward && y >= lineLimit then
-                    init
-                else if not forward && y < lineLimit then
-                    init
-                else
-                    iterateTokens forward
-                        fn
-                        lines
-                        syntax
-                        (if forward then
-                            ( y + 1, 0 )
-                         else
-                            ( y - 1, -1 )
-                        )
-                        lineLimit
-                        next
+    case result of
+        Just ( next, stop ) ->
+            if stop then
+                next
 
-            _ ->
+            else if forward && y >= lineLimit then
                 init
+
+            else if not forward && y < lineLimit then
+                init
+
+            else
+                iterateTokens forward
+                    fn
+                    lines
+                    syntax
+                    (if forward then
+                        ( y + 1, 0 )
+
+                     else
+                        ( y - 1, -1 )
+                    )
+                    lineLimit
+                    next
+
+        _ ->
+            init

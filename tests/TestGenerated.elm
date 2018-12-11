@@ -1,32 +1,55 @@
-module TestGenerated exposing (..)
+module TestGenerated exposing
+    ( TestCase
+    , TestInput(..)
+    , applyPatchParser
+    , deletePatchParser
+    , emptyInsertMode
+    , formatBuffer
+    , genTest
+    , handleKeys
+    , ignoreSpaces
+    , insertPatchParser
+    , isTextLine
+    , isVisible
+    , log
+    , newBuffer
+    , parseCursor
+    , parseMode
+    , positionParser
+    , pressKeysParser
+    , scanlInputs
+    , showPosition
+    , showTestInput
+    , testDataParser
+    )
 
+import Array as Array
 import Expect exposing (Expectation)
-import Test exposing (..)
-import Update exposing (update, initMode, updateActiveBuffer)
-import Model exposing (..)
-import Internal.TextBuffer as B exposing (Patch(..))
-import Update.Message exposing (Msg(..))
-import Parser as P exposing ((|.), (|=), Parser)
-import Vim.Helper exposing (keyParser)
-import Vim.AST exposing (ModeName(..), VisualType(..))
 import Helper.Helper
     exposing
-        ( getLast
-        , arrayInsert
-        , isSpace
+        ( arrayInsert
+        , chompUntilAfter
         , findIndex
-        , repeatParser
+        , getLast
+        , isSpace
+        , keepZeroOrMore
         , oneOrMore
         , regex
-        , chompUntilAfter
-        , keepZeroOrMore
+        , repeatParser
         , spaceInline
         )
 import Internal.Position exposing (Position)
-import Regex as Re
-import Array as Array
-import Update.Buffer as Buf
+import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
+import Model exposing (..)
+import Parser as P exposing ((|.), (|=), Parser)
+import Regex as Re
+import Test exposing (..)
+import Update exposing (initMode, update, updateActiveBuffer)
+import Update.Buffer as Buf
+import Update.Message exposing (Msg(..))
+import Vim.AST exposing (ModeName(..), VisualType(..))
+import Vim.Helper exposing (keyParser)
 
 
 log : String -> (a -> b) -> a -> a
@@ -35,7 +58,7 @@ log prefix f obj =
         _ =
             Debug.log prefix (f obj)
     in
-        obj
+    obj
 
 
 type TestInput
@@ -98,6 +121,7 @@ formatBuffer global =
         addPrefix prefix s =
             if String.isEmpty s then
                 ""
+
             else
                 prefix ++ s
 
@@ -148,43 +172,47 @@ formatBuffer global =
                         ( ey, ex ) =
                             Basics.max begin end
                     in
-                        List.range by ey
-                            |> List.filterMap
-                                (\row ->
-                                    let
-                                        maxcol =
-                                            B.getLineMaxColumn row buf_.lines
+                    List.range by ey
+                        |> List.filterMap
+                            (\row ->
+                                let
+                                    maxcol =
+                                        B.getLineMaxColumn row buf_.lines
 
-                                        maybeRegion =
-                                            case tipe of
-                                                VisualLine ->
+                                    maybeRegion =
+                                        case tipe of
+                                            VisualLine ->
+                                                Just ( 0, maxcol )
+
+                                            VisualBlock ->
+                                                let
+                                                    bx1 =
+                                                        Basics.min bx ex
+
+                                                    ex1 =
+                                                        Basics.max bx ex
+                                                in
+                                                if bx1 > maxcol then
+                                                    Nothing
+
+                                                else
+                                                    Just ( bx1, Basics.min maxcol ex1 )
+
+                                            _ ->
+                                                if by == ey then
+                                                    Just ( bx, ex )
+
+                                                else if row == by then
+                                                    Just ( bx, maxcol )
+
+                                                else if row == ey then
+                                                    Just ( 0, ex )
+
+                                                else
                                                     Just ( 0, maxcol )
-
-                                                VisualBlock ->
-                                                    let
-                                                        bx1 =
-                                                            Basics.min bx ex
-
-                                                        ex1 =
-                                                            Basics.max bx ex
-                                                    in
-                                                        if bx1 > maxcol then
-                                                            Nothing
-                                                        else
-                                                            Just ( bx1, Basics.min maxcol ex1 )
-
-                                                _ ->
-                                                    if by == ey then
-                                                        Just ( bx, ex )
-                                                    else if row == by then
-                                                        Just ( bx, maxcol )
-                                                    else if row == ey then
-                                                        Just ( 0, ex )
-                                                    else
-                                                        Just ( 0, maxcol )
-                                    in
-                                        Maybe.map (Tuple.pair row) maybeRegion
-                                )
+                                in
+                                Maybe.map (Tuple.pair row) maybeRegion
+                            )
 
                 _ ->
                     case buf_.view.cursor of
@@ -203,20 +231,19 @@ formatBuffer global =
                                         x_ =
                                             Tuple.second buf.view.cursor
                                     in
-                                        ((String.repeat (8 + b) " ")
-                                            ++ (String.repeat (x_ - b) "-")
-                                            ++ "^"
-                                            ++ (String.repeat (e - x_) "-")
-                                        )
+                                    String.repeat (8 + b) " "
+                                        ++ String.repeat (x_ - b) "-"
+                                        ++ "^"
+                                        ++ String.repeat (e - x_) "-"
+
                                 else
-                                    ((String.repeat (8 + b) " ")
-                                        ++ (String.repeat (e - b + 1) "-")
-                                    )
+                                    String.repeat (8 + b) " "
+                                        ++ String.repeat (e - b + 1) "-"
                         in
-                            arrayInsert
-                                (y_ + 1)
-                                (s ++ "\n")
-                                lines_
+                        arrayInsert
+                            (y_ + 1)
+                            (s ++ "\n")
+                            lines_
                     )
                     textLines
 
@@ -242,13 +269,13 @@ formatBuffer global =
                 )
                 "~\n"
     in
-        buf.mode
-            |> Buf.getStatusBar
-            |> .text
-            |> List.singleton
-            |> List.append (lines ++ emptyLines)
-            |> String.join ""
-            |> String.trim
+    buf.mode
+        |> Buf.getStatusBar
+        |> .text
+        |> List.singleton
+        |> List.append (lines ++ emptyLines)
+        |> String.join ""
+        |> String.trim
 
 
 type alias TestCase =
@@ -268,6 +295,7 @@ newBuffer mode cursor height scrollTop text =
             B.fromString
                 (if String.endsWith B.lineBreak text then
                     text
+
                  else
                     text ++ B.lineBreak
                 )
@@ -291,13 +319,13 @@ newBuffer mode cursor height scrollTop text =
         window =
             Win.initWindow view1
     in
-        Buf.addBuffer True
-            { buf
-                | mode = mode
-                , lines = lines
-                , view = view1
-            }
-            { global | window = window }
+    Buf.addBuffer True
+        { buf
+            | mode = mode
+            , lines = lines
+            , view = view1
+        }
+        { global | window = window }
 
 
 isTextLine : String -> Bool
@@ -326,6 +354,7 @@ parseCursor lines =
                                 , m.index - 8
                                 )
                             )
+
                 else
                     Nothing
             )
@@ -346,6 +375,7 @@ parseMode cursor statusBar =
             , startCursor = cursor
             , visual = Nothing
             }
+
     else if
         String.startsWith
             "-- Visual --"
@@ -356,6 +386,7 @@ parseMode cursor statusBar =
             , begin = cursor
             , end = cursor
             }
+
     else if
         String.startsWith
             "-- Visual Line --"
@@ -366,6 +397,7 @@ parseMode cursor statusBar =
             , begin = cursor
             , end = cursor
             }
+
     else if
         String.startsWith
             "-- Visual Block --"
@@ -376,12 +408,14 @@ parseMode cursor statusBar =
             , begin = cursor
             , end = cursor
             }
+
     else if
         String.startsWith
             "-- (insert) --"
             statusBar
     then
         TempNormal
+
     else if String.startsWith ":" statusBar then
         Ex
             { prefix = ExCommand
@@ -394,6 +428,7 @@ parseMode cursor statusBar =
             , visual = Nothing
             , message = EmptyMessage
             }
+
     else if String.startsWith "/" statusBar then
         Ex
             { prefix =
@@ -411,6 +446,7 @@ parseMode cursor statusBar =
             , visual = Nothing
             , message = EmptyMessage
             }
+
     else if String.startsWith "?" statusBar then
         Ex
             { prefix =
@@ -428,11 +464,13 @@ parseMode cursor statusBar =
             , visual = Nothing
             , message = EmptyMessage
             }
+
     else if
         String.startsWith "-- Normal --"
             statusBar
     then
         Normal { message = EmptyMessage }
+
     else
         Normal
             { message =
@@ -444,6 +482,7 @@ parseMode cursor statusBar =
                     Just s ->
                         if String.isEmpty s then
                             EmptyMessage
+
                         else
                             InfoMessage s
 
@@ -466,7 +505,7 @@ ignoreSpaces =
 pressKeysParser : Parser (List TestInput)
 pressKeysParser =
     P.succeed (List.map InputKey)
-        |. (chompUntilAfter "\n>")
+        |. chompUntilAfter "\n>"
         |. ignoreSpaces
         |= repeatParser keyParser
 
@@ -536,6 +575,7 @@ testDataParser =
                                     1
                                     0
                                     ""
+
                         else if String.startsWith "~\n" s then
                             let
                                 height =
@@ -543,12 +583,13 @@ testDataParser =
                                         |> String.lines
                                         |> List.length
                             in
-                                P.succeed <|
-                                    newBuffer (Normal { message = EmptyMessage })
-                                        ( 0, 0 )
-                                        height
-                                        0
-                                        ""
+                            P.succeed <|
+                                newBuffer (Normal { message = EmptyMessage })
+                                    ( 0, 0 )
+                                    height
+                                    0
+                                    ""
+
                         else
                             let
                                 lines =
@@ -580,12 +621,12 @@ testDataParser =
                                         |> Maybe.withDefault ""
                                         |> parseMode cursor
                             in
-                                textLines
-                                    |> List.map (String.dropLeft 8)
-                                    |> String.join "\n"
-                                    |> (\line -> line ++ "\n")
-                                    |> newBuffer mode cursor height scrollTop
-                                    |> P.succeed
+                            textLines
+                                |> List.map (String.dropLeft 8)
+                                |> String.join "\n"
+                                |> (\line -> line ++ "\n")
+                                |> newBuffer mode cursor height scrollTop
+                                |> P.succeed
                     )
            )
         |= repeatParser
@@ -597,7 +638,7 @@ testDataParser =
                 )
                 |= P.oneOf
                     [ pressKeysParser
-                    , (P.succeed identity
+                    , P.succeed identity
                         |. chompUntilAfter "\n<"
                         |. ignoreSpaces
                         |= repeatParser
@@ -606,7 +647,6 @@ testDataParser =
                                 , applyPatchParser deletePatchParser
                                 ]
                             )
-                      )
                     ]
                 |. chompUntilAfter "\n{"
                 |= (P.chompUntil "\n}"
@@ -630,7 +670,7 @@ scanlInputs tests =
             (\{ input, result } allTests ->
                 case allTests of
                     x :: xs ->
-                        { input = (x.input ++ input), result = result }
+                        { input = x.input ++ input, result = result }
                             :: x
                             :: xs
 

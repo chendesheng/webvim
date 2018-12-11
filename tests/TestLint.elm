@@ -1,8 +1,8 @@
-module TestLint exposing (..)
+module TestLint exposing (suite)
 
 import Expect exposing (Expectation)
-import Test exposing (..)
 import Parser as P
+import Test exposing (..)
 import Update.Service exposing (syntaxErrorParser)
 
 
@@ -28,10 +28,10 @@ I am looking for one of the following things:
 
                     --|> Debug.log "result"
                 in
-                    case result of
-                        Ok _ ->
-                            Expect.pass
+                case result of
+                    Ok _ ->
+                        Expect.pass
 
-                        Err err ->
-                            Expect.fail (Debug.toString err)
+                    Err err ->
+                        Expect.fail (Debug.toString err)
         ]

@@ -1,19 +1,19 @@
-module Internal.Brackets exposing (..)
+module Internal.Brackets exposing (bracket, bracketsParser, isBracket, pairBracket, pairBracketAt)
 
-import Regex as Re exposing (Regex)
+import Helper.Helper exposing (keepZeroOrMore, regex)
+import Internal.Position exposing (Position)
 import Internal.Syntax
     exposing
         ( Syntax
         , Token
-        , splitTokens
-        , getToken
         , TokenType(..)
+        , getToken
         , iterateTokens
+        , splitTokens
         )
 import Internal.TextBuffer as B exposing (TextBuffer)
-import Internal.Position exposing (Position)
 import Parser as P exposing ((|.), (|=), Parser)
-import Helper.Helper exposing (regex, keepZeroOrMore)
+import Regex as Re exposing (Regex)
 
 
 isBracket : Char -> Bool
@@ -70,6 +70,7 @@ pairBracket top bottom lines syntax ( y, x ) ignoreTokenType c =
                 tokenType =
                     if ignoreTokenType then
                         TokenOther
+
                     else
                         getToken ( y, x ) syntax
                             |> Maybe.map .tipe
@@ -77,83 +78,93 @@ pairBracket top bottom lines syntax ( y, x ) ignoreTokenType c =
 
                 -- (Position -> String -> Token -> a -> ( a, Bool ))
             in
-                iterateTokens
-                    forward
-                    (\pos line token ( blance, _ ) ->
-                        let
-                            --_ =
-                            --Debug.log "iterateTokens" ( ( forward, pos, line ), token, blance )
-                            ( y_, x_ ) =
-                                pos
+            iterateTokens
+                forward
+                (\pos line token ( blance, _ ) ->
+                    let
+                        --_ =
+                        --Debug.log "iterateTokens" ( ( forward, pos, line ), token, blance )
+                        ( y_, x_ ) =
+                            pos
 
-                            matchBracket blance_ begin s =
-                                case
-                                    s
-                                        |> Re.findAtMost 1 regexBrackets
-                                        |> List.head
-                                    --|> Debug.log "matchBracket"
-                                of
-                                    Just { match, index } ->
-                                        let
-                                            blance1 =
-                                                if toMatch == match then
-                                                    blance_ - 1
-                                                else
-                                                    blance_ + 1
-                                        in
-                                            if blance1 == 0 then
-                                                ( ( blance1
-                                                  , Just
-                                                        ( y_
-                                                        , begin
-                                                            + if forward then
-                                                                index
-                                                              else
-                                                                -index - 1
-                                                        )
-                                                  )
-                                                , True
-                                                )
+                        matchBracket blance_ begin s =
+                            case
+                                s
+                                    |> Re.findAtMost 1 regexBrackets
+                                    |> List.head
+                                --|> Debug.log "matchBracket"
+                            of
+                                Just { match, index } ->
+                                    let
+                                        blance1 =
+                                            if toMatch == match then
+                                                blance_ - 1
+
                                             else
-                                                matchBracket blance1
-                                                    (begin
-                                                        + if forward then
-                                                            index + 1
-                                                          else
-                                                            -index - 1
-                                                    )
-                                                    (String.dropLeft (index + 1) s)
+                                                blance_ + 1
+                                    in
+                                    if blance1 == 0 then
+                                        ( ( blance1
+                                          , Just
+                                                ( y_
+                                                , begin
+                                                    + (if forward then
+                                                        index
 
-                                    _ ->
-                                        ( ( blance_, Nothing ), False )
-                        in
-                            if ignoreTokenType || tokenType == token.tipe then
-                                line
-                                    |> (if forward then
-                                            String.slice x_ (x_ + token.length)
-                                        else
-                                            String.slice (x_ - token.length) x_
-                                                >> String.reverse
-                                       )
-                                    |> matchBracket blance x_
-                            else
-                                ( ( blance, Nothing ), False )
-                    )
-                    lines
-                    syntax
-                    ( y
-                    , if forward then
-                        x + 1
-                      else
-                        x
-                    )
-                    (if forward then
-                        bottom
-                     else
-                        top
-                    )
-                    ( 1, Nothing )
-                    |> Tuple.second
+                                                       else
+                                                        -index - 1
+                                                      )
+                                                )
+                                          )
+                                        , True
+                                        )
+
+                                    else
+                                        matchBracket blance1
+                                            (begin
+                                                + (if forward then
+                                                    index + 1
+
+                                                   else
+                                                    -index - 1
+                                                  )
+                                            )
+                                            (String.dropLeft (index + 1) s)
+
+                                _ ->
+                                    ( ( blance_, Nothing ), False )
+                    in
+                    if ignoreTokenType || tokenType == token.tipe then
+                        line
+                            |> (if forward then
+                                    String.slice x_ (x_ + token.length)
+
+                                else
+                                    String.slice (x_ - token.length) x_
+                                        >> String.reverse
+                               )
+                            |> matchBracket blance x_
+
+                    else
+                        ( ( blance, Nothing ), False )
+                )
+                lines
+                syntax
+                ( y
+                , if forward then
+                    x + 1
+
+                  else
+                    x
+                )
+                (if forward then
+                    bottom
+
+                 else
+                    top
+                )
+                ( 1, Nothing )
+                |> Tuple.second
 
         _ ->
             Nothing

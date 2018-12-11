@@ -1,22 +1,21 @@
-module Internal.Jumps
-    exposing
-        ( saveJump
-        , Location
-        , Jumps
-        , jumpForward
-        , jumpBackward
-        , jumpsToString
-        , currentLocation
-        , applyPatchesToJumps
-        , applyPatchesToLocations
-        )
+module Internal.Jumps exposing
+    ( Jumps
+    , Location
+    , applyPatchesToJumps
+    , applyPatchesToLocations
+    , currentLocation
+    , jumpBackward
+    , jumpForward
+    , jumpsToString
+    , saveJump
+    )
 
 import Internal.Position exposing (Position)
 import Internal.TextBuffer
     exposing
         ( Patch
-        , shiftPositionByRegionChange
         , RegionChange
+        , shiftPositionByRegionChange
         )
 import String exposing (fromInt)
 
@@ -48,7 +47,7 @@ jumpsToString { backwards, forwards } =
                 ( y, x ) =
                     cursor
             in
-                path ++ ":" ++ fromInt y ++ ":" ++ fromInt x
+            path ++ ":" ++ fromInt y ++ ":" ++ fromInt x
 
         joinStr s1 s2 =
             s1 ++ "\n\t\t↑\n" ++ s2
@@ -63,9 +62,9 @@ jumpsToString { backwards, forwards } =
                 ""
                 forwards_
     in
-        backwards
-            |> backwardsToString
-            |> joinStr (forwardsToString forwards)
+    backwards
+        |> backwardsToString
+        |> joinStr (forwardsToString forwards)
 
 
 sameLine : Location -> Location -> Bool
@@ -79,7 +78,7 @@ saveJump loc { backwards, forwards } =
     { backwards =
         List.foldl (::) backwards forwards
             |> List.filter (sameLine loc >> not)
-            |> ((::) loc)
+            |> (::) loc
     , forwards = []
     }
 
@@ -107,9 +106,11 @@ jumpBackward cursor ({ backwards, forwards } as jumps) =
                 , forwards =
                     if sameLine loc cursor then
                         [ cursor ]
+
                     else
                         [ loc, cursor ]
                 }
+
             else
                 { backwards = backwards2
                 , forwards = loc :: forwards
@@ -135,6 +136,7 @@ applyPatchesToLocations path locations changes =
                             | cursor =
                                 shiftPositionByRegionChange change loc.cursor
                         }
+
                     else
                         loc
                 )

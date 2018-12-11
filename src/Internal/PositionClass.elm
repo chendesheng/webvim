@@ -1,36 +1,35 @@
-module Internal.PositionClass
-    exposing
-        ( findPosition
-        , findLineFirst
-        , parserWordEdge
-        , parserForwardCharRespectBackslash
-        , parserBackwardCharRespectBackslash
-        )
+module Internal.PositionClass exposing
+    ( findLineFirst
+    , findPosition
+    , parserBackwardCharRespectBackslash
+    , parserForwardCharRespectBackslash
+    , parserWordEdge
+    )
 
-import Parser as P exposing (Parser, (|.), (|=))
+import Helper.Helper
+    exposing
+        ( isBetween
+        , isSpace
+        , keepOneOrMore
+        , keepZeroOrMore
+        , notSpace
+        , oneOrMore
+        , regex
+        , spaceInline
+        , word
+        )
 import Internal.TextBuffer as B
+import Maybe
+import Parser as P exposing ((|.), (|=), Parser)
+import Regex as Re
 import Vim.AST
     exposing
-        ( MotionData(..)
+        ( Direction(..)
+        , MotionData(..)
         , MotionOption
-        , Direction(..)
         , TextObject(..)
         , motionOption
         )
-import Maybe
-import Helper.Helper
-    exposing
-        ( isSpace
-        , notSpace
-        , isBetween
-        , word
-        , regex
-        , oneOrMore
-        , keepOneOrMore
-        , keepZeroOrMore
-        , spaceInline
-        )
-import Regex as Re
 
 
 punctuation : String -> Char -> Bool
@@ -54,6 +53,7 @@ parserWordStart wordChars crossLine =
              ]
                 ++ (if crossLine then
                         []
+
                     else
                         [ P.end ]
                    )
@@ -95,6 +95,7 @@ parserWORDStart crossLine =
         |. P.chompWhile isSpace
         |. (if crossLine then
                 P.chompIf notSpace
+
             else
                 P.oneOf
                     [ P.chompIf notSpace
@@ -261,13 +262,14 @@ findPositionBackward wordChars md line =
                         p =
                             if before then
                                 parserBeforeChar
+
                             else
                                 parserChar
                     in
-                        ch
-                            |> String.uncons
-                            |> Maybe.map (Tuple.first >> p)
-                            |> Maybe.withDefault (P.problem "invalid char")
+                    ch
+                        |> String.uncons
+                        |> Maybe.map (Tuple.first >> p)
+                        |> Maybe.withDefault (P.problem "invalid char")
 
                 QuoteChar ch ->
                     parserBackwardCharRespectBackslash ch
@@ -276,10 +278,10 @@ findPositionBackward wordChars md line =
                 _ ->
                     P.problem "unknown position md"
     in
-        line
-            |> String.reverse
-            |> P.run parser
-            |> Result.map (\n -> String.length line - n - 1)
+    line
+        |> String.reverse
+        |> P.run parser
+        |> Result.map (\n -> String.length line - n - 1)
 
 
 findPositionForward :
@@ -315,13 +317,14 @@ findPositionForward wordChars md crossLine line =
                         p =
                             if before then
                                 parserBeforeChar
+
                             else
                                 parserChar
                     in
-                        ch
-                            |> String.uncons
-                            |> Maybe.map (Tuple.first >> p)
-                            |> Maybe.withDefault (P.problem "invalid char")
+                    ch
+                        |> String.uncons
+                        |> Maybe.map (Tuple.first >> p)
+                        |> Maybe.withDefault (P.problem "invalid char")
 
                 QuoteChar ch ->
                     parserForwardCharRespectBackslash ch
@@ -329,7 +332,7 @@ findPositionForward wordChars md crossLine line =
                 _ ->
                     P.problem "unknown motion data "
     in
-        P.run parser line
+    P.run parser line
 
 
 findPosition :
@@ -344,65 +347,69 @@ findPosition wordChars md mo line pos =
         line1 =
             if String.endsWith B.lineBreak line then
                 line
+
             else
                 line ++ B.lineBreak
     in
-        if mo.forward then
-            case md of
-                LineEnd ->
-                    Just (String.length line1 - 1)
+    if mo.forward then
+        case md of
+            LineEnd ->
+                Just (String.length line1 - 1)
 
-                CharStart ->
+            CharStart ->
+                line1
+                    |> String.dropLeft pos
+                    |> String.uncons
+                    |> Maybe.andThen
+                        (\( ch, right ) ->
+                            if String.isEmpty right then
+                                Nothing
+
+                            else
+                                ch
+                                    |> String.fromChar
+                                    |> String.length
+                                    |> (+) pos
+                                    |> Just
+                        )
+
+            _ ->
+                line1
+                    |> String.dropLeft pos
+                    |> findPositionForward wordChars md mo.crossLine
+                    |> Result.toMaybe
+                    |> Maybe.map ((+) pos)
+
+    else
+        case md of
+            LineStart ->
+                Just 0
+
+            LineFirst ->
+                P.run parserLineFirst line1
+                    |> Result.toMaybe
+
+            CharStart ->
+                if pos == 0 then
+                    Nothing
+
+                else
                     line1
-                        |> String.dropLeft pos
+                        |> String.dropLeft (pos - 2)
                         |> String.uncons
-                        |> Maybe.andThen
-                            (\( ch, right ) ->
-                                if String.isEmpty right then
-                                    Nothing
-                                else
-                                    ch
-                                        |> String.fromChar
-                                        |> String.length
-                                        |> (+) pos
-                                        |> Just
+                        |> Maybe.map
+                            (\( ch, _ ) ->
+                                ch
+                                    |> String.fromChar
+                                    |> String.length
+                                    |> (-) pos
                             )
 
-                _ ->
-                    line1
-                        |> String.dropLeft pos
-                        |> findPositionForward wordChars md mo.crossLine
-                        |> Result.toMaybe
-                        |> Maybe.map ((+) pos)
-        else
-            case md of
-                LineStart ->
-                    Just 0
-
-                LineFirst ->
-                    P.run parserLineFirst line1
-                        |> Result.toMaybe
-
-                CharStart ->
-                    if pos == 0 then
-                        Nothing
-                    else
-                        line1
-                            |> String.dropLeft (pos - 2)
-                            |> String.uncons
-                            |> Maybe.map
-                                (\( ch, _ ) ->
-                                    ch
-                                        |> String.fromChar
-                                        |> String.length
-                                        |> (-) pos
-                                )
-
-                _ ->
-                    line1
-                        |> String.left (pos + 1)
-                        |> findPositionBackward wordChars md
-                        |> Result.toMaybe
+            _ ->
+                line1
+                    |> String.left (pos + 1)
+                    |> findPositionBackward wordChars md
+                    |> Result.toMaybe
 
 
 findLineFirst : String -> Int

@@ -1,4 +1,4 @@
-module Update.Window exposing (..)
+module Update.Window exposing (changeViewBuffer, getActiveView, nextView)
 
 import Internal.Window as Win exposing (Window)
 import Model exposing (View, emptyView)

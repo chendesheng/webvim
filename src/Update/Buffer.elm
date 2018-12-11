@@ -1,100 +1,54 @@
-module Update.Buffer
-    exposing
-        ( transaction
-        , insert
-        , delete
-        , undo
-        , redo
-        , commit
-        , clearHistory
-        , getLastDeleted
-        , setMode
-        , setRegister
-        , setCursor
-        , putString
-        , setShowTip
-        , isDirty
-        , isEditing
-        , configs
-        , indentCursorToLineFirst
-        , setScrollTop
-        , updateView
-        , bestScrollTop
-        , toWords
-        , cursorLineFirst
-        , gotoLine
-        , setLastIndent
-        , cancelLastIndent
-        , setCursorColumn
-        , infoMessage
-        , errorMessage
-        , getStatusBar
-        , clearMessage
-        , cIndentRules
-        , finalScrollTop
-        , scrollViewLines
-        , switchVisualEnd
-        , shortPath
-        , updateHistory
-        , applyPatchesToLintErrors
-        , applyDiffToView
-        , addBuffer
-        , resizeView
-        , removeBuffer
-        , findBufferId
-        )
+module Update.Buffer exposing
+    ( addBuffer
+    , applyDiffToView
+    , applyPatchesToLintErrors
+    , bestScrollTop
+    , cIndentRules
+    , cancelLastIndent
+    , clearHistory
+    , clearMessage
+    , commit
+    , configs
+    , cursorLineFirst
+    , delete
+    , errorMessage
+    , finalScrollTop
+    , findBufferId
+    , getLastDeleted
+    , getStatusBar
+    , gotoLine
+    , indentCursorToLineFirst
+    , infoMessage
+    , insert
+    , isDirty
+    , isEditing
+    , putString
+    , redo
+    , removeBuffer
+    , resizeView
+    , scrollViewLines
+    , setCursor
+    , setCursorColumn
+    , setLastIndent
+    , setMode
+    , setRegister
+    , setScrollTop
+    , setShowTip
+    , shortPath
+    , switchVisualEnd
+    , toWords
+    , transaction
+    , undo
+    , updateHistory
+    , updateView
+    )
 
+import Array as Array exposing (Array)
+import Dict exposing (Dict)
+import Helper.Helper exposing (filename, findFirst, parseWords, regex, relativePath)
+import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
 import Internal.Position exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
-import Model
-    exposing
-        ( Buffer
-        , BufferHistory
-        , BufferConfig
-        , emptyBufferHistory
-        , defaultBufferConfig
-        , Mode(..)
-        , RegisterText
-        , emptyBuffer
-        , emptyView
-        , View
-        , LintError
-        , emptyUndo
-        , IndentConfig(..)
-        , StatusMessage(..)
-        , ExPrefix(..)
-        , IME
-        , emptyIme
-        , Global
-        , Size
-        )
-import Internal.TextBuffer as B
-    exposing
-        ( applyPatch
-        , TextBuffer
-        , getLine
-        , lineBreak
-        , fromString
-        , fromStringExpandTabs
-        , Patch(..)
-        , isEmpty
-        , foldlLines
-        , shiftPositionByRegionChange
-        , patchToRegion
-        , RegionChange(..)
-        )
-import List
-import Vim.AST
-    exposing
-        ( MotionData(..)
-        , MotionOption
-        , Direction(..)
-        , VisualType(..)
-        , ModeName(..)
-        )
-import String
-import Maybe
-import Dict exposing (Dict)
 import Internal.Syntax
     exposing
         ( Syntax
@@ -102,11 +56,56 @@ import Internal.Syntax
         , applyPatchToSyntax
         , splitTokens
         )
-import Array as Array exposing (Array)
-import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
-import Helper.Helper exposing (parseWords, relativePath, regex, filename, findFirst)
-import Regex as Re
+import Internal.TextBuffer as B
+    exposing
+        ( Patch(..)
+        , RegionChange(..)
+        , TextBuffer
+        , applyPatch
+        , foldlLines
+        , fromString
+        , fromStringExpandTabs
+        , getLine
+        , isEmpty
+        , lineBreak
+        , patchToRegion
+        , shiftPositionByRegionChange
+        )
 import Internal.Window as Win exposing (Window)
+import List
+import Maybe
+import Model
+    exposing
+        ( Buffer
+        , BufferConfig
+        , BufferHistory
+        , ExPrefix(..)
+        , Global
+        , IME
+        , IndentConfig(..)
+        , LintError
+        , Mode(..)
+        , RegisterText
+        , Size
+        , StatusMessage(..)
+        , View
+        , defaultBufferConfig
+        , emptyBuffer
+        , emptyBufferHistory
+        , emptyIme
+        , emptyUndo
+        , emptyView
+        )
+import Regex as Re
+import String
+import Vim.AST
+    exposing
+        ( Direction(..)
+        , ModeName(..)
+        , MotionData(..)
+        , MotionOption
+        , VisualType(..)
+        )
 
 
 reversedPatchToRegionChange : Patch -> RegionChange
@@ -127,6 +126,7 @@ applyPatchToLintError patch ({ region, subRegion } as error) =
                 RegionRemove ( bDel, eDel ) ->
                     if bDel <= b && e <= eDel then
                         Nothing
+
                     else
                         Just
                             ( shiftPositionByRegionChange patch b
@@ -145,14 +145,14 @@ applyPatchToLintError patch ({ region, subRegion } as error) =
         maybeSubRegion =
             Maybe.andThen updateRegion subRegion
     in
-        maybeRegion
-            |> Maybe.map
-                (\rg ->
-                    { error
-                        | region = rg
-                        , subRegion = maybeSubRegion
-                    }
-                )
+    maybeRegion
+        |> Maybe.map
+            (\rg ->
+                { error
+                    | region = rg
+                    , subRegion = maybeSubRegion
+                }
+            )
 
 
 applyPatchesToLintErrors : List LintError -> List RegionChange -> List LintError
@@ -178,25 +178,25 @@ applyPatches patches buf =
         lines =
             buf.lines
     in
-        List.foldl
-            (\patch args ->
-                let
-                    ( patch2, lines2 ) =
-                        applyPatch patch args.lines
+    List.foldl
+        (\patch args ->
+            let
+                ( patch2, lines2 ) =
+                    applyPatch patch args.lines
 
-                    syntax2 =
-                        Tuple.first <| applyPatchToSyntax patch args.syntax
-                in
-                    { lines = lines2
-                    , patches = patch2 :: args.patches
-                    , syntax = syntax2
-                    }
-            )
-            { lines = lines
-            , patches = []
-            , syntax = buf.syntax
+                syntax2 =
+                    Tuple.first <| applyPatchToSyntax patch args.syntax
+            in
+            { lines = lines2
+            , patches = patch2 :: args.patches
+            , syntax = syntax2
             }
-            patches
+        )
+        { lines = lines
+        , patches = []
+        , syntax = buf.syntax
+        }
+        patches
 
 
 {-| for unit testing
@@ -217,6 +217,7 @@ applyInsertionToView : Int -> Int -> Int -> Int -> List Int -> List Int
 applyInsertionToView from size scrollTop height viewLines =
     if size == 0 then
         viewLines
+
     else
         applyInsertionToViewHelper from
             (max from scrollTop)
@@ -253,6 +254,7 @@ applyInsertionToViewHelper from i size scrollBottom viewLines =
                 n1 =
                     if n < from then
                         n
+
                     else
                         n
                             + size
@@ -260,20 +262,22 @@ applyInsertionToViewHelper from i size scrollBottom viewLines =
                 replace =
                     n1 >= scrollBottom
             in
-                (if replace then
-                    i
-                 else
-                    n1
-                )
-                    :: applyInsertionToViewHelper from
-                        (if replace then
-                            i + 1
-                         else
-                            i
-                        )
-                        size
-                        scrollBottom
-                        rest
+            (if replace then
+                i
+
+             else
+                n1
+            )
+                :: applyInsertionToViewHelper from
+                    (if replace then
+                        i + 1
+
+                     else
+                        i
+                    )
+                    size
+                    scrollBottom
+                    rest
 
         _ ->
             []
@@ -285,14 +289,15 @@ applyDeletionToView from to scrollTop height viewLines =
         size =
             to - from
     in
-        if size <= 0 then
+    if size <= 0 then
+        viewLines
+
+    else
+        applyDeletionToViewHelper from
+            to
+            size
+            (max from (scrollTop + height - size))
             viewLines
-        else
-            applyDeletionToViewHelper from
-                to
-                size
-                (max from (scrollTop + height - size))
-                viewLines
 
 
 applyDeletionToViewHelper : Int -> Int -> Int -> Int -> List Int -> List Int
@@ -301,8 +306,10 @@ applyDeletionToViewHelper from to size i viewLines =
         n :: rest ->
             (if n < from then
                 n
+
              else if n >= to then
                 n - size
+
              else
                 i
             )
@@ -311,6 +318,7 @@ applyDeletionToViewHelper from to size i viewLines =
                     size
                     (if from <= n && n < to then
                         i + 1
+
                      else
                         i
                     )
@@ -336,21 +344,22 @@ applyRegionChangeToView change scrollTop height_ viewLines =
         height =
             height_ + 2
     in
-        case change of
-            RegionAdd ( ( by, bx ), ( ey, ex ) ) ->
-                applyInsertionToView by (ey - by) scrollTop height viewLines
+    case change of
+        RegionAdd ( ( by, bx ), ( ey, ex ) ) ->
+            applyInsertionToView by (ey - by) scrollTop height viewLines
 
-            RegionRemove ( ( by, bx ), ( ey, ex ) ) ->
-                applyDeletionToView
-                    (if bx == 0 then
-                        by
-                     else
-                        by + 1
-                    )
-                    ey
-                    scrollTop
-                    height
-                    viewLines
+        RegionRemove ( ( by, bx ), ( ey, ex ) ) ->
+            applyDeletionToView
+                (if bx == 0 then
+                    by
+
+                 else
+                    by + 1
+                )
+                ey
+                scrollTop
+                height
+                viewLines
 
 
 {-| batch edit text, keep cursor, save history
@@ -382,13 +391,13 @@ transaction patches buf =
                         view =
                             buf.view
                     in
-                        ( { buf_
-                            | lines = lines
-                            , view = { view | cursor = cursor }
-                            , syntax = syntax
-                          }
-                        , patch1 :: undoPatches_
-                        )
+                    ( { buf_
+                        | lines = lines
+                        , view = { view | cursor = cursor }
+                        , syntax = syntax
+                      }
+                    , patch1 :: undoPatches_
+                    )
                 )
                 ( buf, [] )
                 patches
@@ -398,26 +407,27 @@ transaction patches buf =
         --_ =
         --    Debug.log "undoPatchs" undoPatchs
     in
-        if List.isEmpty undoPatchs then
-            buf
-        else
-            let
-                history =
-                    addPending buf.view.cursor undoPatchs buf1.history
+    if List.isEmpty undoPatchs then
+        buf
 
-                --_ =
-                --    Debug.log "history" history
-            in
-                { buf1
-                    | history =
-                        { history
-                            | version = history.version + 1
-                            , pendingChanges = history.pendingChanges ++ patches
-                            , diff =
-                                List.map reversedPatchToRegionChange undoPatchs
-                                    ++ history.diff
-                        }
+    else
+        let
+            history =
+                addPending buf.view.cursor undoPatchs buf1.history
+
+            --_ =
+            --    Debug.log "history" history
+        in
+        { buf1
+            | history =
+                { history
+                    | version = history.version + 1
+                    , pendingChanges = history.pendingChanges ++ patches
+                    , diff =
+                        List.map reversedPatchToRegionChange undoPatchs
+                            ++ history.diff
                 }
+        }
 
 
 updateCursor : Patch -> Patch -> Position -> Position
@@ -426,6 +436,7 @@ updateCursor patch patch1 cursor =
         Insertion pos s ->
             if cursor < pos then
                 cursor
+
             else
                 case patch1 of
                     Deletion b e ->
@@ -439,12 +450,13 @@ updateCursor patch patch1 cursor =
                             ( y, x ) =
                                 cursor
                         in
-                            ( y + (ey - by)
-                            , if Tuple.first pos == y then
-                                x + (ex - bx)
-                              else
-                                x
-                            )
+                        ( y + (ey - by)
+                        , if Tuple.first pos == y then
+                            x + (ex - bx)
+
+                          else
+                            x
+                        )
 
                     _ ->
                         cursor
@@ -454,10 +466,13 @@ updateCursor patch patch1 cursor =
                 Insertion _ s ->
                     if isEmpty s then
                         cursor
+
                     else if cursor < b then
                         cursor
+
                     else if b <= cursor && cursor < e then
                         b
+
                     else
                         let
                             ( by, bx ) =
@@ -469,12 +484,13 @@ updateCursor patch patch1 cursor =
                             ( y, x ) =
                                 cursor
                         in
-                            ( y - (ey - by)
-                            , if ey == y then
-                                x - (ex - bx)
-                              else
-                                x
-                            )
+                        ( y - (ey - by)
+                        , if ey == y then
+                            x - (ex - bx)
+
+                          else
+                            x
+                        )
 
                 Deletion _ _ ->
                     cursor
@@ -519,22 +535,22 @@ commit buf =
         { pending, undoes, pendingChanges } =
             history
     in
-        case pending.patches of
-            [] ->
-                buf
+    case pending.patches of
+        [] ->
+            buf
 
-            _ ->
-                { buf
-                    | history =
-                        { history
-                            | undoes = pending :: undoes
-                            , pending = emptyUndo
-                            , redoes = []
-                            , savePoint = history.savePoint + 1
-                            , pendingChanges = []
-                            , changes = history.changes ++ pendingChanges
-                        }
-                }
+        _ ->
+            { buf
+                | history =
+                    { history
+                        | undoes = pending :: undoes
+                        , pending = emptyUndo
+                        , redoes = []
+                        , savePoint = history.savePoint + 1
+                        , pendingChanges = []
+                        , changes = history.changes ++ pendingChanges
+                    }
+            }
 
 
 {-| undo last change
@@ -560,37 +576,38 @@ undo buf =
                             savePoint =
                                 history.savePoint - 1
                         in
-                            { history
-                                | undoes =
-                                    List.tail undoes
-                                        |> Maybe.withDefault []
-                                , pending = emptyUndo
-                                , redoes = { undo_ | patches = res.patches } :: redoes
-                                , version = history.version + 1
-                                , savePoint = savePoint
-                                , changes =
-                                    if savePoint == 0 then
-                                        []
-                                    else
-                                        history.changes ++ undoPatches
-                                , diff =
-                                    List.map reversedPatchToRegionChange res.patches
-                                        ++ history.diff
-                            }
+                        { history
+                            | undoes =
+                                List.tail undoes
+                                    |> Maybe.withDefault []
+                            , pending = emptyUndo
+                            , redoes = { undo_ | patches = res.patches } :: redoes
+                            , version = history.version + 1
+                            , savePoint = savePoint
+                            , changes =
+                                if savePoint == 0 then
+                                    []
+
+                                else
+                                    history.changes ++ undoPatches
+                            , diff =
+                                List.map reversedPatchToRegionChange res.patches
+                                    ++ history.diff
+                        }
 
                     view =
                         buf.view
                 in
-                    { buf
-                        | lines = res.lines
-                        , view =
-                            { view
-                                | cursor = undo_.cursor
-                                , cursorColumn = Tuple.second undo_.cursor
-                            }
-                        , syntax = res.syntax
-                        , history = undoHistory buf.history
-                    }
+                { buf
+                    | lines = res.lines
+                    , view =
+                        { view
+                            | cursor = undo_.cursor
+                            , cursorColumn = Tuple.second undo_.cursor
+                        }
+                    , syntax = res.syntax
+                    , history = undoHistory buf.history
+                }
             )
         |> Maybe.withDefault buf
 
@@ -618,23 +635,24 @@ redo buf =
                             savePoint =
                                 history.savePoint + 1
                         in
-                            { history
-                                | undoes = { redo_ | patches = res.patches } :: undoes
-                                , pending = emptyUndo
-                                , redoes =
-                                    List.tail redoes
-                                        |> Maybe.withDefault []
-                                , version = history.version + 1
-                                , savePoint = savePoint
-                                , changes =
-                                    if savePoint == 0 then
-                                        []
-                                    else
-                                        history.changes ++ redoPatches
-                                , diff =
-                                    List.map reversedPatchToRegionChange res.patches
-                                        ++ history.diff
-                            }
+                        { history
+                            | undoes = { redo_ | patches = res.patches } :: undoes
+                            , pending = emptyUndo
+                            , redoes =
+                                List.tail redoes
+                                    |> Maybe.withDefault []
+                            , version = history.version + 1
+                            , savePoint = savePoint
+                            , changes =
+                                if savePoint == 0 then
+                                    []
+
+                                else
+                                    history.changes ++ redoPatches
+                            , diff =
+                                List.map reversedPatchToRegionChange res.patches
+                                    ++ history.diff
+                        }
 
                     cursor =
                         res.patches
@@ -645,16 +663,16 @@ redo buf =
                     view =
                         buf.view
                 in
-                    { buf
-                        | lines = res.lines
-                        , view =
-                            { view
-                                | cursor = cursor
-                                , cursorColumn = Tuple.second cursor
-                            }
-                        , syntax = res.syntax
-                        , history = redoHistory buf.history
-                    }
+                { buf
+                    | lines = res.lines
+                    , view =
+                        { view
+                            | cursor = cursor
+                            , cursorColumn = Tuple.second cursor
+                        }
+                    , syntax = res.syntax
+                    , history = redoHistory buf.history
+                }
             )
         |> Maybe.withDefault buf
 
@@ -665,17 +683,17 @@ moveByClass class option buf =
         ( y, x ) =
             buf.view.cursor
     in
-        buf.lines
-            |> getLine y
-            |> Maybe.map
-                (\line ->
-                    let
-                        line1 =
-                            String.dropLeft x line
-                    in
-                        buf
-                )
-            |> Maybe.withDefault buf
+    buf.lines
+        |> getLine y
+        |> Maybe.map
+            (\line ->
+                let
+                    line1 =
+                        String.dropLeft x line
+                in
+                buf
+            )
+        |> Maybe.withDefault buf
 
 
 clearHistory : Buffer -> Buffer
@@ -723,6 +741,7 @@ setCursor cursor saveColumn view =
         , cursorColumn =
             if saveColumn then
                 Tuple.second cursor
+
             else
                 view.cursorColumn
     }
@@ -747,54 +766,57 @@ putString forward text buf =
                 line =
                     getLine y buf.lines |> Maybe.withDefault ""
             in
-                case text of
-                    Model.Text s ->
-                        if forward && line /= lineBreak then
-                            ( s
-                                |> fromStringExpandTabs tabSize (x + 1)
-                                |> Insertion ( y, x + 1 )
-                            , Nothing
-                            )
-                        else
-                            ( s
-                                |> fromStringExpandTabs tabSize x
-                                |> Insertion ( y, x )
-                            , Nothing
-                            )
+            case text of
+                Model.Text s ->
+                    if forward && line /= lineBreak then
+                        ( s
+                            |> fromStringExpandTabs tabSize (x + 1)
+                            |> Insertion ( y, x + 1 )
+                        , Nothing
+                        )
 
-                    Model.Lines s ->
-                        if forward then
-                            let
-                                s1 =
-                                    if
-                                        String.endsWith
-                                            lineBreak
-                                            line
-                                    then
-                                        s
-                                    else
-                                        lineBreak ++ s
-                            in
-                                ( s1
-                                    |> fromStringExpandTabs tabSize 0
-                                    |> Insertion ( y + 1, 0 )
-                                , Just ( y + 1, findLineFirst s + 1 )
+                    else
+                        ( s
+                            |> fromStringExpandTabs tabSize x
+                            |> Insertion ( y, x )
+                        , Nothing
+                        )
+
+                Model.Lines s ->
+                    if forward then
+                        let
+                            s1 =
+                                if
+                                    String.endsWith
+                                        lineBreak
+                                        line
+                                then
+                                    s
+
+                                else
+                                    lineBreak ++ s
+                        in
+                        ( s1
+                            |> fromStringExpandTabs tabSize 0
+                            |> Insertion ( y + 1, 0 )
+                        , Just ( y + 1, findLineFirst s + 1 )
+                        )
+
+                    else
+                        case buf.mode of
+                            Model.Insert _ ->
+                                ( s
+                                    |> fromStringExpandTabs tabSize x
+                                    |> Insertion ( y, x )
+                                , Nothing
                                 )
-                        else
-                            case buf.mode of
-                                Model.Insert _ ->
-                                    ( s
-                                        |> fromStringExpandTabs tabSize x
-                                        |> Insertion ( y, x )
-                                    , Nothing
-                                    )
 
-                                _ ->
-                                    ( s
-                                        |> fromStringExpandTabs tabSize 0
-                                        |> Insertion ( y, 0 )
-                                    , Just ( y, findLineFirst s + 1 )
-                                    )
+                            _ ->
+                                ( s
+                                    |> fromStringExpandTabs tabSize 0
+                                    |> Insertion ( y, 0 )
+                                , Just ( y, findLineFirst s + 1 )
+                                )
 
         getLastDeletedTo buf_ =
             case getLastPatch buf_ of
@@ -809,23 +831,23 @@ putString forward text buf =
                 _ ->
                     buf_.view.cursor
     in
-        buf
-            |> setLastIndent 0
-            |> transaction [ patch ]
-            |> (\buf1 ->
-                    updateView
-                        (setCursor
-                            (case cursor of
-                                Just p ->
-                                    p
+    buf
+        |> setLastIndent 0
+        |> transaction [ patch ]
+        |> (\buf1 ->
+                updateView
+                    (setCursor
+                        (case cursor of
+                            Just p ->
+                                p
 
-                                Nothing ->
-                                    getLastDeletedTo buf1
-                            )
-                            True
+                            Nothing ->
+                                getLastDeletedTo buf1
                         )
-                        buf1
-               )
+                        True
+                    )
+                    buf1
+           )
 
 
 cIndentRules :
@@ -983,7 +1005,7 @@ cursorLineFirst : B.TextBuffer -> Int -> Maybe Position
 cursorLineFirst lines y =
     lines
         |> B.getLine y
-        |> Maybe.map (findLineFirst >> (Tuple.pair y))
+        |> Maybe.map (findLineFirst >> Tuple.pair y)
 
 
 gotoLine : Int -> Buffer -> Buffer
@@ -1003,13 +1025,15 @@ indentCursorToLineFirst buf =
         y1 =
             if y >= B.count buf.lines - 1 then
                 Basics.max (y - 1) 0
+
             else
                 y
     in
-        if x == 0 then
-            gotoLine y1 buf
-        else
-            buf
+    if x == 0 then
+        gotoLine y1 buf
+
+    else
+        buf
 
 
 updateView : (View -> View) -> Buffer -> Buffer
@@ -1018,7 +1042,7 @@ updateView f buf =
         view =
             buf.view
     in
-        { buf | view = f buf.view }
+    { buf | view = f buf.view }
 
 
 scrollViewLinesHelper :
@@ -1035,21 +1059,23 @@ scrollViewLinesHelper height from to i viewLines =
                 replace =
                     n < to || n >= to + height
             in
-                (if replace then
-                    i
-                 else
-                    n
-                )
-                    :: scrollViewLinesHelper
-                        height
-                        from
-                        to
-                        (if replace then
-                            i + 1
-                         else
-                            i
-                        )
-                        rest
+            (if replace then
+                i
+
+             else
+                n
+            )
+                :: scrollViewLinesHelper
+                    height
+                    from
+                    to
+                    (if replace then
+                        i + 1
+
+                     else
+                        i
+                    )
+                    rest
 
         _ ->
             []
@@ -1066,32 +1092,36 @@ scrollViewLines height_ from to viewLines =
         height =
             height_ + 2
     in
-        if from + height <= to || to + height <= from then
-            List.range to (to + height - 1)
-        else if from > to then
-            -- show up contents
-            scrollViewLinesHelper
-                height
-                from
-                to
-                to
-                viewLines
-        else if from < to then
-            -- show down contents
-            scrollViewLinesHelper
-                height
-                from
-                to
-                (from + height)
-                viewLines
-        else
+    if from + height <= to || to + height <= from then
+        List.range to (to + height - 1)
+
+    else if from > to then
+        -- show up contents
+        scrollViewLinesHelper
+            height
+            from
+            to
+            to
             viewLines
+
+    else if from < to then
+        -- show down contents
+        scrollViewLinesHelper
+            height
+            from
+            to
+            (from + height)
+            viewLines
+
+    else
+        viewLines
 
 
 setScrollTop : Int -> Global -> View -> View
 setScrollTop n global view =
     if n == view.scrollTop then
         view
+
     else
         let
             lineHeight =
@@ -1100,20 +1130,21 @@ setScrollTop n global view =
             height =
                 view.size.height
         in
-            { view
-                | scrollTop = n
-                , scrollTopPx =
-                    if n == view.scrollTopPx // lineHeight then
-                        view.scrollTopPx
-                    else
-                        n * lineHeight
-                , lines =
-                    scrollViewLines
-                        height
-                        view.scrollTop
-                        n
-                        view.lines
-            }
+        { view
+            | scrollTop = n
+            , scrollTopPx =
+                if n == view.scrollTopPx // lineHeight then
+                    view.scrollTopPx
+
+                else
+                    n * lineHeight
+            , lines =
+                scrollViewLines
+                    height
+                    view.scrollTop
+                    n
+                    view.lines
+        }
 
 
 bestScrollTop : Int -> Int -> B.TextBuffer -> Int -> Int
@@ -1122,12 +1153,13 @@ bestScrollTop y height lines scrollTop =
         maxLine =
             B.count lines - 1
     in
-        if scrollTop <= y && y < scrollTop + height then
-            scrollTop
-        else
-            y
-                - (height // 2)
-                |> max 0
+    if scrollTop <= y && y < scrollTop + height then
+        scrollTop
+
+    else
+        y
+            - (height // 2)
+            |> max 0
 
 
 toWords : String -> Buffer -> List String
@@ -1153,6 +1185,7 @@ toWords exclude { config, lines } =
                 (\n ->
                     if n > 1 then
                         Just (n - 1)
+
                     else
                         Nothing
                 )
@@ -1162,8 +1195,10 @@ toWords exclude { config, lines } =
             (\( ka, va ) ( kb, vb ) ->
                 if va > vb then
                     LT
+
                 else if va < vb then
                     GT
+
                 else
                     let
                         la =
@@ -1172,12 +1207,14 @@ toWords exclude { config, lines } =
                         lb =
                             String.length kb
                     in
-                        if la > lb then
-                            GT
-                        else if la < lb then
-                            LT
-                        else
-                            EQ
+                    if la > lb then
+                        GT
+
+                    else if la < lb then
+                        LT
+
+                    else
+                        EQ
             )
         |> List.map Tuple.first
 
@@ -1199,10 +1236,11 @@ cancelLastIndent buf =
             ( y, _ ) =
                 buf.view.cursor
         in
-            buf
-                |> transaction [ Deletion ( y, 0 ) ( y, buf.dirtyIndent ) ]
-                |> setLastIndent 0
-                |> updateView (setCursorColumn buf.dirtyIndent)
+        buf
+            |> transaction [ Deletion ( y, 0 ) ( y, buf.dirtyIndent ) ]
+            |> setLastIndent 0
+            |> updateView (setCursorColumn buf.dirtyIndent)
+
     else
         buf
 
@@ -1325,15 +1363,15 @@ activeBuffer : Int -> Global -> Global
 activeBuffer id global =
     if
         -- same buffer
-        (case Win.getActiveView global.window of
+        case Win.getActiveView global.window of
             Just view ->
                 view.bufId == id
 
             _ ->
                 False
-        )
     then
         global
+
     else
         case
             global.buffers
@@ -1355,17 +1393,18 @@ addBuffer setActive buf global =
                 | buffers = Dict.insert buf.id buf global.buffers
             }
     in
-        if setActive then
-            activeBuffer buf.id global1
-        else
-            global1
+    if setActive then
+        activeBuffer buf.id global1
+
+    else
+        global1
 
 
 findBufferId : String -> Dict Int Buffer -> Maybe Int
 findBufferId path buffers =
     buffers
         |> Dict.values
-        |> findFirst (.path >> ((==) path))
+        |> findFirst (.path >> (==) path)
         |> Maybe.map .id
 
 
@@ -1381,6 +1420,7 @@ resizeView : Size -> View -> View
 resizeView size view =
     if size == view.size then
         view
+
     else
         { view
             | size = size

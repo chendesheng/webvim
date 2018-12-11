@@ -1,7 +1,7 @@
-port module Helper.Debounce exposing (..)
+port module Helper.Debounce exposing (DebounceEvent, debounce, debounceLint, debounceTokenize, decodeEvent, eventDecoder, onDebounce)
 
-import Json.Encode as Encode
 import Json.Decode as Decode exposing (decodeValue)
+import Json.Encode as Encode
 
 
 port debounce : Encode.Value -> Cmd msg

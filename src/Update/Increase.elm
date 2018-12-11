@@ -1,11 +1,11 @@
 module Update.Increase exposing (increaseNumber)
 
-import Model exposing (..)
-import Char exposing (toUpper, toLower)
-import Update.Buffer as Buf
-import Internal.TextBuffer as B exposing (Patch(..))
-import Parser as P exposing ((|.), (|=), Parser)
+import Char exposing (toLower, toUpper)
 import Helper.Helper exposing (keepOneOrMore, keepZeroOrMore)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Model exposing (..)
+import Parser as P exposing ((|.), (|=), Parser)
+import Update.Buffer as Buf
 
 
 numParser : Parser ( Int, Int, Int )
@@ -32,67 +32,71 @@ increaseNumber count larger buf =
         delta =
             if larger then
                 Maybe.withDefault 1 count
+
             else
                 -(Maybe.withDefault 1 count)
     in
-        buf.lines
-            |> B.getLine y
-            |> Maybe.andThen
-                (\line ->
-                    line
-                        |> String.slice x -1
-                        |> P.run numParser
-                        |> Result.toMaybe
-                        |> Maybe.map
-                            (\res ->
-                                let
-                                    ( dx, len, n ) =
-                                        res
+    buf.lines
+        |> B.getLine y
+        |> Maybe.andThen
+            (\line ->
+                line
+                    |> String.slice x -1
+                    |> P.run numParser
+                    |> Result.toMaybe
+                    |> Maybe.map
+                        (\res ->
+                            let
+                                ( dx, len, n ) =
+                                    res
 
-                                    isNegative =
-                                        String.slice
-                                            (x + dx - 1)
-                                            (x + dx)
-                                            line
-                                            == "-"
+                                isNegative =
+                                    String.slice
+                                        (x + dx - 1)
+                                        (x + dx)
+                                        line
+                                        == "-"
 
-                                    dx1 =
-                                        if isNegative then
-                                            dx - 1
-                                        else
-                                            dx
+                                dx1 =
+                                    if isNegative then
+                                        dx - 1
 
-                                    n1 =
-                                        if isNegative then
-                                            -n
-                                        else
-                                            n
+                                    else
+                                        dx
 
-                                    len1 =
-                                        if isNegative then
-                                            len + 1
-                                        else
-                                            len
+                                n1 =
+                                    if isNegative then
+                                        -n
 
-                                    cursor =
-                                        ( y, x + dx1 )
+                                    else
+                                        n
 
-                                    patches =
-                                        [ Deletion cursor
-                                            ( y
-                                            , x + dx1 + len1
-                                            )
-                                        , n1
-                                            |> ((+) delta)
-                                            |> String.fromInt
-                                            |> B.fromString
-                                            |> Insertion cursor
-                                        ]
-                                in
-                                    buf
-                                        |> Buf.transaction
-                                            patches
-                                        |> Buf.updateView (Buf.setCursor cursor True)
-                            )
-                )
-            |> Maybe.withDefault buf
+                                len1 =
+                                    if isNegative then
+                                        len + 1
+
+                                    else
+                                        len
+
+                                cursor =
+                                    ( y, x + dx1 )
+
+                                patches =
+                                    [ Deletion cursor
+                                        ( y
+                                        , x + dx1 + len1
+                                        )
+                                    , n1
+                                        |> (+) delta
+                                        |> String.fromInt
+                                        |> B.fromString
+                                        |> Insertion cursor
+                                    ]
+                            in
+                            buf
+                                |> Buf.transaction
+                                    patches
+                                |> Buf.updateView (Buf.setCursor cursor True)
+                        )
+            )
+        |> Maybe.withDefault buf

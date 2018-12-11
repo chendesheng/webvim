@@ -1,42 +1,54 @@
-module Update.Jump exposing (..)
+module Update.Jump exposing
+    ( jumpByView
+    , jumpHistory
+    , jumpLastBuffer
+    , jumpToFile
+    , jumpToLocation
+    , jumpToPath
+    , locationParser
+    , replaceActiveView
+    , startJumpToTag
+    , tokenizeBufferCmd
+    , tokenizeLineCmd
+    )
 
-import Model exposing (..)
-import Update.Message exposing (..)
+import Array as Array exposing (Array)
+import Dict exposing (Dict)
 import Helper.Helper
     exposing
-        ( filename
-        , resolvePath
-        , floorFromZero
-        , keepOneOrMore
-        , extname
-        , relativePath
-        , isPathChar
+        ( extname
+        , filename
         , findFirst
+        , floorFromZero
+        , isPathChar
+        , keepOneOrMore
+        , relativePath
+        , resolvePath
         )
-import Internal.TextBuffer as B exposing (Patch(..))
-import Update.Buffer as Buf
-import Dict exposing (Dict)
-import Parser as P exposing ((|.), (|=), Parser)
-import Update.Service exposing (..)
-import Array as Array exposing (Array)
 import Internal.Jumps
     exposing
-        ( saveJump
-        , jumpForward
-        , jumpBackward
-        , Jumps
+        ( Jumps
         , Location
         , currentLocation
+        , jumpBackward
+        , jumpForward
+        , saveJump
         )
 import Internal.Position exposing (Position)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Internal.Window as Win
+import Model exposing (..)
+import Parser as P exposing ((|.), (|=), Parser)
+import Update.Buffer as Buf
 import Update.Cursor exposing (correctCursor, scrollToCursor)
+import Update.Message exposing (..)
 import Update.Motion
     exposing
         ( setVisualEnd
-        , wordStringUnderCursor
         , wORDStringUnderCursor
+        , wordStringUnderCursor
         )
-import Internal.Window as Win
+import Update.Service exposing (..)
 
 
 tokenizeLineCmd : String -> Int -> Buffer -> Cmd Msg
@@ -46,18 +58,19 @@ tokenizeLineCmd url begin buf =
             view =
                 buf.view
         in
-            case B.getLine begin buf.lines of
-                Just line ->
-                    sendTokenizeLine url
-                        { bufId = buf.id
-                        , path = buf.path
-                        , version = buf.history.version
-                        , line = begin
-                        , lines = line
-                        }
+        case B.getLine begin buf.lines of
+            Just line ->
+                sendTokenizeLine url
+                    { bufId = buf.id
+                    , path = buf.path
+                    , version = buf.history.version
+                    , line = begin
+                    , lines = line
+                    }
 
-                _ ->
-                    Cmd.none
+            _ ->
+                Cmd.none
+
     else
         Cmd.none
 
@@ -78,26 +91,29 @@ tokenizeBufferCmd begin url buf =
             end =
                 scrollBottom + view.size.height
         in
-            if begin < scrollBottom then
-                let
-                    lines =
-                        buf.lines
-                            |> B.sliceLines begin end
-                            |> B.toString
-                in
-                    if String.isEmpty lines then
-                        Cmd.none
-                    else
-                        sendTokenize
-                            url
-                            { bufId = buf.id
-                            , path = buf.path
-                            , version = buf.history.version
-                            , line = begin
-                            , lines = lines
-                            }
-            else
+        if begin < scrollBottom then
+            let
+                lines =
+                    buf.lines
+                        |> B.sliceLines begin end
+                        |> B.toString
+            in
+            if String.isEmpty lines then
                 Cmd.none
+
+            else
+                sendTokenize
+                    url
+                    { bufId = buf.id
+                    , path = buf.path
+                    , version = buf.history.version
+                    , line = begin
+                    , lines = lines
+                    }
+
+        else
+            Cmd.none
+
     else
         Cmd.none
 
@@ -125,6 +141,7 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
         path =
             if isTempBuffer path_ then
                 path_
+
             else
                 resolvePath
                     global.pathSeperator
@@ -143,11 +160,11 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                                 buf1.lines
                                 buf1.view.scrollTop
                     in
-                        Buf.updateView
-                            (Buf.setCursor cursor True
-                                >> Buf.setScrollTop scrollTop global
-                            )
-                            buf1
+                    Buf.updateView
+                        (Buf.setCursor cursor True
+                            >> Buf.setScrollTop scrollTop global
+                        )
+                        buf1
 
                 _ ->
                     buf1
@@ -155,6 +172,7 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
         jumps =
             if isSaveJump then
                 saveJump { path = buf.path, cursor = buf.view.cursor } global.jumps
+
             else
                 global.jumps
 
@@ -163,77 +181,79 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                 | jumps = jumps
             }
     in
-        case
-            global1.buffers
-                |> Dict.values
-                |> findFirst (\b -> b.path == path)
-        of
-            -- buffer exists
-            Just b ->
-                if buf.id == b.id then
-                    ( { ed
-                        | buf = updateCursor buf
-                        , global = global1
-                      }
-                    , Cmd.none
-                    )
-                else
-                    ( { ed
-                        | global =
-                            let
-                                b1 =
-                                    b
-                                        |> updateCursor
-                                        |> Buf.updateView
-                                            (\v -> { v | alternativeBuf = Just buf.path })
-                            in
-                                { global1
-                                    | buffers = Dict.insert b1.id b1 global1.buffers
-                                    , window =
-                                        setView b1.view global1.window
-                                }
-                      }
-                    , Cmd.none
-                      -- , Cmd.batch
-                      --     [ if b.config.lint then
-                      --         sendLintProject global.service
-                      --             global.pathSeperator
-                      --             b.path
-                      --             b.history.version
-                      --             b.lines
-                      --       else
-                      --         Cmd.none
-                      --     ]
-                    )
+    case
+        global1.buffers
+            |> Dict.values
+            |> findFirst (\b -> b.path == path)
+    of
+        -- buffer exists
+        Just b ->
+            if buf.id == b.id then
+                ( { ed
+                    | buf = updateCursor buf
+                    , global = global1
+                  }
+                , Cmd.none
+                )
 
-            -- buffer not exists
-            _ ->
-                let
-                    ( global2, b ) =
-                        createBuffer path buf.view.size global1
-                            |> Tuple.mapSecond
-                                (updateCursor
-                                    >> Buf.updateView
-                                        (\v ->
-                                            { v
-                                                | alternativeBuf = Just buf.path
-                                            }
-                                        )
-                                )
-                in
-                    ( { ed
-                        | global =
-                            { global2
-                                | window =
-                                    setView b.view global2.window
-                            }
-                                |> Buf.addBuffer False b
-                      }
-                    , if isTempBuffer path then
-                        Cmd.none
-                      else
-                        sendReadBuffer global2.service buf.view.size.height b
-                    )
+            else
+                ( { ed
+                    | global =
+                        let
+                            b1 =
+                                b
+                                    |> updateCursor
+                                    |> Buf.updateView
+                                        (\v -> { v | alternativeBuf = Just buf.path })
+                        in
+                        { global1
+                            | buffers = Dict.insert b1.id b1 global1.buffers
+                            , window =
+                                setView b1.view global1.window
+                        }
+                  }
+                , Cmd.none
+                  -- , Cmd.batch
+                  --     [ if b.config.lint then
+                  --         sendLintProject global.service
+                  --             global.pathSeperator
+                  --             b.path
+                  --             b.history.version
+                  --             b.lines
+                  --       else
+                  --         Cmd.none
+                  --     ]
+                )
+
+        -- buffer not exists
+        _ ->
+            let
+                ( global2, b ) =
+                    createBuffer path buf.view.size global1
+                        |> Tuple.mapSecond
+                            (updateCursor
+                                >> Buf.updateView
+                                    (\v ->
+                                        { v
+                                            | alternativeBuf = Just buf.path
+                                        }
+                                    )
+                            )
+            in
+            ( { ed
+                | global =
+                    { global2
+                        | window =
+                            setView b.view global2.window
+                    }
+                        |> Buf.addBuffer False b
+              }
+            , if isTempBuffer path then
+                Cmd.none
+
+              else
+                sendReadBuffer global2.service buf.view.size.height b
+            )
 
 
 jumpByView : Float -> Global -> Buffer -> Buffer
@@ -261,17 +281,18 @@ jumpByView factor global buf =
                 maxy =
                     B.count buf.lines - 1
             in
-                if forward then
-                    if (newn + height) > maxy then
-                        max (maxy - height) 0
-                    else
-                        newn
+            if forward then
+                if (newn + height) > maxy then
+                    max (maxy - height) 0
+
                 else
-                    (if newn < height then
-                        0
-                     else
-                        newn
-                    )
+                    newn
+
+            else if newn < height then
+                0
+
+            else
+                newn
 
         n =
             floorFromZero (toFloat height * factor)
@@ -282,17 +303,17 @@ jumpByView factor global buf =
         scrollTop =
             scrollScope view.scrollTop n
     in
-        case Buf.cursorLineFirst buf.lines y of
-            Just cursor ->
-                buf
-                    |> setVisualEnd cursor
-                    |> Buf.updateView
-                        (Buf.setCursor cursor True
-                            >> Buf.setScrollTop scrollTop global
-                        )
+    case Buf.cursorLineFirst buf.lines y of
+        Just cursor ->
+            buf
+                |> setVisualEnd cursor
+                |> Buf.updateView
+                    (Buf.setCursor cursor True
+                        >> Buf.setScrollTop scrollTop global
+                    )
 
-            Nothing ->
-                buf
+        Nothing ->
+            buf
 
 
 locationParser : Parser Location
@@ -313,23 +334,23 @@ locationParser =
             }
         )
         |= keepOneOrMore isPathChar
-        |= (P.loop []
-                (\locations ->
-                    let
-                        done =
-                            P.succeed <| P.Done locations
+        |= P.loop []
+            (\locations ->
+                let
+                    done =
+                        P.succeed <| P.Done locations
 
-                        continue =
-                            P.succeed (\loc -> P.Loop <| loc :: locations)
-                                |. P.symbol ":"
-                                |= P.int
-                    in
-                        if List.length locations == 2 then
-                            done
-                        else
-                            P.oneOf [ P.backtrackable continue, done ]
-                )
-           )
+                    continue =
+                        P.succeed (\loc -> P.Loop <| loc :: locations)
+                            |. P.symbol ":"
+                            |= P.int
+                in
+                if List.length locations == 2 then
+                    done
+
+                else
+                    P.oneOf [ P.backtrackable continue, done ]
+            )
 
 
 jumpHistory : Bool -> Editor -> ( Editor, Cmd Msg )
@@ -338,6 +359,7 @@ jumpHistory isForward ({ global, buf } as ed) =
         jumps =
             if isForward then
                 jumpForward global.jumps
+
             else
                 jumpBackward
                     { path = buf.path
@@ -345,14 +367,14 @@ jumpHistory isForward ({ global, buf } as ed) =
                     }
                     global.jumps
     in
-        case currentLocation jumps of
-            Just loc ->
-                jumpToLocation False
-                    loc
-                    { ed | global = { global | jumps = jumps } }
+    case currentLocation jumps of
+        Just loc ->
+            jumpToLocation False
+                loc
+                { ed | global = { global | jumps = jumps } }
 
-            _ ->
-                ( ed, Cmd.none )
+        _ ->
+            ( ed, Cmd.none )
 
 
 jumpLastBuffer : Editor -> ( Editor, Cmd Msg )

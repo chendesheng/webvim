@@ -1,17 +1,17 @@
-module Main exposing (..)
+module Main exposing (main, toModel)
 
+import Browser
+import Browser.Events as Events exposing (onResize)
+import Helper.Debounce exposing (DebounceEvent, decodeEvent, onDebounce)
+import Helper.KeyEvent exposing (decodeKeyboardEvent)
+import Html
+import Json.Decode as Decode
 import Model exposing (..)
-import Update.Message exposing (..)
 import Platform as P
 import Update exposing (..)
-import Html
+import Update.Message exposing (..)
 import View exposing (page)
-import Browser.Events exposing (onResize)
-import Browser.Events as Events
-import Browser
-import Helper.Debounce exposing (onDebounce, decodeEvent, DebounceEvent)
-import Helper.KeyEvent exposing (decodeKeyboardEvent)
-import Json.Decode as Decode
+
 
 
 -- This is the first line written in webvim-elm :)
@@ -26,9 +26,9 @@ toModel =
 main : Program Flags Model Msg
 main =
     Browser.document
-        { init = (\flags -> ( Booting, initCommand flags ))
+        { init = \flags -> ( Booting, initCommand flags )
         , view =
-            (\model ->
+            \model ->
                 case model of
                     Booting ->
                         { title = "Initializing"
@@ -42,9 +42,8 @@ main =
 
                     Ready state ->
                         page state
-            )
         , update =
-            (\msg model ->
+            \msg model ->
                 case msg of
                     Boot (Ok flags) ->
                         init flags
@@ -61,7 +60,6 @@ main =
 
                             _ ->
                                 ( model, Cmd.none )
-            )
         , subscriptions =
             \_ ->
                 Sub.batch

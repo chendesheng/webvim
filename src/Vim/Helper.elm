@@ -1,29 +1,59 @@
-module Vim.Helper exposing (..)
+module Vim.Helper exposing
+    ( aggregateChanges
+    , aggregateCount
+    , aggregateKeys
+    , aggregateModeName
+    , aggregateOperator
+    , aggregateRecordKeys
+    , aggregateRecordingMacro
+    , aggregateRegister
+    , completeAndThen
+    , countParser
+    , dropLast
+    , dropUntil
+    , escapeKey
+    , isBetween
+    , isComplete
+    , isEscaped
+    , keyParser
+    , makePushKeys
+    , mapTuple
+    , parseKeys
+    , popComplete
+    , popKey
+    , pushComplete
+    , readKeyAndThen
+    , readKeysAndThen
+    , tuple
+    , visualAfterOperator
+    , visualLineAfterOperator
+    , visualRangeAfterOperator
+    )
 
-import Parser as P exposing ((|.), (|=), Parser)
 import Char
-import String
-import List
-import Result
 import Helper.Helper
     exposing
-        ( getLast
+        ( chompUntilAfter
+        , getLast
         , notSpace
         , oneOrMore
-        , chompUntilAfter
         , repeatParser
         )
+import List
+import Parser as P exposing ((|.), (|=), Parser)
+import Result
+import String
 import Vim.AST
     exposing
-        ( ModeDelta
-        , StateChange(..)
-        , Operator
+        ( Key
+        , ModeDelta
         , ModeName(..)
-        , Key
-        , Register
-        , defaultRegister
-        , OperatorRange(..)
         , MotionOption
+        , Operator
+        , OperatorRange(..)
+        , Register
+        , StateChange(..)
+        , defaultRegister
         )
 
 
@@ -33,7 +63,7 @@ isBetween low high char =
         code =
             Char.toCode char
     in
-        (code >= Char.toCode low) && (code <= Char.toCode high)
+    (code >= Char.toCode low) && (code <= Char.toCode high)
 
 
 countParser : Parser Int
@@ -48,16 +78,17 @@ countParser =
                     n =
                         String.toInt s
                 in
-                    case n of
-                        Just n_ ->
-                            -- prevent too large count
-                            if n_ > 2 ^ 30 then
-                                P.problem "too large count"
-                            else
-                                P.succeed n_
+                case n of
+                    Just n_ ->
+                        -- prevent too large count
+                        if n_ > 2 ^ 30 then
+                            P.problem "too large count"
 
-                        _ ->
-                            P.problem "not a valid count"
+                        else
+                            P.succeed n_
+
+                    _ ->
+                        P.problem "not a valid count"
             )
 
 
@@ -120,25 +151,26 @@ readKeysAndThen keys partialResult nextOps =
                     , P.succeed
                         []
                         |. P.symbol "<escape>"
-                    , (nextOps key)
+                    , nextOps key
                     ]
             )
 
 
 aggregateChanges : StateChange -> StateChange -> ModeDelta -> Bool
 aggregateChanges push pop modeDelta =
-    (List.foldl
+    List.foldl
         (\change res ->
             if change == push then
                 res + 1
+
             else if change == pop then
                 res - 1
+
             else
                 res
         )
         0
         modeDelta
-    )
         > 0
 
 
@@ -160,7 +192,7 @@ aggregateCount =
                 PushCount n ->
                     res
                         |> Maybe.withDefault 1
-                        |> ((*) n)
+                        |> (*) n
                         |> Just
 
                 PopCount ->
@@ -226,6 +258,7 @@ completeAndThen f p =
         (\modeDelta ->
             if isComplete modeDelta then
                 f modeDelta
+
             else
                 P.succeed modeDelta
         )
@@ -300,6 +333,7 @@ dropUntil item items =
         head :: tail ->
             if head == item then
                 tail
+
             else
                 dropUntil item tail
 
@@ -314,7 +348,7 @@ aggregateRecordKeys changes =
             case change of
                 PushKey key ->
                     key
-                        ++ (aggregateRecordKeys rest)
+                        ++ aggregateRecordKeys rest
 
                 PauseRecording ->
                     dropUntil ContinueRecording rest
@@ -378,15 +412,16 @@ visualRangeAfterOperator range =
                 { inclusive, linewise } =
                     mo
             in
-                MotionRange md
-                    { mo
-                        | inclusive =
-                            if linewise then
-                                False
-                            else
-                                not inclusive
-                        , linewise = False
-                    }
+            MotionRange md
+                { mo
+                    | inclusive =
+                        if linewise then
+                            False
+
+                        else
+                            not inclusive
+                    , linewise = False
+                }
 
         _ ->
             range
@@ -407,6 +442,7 @@ escapeKey : String -> Key
 escapeKey key =
     if key == "<" || key == "\\" then
         "\\" ++ key
+
     else
         key
 

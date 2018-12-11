@@ -1,13 +1,19 @@
-module Update.AutoComplete exposing (..)
+module Update.AutoComplete exposing
+    ( autoCompleteTarget
+    , filterAutoComplete
+    , isAutoCompleteStarted
+    , selectAutoComplete
+    , startAutoComplete
+    )
 
-import Model exposing (Buffer, AutoComplete, Mode(..))
-import Internal.TextBuffer as B
-import Helper.Fuzzy exposing (..)
 import Array as Array
+import Helper.Fuzzy exposing (..)
+import Helper.Helper exposing (rightChar, word)
+import Internal.Position exposing (Position, positionShiftLeft)
+import Internal.TextBuffer as B
+import Model exposing (AutoComplete, Buffer, Mode(..))
 import Update.Buffer as Buf
 import Update.Motion exposing (wordStringUnderCursor)
-import Internal.Position exposing (Position, positionShiftLeft)
-import Helper.Helper exposing (word, rightChar)
 
 
 selectAutoComplete : Bool -> Buffer -> Buffer
@@ -24,10 +30,12 @@ selectAutoComplete forward buf =
                             modBy
                                 (Array.length matches)
                                 (select
-                                    + if forward then
+                                    + (if forward then
                                         1
-                                      else
+
+                                       else
                                         -1
+                                      )
                                 )
 
                         targetSelected =
@@ -36,10 +44,13 @@ selectAutoComplete forward buf =
                         scrollTop =
                             if targetSelected then
                                 auto.scrollTop
+
                             else if newSelect < auto.scrollTop then
                                 newSelect
+
                             else if newSelect >= auto.scrollTop + 15 then
                                 newSelect - 15 + 1
+
                             else
                                 auto.scrollTop
 
@@ -60,18 +71,18 @@ selectAutoComplete forward buf =
                                 ]
                                 buf
                     in
-                        { buf1
-                            | mode =
-                                Insert
-                                    { insert
-                                        | autoComplete =
-                                            Just
-                                                { auto
-                                                    | select = newSelect
-                                                    , scrollTop = scrollTop
-                                                }
-                                    }
-                        }
+                    { buf1
+                        | mode =
+                            Insert
+                                { insert
+                                    | autoComplete =
+                                        Just
+                                            { auto
+                                                | select = newSelect
+                                                , scrollTop = scrollTop
+                                            }
+                                }
+                    }
 
                 _ ->
                     buf
@@ -86,24 +97,26 @@ autoCompleteTarget wordChars buf =
         ( y, x ) =
             buf.view.cursor
     in
-        if x == 0 then
-            Nothing
-        else
-            wordStringUnderCursor
-                wordChars
-                buf.lines
-                ( y, x - 1 )
-                |> Maybe.andThen
-                    (\(( pos, s ) as result) ->
-                        if pos > ( y, x - 1 ) then
-                            Nothing
-                        else
-                            let
-                                ( _, x1 ) =
-                                    pos
-                            in
-                                Just ( pos, String.slice 0 (x - x1) s )
-                    )
+    if x == 0 then
+        Nothing
+
+    else
+        wordStringUnderCursor
+            wordChars
+            buf.lines
+            ( y, x - 1 )
+            |> Maybe.andThen
+                (\(( pos, s ) as result) ->
+                    if pos > ( y, x - 1 ) then
+                        Nothing
+
+                    else
+                        let
+                            ( _, x1 ) =
+                                pos
+                        in
+                        Just ( pos, String.slice 0 (x - x1) s )
+                )
 
 
 isAutoCompleteStarted : Buffer -> String -> Bool
@@ -177,48 +190,50 @@ filterAutoComplete buf =
                                 |> B.substring pos buf.view.cursor
                                 |> B.toString
                     in
-                        if
-                            target
-                                |> rightChar
-                                |> Maybe.map (word wordChars)
-                                |> Maybe.withDefault True
-                        then
-                            Just
-                                { auto
-                                    | matches =
-                                        Array.push
-                                            { text = target
-                                            , matches = []
-                                            }
-                                            (target
-                                                |> fuzzyMatch source
-                                                |> Array.fromList
-                                            )
-                                    , select = -1
-                                }
-                        else
-                            Nothing
+                    if
+                        target
+                            |> rightChar
+                            |> Maybe.map (word wordChars)
+                            |> Maybe.withDefault True
+                    then
+                        Just
+                            { auto
+                                | matches =
+                                    Array.push
+                                        { text = target
+                                        , matches = []
+                                        }
+                                        (target
+                                            |> fuzzyMatch source
+                                            |> Array.fromList
+                                        )
+                                , select = -1
+                            }
+
+                    else
+                        Nothing
 
                 _ ->
                     Nothing
     in
-        case buf.mode of
-            Insert insert ->
-                let
-                    autoComplete =
-                        updateAutoComplete insert.autoComplete
-                in
-                    -- avoid create new mode object when autoComplete hide
-                    if
-                        (insert.autoComplete == Nothing)
-                            && (autoComplete == Nothing)
-                    then
-                        buf
-                    else
-                        { buf
-                            | mode =
-                                Insert { insert | autoComplete = autoComplete }
-                        }
-
-            _ ->
+    case buf.mode of
+        Insert insert ->
+            let
+                autoComplete =
+                    updateAutoComplete insert.autoComplete
+            in
+            -- avoid create new mode object when autoComplete hide
+            if
+                (insert.autoComplete == Nothing)
+                    && (autoComplete == Nothing)
+            then
                 buf
+
+            else
+                { buf
+                    | mode =
+                        Insert { insert | autoComplete = autoComplete }
+                }
+
+        _ ->
+            buf

@@ -1,11 +1,11 @@
-module Update.Range exposing (..)
+module Update.Range exposing (isLinewise, operatorRanges, visualRegions)
 
-import Model exposing (..)
-import Vim.AST as V exposing (Operator(..))
 import Internal.Position exposing (Position, positionMin)
-import Internal.TextObject exposing (expandTextObject)
-import Update.Motion exposing (..)
 import Internal.TextBuffer as B
+import Internal.TextObject exposing (expandTextObject)
+import Model exposing (..)
+import Update.Motion exposing (..)
+import Vim.AST as V exposing (Operator(..))
 
 
 isLinewise : V.OperatorRange -> Mode -> Bool
@@ -17,7 +17,7 @@ isLinewise range mode =
         V.VisualRange linewise ->
             case mode of
                 Visual { tipe, begin, end } ->
-                    (case tipe of
+                    case tipe of
                         V.VisualLine ->
                             True
 
@@ -26,7 +26,6 @@ isLinewise range mode =
 
                         _ ->
                             linewise
-                    )
 
                 _ ->
                     False
@@ -62,49 +61,51 @@ visualRegions linewise tipe begin end lines =
         ex1 =
             max bx ex
     in
-        if linewise then
-            [ ( ( by, 0 )
-              , ( ey + 1
-                , 0
-                )
-              )
-            ]
-        else
-            case tipe of
-                V.VisualLine ->
-                    [ ( ( by, 0 )
-                      , ( ey + 1
-                        , 0
+    if linewise then
+        [ ( ( by, 0 )
+          , ( ey + 1
+            , 0
+            )
+          )
+        ]
+
+    else
+        case tipe of
+            V.VisualLine ->
+                [ ( ( by, 0 )
+                  , ( ey + 1
+                    , 0
+                    )
+                  )
+                ]
+
+            V.VisualChars ->
+                [ ( b, ( ey, ex + 1 ) ) ]
+
+            V.VisualBlock ->
+                List.range by ey
+                    |> List.filterMap
+                        (\i ->
+                            lines
+                                |> B.getLine i
+                                |> Maybe.andThen
+                                    (\line ->
+                                        let
+                                            maxcol =
+                                                B.lineMaxColumn line
+                                        in
+                                        if bx1 > maxcol then
+                                            Nothing
+
+                                        else
+                                            Just
+                                                ( ( i, bx1 )
+                                                , ( i
+                                                  , min (ex1 + 1) maxcol
+                                                  )
+                                                )
+                                    )
                         )
-                      )
-                    ]
-
-                V.VisualChars ->
-                    [ ( b, ( ey, ex + 1 ) ) ]
-
-                V.VisualBlock ->
-                    List.range by ey
-                        |> List.filterMap
-                            (\i ->
-                                lines
-                                    |> B.getLine i
-                                    |> Maybe.andThen
-                                        (\line ->
-                                            let
-                                                maxcol =
-                                                    B.lineMaxColumn line
-                                            in
-                                                if bx1 > maxcol then
-                                                    Nothing
-                                                else
-                                                    Just
-                                                        ( ( i, bx1 )
-                                                        , ( i
-                                                          , min (ex1 + 1) maxcol
-                                                          )
-                                                        )
-                                        )
-                            )
 
 
 operatorRanges :
@@ -122,35 +123,40 @@ operatorRanges count range global buf =
                         begin =
                             if pos > buf.view.cursor then
                                 buf.view.cursor
+
                             else
                                 pos
 
                         ( endy, endx ) =
                             if pos > buf.view.cursor then
                                 pos
+
                             else
                                 buf.view.cursor
                     in
-                        if mo.linewise then
-                            [ ( ( Tuple.first begin, 0 )
-                              , ( if mo.inclusive then
-                                    endy + 1
-                                  else
-                                    endy
-                                , 0
-                                )
-                              )
-                            ]
-                        else
-                            [ ( begin
-                              , ( endy
-                                , if mo.inclusive then
-                                    endx + 1
-                                  else
-                                    endx
-                                )
-                              )
-                            ]
+                    if mo.linewise then
+                        [ ( ( Tuple.first begin, 0 )
+                          , ( if mo.inclusive then
+                                endy + 1
+
+                              else
+                                endy
+                            , 0
+                            )
+                          )
+                        ]
+
+                    else
+                        [ ( begin
+                          , ( endy
+                            , if mo.inclusive then
+                                endx + 1
+
+                              else
+                                endx
+                            )
+                          )
+                        ]
 
                 Nothing ->
                     []
@@ -170,14 +176,14 @@ operatorRanges count range global buf =
                 ( y, x ) =
                     buf.view.cursor
             in
-                buf.view.cursor
-                    |> expandTextObject
-                        buf.config.wordChars
-                        buf.view.scrollTop
-                        buf.view.size.height
-                        buf.syntax
-                        textObject
-                        around
-                        buf.lines
-                    |> Maybe.map List.singleton
-                    |> Maybe.withDefault []
+            buf.view.cursor
+                |> expandTextObject
+                    buf.config.wordChars
+                    buf.view.scrollTop
+                    buf.view.size.height
+                    buf.syntax
+                    textObject
+                    around
+                    buf.lines
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []

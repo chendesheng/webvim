@@ -1,11 +1,11 @@
 module Update.Select exposing (select)
 
-import Vim.AST as V exposing (Operator(..), ChangeCase(..))
+import Internal.Position exposing (excludeRight)
+import Internal.TextObject exposing (expandTextObject)
 import Model exposing (..)
 import Update.Buffer as Buf
-import Internal.TextObject exposing (expandTextObject)
 import Update.Motion exposing (..)
-import Internal.Position exposing (excludeRight)
+import Vim.AST as V exposing (ChangeCase(..), Operator(..))
 
 
 select : Maybe Int -> V.TextObject -> Bool -> Editor -> Editor
@@ -16,8 +16,10 @@ select count textobj around ({ buf, global } as ed) =
                 | buf =
                     (if begin == end then
                         begin
+
                      else if buf.view.cursor == max begin end then
                         Tuple.mapSecond ((+) 1) (max begin end)
+
                      else
                         Tuple.mapSecond (\n -> n - 1) (min begin end)
                     )
@@ -37,6 +39,7 @@ select count textobj around ({ buf, global } as ed) =
                                     begin1 =
                                         if begin == end then
                                             min a b
+
                                         else
                                             a
                                                 |> min b
@@ -46,25 +49,27 @@ select count textobj around ({ buf, global } as ed) =
                                     end1 =
                                         if begin == end then
                                             max a b
+
                                         else
                                             a
                                                 |> max b
                                                 |> max begin
                                                 |> max end
                                 in
-                                    if
-                                        (buf.view.cursor == min begin end)
-                                            && (begin /= end)
-                                    then
-                                        buf
-                                            |> Buf.updateView (Buf.setCursor begin1 True)
-                                            |> setVisualEnd begin1
-                                            |> setVisualBegin end1
-                                    else
-                                        buf
-                                            |> Buf.updateView (Buf.setCursor end1 True)
-                                            |> setVisualEnd end1
-                                            |> setVisualBegin begin1
+                                if
+                                    (buf.view.cursor == min begin end)
+                                        && (begin /= end)
+                                then
+                                    buf
+                                        |> Buf.updateView (Buf.setCursor begin1 True)
+                                        |> setVisualEnd begin1
+                                        |> setVisualBegin end1
+
+                                else
+                                    buf
+                                        |> Buf.updateView (Buf.setCursor end1 True)
+                                        |> setVisualEnd end1
+                                        |> setVisualBegin begin1
                             )
                         |> Maybe.withDefault buf
             }

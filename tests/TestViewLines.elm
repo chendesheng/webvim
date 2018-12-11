@@ -1,19 +1,19 @@
-module TestViewLines exposing (..)
+module TestViewLines exposing (applyPatches, resize, suite)
 
-import Fuzz
 import Expect exposing (Expectation)
-import Test exposing (..)
-import Update.Buffer exposing (..)
-import TextBuffer exposing (..)
+import Fuzz
+import Internal.TextBuffer exposing (Patch(..), fromString)
 import Model
     exposing
         ( Buffer
-        , emptyBuffer
-        , updateBuffer
         , Editor
+        , emptyBuffer
         , emptyGlobal
+        , updateBuffer
         )
-import Internal.TextBuffer exposing (Patch(..), fromString)
+import Test exposing (..)
+import TextBuffer exposing (..)
+import Update.Buffer exposing (..)
 
 
 resize : Int -> Editor -> Editor
@@ -22,16 +22,16 @@ resize height ({ buf, global } as ed) =
         view =
             buf.view
     in
-        { ed
-            | buf =
-                { buf
-                    | view =
-                        { view
-                            | lines = List.range 0 (height + 1)
-                            , size = { height = height, width = 1 }
-                        }
-                }
-        }
+    { ed
+        | buf =
+            { buf
+                | view =
+                    { view
+                        | lines = List.range 0 (height + 1)
+                        , size = { height = height, width = 1 }
+                    }
+            }
+    }
 
 
 applyPatches : Int -> List Patch -> Expectation
@@ -44,9 +44,9 @@ applyPatches height patches =
                 |> resize height
                 |> updateBuffer (transaction patches)
     in
-        Expect.equal
-            (List.range buf.view.scrollTop (buf.view.scrollTop + buf.view.size.height + 1))
-            (List.sort buf.view.lines)
+    Expect.equal
+        (List.range buf.view.scrollTop (buf.view.scrollTop + buf.view.size.height + 1))
+        (List.sort buf.view.lines)
 
 
 suite : Test

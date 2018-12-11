@@ -1,9 +1,9 @@
-module Helper.Fuzzy exposing (..)
+module Helper.Fuzzy exposing (FuzzyMatchItem, fuzzyMatch, fuzzyMatchInner, normalizeSlash)
 
-import List
-import String
 import Char
 import Helper.Helper exposing (getLast)
+import List
+import String
 
 
 type alias FuzzyMatchItem =
@@ -16,6 +16,7 @@ normalizeSlash : String -> String
 normalizeSlash a =
     if a == "/" || a == "\\" then
         "/"
+
     else
         a
 
@@ -26,6 +27,7 @@ fuzzyMatchInner s t =
         smartCaseEqual a b =
             if String.any Char.isLower b then
                 String.toLower a == b
+
             else
                 a == b
 
@@ -44,8 +46,10 @@ fuzzyMatchInner s t =
         match delta i j result =
             if i < 0 || j < 0 || i >= lenS || j >= lenT then
                 result
+
             else if equal (charAt i s) (charAt j t) then
                 match delta (i + delta) (j + delta) (i :: result)
+
             else
                 match delta (i + delta) j result
 
@@ -58,18 +62,19 @@ fuzzyMatchInner s t =
         indexes =
             matchForward 0 0 []
     in
-        if List.length indexes == lenT then
-            case indexes of
-                i :: _ ->
-                    matchBackward
-                        (i - 1)
-                        (lenT - 2)
-                        [ i ]
+    if List.length indexes == lenT then
+        case indexes of
+            i :: _ ->
+                matchBackward
+                    (i - 1)
+                    (lenT - 2)
+                    [ i ]
 
-                _ ->
-                    []
-        else
-            []
+            _ ->
+                []
+
+    else
+        []
 
 
 fuzzyMatch : List String -> String -> List FuzzyMatchItem
@@ -82,6 +87,7 @@ fuzzyMatch src target =
                 }
             )
             src
+
     else
         src
             |> List.filterMap
@@ -113,5 +119,5 @@ fuzzyMatch src target =
                                 |> getLast
                                 |> Maybe.withDefault 0
                     in
-                        ( last - first, first )
+                    ( last - first, first )
                 )

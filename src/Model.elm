@@ -1,25 +1,95 @@
-module Model exposing (..)
+module Model exposing
+    ( AutoComplete
+    , Buffer
+    , BufferConfig
+    , BufferHistory
+    , BufferLint
+    , CodePoint
+    , Editor
+    , ExMode
+    , ExPrefix(..)
+    , Flags
+    , FontInfo
+    , Global
+    , IME
+    , IndentConfig(..)
+    , Key
+    , LintError
+    , Mode(..)
+    , Model(..)
+    , Redo
+    , RegisterText(..)
+    , RichText(..)
+    , Size
+    , StatusMessage(..)
+    , TextWithStyle
+    , Undo
+    , View
+    , VisualMode
+    , bufferDecoder
+    , bufferEncoder
+    , bufferToString
+    , buffersToString
+    , cIndentRules
+    , cacheVimAST
+    , charWidth
+    , configs
+    , createBuffer
+    , cssFileDefaultConfig
+    , cursorCharWidth
+    , cursorDecoder
+    , cursorEncoder
+    , defaultBufferConfig
+    , emptyBuffer
+    , emptyBufferHistory
+    , emptyExBuffer
+    , emptyGlobal
+    , emptyIme
+    , emptyUndo
+    , emptyView
+    , getActiveBuffer
+    , historyDecoder
+    , historyEncoder
+    , increaseMaxId
+    , isLintEnabled
+    , isTempBuffer
+    , patchDecoder
+    , patchEncoder
+    , registerString
+    , registerToString
+    , registersDecoder
+    , setBuffer
+    , stringWidth
+    , undoDecoder
+    , undoEncoder
+    , updateBuffer
+    , updateGlobal
+    , updateIme
+    , updateWindow
+    , viewDecoder
+    , viewEncoder
+    , windowDecoder
+    , windowEncoder
+    )
 
 -- types referenced from Model should be here (expect internal types like Patch)
 -- types only part of a message (like tokenize result) should be in
 --   Update.Message module
 -- Model should not import Update.Message
 
-import Internal.Position exposing (..)
-import Internal.TextBuffer as B exposing (TextBuffer, Patch(..), RegionChange)
-import Dict exposing (Dict)
-import Vim.AST as V exposing (VisualType(..))
-import Internal.Syntax exposing (..)
 import Array as Array exposing (Array)
-import Json.Encode as Encode
-import Helper.Fuzzy exposing (FuzzyMatchItem)
-import Internal.Jumps exposing (..)
 import Dict exposing (Dict)
-import Json.Encode as Encode
-import Json.Decode as Decode
-import Regex as Re
-import Helper.Helper exposing (findFirst, charWidthType, filename, regex, extname, relativePath)
+import Helper.Fuzzy exposing (FuzzyMatchItem)
+import Helper.Helper exposing (charWidthType, extname, filename, findFirst, regex, relativePath)
+import Internal.Jumps exposing (..)
+import Internal.Position exposing (..)
+import Internal.Syntax exposing (..)
+import Internal.TextBuffer as B exposing (Patch(..), RegionChange, TextBuffer)
 import Internal.Window as Win exposing (Window)
+import Json.Decode as Decode
+import Json.Encode as Encode
+import Regex as Re
+import Vim.AST as V exposing (VisualType(..))
 
 
 type alias Size =
@@ -50,13 +120,13 @@ charWidth { widths } ch =
         widthType =
             charWidthType ch
     in
-        widths
-            |> findFirst
-                (\( tipe, width ) ->
-                    tipe == widthType
-                )
-            |> Maybe.map Tuple.second
-            |> Maybe.withDefault 10
+    widths
+        |> findFirst
+            (\( tipe, width ) ->
+                tipe == widthType
+            )
+        |> Maybe.map Tuple.second
+        |> Maybe.withDefault 10
 
 
 stringWidth : FontInfo -> Int -> Int -> String -> Int
@@ -248,6 +318,7 @@ isLintEnabled pathSeperator homedir name lint =
             |> relativePath pathSeperator homedir
             |> String.startsWith (".elm" ++ pathSeperator)
             |> not
+
     else
         lint
 
@@ -271,27 +342,27 @@ createBuffer path size global =
         global1 =
             increaseMaxId global
     in
-        ( global1
-        , { emptyBuffer
-            | id = global1.maxId
-            , view =
-                { emptyView
-                    | bufId = global1.maxId
-                    , lines = List.range 0 (size.height + 1)
-                    , size = size
-                }
-            , config =
-                { config
-                    | lint =
-                        isLintEnabled global.pathSeperator
-                            global.homedir
-                            (name ++ ext)
-                            config.lint
-                }
-            , path = path
-            , name = name ++ ext
-          }
-        )
+    ( global1
+    , { emptyBuffer
+        | id = global1.maxId
+        , view =
+            { emptyView
+                | bufId = global1.maxId
+                , lines = List.range 0 (size.height + 1)
+                , size = size
+            }
+        , config =
+            { config
+                | lint =
+                    isLintEnabled global.pathSeperator
+                        global.homedir
+                        (name ++ ext)
+                        config.lint
+            }
+        , path = path
+        , name = name ++ ext
+      }
+    )
 
 
 viewDecoder : Decode.Decoder View
@@ -319,12 +390,13 @@ viewEncoder view =
          , ( "cursor", cursorEncoder view.cursor )
          , ( "scrollTop", Encode.int view.scrollTop )
          ]
-            ++ case view.alternativeBuf of
-                Just s ->
-                    [ ( "alternativeBuf", Encode.string s ) ]
+            ++ (case view.alternativeBuf of
+                    Just s ->
+                        [ ( "alternativeBuf", Encode.string s ) ]
 
-                _ ->
-                    []
+                    _ ->
+                        []
+               )
         )
 
 
@@ -351,22 +423,22 @@ bufferDecoder pathSeperator homedir =
                         |> Dict.get ext
                         |> Maybe.withDefault defaultBufferConfig
             in
-                { emptyBuffer
-                    | id = id
-                    , history = history
-                    , path = path
-                    , name = name ++ ext
-                    , view = view
-                    , config =
-                        { config
-                            | lint =
-                                isLintEnabled pathSeperator
-                                    homedir
-                                    (name ++ ext)
-                                    config.lint
-                            , syntax = syntax
-                        }
-                }
+            { emptyBuffer
+                | id = id
+                , history = history
+                , path = path
+                , name = name ++ ext
+                , view = view
+                , config =
+                    { config
+                        | lint =
+                            isLintEnabled pathSeperator
+                                homedir
+                                (name ++ ext)
+                                config.lint
+                        , syntax = syntax
+                    }
+            }
         )
         (Decode.field "id" Decode.int)
         (Decode.field "path" Decode.string)
@@ -643,10 +715,11 @@ updateIme fnupdate global =
         ime =
             fnupdate global.ime
     in
-        if ime == global.ime then
-            global
-        else
-            { global | ime = ime }
+    if ime == global.ime then
+        global
+
+    else
+        { global | ime = ime }
 
 
 updateBuffer : (Buffer -> Buffer) -> Editor -> Editor
@@ -802,21 +875,21 @@ registerToString registers =
                     ( k, v ) =
                         item
                 in
-                    Encode.object
-                        [ ( "name", Encode.string k )
-                        , case v of
-                            Text s ->
-                                ( "type", Encode.string "text" )
+                Encode.object
+                    [ ( "name", Encode.string k )
+                    , case v of
+                        Text s ->
+                            ( "type", Encode.string "text" )
 
-                            Lines s ->
-                                ( "type", Encode.string "lines" )
-                        , case v of
-                            Text s ->
-                                ( "value", Encode.string s )
+                        Lines s ->
+                            ( "type", Encode.string "lines" )
+                    , case v of
+                        Text s ->
+                            ( "value", Encode.string s )
 
-                            Lines s ->
-                                ( "value", Encode.string s )
-                        ]
+                        Lines s ->
+                            ( "value", Encode.string s )
+                    ]
             )
         |> Encode.encode 0
 
@@ -904,10 +977,12 @@ patchDecoder =
                         (Decode.field "s" Decode.string
                             |> Decode.map B.fromString
                         )
+
                 else if typ == "-" then
                     Decode.map2 Deletion
                         (Decode.field "b" cursorDecoder)
                         (Decode.field "e" cursorDecoder)
+
                 else
                     Decode.fail <| "unknown type: " ++ typ
             )

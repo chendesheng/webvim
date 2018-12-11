@@ -1,18 +1,27 @@
-module TextBuffer exposing (..)
+module TextBuffer exposing
+    ( fuzzLines
+    , fuzzPatch
+    , fuzzPosition
+    , fuzzPositionFrom
+    , invalidPatches
+    , normalPatches
+    , patchToRegionChange
+    , suite
+    )
 
-import Fuzz
+import Array as Array
 import Expect exposing (Expectation)
-import Test exposing (..)
+import Fuzz
+import Internal.Position exposing (..)
 import Internal.TextBuffer as B
     exposing
-        ( TextBuffer
-        , Patch(..)
+        ( Patch(..)
         , RegionChange(..)
+        , TextBuffer
         , patchToRegion
         )
-import Internal.Position exposing (..)
-import Array as Array
 import String
+import Test exposing (..)
 
 
 normalPatches :
@@ -186,17 +195,17 @@ suite =
                         ( patch1, buf1 ) =
                             output
                     in
-                        [ test label <|
-                            \_ ->
-                                Expect.equal
-                                    ( patch1, buf1 )
-                                    (B.applyPatch patch buf)
-                        , test ("Revert: " ++ label) <|
-                            \_ ->
-                                Expect.equal
-                                    ( patch, buf )
-                                    (B.applyPatch patch1 buf1)
-                        ]
+                    [ test label <|
+                        \_ ->
+                            Expect.equal
+                                ( patch1, buf1 )
+                                (B.applyPatch patch buf)
+                    , test ("Revert: " ++ label) <|
+                        \_ ->
+                            Expect.equal
+                                ( patch, buf )
+                                (B.applyPatch patch1 buf1)
+                    ]
                 )
                 normalPatches
             )
@@ -210,12 +219,12 @@ suite =
                         ( patch1, buf1 ) =
                             output
                     in
-                        [ test label <|
-                            \_ ->
-                                Expect.equal
-                                    ( patch1, buf1 )
-                                    (B.applyPatch patch buf)
-                        ]
+                    [ test label <|
+                        \_ ->
+                            Expect.equal
+                                ( patch1, buf1 )
+                                (B.applyPatch patch buf)
+                    ]
                 )
                 invalidPatches
             )
@@ -231,25 +240,24 @@ suite =
                                 ( patch2, buf2 ) =
                                     B.applyPatch patch1 buf1
                             in
-                                Expect.equal buf buf2
-                        , (\( _, buf_ ) ->
+                            Expect.equal buf buf2
+                        , \( _, buf_ ) ->
                             let
                                 line =
                                     buf_
                                         |> B.getLine (B.count buf_ - 1)
                                         |> Maybe.withDefault ""
                             in
-                                String.endsWith B.lineBreak line
-                                    |> Expect.false
-                                        "last line should not endsWith \\n"
-                          )
-                        , (\( _, buf_ ) ->
+                            String.endsWith B.lineBreak line
+                                |> Expect.false
+                                    "last line should not endsWith \\n"
+                        , \( _, buf_ ) ->
                             B.mapLines
                                 (\line ->
                                     line
                                         |> String.indexes B.lineBreak
                                         |> List.length
-                                        |> ((==) 1)
+                                        |> (==) 1
                                 )
                                 buf_
                                 |> Array.slice 0
@@ -258,8 +266,7 @@ suite =
                                 |> List.all ((==) True)
                                 |> Expect.true
                                     "should always contains single \\n except last line"
-                          )
-                        , (\( _, buf_ ) ->
+                        , \( _, buf_ ) ->
                             B.mapLines String.isEmpty buf_
                                 |> Array.slice 0
                                     (B.count buf_ - 1)
@@ -267,7 +274,6 @@ suite =
                                 |> List.all not
                                 |> Expect.true
                                     "should not contains empty line except last line"
-                          )
                         ]
                         (B.applyPatch patch buf)
             ]
@@ -277,60 +283,60 @@ suite =
                     ( a, b ) =
                         cases.patches
                 in
-                    test cases.label <|
-                        \_ ->
-                            Expect.equal
-                                (B.mergePatch a b)
-                                cases.result
+                test cases.label <|
+                    \_ ->
+                        Expect.equal
+                            (B.mergePatch a b)
+                            cases.result
           in
-            describe "mergePatch"
-                [ describe "insert + insert"
-                    (List.map testMergePatch
-                        [ { label = "merge success"
-                          , patches =
-                                ( Insertion ( 0, 1 ) (B.fromString "2")
-                                , Insertion ( 0, 0 ) (B.fromString "1")
-                                )
-                          , result = Just <| Insertion ( 0, 0 ) (B.fromString "12")
-                          }
-                        , { label = "merge mutiple lines success"
-                          , patches =
-                                ( Insertion ( 1, 1 ) (B.fromString "2")
-                                , Insertion ( 0, 0 ) (B.fromString "13344\n2")
-                                )
-                          , result =
-                                Just <|
-                                    Insertion ( 0, 0 )
-                                        (B.fromString "13344\n22")
-                          }
-                        , { label = "merge failed"
-                          , patches =
-                                ( Insertion ( 0, 0 ) (B.fromString "1")
-                                , Insertion ( 0, 2 ) (B.fromString "2")
-                                )
-                          , result = Nothing
-                          }
-                        ]
-                    )
-                , describe "delete + delete"
-                    (List.map testMergePatch
-                        [ { label = "merge success"
-                          , patches =
-                                ( Deletion ( 0, 1 ) ( 0, 2 )
-                                , Deletion ( 0, 0 ) ( 0, 1 )
-                                )
-                          , result = Just <| Deletion ( 0, 0 ) ( 0, 2 )
-                          }
-                        , { label = "merge failed"
-                          , patches =
-                                ( Deletion ( 0, 1 ) ( 0, 2 )
-                                , Deletion ( 0, 1 ) ( 0, 2 )
-                                )
-                          , result = Nothing
-                          }
-                        ]
-                    )
-                ]
+          describe "mergePatch"
+            [ describe "insert + insert"
+                (List.map testMergePatch
+                    [ { label = "merge success"
+                      , patches =
+                            ( Insertion ( 0, 1 ) (B.fromString "2")
+                            , Insertion ( 0, 0 ) (B.fromString "1")
+                            )
+                      , result = Just <| Insertion ( 0, 0 ) (B.fromString "12")
+                      }
+                    , { label = "merge mutiple lines success"
+                      , patches =
+                            ( Insertion ( 1, 1 ) (B.fromString "2")
+                            , Insertion ( 0, 0 ) (B.fromString "13344\n2")
+                            )
+                      , result =
+                            Just <|
+                                Insertion ( 0, 0 )
+                                    (B.fromString "13344\n22")
+                      }
+                    , { label = "merge failed"
+                      , patches =
+                            ( Insertion ( 0, 0 ) (B.fromString "1")
+                            , Insertion ( 0, 2 ) (B.fromString "2")
+                            )
+                      , result = Nothing
+                      }
+                    ]
+                )
+            , describe "delete + delete"
+                (List.map testMergePatch
+                    [ { label = "merge success"
+                      , patches =
+                            ( Deletion ( 0, 1 ) ( 0, 2 )
+                            , Deletion ( 0, 0 ) ( 0, 1 )
+                            )
+                      , result = Just <| Deletion ( 0, 0 ) ( 0, 2 )
+                      }
+                    , { label = "merge failed"
+                      , patches =
+                            ( Deletion ( 0, 1 ) ( 0, 2 )
+                            , Deletion ( 0, 1 ) ( 0, 2 )
+                            )
+                      , result = Nothing
+                      }
+                    ]
+                )
+            ]
         , describe "shiftPositionByRegionChange"
             [ describe "insertion"
                 [ test "before" <|

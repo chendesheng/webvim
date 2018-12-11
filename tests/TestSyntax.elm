@@ -1,11 +1,11 @@
-module TestSyntax exposing (..)
+module TestSyntax exposing (cases, emptySyntax, newToken, newToken2, suite, testSyntax)
 
-import Expect exposing (Expectation)
-import Test exposing (..)
-import Internal.Syntax exposing (..)
 import Array as Array exposing (Array)
-import Internal.TextBuffer as B exposing (Patch(..))
+import Expect exposing (Expectation)
 import Helper.Helper exposing (..)
+import Internal.Syntax exposing (..)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Test exposing (..)
 
 
 testSyntax : Syntax
@@ -224,14 +224,14 @@ suite =
                                             ( newSyntax, newn ) =
                                                 applyPatchToSyntax patch syntax
                                         in
-                                            ( newSyntax, minMaybe n newn )
+                                        ( newSyntax, minMaybe n newn )
                                     )
                                     ( Array.fromList item.syntax, Nothing )
                                     item.patches
                         in
-                            Expect.equal
-                                item.result
-                                ( Array.toList newSyntax_, n_ )
+                        Expect.equal
+                            item.result
+                            ( Array.toList newSyntax_, n_ )
             )
             --(List.drop (List.length cases - 1) cases)
             cases

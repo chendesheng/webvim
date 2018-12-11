@@ -1,11 +1,11 @@
-module TestMotion exposing (..)
+module TestMotion exposing (cleanLineBreaks, suite)
 
 import Expect exposing (Expectation)
-import Test exposing (..)
-import Update.Motion exposing (..)
+import Helper.Helper exposing (regex)
 import Internal.TextBuffer as B
 import Regex as Re
-import Helper.Helper exposing (regex)
+import Test exposing (..)
+import Update.Motion exposing (..)
 
 
 cleanLineBreaks : String -> String
@@ -51,25 +51,25 @@ suite =
                                     Expect.fail "test case format error"
                         )
             in
-                [ testWordUnderCursor
-                    [ "aaa \n"
-                    , " ^    "
-                    ]
-                    (Just ( ( 0, 0 ), "aaa" ))
-                , testWordUnderCursor
-                    [ "aaa bbb\n"
-                    , "   ^    "
-                    ]
-                    (Just ( ( 0, 4 ), "bbb" ))
-                , testWordUnderCursor
-                    [ "aaa \n"
-                    , "   ^   "
-                    ]
-                    Nothing
-                , testWordUnderCursor
-                    [ " \n"
-                    , "^"
-                    ]
-                    Nothing
+            [ testWordUnderCursor
+                [ "aaa \n"
+                , " ^    "
                 ]
+                (Just ( ( 0, 0 ), "aaa" ))
+            , testWordUnderCursor
+                [ "aaa bbb\n"
+                , "   ^    "
+                ]
+                (Just ( ( 0, 4 ), "bbb" ))
+            , testWordUnderCursor
+                [ "aaa \n"
+                , "   ^   "
+                ]
+                Nothing
+            , testWordUnderCursor
+                [ " \n"
+                , "^"
+                ]
+                Nothing
+            ]
         ]

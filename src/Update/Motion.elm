@@ -1,31 +1,30 @@
-module Update.Motion
-    exposing
-        ( saveMotion
-        , setVisualEnd
-        , setVisualBegin
-        , runMotion
-        , motion
-        , matchString
-        , matchAllStrings
-        , wordStringUnderCursor
-        , wORDStringUnderCursor
-        )
+module Update.Motion exposing
+    ( matchAllStrings
+    , matchString
+    , motion
+    , runMotion
+    , saveMotion
+    , setVisualBegin
+    , setVisualEnd
+    , wORDStringUnderCursor
+    , wordStringUnderCursor
+    )
 
-import Model exposing (..)
-import Vim.AST as V exposing (Operator(..))
-import Internal.TextBuffer as B exposing (Patch(..))
-import Update.Buffer as Buf
+import Array
+import Helper.Helper exposing (escapeRegex, regex, regexWith, repeatfn)
+import Internal.Brackets exposing (bracketsParser, pairBracketAt)
+import Internal.Jumps exposing (Location, saveJump)
 import Internal.Position exposing (Position, excludeRight)
-import String
 import Internal.PositionClass exposing (..)
-import Regex as Re
-import Internal.Jumps exposing (saveJump, Location)
-import Update.Message exposing (Msg(..))
-import Internal.TextObject exposing (wordUnderCursor, wORDUnderCursor)
-import Helper.Helper exposing (repeatfn, regex, regexWith, escapeRegex)
-import Internal.Brackets exposing (pairBracketAt, bracketsParser)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Internal.TextObject exposing (wORDUnderCursor, wordUnderCursor)
+import Model exposing (..)
 import Parser as P
-import Array as Array
+import Regex as Re
+import String
+import Update.Buffer as Buf
+import Update.Message exposing (Msg(..))
+import Vim.AST as V exposing (Operator(..))
 
 
 setVisualBegin : Position -> Buffer -> Buffer
@@ -96,6 +95,7 @@ wholeWord : String -> String
 wholeWord s =
     if Re.contains (regex "\\w") s then
         "\\b" ++ escapeRegex s ++ "\\b"
+
     else
         escapeRegex s
 
@@ -135,15 +135,15 @@ saveMotion md mo oldbuf buf global =
                                         oldbuf.view.cursor
                                         |> Maybe.map (Tuple.second >> wholeWord)
                             in
-                                case s of
-                                    Just s1 ->
-                                        { last
-                                            | matchString =
-                                                Just ( s1, mo.forward )
-                                        }
+                            case s of
+                                Just s1 ->
+                                    { last
+                                        | matchString =
+                                            Just ( s1, mo.forward )
+                                    }
 
-                                    _ ->
-                                        last
+                                _ ->
+                                    last
 
                         _ ->
                             case buf.mode of
@@ -156,10 +156,10 @@ saveMotion md mo oldbuf buf global =
                                                         |> B.toString
                                                         |> String.dropLeft 1
                                             in
-                                                { last
-                                                    | matchString =
-                                                        Just ( s, forward )
-                                                }
+                                            { last
+                                                | matchString =
+                                                    Just ( s, forward )
+                                            }
 
                                         _ ->
                                             global.last
@@ -170,7 +170,7 @@ saveMotion md mo oldbuf buf global =
                 _ ->
                     global.last
     in
-        { global | last = last1 }
+    { global | last = last1 }
 
 
 findPositionInBuffer :
@@ -190,6 +190,7 @@ findPositionInBuffer md mo y x wordChars lines =
                         ( y_
                         , if mo.forward then
                             x1 - (String.length target - String.length line)
+
                           else
                             x1
                         )
@@ -207,6 +208,7 @@ findPositionInBuffer md mo y x wordChars lines =
 
                                 _ ->
                                     Nothing
+
                         else
                             case B.getLine (y_ - 1) lines of
                                 Just nextLine ->
@@ -218,15 +220,16 @@ findPositionInBuffer md mo y x wordChars lines =
 
                                 _ ->
                                     Nothing
+
                     else
                         Nothing
     in
-        case B.getLine y lines of
-            Just line ->
-                findPositionInBufferInner y x line line
+    case B.getLine y lines of
+        Just line ->
+            findPositionInBufferInner y x line line
 
-            _ ->
-                Nothing
+        _ ->
+            Nothing
 
 
 gotoMatchedString :
@@ -252,6 +255,7 @@ gotoMatchedString count mo matchStr buf =
                         forward1 =
                             if mo.forward then
                                 forward
+
                             else
                                 not forward
 
@@ -267,15 +271,15 @@ gotoMatchedString count mo matchStr buf =
                                     cursor
                                     buf.lines
                     in
-                        case maybeRe of
-                            Just re ->
-                                repeatfn
-                                    (Maybe.withDefault 1 count)
-                                    (findNext re)
-                                    buf.view.cursor
+                    case maybeRe of
+                        Just re ->
+                            repeatfn
+                                (Maybe.withDefault 1 count)
+                                (findNext re)
+                                buf.view.cursor
 
-                            _ ->
-                                Nothing
+                        _ ->
+                            Nothing
 
                 _ ->
                     Nothing
@@ -312,15 +316,16 @@ matchStringForward re cursor (( y, x ) as start) lines =
                         region =
                             matchRegion y m
                     in
-                        if insideRegion cursor region then
-                            case rest of
-                                m1 :: _ ->
-                                    Just <| matchRegion y m1
+                    if insideRegion cursor region then
+                        case rest of
+                            m1 :: _ ->
+                                Just <| matchRegion y m1
 
-                                _ ->
-                                    matchStringForward re cursor ( y + 1, 0 ) lines
-                        else
-                            Just region
+                            _ ->
+                                matchStringForward re cursor ( y + 1, 0 ) lines
+
+                    else
+                        Just region
 
                 _ ->
                     matchStringForward re cursor ( y + 1, 0 ) lines
@@ -343,37 +348,39 @@ matchStringBackward re cursor end lines =
         y =
             if x == 0 then
                 Tuple.first end - 1
+
             else
                 Tuple.first end
     in
-        case B.getLine y lines of
-            Just line ->
-                case
-                    line
-                        |> Re.find re
-                        |> List.filter (\m -> ( y, m.index ) < end)
-                        |> List.reverse
-                of
-                    m :: rest ->
-                        let
-                            region =
-                                matchRegion y m
-                        in
-                            if insideRegion cursor region then
-                                case rest of
-                                    m1 :: _ ->
-                                        Just <| matchRegion y m1
+    case B.getLine y lines of
+        Just line ->
+            case
+                line
+                    |> Re.find re
+                    |> List.filter (\m -> ( y, m.index ) < end)
+                    |> List.reverse
+            of
+                m :: rest ->
+                    let
+                        region =
+                            matchRegion y m
+                    in
+                    if insideRegion cursor region then
+                        case rest of
+                            m1 :: _ ->
+                                Just <| matchRegion y m1
 
-                                    _ ->
-                                        matchStringBackward re cursor ( y, 0 ) lines
-                            else
-                                Just region
+                            _ ->
+                                matchStringBackward re cursor ( y, 0 ) lines
 
-                    _ ->
-                        matchStringBackward re cursor ( y, 0 ) lines
+                    else
+                        Just region
 
-            _ ->
-                Nothing
+                _ ->
+                    matchStringBackward re cursor ( y, 0 ) lines
+
+        _ ->
+            Nothing
 
 
 matchAllStrings :
@@ -408,11 +415,11 @@ matchString :
     -> Maybe ( Position, Position )
 matchString forward re pos lines =
     case
-        (if forward then
+        if forward then
             matchStringForward re pos pos lines
-         else
+
+        else
             matchStringBackward re pos pos lines
-        )
     of
         Just res ->
             Just <| excludeRight res
@@ -425,27 +432,28 @@ matchString forward re pos lines =
                 n =
                     B.count lines
             in
-                if forward then
-                    matchStringForward re
-                        ( 0, -1 )
-                        ( 0, 0 )
-                        (B.sliceLines 0 (y + 1) lines)
-                        |> Maybe.map excludeRight
-                    --|> Debug.log "search hit bottom"
-                else
-                    matchStringBackward
-                        re
-                        ( n - y, 0 )
-                        ( n - y, 0 )
-                        (B.sliceLines y n lines)
-                        |> Maybe.map
-                            (\rg ->
-                                let
-                                    ( ( y1, x1 ), ( y2, x2 ) ) =
-                                        rg
-                                in
-                                    excludeRight ( ( y1 + y, x1 ), ( y2 + y, x2 ) )
-                            )
+            if forward then
+                matchStringForward re
+                    ( 0, -1 )
+                    ( 0, 0 )
+                    (B.sliceLines 0 (y + 1) lines)
+                    |> Maybe.map excludeRight
+                --|> Debug.log "search hit bottom"
+
+            else
+                matchStringBackward
+                    re
+                    ( n - y, 0 )
+                    ( n - y, 0 )
+                    (B.sliceLines y n lines)
+                    |> Maybe.map
+                        (\rg ->
+                            let
+                                ( ( y1, x1 ), ( y2, x2 ) ) =
+                                    rg
+                            in
+                            excludeRight ( ( y1 + y, x1 ), ( y2 + y, x2 ) )
+                        )
 
 
 
@@ -462,250 +470,254 @@ runMotion :
 runMotion count md mo global buf =
     if B.isEmpty buf.lines then
         Nothing
+
     else
         let
             bottomLine buf_ =
-                (min
+                min
                     (B.count buf_.lines - 1)
                     (buf_.view.scrollTop + buf_.view.size.height)
-                )
                     - 1
 
             middleLine buf_ =
                 (bottomLine buf_ + buf_.view.scrollTop) // 2
         in
-            case md of
-                V.BufferTop ->
-                    case count of
-                        Just n ->
-                            Buf.cursorLineFirst buf.lines (n - 1)
+        case md of
+            V.BufferTop ->
+                case count of
+                    Just n ->
+                        Buf.cursorLineFirst buf.lines (n - 1)
 
-                        _ ->
-                            Buf.cursorLineFirst buf.lines 0
+                    _ ->
+                        Buf.cursorLineFirst buf.lines 0
 
-                V.BufferBottom ->
-                    case count of
-                        Just n ->
-                            (n - 1)
-                                |> max 0
-                                |> min (B.count buf.lines - 2)
-                                |> Buf.cursorLineFirst buf.lines
+            V.BufferBottom ->
+                case count of
+                    Just n ->
+                        (n - 1)
+                            |> max 0
+                            |> min (B.count buf.lines - 2)
+                            |> Buf.cursorLineFirst buf.lines
 
-                        _ ->
-                            Buf.cursorLineFirst buf.lines (B.count buf.lines - 2)
+                    _ ->
+                        Buf.cursorLineFirst buf.lines (B.count buf.lines - 2)
 
-                V.LineDelta ->
-                    let
-                        forward =
-                            mo.forward
+            V.LineDelta ->
+                let
+                    forward =
+                        mo.forward
 
-                        n =
-                            if forward then
-                                Maybe.withDefault 1 count
-                            else
-                                -(Maybe.withDefault 1 count)
-
-                        ( y, x ) =
-                            buf.view.cursor
-
-                        y1 =
-                            (y + n)
-                                |> max 0
-                                |> min (B.count buf.lines - 2)
-
-                        x1 =
-                            buf.lines
-                                |> B.getLineMaxColumn y1
-                                |> min buf.view.cursorColumn
-                    in
-                        Just ( y1, x1 )
-
-                V.ViewTop ->
-                    (buf.view.scrollTop + (Maybe.withDefault 1 count) - 1)
-                        |> Basics.min (bottomLine buf)
-                        |> Buf.cursorLineFirst buf.lines
-
-                V.ViewMiddle ->
-                    Buf.cursorLineFirst
-                        buf.lines
-                        (middleLine buf)
-
-                V.ViewBottom ->
-                    (bottomLine buf - (Maybe.withDefault 1 count) + 1)
-                        |> Basics.max buf.view.scrollTop
-                        |> Buf.cursorLineFirst buf.lines
-
-                V.RepeatMatchChar ->
-                    case global.last.matchChar of
-                        Just { char, before, forward } ->
-                            let
-                                mo1 =
-                                    (if mo.forward then
-                                        { mo | forward = forward }
-                                     else
-                                        { mo | forward = not forward }
-                                    )
-
-                                findNext ( y, x ) =
-                                    findPositionInBuffer
-                                        (V.MatchChar char before)
-                                        mo1
-                                        y
-                                        x
-                                        buf.config.wordChars
-                                        buf.lines
-                            in
-                                repeatfn (Maybe.withDefault 1 count)
-                                    findNext
-                                    buf.view.cursor
-
-                        _ ->
-                            Nothing
-
-                V.MatchString str ->
-                    case str of
-                        V.LastSavedString ->
-                            gotoMatchedString count
-                                mo
-                                global.last.matchString
-                                buf
-
-                        V.WordUnderCursor ->
-                            wordStringUnderCursor
-                                buf.config.wordChars
-                                buf.lines
-                                buf.view.cursor
-                                --|> Debug.log "word under cursor"
-                                |> Maybe.andThen
-                                    (\res ->
-                                        let
-                                            ( begin, str_ ) =
-                                                res
-
-                                            maybeRe =
-                                                regexWith
-                                                    { caseInsensitive = True
-                                                    , multiline = False
-                                                    }
-                                                <|
-                                                    wholeWord str_
-
-                                            findNext re cursor =
-                                                Maybe.map Tuple.first
-                                                    (matchString mo.forward
-                                                        re
-                                                        cursor
-                                                        buf.lines
-                                                    )
-                                        in
-                                            case maybeRe of
-                                                Just re ->
-                                                    repeatfn
-                                                        (Maybe.withDefault 1
-                                                            count
-                                                        )
-                                                        (findNext re)
-                                                        buf.view.cursor
-
-                                                _ ->
-                                                    Nothing
-                                    )
-
-                        _ ->
-                            Nothing
-
-                V.MatchPair ->
-                    case count of
-                        Just n ->
-                            let
-                                cnt =
-                                    B.count buf.lines - 1
-                            in
-                                n
-                                    |> toFloat
-                                    |> (\x -> x / 100)
-                                    |> (*) (toFloat cnt)
-                                    |> ceiling
-                                    |> (\x -> x - 1)
-                                    |> Basics.min (cnt - 1)
-                                    |> Buf.cursorLineFirst buf.lines
-
-                        _ ->
-                            case buf.view.matchedCursor of
-                                Just ( a, b ) ->
-                                    if buf.view.cursor == a then
-                                        Just b
-                                    else if buf.view.cursor == b then
-                                        Just a
-                                    else
-                                        Nothing
-
-                                _ ->
-                                    let
-                                        ( y, x ) =
-                                            buf.view.cursor
-                                    in
-                                        buf.lines
-                                            |> B.getLine y
-                                            |> Maybe.andThen
-                                                (String.dropLeft x
-                                                    >> P.run bracketsParser
-                                                    >> Result.toMaybe
-                                                    >> Maybe.map
-                                                        (\dx ->
-                                                            ( y, x + dx )
-                                                        )
-                                                )
-                                            |> Maybe.andThen
-                                                (pairBracketAt
-                                                    0
-                                                    (Array.length buf.syntax)
-                                                    buf.lines
-                                                    buf.syntax
-                                                )
-
-                V.Paragraph ->
-                    let
-                        findNext y =
-                            let
-                                y1 =
-                                    findParagraph mo.forward y buf.lines
-                            in
-                                if y == y1 then
-                                    Nothing
-                                else
-                                    Just y1
-                    in
-                        buf.view.cursor
-                            |> Tuple.first
-                            |> repeatfn (Maybe.withDefault 1 count) findNext
-                            |> Maybe.andThen (Buf.cursorLineFirst buf.lines)
-
-                V.WordStart ->
-                    case buf.mode of
-                        Insert { startCursor } ->
-                            findPositionDeleteWordBack
-                                count
-                                md
-                                mo
-                                startCursor
-                                buf
-
-                        _ ->
-                            findPositionDefault count md mo buf
-
-                V.NextLineFirst ->
-                    let
-                        n =
+                    n =
+                        if forward then
                             Maybe.withDefault 1 count
 
-                        y =
-                            Tuple.first buf.view.cursor
-                    in
-                        Buf.cursorLineFirst buf.lines (y + n)
+                        else
+                            -(Maybe.withDefault 1 count)
 
-                _ ->
-                    findPositionDefault count md mo buf
+                    ( y, x ) =
+                        buf.view.cursor
+
+                    y1 =
+                        (y + n)
+                            |> max 0
+                            |> min (B.count buf.lines - 2)
+
+                    x1 =
+                        buf.lines
+                            |> B.getLineMaxColumn y1
+                            |> min buf.view.cursorColumn
+                in
+                Just ( y1, x1 )
+
+            V.ViewTop ->
+                (buf.view.scrollTop + Maybe.withDefault 1 count - 1)
+                    |> Basics.min (bottomLine buf)
+                    |> Buf.cursorLineFirst buf.lines
+
+            V.ViewMiddle ->
+                Buf.cursorLineFirst
+                    buf.lines
+                    (middleLine buf)
+
+            V.ViewBottom ->
+                (bottomLine buf - Maybe.withDefault 1 count + 1)
+                    |> Basics.max buf.view.scrollTop
+                    |> Buf.cursorLineFirst buf.lines
+
+            V.RepeatMatchChar ->
+                case global.last.matchChar of
+                    Just { char, before, forward } ->
+                        let
+                            mo1 =
+                                if mo.forward then
+                                    { mo | forward = forward }
+
+                                else
+                                    { mo | forward = not forward }
+
+                            findNext ( y, x ) =
+                                findPositionInBuffer
+                                    (V.MatchChar char before)
+                                    mo1
+                                    y
+                                    x
+                                    buf.config.wordChars
+                                    buf.lines
+                        in
+                        repeatfn (Maybe.withDefault 1 count)
+                            findNext
+                            buf.view.cursor
+
+                    _ ->
+                        Nothing
+
+            V.MatchString str ->
+                case str of
+                    V.LastSavedString ->
+                        gotoMatchedString count
+                            mo
+                            global.last.matchString
+                            buf
+
+                    V.WordUnderCursor ->
+                        wordStringUnderCursor
+                            buf.config.wordChars
+                            buf.lines
+                            buf.view.cursor
+                            --|> Debug.log "word under cursor"
+                            |> Maybe.andThen
+                                (\res ->
+                                    let
+                                        ( begin, str_ ) =
+                                            res
+
+                                        maybeRe =
+                                            regexWith
+                                                { caseInsensitive = True
+                                                , multiline = False
+                                                }
+                                            <|
+                                                wholeWord str_
+
+                                        findNext re cursor =
+                                            Maybe.map Tuple.first
+                                                (matchString mo.forward
+                                                    re
+                                                    cursor
+                                                    buf.lines
+                                                )
+                                    in
+                                    case maybeRe of
+                                        Just re ->
+                                            repeatfn
+                                                (Maybe.withDefault 1
+                                                    count
+                                                )
+                                                (findNext re)
+                                                buf.view.cursor
+
+                                        _ ->
+                                            Nothing
+                                )
+
+                    _ ->
+                        Nothing
+
+            V.MatchPair ->
+                case count of
+                    Just n ->
+                        let
+                            cnt =
+                                B.count buf.lines - 1
+                        in
+                        n
+                            |> toFloat
+                            |> (\x -> x / 100)
+                            |> (*) (toFloat cnt)
+                            |> ceiling
+                            |> (\x -> x - 1)
+                            |> Basics.min (cnt - 1)
+                            |> Buf.cursorLineFirst buf.lines
+
+                    _ ->
+                        case buf.view.matchedCursor of
+                            Just ( a, b ) ->
+                                if buf.view.cursor == a then
+                                    Just b
+
+                                else if buf.view.cursor == b then
+                                    Just a
+
+                                else
+                                    Nothing
+
+                            _ ->
+                                let
+                                    ( y, x ) =
+                                        buf.view.cursor
+                                in
+                                buf.lines
+                                    |> B.getLine y
+                                    |> Maybe.andThen
+                                        (String.dropLeft x
+                                            >> P.run bracketsParser
+                                            >> Result.toMaybe
+                                            >> Maybe.map
+                                                (\dx ->
+                                                    ( y, x + dx )
+                                                )
+                                        )
+                                    |> Maybe.andThen
+                                        (pairBracketAt
+                                            0
+                                            (Array.length buf.syntax)
+                                            buf.lines
+                                            buf.syntax
+                                        )
+
+            V.Paragraph ->
+                let
+                    findNext y =
+                        let
+                            y1 =
+                                findParagraph mo.forward y buf.lines
+                        in
+                        if y == y1 then
+                            Nothing
+
+                        else
+                            Just y1
+                in
+                buf.view.cursor
+                    |> Tuple.first
+                    |> repeatfn (Maybe.withDefault 1 count) findNext
+                    |> Maybe.andThen (Buf.cursorLineFirst buf.lines)
+
+            V.WordStart ->
+                case buf.mode of
+                    Insert { startCursor } ->
+                        findPositionDeleteWordBack
+                            count
+                            md
+                            mo
+                            startCursor
+                            buf
+
+                    _ ->
+                        findPositionDefault count md mo buf
+
+            V.NextLineFirst ->
+                let
+                    n =
+                        Maybe.withDefault 1 count
+
+                    y =
+                        Tuple.first buf.view.cursor
+                in
+                Buf.cursorLineFirst buf.lines (y + n)
+
+            _ ->
+                findPositionDefault count md mo buf
 
 
 findPositionDeleteWordBack :
@@ -726,23 +738,26 @@ findPositionDeleteWordBack count md mo startCursor buf =
         ( y, x ) =
             cursor
     in
-        lines
-            |> findPositionInBuffer md mo y x config.wordChars
-            |> Maybe.map
-                (\(( y1, _ ) as res) ->
-                    if
-                        (res < startCursor)
-                            && (startCursor < cursor)
-                    then
-                        startCursor
-                    else if y1 /= y then
-                        if x > 0 then
-                            ( y, 0 )
-                        else
-                            ( y1, B.getLineMaxColumn y1 lines )
+    lines
+        |> findPositionInBuffer md mo y x config.wordChars
+        |> Maybe.map
+            (\(( y1, _ ) as res) ->
+                if
+                    (res < startCursor)
+                        && (startCursor < cursor)
+                then
+                    startCursor
+
+                else if y1 /= y then
+                    if x > 0 then
+                        ( y, 0 )
+
                     else
-                        res
-                )
+                        ( y1, B.getLineMaxColumn y1 lines )
+
+                else
+                    res
+            )
 
 
 findPositionDefault :
@@ -761,10 +776,10 @@ findPositionDefault count md mo buf =
                 buf.config.wordChars
                 buf.lines
     in
-        repeatfn
-            (Maybe.withDefault 1 count)
-            findNext
-            buf.view.cursor
+    repeatfn
+        (Maybe.withDefault 1 count)
+        findNext
+        buf.view.cursor
 
 
 findParagraph : Bool -> Int -> B.TextBuffer -> Int
@@ -776,6 +791,7 @@ findParagraph forward start lines =
         delta =
             if forward then
                 1
+
             else
                 -1
 
@@ -786,18 +802,20 @@ findParagraph forward start lines =
                         isCurrentLineEmpty =
                             isLineEmpty line
                     in
-                        if isCurrentLineEmpty && not isLastLineEmpty then
-                            y
-                        else
-                            findParagraphHelper isCurrentLineEmpty (y + delta)
+                    if isCurrentLineEmpty && not isLastLineEmpty then
+                        y
+
+                    else
+                        findParagraphHelper isCurrentLineEmpty (y + delta)
 
                 _ ->
                     if forward then
                         max (B.count lines - 2) 0
+
                     else
                         0
     in
-        findParagraphHelper True start
+    findParagraphHelper True start
 
 
 wordStringUnderCursor :
@@ -814,11 +832,11 @@ wordStringUnderCursor wordChars lines cursor =
                     ( begin, end ) =
                         rg
                 in
-                    ( begin
-                    , lines
-                        |> B.substring begin end
-                        |> B.toString
-                    )
+                ( begin
+                , lines
+                    |> B.substring begin end
+                    |> B.toString
+                )
             )
 
 
@@ -832,11 +850,11 @@ wORDStringUnderCursor { view, lines } =
                     ( begin, end ) =
                         rg
                 in
-                    ( begin
-                    , lines
-                        |> B.substring begin end
-                        |> B.toString
-                    )
+                ( begin
+                , lines
+                    |> B.substring begin end
+                    |> B.toString
+                )
             )
 
 
@@ -885,10 +903,11 @@ saveCursorBeforeJump md cursorAfter loc global =
                 _ ->
                     False
     in
-        if loc.cursor /= cursorAfter && isJump md then
-            { global | jumps = saveJump loc global.jumps }
-        else
-            global
+    if loc.cursor /= cursorAfter && isJump md then
+        { global | jumps = saveJump loc global.jumps }
+
+    else
+        global
 
 
 showErrorMessage : V.MotionData -> V.MotionOption -> Buffer -> Buffer
@@ -927,6 +946,7 @@ showSuccessMessage md mo matchStr buf =
                     Buf.infoMessage
                         ((if mo.forward then
                             "/"
+
                           else
                             "?"
                          )
@@ -986,16 +1006,16 @@ motion count md mo ({ buf, global } as ed) =
                             cursor
                             { path = buf.path, cursor = buf.view.cursor }
             in
-                ( { ed
-                    | buf =
-                        buf1
-                            |> setVisualEnd cursor
-                            |> showSuccessMessage md mo global1.last.matchString
-                    , global =
-                        global1
-                  }
-                , Cmd.none
-                )
+            ( { ed
+                | buf =
+                    buf1
+                        |> setVisualEnd cursor
+                        |> showSuccessMessage md mo global1.last.matchString
+                , global =
+                    global1
+              }
+            , Cmd.none
+            )
 
         Nothing ->
             ( { ed

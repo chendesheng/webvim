@@ -1,16 +1,16 @@
-module Vim.Register exposing (..)
+module Vim.Register exposing (isRegisterChar, registerKey, registerKeyEnd)
 
 import Parser as P exposing ((|.), (|=), Parser)
-import Vim.Helper exposing (..)
+import String
 import Vim.AST
     exposing
-        ( Register
-        , defaultRegister
-        , Key
-        , StateChange(..)
+        ( Key
         , ModeDelta
+        , Register
+        , StateChange(..)
+        , defaultRegister
         )
-import String
+import Vim.Helper exposing (..)
 
 
 isRegisterChar : Char -> Bool

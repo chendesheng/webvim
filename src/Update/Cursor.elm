@@ -1,11 +1,21 @@
-module Update.Cursor exposing (..)
+module Update.Cursor exposing
+    ( correctCursor
+    , correctPosition
+    , correctPositionOnSurrogate
+    , cursorScope
+    , greaterTo
+    , pairCursor
+    , pairSource
+    , scrollTo
+    , scrollToCursor
+    )
 
-import Model exposing (..)
-import Internal.TextBuffer as B exposing (Patch(..))
-import Update.Buffer as Buf
-import Internal.Position exposing (Position)
-import Update.Motion exposing (setVisualEnd)
 import Internal.Brackets exposing (pairBracketAt)
+import Internal.Position exposing (Position)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Model exposing (..)
+import Update.Buffer as Buf
+import Update.Motion exposing (setVisualEnd)
 
 
 {-| scroll to ensure pos it is insdie viewport
@@ -22,12 +32,14 @@ scrollTo y global view =
         scrollTop =
             if miny > y then
                 y
+
             else if y > maxy then
                 y - maxy + miny
+
             else
                 miny
     in
-        Buf.setScrollTop scrollTop global view
+    Buf.setScrollTop scrollTop global view
 
 
 scrollToCursor : Global -> View -> View
@@ -69,8 +81,10 @@ correctPositionOnSurrogate lines (( y, x ) as pos) =
                             then
                                 if x + 1 >= String.length line - 1 then
                                     ( y, x - 1 )
+
                                 else
                                     ( y, x + 1 )
+
                             else
                                 pos
                         )
@@ -93,6 +107,7 @@ correctPosition pos excludeLineBreak lines =
             B.getLineMaxColumn y1 lines
                 - (if excludeLineBreak then
                     String.length B.lineBreak
+
                    else
                     0
                   )
@@ -102,10 +117,11 @@ correctPosition pos excludeLineBreak lines =
                 |> max 0
                 |> min x
     in
-        if y1 == y && x == x1 then
-            correctPositionOnSurrogate lines pos
-        else
-            correctPositionOnSurrogate lines ( y1, x1 )
+    if y1 == y && x == x1 then
+        correctPositionOnSurrogate lines pos
+
+    else
+        correctPositionOnSurrogate lines ( y1, x1 )
 
 
 {-| move cursor ensure cursor is insdie viewport
@@ -122,6 +138,7 @@ cursorScope lineHeight lines view =
         scrollTop =
             if remainderBy lineHeight view.scrollTopPx > 0 then
                 view.scrollTop + 1
+
             else
                 view.scrollTop
 
@@ -147,18 +164,20 @@ cursorScope lineHeight lines view =
                     )
                 |> Maybe.withDefault 0
     in
-        if y == y1 then
-            if x == x1 then
-                view
-            else
-                Buf.setCursor ( y1, x1 ) True view
-        else
-            case Buf.cursorLineFirst lines y1 of
-                Just cur ->
-                    Buf.setCursor cur True view
+    if y == y1 then
+        if x == x1 then
+            view
 
-                _ ->
-                    view
+        else
+            Buf.setCursor ( y1, x1 ) True view
+
+    else
+        case Buf.cursorLineFirst lines y1 of
+            Just cur ->
+                Buf.setCursor cur True view
+
+            _ ->
+                view
 
 
 pairSource : Buffer -> Position
@@ -181,15 +200,15 @@ pairCursor size buf =
                 cursor =
                     pairSource buf
             in
-                { view
-                    | matchedCursor =
-                        cursor
-                            |> pairBracketAt
-                                buf.view.scrollTop
-                                (buf.view.scrollTop + size.height)
-                                buf.lines
-                                buf.syntax
-                            |> Maybe.map (Tuple.pair cursor)
-                }
+            { view
+                | matchedCursor =
+                    cursor
+                        |> pairBracketAt
+                            buf.view.scrollTop
+                            (buf.view.scrollTop + size.height)
+                            buf.lines
+                            buf.syntax
+                        |> Maybe.map (Tuple.pair cursor)
+            }
         )
         buf

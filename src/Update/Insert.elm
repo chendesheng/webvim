@@ -1,15 +1,15 @@
 module Update.Insert exposing (insert, openNewLine)
 
-import Model exposing (..)
-import Vim.AST as V exposing (Operator(..))
-import Internal.TextBuffer as B exposing (Patch(..))
-import Update.Buffer as Buf
-import Tuple
-import Internal.PositionClass exposing (findPosition, findLineFirst)
-import String
-import Update.Motion exposing (wordStringUnderCursor)
-import Regex as Re
 import Helper.Helper exposing (regex)
+import Internal.PositionClass exposing (findLineFirst, findPosition)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Model exposing (..)
+import Regex as Re
+import String
+import Tuple
+import Update.Buffer as Buf
+import Update.Motion exposing (wordStringUnderCursor)
+import Vim.AST as V exposing (Operator(..))
 
 
 getString : Buffer -> V.StringType -> String
@@ -44,12 +44,13 @@ insertString s buf =
                         |> Tuple.second
                     )
                     s
+
             else
                 B.fromString s
     in
-        Buf.transaction
-            [ Insertion buf.view.cursor s1 ]
-            buf
+    Buf.transaction
+        [ Insertion buf.view.cursor s1 ]
+        buf
 
 
 insert : V.StringType -> Buffer -> Buffer
@@ -68,40 +69,43 @@ insert s buf =
                 lastIndent =
                     buf.dirtyIndent
             in
-                if str == B.lineBreak then
-                    if buf.dirtyIndent > 0 then
-                        let
-                            keepLastIndent indent buf_ =
-                                buf_
-                                    |> Buf.transaction
-                                        [ indent
-                                            |> repeatSpace
-                                            |> B.fromString
-                                            |> Insertion
-                                                ( Tuple.first buf_.view.cursor, 0 )
-                                        ]
-                                    |> Buf.setLastIndent indent
-                        in
-                            buf
-                                |> Buf.cancelLastIndent
-                                |> insertString str
-                                |> keepLastIndent lastIndent
-                    else
-                        buf
-                            |> insertString str
-                            |> autoIndent
-                else if
-                    (buf.config.indent == IndentRules Buf.cIndentRules)
-                        && (str == "}")
-                then
+            if str == B.lineBreak then
+                if buf.dirtyIndent > 0 then
+                    let
+                        keepLastIndent indent buf_ =
+                            buf_
+                                |> Buf.transaction
+                                    [ indent
+                                        |> repeatSpace
+                                        |> B.fromString
+                                        |> Insertion
+                                            ( Tuple.first buf_.view.cursor, 0 )
+                                    ]
+                                |> Buf.setLastIndent indent
+                    in
                     buf
-                        |> Buf.setLastIndent 0
+                        |> Buf.cancelLastIndent
                         |> insertString str
-                        |> autoIndent
+                        |> keepLastIndent lastIndent
+
                 else
                     buf
-                        |> Buf.setLastIndent 0
                         |> insertString str
+                        |> autoIndent
+
+            else if
+                (buf.config.indent == IndentRules Buf.cIndentRules)
+                    && (str == "}")
+            then
+                buf
+                    |> Buf.setLastIndent 0
+                    |> insertString str
+                    |> autoIndent
+
+            else
+                buf
+                    |> Buf.setLastIndent 0
+                    |> insertString str
 
 
 repeatSpace : Int -> String
@@ -135,10 +139,11 @@ autoIndent buf =
                             indent_ =
                                 findLineFirst line
                         in
-                            if indent_ > 0 then
-                                [ Deletion ( y, 0 ) ( y, indent_ ) ]
-                            else
-                                []
+                        if indent_ > 0 then
+                            [ Deletion ( y, 0 ) ( y, indent_ ) ]
+
+                        else
+                            []
                     )
                 |> Maybe.withDefault []
 
@@ -152,20 +157,21 @@ autoIndent buf =
                     Re.contains (regex "\\S")
                         >> not
             in
-                if
-                    buf_.lines
-                        |> B.getLine y_
-                        |> Maybe.map isBlank
-                        |> Maybe.withDefault False
-                then
-                    Buf.setLastIndent indent buf_
-                else
-                    buf_
+            if
+                buf_.lines
+                    |> B.getLine y_
+                    |> Maybe.map isBlank
+                    |> Maybe.withDefault False
+            then
+                Buf.setLastIndent indent buf_
+
+            else
+                buf_
     in
-        buf
-            |> Buf.transaction (deleteIndent ++ [ insertIndent ])
-            |> Buf.updateView (Buf.setCursorColumn indent)
-            |> saveLastIndent
+    buf
+        |> Buf.transaction (deleteIndent ++ [ insertIndent ])
+        |> Buf.updateView (Buf.setCursorColumn indent)
+        |> saveLastIndent
 
 
 calcIndent : IndentConfig -> Int -> Int -> B.TextBuffer -> Int
@@ -177,59 +183,62 @@ calcIndent config tabSize y lines =
                 |> Maybe.map findLineFirst
                 |> Maybe.withDefault 0
     in
-        case config of
-            AutoIndent ->
-                baseIndent
+    case config of
+        AutoIndent ->
+            baseIndent
 
-            IndentRules rules ->
-                let
-                    { increase, decrease, increaseNext } =
-                        rules
+        IndentRules rules ->
+            let
+                { increase, decrease, increaseNext } =
+                    rules
 
-                    getLine i =
-                        lines
-                            |> B.getLine i
-                            |> Maybe.map String.trim
+                getLine i =
+                    lines
+                        |> B.getLine i
+                        |> Maybe.map String.trim
 
-                    prevTwoLine =
-                        getLine (y - 2)
-                            |> Maybe.map
-                                (\line ->
-                                    if Re.contains increaseNext line then
-                                        -1
-                                    else
-                                        0
-                                )
-                            |> Maybe.withDefault 0
+                prevTwoLine =
+                    getLine (y - 2)
+                        |> Maybe.map
+                            (\line ->
+                                if Re.contains increaseNext line then
+                                    -1
 
-                    prevLine =
-                        getLine (y - 1)
-                            |> Maybe.map
-                                (\line ->
-                                    if
-                                        Re.contains increase line
-                                            || Re.contains increaseNext line
-                                    then
-                                        1
-                                    else
-                                        0
-                                )
-                            |> Maybe.withDefault 0
+                                else
+                                    0
+                            )
+                        |> Maybe.withDefault 0
 
-                    currentLine =
-                        getLine y
-                            |> Maybe.map
-                                (\line ->
-                                    if Re.contains decrease line then
-                                        -1
-                                    else
-                                        0
-                                )
-                            |> Maybe.withDefault 0
-                in
-                    baseIndent
-                        + (prevTwoLine + prevLine + currentLine)
-                        * tabSize
+                prevLine =
+                    getLine (y - 1)
+                        |> Maybe.map
+                            (\line ->
+                                if
+                                    Re.contains increase line
+                                        || Re.contains increaseNext line
+                                then
+                                    1
+
+                                else
+                                    0
+                            )
+                        |> Maybe.withDefault 0
+
+                currentLine =
+                    getLine y
+                        |> Maybe.map
+                            (\line ->
+                                if Re.contains decrease line then
+                                    -1
+
+                                else
+                                    0
+                            )
+                        |> Maybe.withDefault 0
+            in
+            baseIndent
+                + (prevTwoLine + prevLine + currentLine)
+                * tabSize
 
 
 openNewLine : Int -> Buffer -> Buffer
@@ -240,11 +249,11 @@ openNewLine y buf =
                 |> max 0
                 |> min (B.count buf.lines)
     in
-        buf
-            |> Buf.transaction
-                [ B.lineBreak
-                    |> B.fromString
-                    |> Insertion ( y1, 0 )
-                ]
-            |> Buf.updateView (Buf.setCursor ( y1, 0 ) False)
-            |> autoIndent
+    buf
+        |> Buf.transaction
+            [ B.lineBreak
+                |> B.fromString
+                |> Insertion ( y1, 0 )
+            ]
+        |> Buf.updateView (Buf.setCursor ( y1, 0 ) False)
+        |> autoIndent

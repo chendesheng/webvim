@@ -1,14 +1,14 @@
 module Update.Replace exposing (applyReplace)
 
-import Vim.AST as V exposing (Operator(..), ChangeCase(..))
-import Model exposing (..)
-import Update.Buffer as Buf
-import Internal.TextBuffer as B exposing (Patch(..))
+import Helper.Helper exposing (regex)
 import Internal.Position exposing (Position)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Model exposing (..)
+import Regex as Re
+import Update.Buffer as Buf
 import Update.Insert exposing (..)
 import Update.Range exposing (operatorRanges)
-import Regex as Re
-import Helper.Helper exposing (regex)
+import Vim.AST as V exposing (ChangeCase(..), Operator(..))
 
 
 replaceChar : String -> Buffer -> Buffer
@@ -17,10 +17,10 @@ replaceChar ch buf =
         ( y, x ) =
             buf.view.cursor
     in
-        buf
-            |> Buf.transaction
-                [ Deletion buf.view.cursor ( y, x + 1 ) ]
-            |> insert (V.TextLiteral ch)
+    buf
+        |> Buf.transaction
+            [ Deletion buf.view.cursor ( y, x + 1 ) ]
+        |> insert (V.TextLiteral ch)
 
 
 replaceRegion : String -> Position -> Position -> Buffer -> Buffer
@@ -33,13 +33,13 @@ replaceRegion ch b e buf =
                 |> Re.replace (regex "[^\u{000D}\n]") (always ch)
                 |> B.fromString
     in
-        buf
-            |> Buf.updateView (Buf.setCursor b False)
-            |> Buf.transaction
-                [ Deletion b e
-                , Insertion b s
-                ]
-            |> Buf.updateView (Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True)
+    buf
+        |> Buf.updateView (Buf.setCursor b False)
+        |> Buf.transaction
+            [ Deletion b e
+            , Insertion b s
+            ]
+        |> Buf.updateView (Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True)
 
 
 applyReplace : Maybe Int -> String -> Global -> Buffer -> Buffer
@@ -57,7 +57,7 @@ applyReplace count ch global buf =
                             ( y, x ) =
                                 buf_.view.cursor
                         in
-                            Buf.updateView (Buf.setCursor ( y, max 0 (x - 1) ) True) buf_
+                        Buf.updateView (Buf.setCursor ( y, max 0 (x - 1) ) True) buf_
                    )
 
         Visual _ ->
@@ -66,10 +66,10 @@ applyReplace count ch global buf =
                     operatorRanges count (V.VisualRange False) global buf
                         |> List.reverse
             in
-                List.foldl
-                    (\( b, e ) -> replaceRegion ch b e )
-                    buf
-                    regions
+            List.foldl
+                (\( b, e ) -> replaceRegion ch b e)
+                buf
+                regions
 
         _ ->
             buf

@@ -1,11 +1,10 @@
 module Helper.KeyEvent exposing (decodeKeyboardEvent)
 
-import Json.Decode exposing (Decoder)
-import Json.Decode as Decode
 import Dict exposing (Dict)
 import Helper.Helper exposing (isSingleChar, regex)
-import Vim.Helper exposing (escapeKey)
+import Json.Decode as Decode exposing (Decoder)
 import Regex as Re
+import Vim.Helper exposing (escapeKey)
 
 
 decodeKeyboardEvent : Bool -> Decoder String
@@ -20,11 +19,13 @@ decodeKeyboardEvent replaceFullWidthToHalfWidth =
                 (\key ->
                     if key == " " then
                         "Space"
+
                     else
                         case String.uncons key of
                             Just ( c, rest ) ->
                                 if String.fromChar c == rest then
                                     rest
+
                                 else
                                     key
 
@@ -36,6 +37,7 @@ decodeKeyboardEvent replaceFullWidthToHalfWidth =
             (\key ->
                 if String.isEmpty key then
                     Decode.fail "empty key"
+
                 else
                     Decode.succeed key
             )
@@ -72,11 +74,13 @@ toKey : Bool -> Bool -> Bool -> Bool -> Bool -> String -> String
 toKey replaceFullWidthToHalfWidth ctrl alt shift meta key =
     if key == "Control" || key == "Shift" || key == "Meta" || key == "Alt" then
         ""
+
     else
         let
             key1 =
                 if replaceFullWidthToHalfWidth then
                     fullWidthToHalfWidth key
+
                 else
                     key
 
@@ -85,6 +89,7 @@ toKey replaceFullWidthToHalfWidth ctrl alt shift meta key =
                     -- when Chinese IME, c-^ become c-s-6, convert to s-6 to ^
                     Dict.get ("s-" ++ key1) shiftComboMap
                         |> Maybe.withDefault key1
+
                 else
                     key1
 
@@ -94,39 +99,47 @@ toKey replaceFullWidthToHalfWidth ctrl alt shift meta key =
             prefix =
                 [ if meta then
                     "m-"
+
                   else
                     ""
                 , if ctrl then
                     "c-"
+
                   else
                     ""
                 , if alt then
                     "a-"
+
                   else
                     ""
                 , if shift && not singleChar then
                     "s-"
+
                   else
                     ""
                 ]
                     |> String.join ""
         in
-            if singleChar && String.isEmpty prefix then
-                escapeKey key2
-            else
-                "<"
-                    ++ mapKey
-                        (prefix
-                            ++ if singleChar then
+        if singleChar && String.isEmpty prefix then
+            escapeKey key2
+
+        else
+            "<"
+                ++ mapKey
+                    (prefix
+                        ++ (if singleChar then
                                 if not replaceFullWidthToHalfWidth then
                                     -- for combo keys, always replace full width to half width
                                     fullWidthToHalfWidth key2
+
                                 else
                                     key2
-                               else
+
+                            else
                                 String.toLower key2
-                        )
-                    ++ ">"
+                           )
+                    )
+                ++ ">"
 
 
 fullWidthToHalfWidthMap : Dict String String
@@ -138,11 +151,11 @@ fullWidthToHalfWidthMap =
         halfWidths =
             String.toList "\\^;,.[]!()_<>?:\"{}~"
     in
-        List.map2
-            (\k v -> ( String.fromChar k, String.fromChar v ))
-            fullWidths
-            halfWidths
-            |> Dict.fromList
+    List.map2
+        (\k v -> ( String.fromChar k, String.fromChar v ))
+        fullWidths
+        halfWidths
+        |> Dict.fromList
 
 
 fullWidthToHalfWidth : String -> String

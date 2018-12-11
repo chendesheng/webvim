@@ -1,8 +1,8 @@
-module TestFuzzyMatch exposing (..)
+module TestFuzzyMatch exposing (suite)
 
 import Expect exposing (Expectation)
-import Test exposing (..)
 import Helper.Fuzzy exposing (..)
+import Test exposing (..)
 
 
 suite : Test
@@ -85,17 +85,17 @@ suite =
               }
             ]
     in
-        describe "Fuzzy Match"
-            (List.map
-                (\c ->
-                    let
-                        { src, target, result } =
-                            c
-                    in
-                        test ("match `" ++ target ++ "`") <|
-                            \_ ->
-                                Expect.equal result (fuzzyMatch src target)
-                )
-                --(List.filter (\c -> c.target == "buff") cases)
-                cases
+    describe "Fuzzy Match"
+        (List.map
+            (\c ->
+                let
+                    { src, target, result } =
+                        c
+                in
+                test ("match `" ++ target ++ "`") <|
+                    \_ ->
+                        Expect.equal result (fuzzyMatch src target)
             )
+            --(List.filter (\c -> c.target == "buff") cases)
+            cases
+        )

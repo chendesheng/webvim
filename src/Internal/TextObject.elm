@@ -1,18 +1,18 @@
-module Internal.TextObject exposing (..)
+module Internal.TextObject exposing (expandSingleLineTextObject, expandTextObject, findPair, wORDUnderCursor, wordUnderCursor)
 
+import Internal.Brackets as Bracket exposing (bracket, pairBracket)
+import Internal.Position exposing (Position)
+import Internal.PositionClass exposing (findLineFirst, findPosition)
+import Internal.Syntax as Syntax exposing (Syntax)
 import Internal.TextBuffer as B
 import Vim.AST
     exposing
-        ( MotionData(..)
+        ( Direction(..)
+        , MotionData(..)
         , MotionOption
-        , Direction(..)
         , TextObject(..)
         , motionOption
         )
-import Internal.Position exposing (Position)
-import Internal.PositionClass exposing (findPosition, findLineFirst)
-import Internal.Brackets as Bracket exposing (bracket, pairBracket)
-import Internal.Syntax as Syntax exposing (Syntax)
 
 
 expandSingleLineTextObject :
@@ -26,43 +26,39 @@ expandSingleLineTextObject wordChars textobj around line cursor =
     case textobj of
         Word ->
             Maybe.map2 (\a b -> ( a + 1, b - 1 ))
-                ((findPosition
+                (findPosition
                     wordChars
                     WordEdge
                     (motionOption "<)$-")
                     line
                     cursor
-                 )
                  --|> Debug.log "resulta"
                 )
-                ((findPosition
+                (findPosition
                     wordChars
                     WordEdge
                     (motionOption ">)$-")
                     line
                     cursor
-                 )
                  --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
                 )
 
         WORD ->
             Maybe.map2 (\a b -> ( a + 1, b - 1 ))
-                ((findPosition
+                (findPosition
                     wordChars
                     WORDEdge
                     (motionOption "<)$-")
                     line
                     cursor
-                 )
                  --|> Debug.log "resulta"
                 )
-                ((findPosition
+                (findPosition
                     wordChars
                     WORDEdge
                     (motionOption ">)$-")
                     line
                     cursor
-                 )
                  --|> Debug.log ("resultb" ++ " " ++ toString (max 0 (cursor - 1)) ++ " " ++ line)
                 )
 
@@ -107,20 +103,22 @@ expandSingleLineTextObject wordChars textobj around line cursor =
                                             line
                                             (cursor + 1)
                                             |> Maybe.map (Tuple.pair cursor)
+
                                     else
                                         Nothing
 
                                 _ ->
                                     Nothing
             in
-                Maybe.map
-                    (\( i, j ) ->
-                        if around then
-                            ( i, j )
-                        else
-                            ( i + 1, j - 1 )
-                    )
-                    res
+            Maybe.map
+                (\( i, j ) ->
+                    if around then
+                        ( i, j )
+
+                    else
+                        ( i + 1, j - 1 )
+                )
+                res
 
         _ ->
             Nothing
@@ -136,29 +134,27 @@ wordUnderCursor wordChars cursor lines =
         ( y, x ) =
             cursor
     in
-        B.getLine y lines
-            |> Maybe.andThen
-                (\line ->
-                    (findPosition
-                        wordChars
-                        WordEnd
-                        (motionOption ">]$-")
-                        line
-                        (Basics.max 0 (x - 1))
-                    )
-                        |> Maybe.andThen
-                            (\end ->
-                                (findPosition
-                                    wordChars
-                                    WordStart
-                                    (motionOption "<]$-")
-                                    line
-                                    (end + 1)
-                                )
-                                    |> Maybe.map
-                                        (\begin -> ( ( y, begin ), ( y, end + 1 ) ))
-                            )
-                )
+    B.getLine y lines
+        |> Maybe.andThen
+            (\line ->
+                findPosition
+                    wordChars
+                    WordEnd
+                    (motionOption ">]$-")
+                    line
+                    (Basics.max 0 (x - 1))
+                    |> Maybe.andThen
+                        (\end ->
+                            findPosition
+                                wordChars
+                                WordStart
+                                (motionOption "<]$-")
+                                line
+                                (end + 1)
+                                |> Maybe.map
+                                    (\begin -> ( ( y, begin ), ( y, end + 1 ) ))
+                        )
+            )
 
 
 wORDUnderCursor : Position -> B.TextBuffer -> Maybe ( Position, Position )
@@ -167,29 +163,27 @@ wORDUnderCursor cursor lines =
         ( y, x ) =
             cursor
     in
-        B.getLine y lines
-            |> Maybe.andThen
-                (\line ->
-                    (findPosition
-                        ""
-                        WORDEnd
-                        (motionOption ">]$-")
-                        line
-                        (Basics.max 0 (x - 1))
-                    )
-                        |> Maybe.andThen
-                            (\end ->
-                                (findPosition
-                                    ""
-                                    WORDStart
-                                    (motionOption "<]$-")
-                                    line
-                                    (end + 1)
-                                )
-                                    |> Maybe.map
-                                        (\begin -> ( ( y, begin ), ( y, end + 1 ) ))
-                            )
-                )
+    B.getLine y lines
+        |> Maybe.andThen
+            (\line ->
+                findPosition
+                    ""
+                    WORDEnd
+                    (motionOption ">]$-")
+                    line
+                    (Basics.max 0 (x - 1))
+                    |> Maybe.andThen
+                        (\end ->
+                            findPosition
+                                ""
+                                WORDStart
+                                (motionOption "<]$-")
+                                line
+                                (end + 1)
+                                |> Maybe.map
+                                    (\begin -> ( ( y, begin ), ( y, end + 1 ) ))
+                        )
+            )
 
 
 findPair :
@@ -226,43 +220,46 @@ findPair scrollTop height syntax openChar closeChar around lines (( y, x ) as cu
                 ( y2, x2 ) =
                     Basics.max p1 p2
             in
-                if around then
-                    ( ( y1, x1 ), ( y2, x2 + 1 ) )
-                else
-                    ( ( y1, x1 + 1 ), ( y2, x2 ) )
+            if around then
+                ( ( y1, x1 ), ( y2, x2 + 1 ) )
+
+            else
+                ( ( y1, x1 + 1 ), ( y2, x2 ) )
     in
-        if c == Just openChar then
-            openChar
-                |> pairChar
-                |> Maybe.map (genRegion cursor)
-        else if c == Just closeChar then
-            closeChar
-                |> pairChar
-                |> Maybe.map (genRegion cursor)
-        else
-            Maybe.map
-                (\( b, e ) -> genRegion b e)
-                (pairBracket
-                    scrollTop
-                    (scrollTop + height)
-                    lines
-                    syntax
-                    cursor
-                    True
-                    closeChar
-                    |> Maybe.andThen
-                        (\openPos ->
-                            pairBracket
-                                scrollTop
-                                (scrollTop + height)
-                                lines
-                                syntax
-                                openPos
-                                False
-                                openChar
-                                |> Maybe.map (\closePos -> ( openPos, closePos ))
-                        )
-                )
+    if c == Just openChar then
+        openChar
+            |> pairChar
+            |> Maybe.map (genRegion cursor)
+
+    else if c == Just closeChar then
+        closeChar
+            |> pairChar
+            |> Maybe.map (genRegion cursor)
+
+    else
+        Maybe.map
+            (\( b, e ) -> genRegion b e)
+            (pairBracket
+                scrollTop
+                (scrollTop + height)
+                lines
+                syntax
+                cursor
+                True
+                closeChar
+                |> Maybe.andThen
+                    (\openPos ->
+                        pairBracket
+                            scrollTop
+                            (scrollTop + height)
+                            lines
+                            syntax
+                            openPos
+                            False
+                            openChar
+                            |> Maybe.map (\closePos -> ( openPos, closePos ))
+                    )
+            )
 
 
 expandTextObject :
@@ -280,6 +277,7 @@ expandTextObject wordChars scrollTop height syntax textObject around lines (( y,
         Line ->
             if around then
                 Just ( ( y, 0 ), ( y + 1, 0 ) )
+
             else
                 B.getLine y lines
                     |> Maybe.map
@@ -307,12 +305,11 @@ expandTextObject wordChars scrollTop height syntax textObject around lines (( y,
             B.getLine y lines
                 |> Maybe.andThen
                     (\line ->
-                        (expandSingleLineTextObject wordChars
+                        expandSingleLineTextObject wordChars
                             textObject
                             around
                             line
                             x
-                        )
                     )
                 |> Maybe.andThen
                     (\( a, b ) ->

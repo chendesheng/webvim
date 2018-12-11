@@ -1,39 +1,38 @@
-module Internal.TextBuffer
-    exposing
-        ( TextBuffer
-        , isEmpty
-        , lineBreak
-        , applyPatch
-        , empty
-        , fromString
-        , fromStringExpandTabs
-        , getLine
-        , count
-        , countLineBreaks
-        , foldlLines
-        , expandTabs
-        , mapLines
-        , Patch(..)
-        , toString
-        , lineMaxColumn
-        , getLineMaxColumn
-        , mapLinesToList
-        , indexedMapLinesToList
-        , substring
-        , sliceLines
-        , sliceRegion
-        , patchCursor
-        , mergePatch
-        , shiftPositionByRegionChange
-        , findFirstLine
-        , patchToRegion
-        , RegionChange(..)
-        )
+module Internal.TextBuffer exposing
+    ( Patch(..)
+    , RegionChange(..)
+    , TextBuffer
+    , applyPatch
+    , count
+    , countLineBreaks
+    , empty
+    , expandTabs
+    , findFirstLine
+    , foldlLines
+    , fromString
+    , fromStringExpandTabs
+    , getLine
+    , getLineMaxColumn
+    , indexedMapLinesToList
+    , isEmpty
+    , lineBreak
+    , lineMaxColumn
+    , mapLines
+    , mapLinesToList
+    , mergePatch
+    , patchCursor
+    , patchToRegion
+    , shiftPositionByRegionChange
+    , sliceLines
+    , sliceRegion
+    , substring
+    , toString
+    )
 
-import Internal.Position exposing (..)
 import Array as Array exposing (Array)
-import String
+import Internal.Position exposing (..)
 import List
+import String
 
 
 type TextBuffer
@@ -62,17 +61,19 @@ patchToRegion patch =
                 ln =
                     Array.get (n - 1) buf
               in
-                case ln of
-                    Just s ->
-                        if String.endsWith lineBreak s then
-                            ( y + n, 0 )
-                        else if n == 1 then
-                            ( y, x + String.length s )
-                        else
-                            ( y + n - 1, String.length s )
+              case ln of
+                Just s ->
+                    if String.endsWith lineBreak s then
+                        ( y + n, 0 )
 
-                    _ ->
-                        ( y, x )
+                    else if n == 1 then
+                        ( y, x + String.length s )
+
+                    else
+                        ( y + n - 1, String.length s )
+
+                _ ->
+                    ( y, x )
             )
 
         Deletion from to ->
@@ -95,6 +96,7 @@ shiftPositionByRegionChange change pos =
         RegionAdd ( begin, end ) ->
             if pos < begin then
                 pos
+
             else
                 let
                     ( py, px ) =
@@ -112,19 +114,23 @@ shiftPositionByRegionChange change pos =
                     dx =
                         ex - bx
                 in
-                    if dy == 0 then
-                        if py == by then
-                            ( py, px + dx )
-                        else
-                            pos
-                    else if py == by then
-                        ( py + dy, px + ex )
+                if dy == 0 then
+                    if py == by then
+                        ( py, px + dx )
+
                     else
-                        ( py + dy, px )
+                        pos
+
+                else if py == by then
+                    ( py + dy, px + ex )
+
+                else
+                    ( py + dy, px )
 
         RegionRemove ( begin, end ) ->
             if pos < begin then
                 pos
+
             else if pos >= end then
                 let
                     ( by, bx ) =
@@ -136,13 +142,16 @@ shiftPositionByRegionChange change pos =
                     ( py, px ) =
                         pos
                 in
-                    if ey == py then
-                        if by == ey then
-                            ( py, px - (ex - bx) )
-                        else
-                            ( py - (ey - by), px - ex )
+                if ey == py then
+                    if by == ey then
+                        ( py, px - (ex - bx) )
+
                     else
-                        ( py - (ey - by), px )
+                        ( py - (ey - by), px - ex )
+
+                else
+                    ( py - (ey - by), px )
+
             else
                 begin
 
@@ -153,34 +162,37 @@ mergePatch p1 p2 =
         add ( y1, x1 ) ( y2, x2 ) =
             if y2 == 0 then
                 ( y1, x1 + x2 )
+
             else
                 ( y1 + y2, x2 )
     in
-        case p1 of
-            Insertion pos1 (TextBuffer lines1) ->
-                case p2 of
-                    Insertion pos2 (TextBuffer lines2) ->
-                        if add pos2 (boundPosition lines2) == pos1 then
-                            append lines2 lines1
-                                |> TextBuffer
-                                |> Insertion pos2
-                                |> Just
-                        else
-                            Nothing
+    case p1 of
+        Insertion pos1 (TextBuffer lines1) ->
+            case p2 of
+                Insertion pos2 (TextBuffer lines2) ->
+                    if add pos2 (boundPosition lines2) == pos1 then
+                        append lines2 lines1
+                            |> TextBuffer
+                            |> Insertion pos2
+                            |> Just
 
-                    _ ->
+                    else
                         Nothing
 
-            Deletion b1 e1 ->
-                case p2 of
-                    Deletion b2 e2 ->
-                        if b1 == e2 then
-                            Just <| Deletion b2 e1
-                        else
-                            Nothing
+                _ ->
+                    Nothing
 
-                    _ ->
+        Deletion b1 e1 ->
+            case p2 of
+                Deletion b2 e2 ->
+                    if b1 == e2 then
+                        Just <| Deletion b2 e1
+
+                    else
                         Nothing
+
+                _ ->
+                    Nothing
 
 
 emptyPatch : Patch
@@ -215,7 +227,7 @@ count (TextBuffer buf) =
     Array.length buf
 
 
-{-| count how many \n
+{-| count how many \\n
 -}
 countLineBreaks : TextBuffer -> Int
 countLineBreaks (TextBuffer buf) =
@@ -223,16 +235,17 @@ countLineBreaks (TextBuffer buf) =
         n =
             Array.length buf
     in
-        buf
-            |> Array.get (n - 1)
-            |> Maybe.map
-                (\line ->
-                    if String.endsWith lineBreak line then
-                        n
-                    else
-                        n - 1
-                )
-            |> Maybe.withDefault 0
+    buf
+        |> Array.get (n - 1)
+        |> Maybe.map
+            (\line ->
+                if String.endsWith lineBreak line then
+                    n
+
+                else
+                    n - 1
+            )
+        |> Maybe.withDefault 0
 
 
 mapLines : (String -> b) -> TextBuffer -> Array b
@@ -320,6 +333,7 @@ boundPosition : Array String -> Position
 boundPosition buf =
     if isEmptyInner buf then
         ( 0, 0 )
+
     else
         let
             cnt =
@@ -329,7 +343,7 @@ boundPosition buf =
                 Array.get (cnt - 1) buf
                     |> Maybe.withDefault ""
         in
-            ( cnt - 1, String.length s )
+        ( cnt - 1, String.length s )
 
 
 {-| Convert a string to a textBuffer
@@ -357,6 +371,7 @@ fromStringList : List String -> Array String
 fromStringList str =
     if List.isEmpty str then
         Array.empty
+
     else
         let
             buf =
@@ -365,14 +380,15 @@ fromStringList str =
             lastLine =
                 Array.length buf - 1
         in
-            buf
-                |> Array.indexedMap
-                    (\i s ->
-                        if i == lastLine then
-                            s
-                        else
-                            s ++ lineBreak
-                    )
+        buf
+            |> Array.indexedMap
+                (\i s ->
+                    if i == lastLine then
+                        s
+
+                    else
+                        s ++ lineBreak
+                )
 
 
 toString : TextBuffer -> String
@@ -388,8 +404,10 @@ append : Array String -> Array String -> Array String
 append buf1 buf2 =
     if isEmptyInner buf1 then
         buf2
+
     else if isEmptyInner buf2 then
         buf1
+
     else
         let
             lastLine1 =
@@ -398,9 +416,9 @@ append buf1 buf2 =
             firstLine2 =
                 getFirstLine buf2
         in
-            buf2
-                |> Array.set 0 (lastLine1 ++ firstLine2)
-                |> Array.append (Array.slice 0 (Array.length buf1 - 1) buf1)
+        buf2
+            |> Array.set 0 (lastLine1 ++ firstLine2)
+            |> Array.append (Array.slice 0 (Array.length buf1 - 1) buf1)
 
 
 flip f a b =
@@ -418,8 +436,10 @@ slice pos1 pos2 buf =
         valid pos =
             if pos < ( 0, 0 ) then
                 ( 0, 0 )
+
             else if pos > bound then
                 bound
+
             else
                 pos
 
@@ -429,42 +449,47 @@ slice pos1 pos2 buf =
         (( y2, x2 ) as pos22) =
             valid pos2
     in
-        if pos22 <= pos11 then
-            fromStringHelper ""
-        else
-            Maybe.map2
-                (\line1 line2 ->
-                    if y1 == y2 then
-                        String.slice x1 x2 line1
-                            |> fromStringHelper
-                    else if y1 + 1 == y2 then
-                        (String.dropLeft x1 line1 ++ String.left x2 line2)
-                            |> fromStringHelper
-                    else
-                        let
-                            line11 =
-                                String.dropLeft x1 line1
+    if pos22 <= pos11 then
+        fromStringHelper ""
 
-                            line22 =
-                                String.left x2 line2
-                        in
-                            (if String.isEmpty line11 then
-                                []
-                             else
-                                [ line11 ]
-                            )
-                                |> Array.fromList
-                                |> flip Array.append
-                                    (Array.slice (y1 + 1) y2 buf)
-                                |> (if String.endsWith lineBreak line22 then
-                                        (Array.push line22 >> Array.push "")
-                                    else
-                                        Array.push line22
-                                   )
-                )
-                (Array.get y1 buf)
-                (Array.get y2 buf)
-                |> Maybe.withDefault Array.empty
+    else
+        Maybe.map2
+            (\line1 line2 ->
+                if y1 == y2 then
+                    String.slice x1 x2 line1
+                        |> fromStringHelper
+
+                else if y1 + 1 == y2 then
+                    (String.dropLeft x1 line1 ++ String.left x2 line2)
+                        |> fromStringHelper
+
+                else
+                    let
+                        line11 =
+                            String.dropLeft x1 line1
+
+                        line22 =
+                            String.left x2 line2
+                    in
+                    (if String.isEmpty line11 then
+                        []
+
+                     else
+                        [ line11 ]
+                    )
+                        |> Array.fromList
+                        |> flip Array.append
+                            (Array.slice (y1 + 1) y2 buf)
+                        |> (if String.endsWith lineBreak line22 then
+                                Array.push line22 >> Array.push ""
+
+                            else
+                                Array.push line22
+                           )
+            )
+            (Array.get y1 buf)
+            (Array.get y2 buf)
+            |> Maybe.withDefault Array.empty
 
 
 applyInsertion :
@@ -480,26 +505,29 @@ applyInsertion pos (TextBuffer s) buf =
         pos1 =
             if pos >= bound then
                 bound
+
             else if pos < ( 0, 0 ) then
                 ( 0, 0 )
+
             else
                 let
                     ( py, px ) =
                         pos
                 in
-                    Array.get py buf
-                        |> Maybe.map
-                            (\line ->
-                                if String.length line <= px then
-                                    -- because of pos < bound,
-                                    -- y is not last line
-                                    ( py + 1, 0 )
-                                else
-                                    pos
-                            )
-                        -- because of pos < bound, this will never happen
-                        |> Maybe.withDefault ( 0, 0 )
-                        |> normalizePos buf
+                Array.get py buf
+                    |> Maybe.map
+                        (\line ->
+                            if String.length line <= px then
+                                -- because of pos < bound,
+                                -- y is not last line
+                                ( py + 1, 0 )
+
+                            else
+                                pos
+                        )
+                    -- because of pos < bound, this will never happen
+                    |> Maybe.withDefault ( 0, 0 )
+                    |> normalizePos buf
 
         top =
             slice ( 0, 0 ) pos1 buf
@@ -513,20 +541,21 @@ applyInsertion pos (TextBuffer s) buf =
         ( dy, dx ) =
             boundPosition s
     in
-        ( Deletion pos1
-            ( y + dy
-            , dx
-                + (if dy == 0 then
-                    x
-                   else
-                    0
-                  )
-            )
-        , bottom
-            |> append s
-            |> append top
-            |> TextBuffer
+    ( Deletion pos1
+        ( y + dy
+        , dx
+            + (if dy == 0 then
+                x
+
+               else
+                0
+              )
         )
+    , bottom
+        |> append s
+        |> append top
+        |> TextBuffer
+    )
 
 
 normalizePos : Array String -> Position -> Position
@@ -537,17 +566,20 @@ normalizePos lines (( y, x ) as pos) =
                 len =
                     String.length line
             in
-                if x >= len then
-                    if String.endsWith lineBreak line then
-                        ( y + 1, 0 )
-                    else
-                        ( y, len )
+            if x >= len then
+                if String.endsWith lineBreak line then
+                    ( y + 1, 0 )
+
                 else
-                    pos
+                    ( y, len )
+
+            else
+                pos
 
         _ ->
             if pos < ( 0, 0 ) then
                 ( 0, 0 )
+
             else
                 boundPosition lines
 
@@ -560,6 +592,7 @@ applyDeletion :
 applyDeletion pos1 pos2 buf =
     if pos2 <= pos1 then
         ( Insertion pos1 empty, TextBuffer buf )
+
     else
         let
             top =
@@ -574,9 +607,9 @@ applyDeletion pos1 pos2 buf =
             res =
                 append top bottom
         in
-            ( Insertion (normalizePos res pos1) deleted
-            , TextBuffer res
-            )
+        ( Insertion (normalizePos res pos1) deleted
+        , TextBuffer res
+        )
 
 
 {-| apply a patch, returns "reversed" patch and result buf
@@ -597,34 +630,34 @@ expandTabs n firstLineOffset str =
         lines =
             String.split lineBreak str
     in
-        List.map2
-            (\line start ->
-                let
-                    tabIndexes =
-                        String.indexes "\t" line
+    List.map2
+        (\line start ->
+            let
+                tabIndexes =
+                    String.indexes "\t" line
 
-                    ( res, lastTabIndex ) =
-                        List.foldl
-                            (\i ( s, lasti ) ->
-                                let
-                                    s1 =
-                                        s ++ String.slice lasti i line
+                ( res, lastTabIndex ) =
+                    List.foldl
+                        (\i ( s, lasti ) ->
+                            let
+                                s1 =
+                                    s ++ String.slice lasti i line
 
-                                    cnt =
-                                        n - modBy n (String.length s1 + start)
+                                cnt =
+                                    n - modBy n (String.length s1 + start)
 
-                                    tabs =
-                                        String.repeat cnt " "
-                                in
-                                    ( s1 ++ tabs, i + 1 )
-                            )
-                            ( "", 0 )
-                            tabIndexes
-                in
-                    res ++ String.dropLeft lastTabIndex line
-            )
-            lines
-            (firstLineOffset :: List.repeat (List.length lines - 1) 0)
+                                tabs =
+                                    String.repeat cnt " "
+                            in
+                            ( s1 ++ tabs, i + 1 )
+                        )
+                        ( "", 0 )
+                        tabIndexes
+            in
+            res ++ String.dropLeft lastTabIndex line
+        )
+        lines
+        (firstLineOffset :: List.repeat (List.length lines - 1) 0)
 
 
 lineMaxColumn : String -> Int
@@ -636,10 +669,11 @@ lineMaxColumn s =
         lenLineBreak =
             String.length lineBreak
     in
-        if String.right lenLineBreak s == lineBreak then
-            len - lenLineBreak
-        else
-            len
+    if String.right lenLineBreak s == lineBreak then
+        len - lenLineBreak
+
+    else
+        len
 
 
 getLineMaxColumn : Int -> TextBuffer -> Int

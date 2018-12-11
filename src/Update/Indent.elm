@@ -1,11 +1,11 @@
 module Update.Indent exposing (applyIndent)
 
-import Vim.AST as V exposing (Operator(..), ChangeCase(..))
-import Model exposing (..)
-import Update.Range exposing (operatorRanges)
-import Update.Buffer as Buf
-import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.PositionClass exposing (findLineFirst)
+import Internal.TextBuffer as B exposing (Patch(..))
+import Model exposing (..)
+import Update.Buffer as Buf
+import Update.Range exposing (operatorRanges)
+import Vim.AST as V exposing (ChangeCase(..), Operator(..))
 
 
 applyIndent : Maybe Int -> Bool -> V.OperatorRange -> Global -> Buffer -> Buffer
@@ -21,6 +21,7 @@ applyIndent count forward range global buf =
                                 |> String.repeat
                                     (if String.length s > 1 then
                                         buf.config.tabSize
+
                                      else
                                         0
                                     )
@@ -28,6 +29,7 @@ applyIndent count forward range global buf =
                                 |> Insertion ( y, 0 )
                         )
                     |> Maybe.withDefault (Insertion ( y, 0 ) B.empty)
+
             else
                 let
                     size =
@@ -38,9 +40,9 @@ applyIndent count forward range global buf =
                             |> min
                                 buf.config.tabSize
                 in
-                    Deletion
-                        ( y, 0 )
-                        ( y, size )
+                Deletion
+                    ( y, 0 )
+                    ( y, size )
 
         lineNumbers =
             buf
@@ -54,29 +56,29 @@ applyIndent count forward range global buf =
                             ( y, x ) =
                                 end
                         in
-                            List.range
-                                (Tuple.first begin)
-                                (y
-                                    |> ((+)
-                                            (if x == 0 then
-                                                -1
-                                             else
-                                                0
-                                            )
-                                       )
-                                    |> max 0
-                                )
+                        List.range
+                            (Tuple.first begin)
+                            (y
+                                |> (+)
+                                    (if x == 0 then
+                                        -1
+
+                                     else
+                                        0
+                                    )
+                                |> max 0
+                            )
                     )
     in
-        case lineNumbers of
-            y :: _ ->
-                let
-                    buf1 =
-                        Buf.transaction
-                            (List.map genPatches lineNumbers)
-                            buf
-                in
-                    Buf.gotoLine y buf1
+    case lineNumbers of
+        y :: _ ->
+            let
+                buf1 =
+                    Buf.transaction
+                        (List.map genPatches lineNumbers)
+                        buf
+            in
+            Buf.gotoLine y buf1
 
-            _ ->
-                buf
+        _ ->
+            buf

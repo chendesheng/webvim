@@ -1,6 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
-const {execSync} = require('child_process');
+// const {execSync} = require('child_process');
 
 function genLines(s) {
   const code = s.split('\n')
@@ -13,18 +13,18 @@ function genLines(s) {
     }).join('\n   , ');
 
   return `
-    String.join "
-"
+    String.join """
+"""
     [ ${code}
     ]`;
 }
 
-function format(code) {
-  return execSync('elm-format --stdin --yes', {
-    cwd: __dirname,
-    input: code,
-  });
-}
+// function format(code) {
+//   return execSync('elm-format --stdin --yes', {
+//     cwd: __dirname,
+//     input: code,
+//   });
+// }
 
 function isSkip(content) {
   return /^\s*##skip/.test(content);
@@ -66,8 +66,8 @@ function genCode(files) {
 
 exports.genTests = async function() {
   const files = await fs.readdir(path.join(__dirname, 'data'));
-  await fs.writeFile(path.join(__dirname, '../TestData.elm'), format(`
-module TestData exposing(..)
+  await fs.writeFile(path.join(__dirname, '../TestData.elm'),
+    `module TestData exposing(..)
 import Test exposing (..)
 import TestGenerated exposing (genTest)
 
@@ -76,7 +76,7 @@ suite =
     describe "test generated" <|
         [${genCode(files)}
         ]
-`));
+`);
   console.log(`${new Date()} TestData.elm has been saved`);
 };
 

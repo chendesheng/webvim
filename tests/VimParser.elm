@@ -1,13 +1,11 @@
-module VimParser exposing (..)
-
-import Expect exposing (Expectation)
-import Vim.Parser as V
-import Vim.AST exposing (..)
-
+module VimParser exposing (cases, suite)
 
 -- import Fuzz exposing (Fuzzer, int, list, string)
 
+import Expect exposing (Expectation)
 import Test exposing (..)
+import Vim.AST exposing (..)
+import Vim.Parser as V
 
 
 cases : List ( String, ( AST, String ) )

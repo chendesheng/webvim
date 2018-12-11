@@ -1,28 +1,28 @@
-module View exposing (..)
+module View exposing (page)
 
-import Html exposing (..)
-import Html.Lazy exposing (..)
-import Html.Events as Events
-import Model exposing (..)
-import Internal.TextBuffer as B
 import Array as Array exposing (Array)
-import List
-import Html.Attributes exposing (..)
-import Internal.Position exposing (Position)
-import Vim.AST exposing (VisualType(..))
-import Vim.Helper exposing (parseKeys)
-import Internal.Syntax exposing (Syntax, Token)
-import String
-import Update.Buffer as Buf
-import Dict exposing (Dict)
 import Bitwise as BW
-import Update.Message exposing (Msg(..), IMEMsg(..))
-import Update.Range exposing (visualRegions)
+import Browser exposing (Document)
+import Dict exposing (Dict)
+import Helper.KeyEvent exposing (decodeKeyboardEvent)
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events as Events
+import Html.Lazy exposing (..)
+import Internal.Position exposing (Position)
+import Internal.Syntax exposing (Syntax, Token)
+import Internal.TextBuffer as B
+import Internal.Window as Win
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Browser exposing (Document)
-import Helper.KeyEvent exposing (decodeKeyboardEvent)
-import Internal.Window as Win
+import List
+import Model exposing (..)
+import String
+import Update.Buffer as Buf
+import Update.Message exposing (IMEMsg(..), Msg(..))
+import Update.Range exposing (visualRegions)
+import Vim.AST exposing (VisualType(..))
+import Vim.Helper exposing (parseKeys)
 
 
 type alias Point =
@@ -42,7 +42,7 @@ cursorPoint fontInfo lines y x =
                     w =
                         cursorCharWidth fontInfo x line
                 in
-                    ( ( y, x1 ), ( y, x1 + w ) )
+                ( ( y, x1 ), ( y, x1 + w ) )
             )
         |> Maybe.withDefault ( ( 0, 0 ), ( 0, 0 ) )
 
@@ -91,36 +91,35 @@ page global =
                                     |> Maybe.map .rect
                                     |> Maybe.withDefault { y = 0, x = 0, width = 0, height = 0 }
                         in
-                            [ div [ class "editor" ]
-                                [ div [ class "buffers" ]
-                                    ((List.map
-                                        (\item ->
-                                            let
-                                                view1 =
-                                                    item.view
+                        [ div [ class "editor" ]
+                            [ div [ class "buffers" ]
+                                (List.map
+                                    (\item ->
+                                        let
+                                            view1 =
+                                                item.view
 
-                                                rect =
-                                                    item.rect
+                                            rect =
+                                                item.rect
 
-                                                isActive =
-                                                    item.isActive
-                                            in
-                                                case Dict.get view1.bufId global.buffers of
-                                                    Just buf1 ->
-                                                        renderBuffer item.path rect view1 buf1 isActive global
+                                            isActive =
+                                                item.isActive
+                                        in
+                                        case Dict.get view1.bufId global.buffers of
+                                            Just buf1 ->
+                                                renderBuffer item.path rect view1 buf1 isActive global
 
-                                                    _ ->
-                                                        div [] []
-                                        )
-                                        views
-                                     )
-                                        ++ renderBorders borders
-                                        ++ (renderAutoComplete activeViewRect view buf global)
+                                            _ ->
+                                                div [] []
                                     )
-                                , renderGlobal buf global
-                                ]
-                            , renderStorage global
+                                    views
+                                    ++ renderBorders borders
+                                    ++ renderAutoComplete activeViewRect view buf global
+                                )
+                            , renderGlobal buf global
                             ]
+                        , renderStorage global
+                        ]
                     }
 
                 _ ->
@@ -137,6 +136,7 @@ page global =
 pageTitle buf =
     if Buf.isDirty buf then
         "• " ++ buf.name
+
     else
         buf.name
 
@@ -170,14 +170,14 @@ renderGlobal buf global =
         ime1 =
             { ime | isSafari = isSafari }
     in
-        renderStatusBar
-            fontInfo
-            ime1
-            (Buf.isDirty buf)
-            buf.mode
-            buf.continuation
-            lint.items
-            buf.name
+    renderStatusBar
+        fontInfo
+        ime1
+        (Buf.isDirty buf)
+        buf.mode
+        buf.continuation
+        lint.items
+        buf.name
 
 
 renderStorage : Global -> Html Msg
@@ -314,55 +314,56 @@ renderBuffer path rect view buf isActive global =
                     (Decode.at [ "deltaY" ] Decode.int)
                 )
     in
-        div
-            ([ class "buffer"
-             , style "top" (percentStr rect.y)
-             , style "left" (percentStr rect.x)
-             , style "width" (percentStr rect.width)
-             , style "height" (percentStr rect.height)
-             ]
-                ++ if isListenMouseWheel buf.mode showTip lint then
+    div
+        ([ class "buffer"
+         , style "top" (percentStr rect.y)
+         , style "left" (percentStr rect.x)
+         , style "width" (percentStr rect.width)
+         , style "height" (percentStr rect.height)
+         ]
+            ++ (if isListenMouseWheel buf.mode showTip lint then
                     [ mouseWheel lineHeight path ]
-                   else
+
+                else
                     []
+               )
+        )
+        [ renderGutter
+            scrollingCss
+            gutterWidth
+            relativeZeroLine
+            totalLines
+            view.lines
+        , lazy5 renderRelativeGutter
+            lineHeight
+            topOffsetPx
+            height
+            (relativeZeroLine - scrollTop1)
+            (totalLines - scrollTop1)
+        , div
+            (class "lines-container" :: scrollingCss)
+            (renderColumnGuide fontInfo lines maybeCursor
+                :: renderLineGuide maybeCursor
+                :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
+                :: renderHighlights fontInfo scrollTop1 lines highlights
+                :: lazy4 renderLint fontInfo scrollTop1 lines lint.items
+                :: lazy3 renderLines lines syntax view.lines
+                :: div [ class "ruler" ] []
+                :: renderCursor isActive fontInfo ime1 lines "" maybeCursor
+                :: renderTip
+                    view.size.width
+                    lint.items
+                    maybeCursor
+                    showTip
+                :: renderMatchedCursor
+                    isActive
+                    fontInfo
+                    lines
+                    mode
+                    cursor
+                    buf.view.matchedCursor
             )
-            ([ renderGutter
-                scrollingCss
-                gutterWidth
-                relativeZeroLine
-                totalLines
-                view.lines
-             , lazy5 renderRelativeGutter
-                lineHeight
-                topOffsetPx
-                height
-                (relativeZeroLine - scrollTop1)
-                (totalLines - scrollTop1)
-             , div
-                (class "lines-container" :: scrollingCss)
-                (renderColumnGuide fontInfo lines maybeCursor
-                    :: renderLineGuide maybeCursor
-                    :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
-                    :: renderHighlights fontInfo scrollTop1 lines highlights
-                    :: lazy4 renderLint fontInfo scrollTop1 lines lint.items
-                    :: lazy3 renderLines lines syntax view.lines
-                    :: div [ class "ruler" ] []
-                    :: renderCursor isActive fontInfo ime1 lines "" maybeCursor
-                    :: renderTip
-                        view.size.width
-                        lint.items
-                        maybeCursor
-                        showTip
-                    :: renderMatchedCursor
-                        isActive
-                        fontInfo
-                        lines
-                        mode
-                        cursor
-                        buf.view.matchedCursor
-                )
-             ]
-            )
+        ]
 
 
 renderAutoComplete : Win.Rect -> View -> Buffer -> Global -> List (Html Msg)
@@ -389,43 +390,43 @@ renderAutoComplete rect view buf global =
         topOffsetPx =
             remainderBy lineHeight view.scrollTopPx
     in
-        case buf.mode of
-            Ex ex ->
-                case ex.exbuf.mode of
-                    Insert { autoComplete } ->
-                        autoComplete
-                            |> Maybe.map
-                                (renderAutoCompleteMenu
-                                    Nothing
-                                    lineHeight
-                                    topOffsetPx
-                                    True
-                                    scrollTop
-                                    (gutterWidth + relativeGutterWidth)
-                                )
-                            |> maybeToList
+    case buf.mode of
+        Ex ex ->
+            case ex.exbuf.mode of
+                Insert { autoComplete } ->
+                    autoComplete
+                        |> Maybe.map
+                            (renderAutoCompleteMenu
+                                Nothing
+                                lineHeight
+                                topOffsetPx
+                                True
+                                scrollTop
+                                (gutterWidth + relativeGutterWidth)
+                            )
+                        |> maybeToList
 
-                    _ ->
-                        []
+                _ ->
+                    []
 
-            Insert { autoComplete } ->
-                case autoComplete of
-                    Just auto ->
-                        [ renderAutoCompleteMenu
-                            (Just ( rect.y, rect.x ))
-                            lineHeight
-                            topOffsetPx
-                            False
-                            scrollTop
-                            (gutterWidth + relativeGutterWidth)
-                            auto
-                        ]
+        Insert { autoComplete } ->
+            case autoComplete of
+                Just auto ->
+                    [ renderAutoCompleteMenu
+                        (Just ( rect.y, rect.x ))
+                        lineHeight
+                        topOffsetPx
+                        False
+                        scrollTop
+                        (gutterWidth + relativeGutterWidth)
+                        auto
+                    ]
 
-                    _ ->
-                        []
+                _ ->
+                    []
 
-            _ ->
-                []
+        _ ->
+            []
 
 
 renderLintStatus : List LintError -> Html msg
@@ -433,37 +434,37 @@ renderLintStatus items =
     let
         errors =
             items
-                |> List.filter (.tipe >> ((/=) "warning"))
+                |> List.filter (.tipe >> (/=) "warning")
                 |> List.length
 
         warnings =
             items
-                |> List.filter (.tipe >> ((==) "warning"))
+                |> List.filter (.tipe >> (==) "warning")
                 |> List.length
     in
-        div
-            [ class "lint-status" ]
-            [ span
-                [ classList
-                    [ ( "highlight-errors-icon", errors > 0 ) ]
-                ]
-                [ i
-                    [ class "fas fa-times-circle" ]
-                    []
-                , errors
-                    |> String.fromInt
-                    |> text
-                ]
-            , span
-                [ classList [ ( "highlight-warnings-icon", warnings > 0 ) ] ]
-                [ i
-                    [ class "fas fa-exclamation-triangle" ]
-                    []
-                , warnings
-                    |> String.fromInt
-                    |> text
-                ]
+    div
+        [ class "lint-status" ]
+        [ span
+            [ classList
+                [ ( "highlight-errors-icon", errors > 0 ) ]
             ]
+            [ i
+                [ class "fas fa-times-circle" ]
+                []
+            , errors
+                |> String.fromInt
+                |> text
+            ]
+        , span
+            [ classList [ ( "highlight-warnings-icon", warnings > 0 ) ] ]
+            [ i
+                [ class "fas fa-exclamation-triangle" ]
+                []
+            , warnings
+                |> String.fromInt
+                |> text
+            ]
+        ]
 
 
 renderStatusBarRight : String -> String -> List LintError -> Html msg
@@ -486,6 +487,7 @@ renderInputSafari fontInfo isComposing _ =
     span
         ((if isComposing then
             []
+
           else
             [ style "opacity" "0" ]
          )
@@ -542,6 +544,7 @@ renderInputChrome fontInfo isComposing compositionText =
     span
         ((if isComposing then
             []
+
           else
             [ Events.custom "keydown"
                 (decodeKeyboardEvent False
@@ -623,24 +626,26 @@ renderStatusBarLeft fontInfo ime mode =
                 _ ->
                     []
     in
-        div [ class "status-left" ]
-            (div
-                [ class
-                    (if statusBar.error then
-                        "status-error"
-                     else
-                        "status-info"
-                    )
-                ]
-                [ text
-                    (if statusBar.text == "-- Normal --" then
-                        ""
-                     else
-                        statusBar.text
-                    )
-                ]
-                :: divs
-            )
+    div [ class "status-left" ]
+        (div
+            [ class
+                (if statusBar.error then
+                    "status-error"
+
+                 else
+                    "status-info"
+                )
+            ]
+            [ text
+                (if statusBar.text == "-- Normal --" then
+                    ""
+
+                 else
+                    statusBar.text
+                )
+            ]
+            :: divs
+        )
 
 
 renderMatchedCursor :
@@ -761,10 +766,9 @@ renderVisual fontInfo scrollTop height mode lines =
                         _ ->
                             Nothing
             in
-                (visual1
-                    |> Maybe.map (lazy4 renderSelections fontInfo scrollTop lines)
-                    |> Maybe.withDefault (text "")
-                )
+            visual1
+                |> Maybe.map (lazy4 renderSelections fontInfo scrollTop lines)
+                |> Maybe.withDefault (text "")
 
         _ ->
             text ""
@@ -826,37 +830,41 @@ renderCursorInner isActive isMainCursor fontInfo ime lines classname y x =
         imeIsComposing =
             imeIsActive && ime.isComposing
     in
-        div
-            ([ class "cursor"
-             , class classname
-             , classList [ ( "cursor-not-active", not isActive ) ]
-             , style "left" <| px bx
-             , style "top" <| rem y
-             , style "width" <| px (ex - bx)
-             ]
-                ++ (if imeIsActive then
-                        [ class "cursor-ime-active" ]
+    div
+        ([ class "cursor"
+         , class classname
+         , classList [ ( "cursor-not-active", not isActive ) ]
+         , style "left" <| px bx
+         , style "top" <| rem y
+         , style "width" <| px (ex - bx)
+         ]
+            ++ (if imeIsActive then
+                    [ class "cursor-ime-active" ]
+
+                else
+                    []
+               )
+            ++ (if imeIsComposing then
+                    [ class "cursor-ime-composing" ]
+
+                else
+                    []
+               )
+        )
+        [ if imeIsActive then
+            let
+                renderInput =
+                    if ime.isSafari then
+                        renderInputSafari
+
                     else
-                        []
-                   )
-                ++ (if imeIsComposing then
-                        [ class "cursor-ime-composing" ]
-                    else
-                        []
-                   )
-            )
-            [ if imeIsActive then
-                let
-                    renderInput =
-                        if ime.isSafari then
-                            renderInputSafari
-                        else
-                            renderInputChrome
-                in
-                    lazy3 renderInput fontInfo imeIsComposing ime.compositionText
-              else
-                noCompositionInput
-            ]
+                        renderInputChrome
+            in
+            lazy3 renderInput fontInfo imeIsComposing ime.compositionText
+
+          else
+            noCompositionInput
+        ]
 
 
 renderCursor :
@@ -882,12 +890,12 @@ renderCursorColumnInner fontInfo lines y x =
         ( ( _, x1 ), ( _, x2 ) ) =
             cursorPoint fontInfo lines y x
     in
-        div
-            [ class "guide column-guide"
-            , style "left" <| px x1
-            , style "width" <| px (x2 - x1)
-            ]
-            []
+    div
+        [ class "guide column-guide"
+        , style "left" <| px x1
+        , style "width" <| px (x2 - x1)
+        ]
+        []
 
 
 renderColumnGuide : FontInfo -> B.TextBuffer -> Maybe Position -> Html msg
@@ -934,7 +942,7 @@ renderHighlights fontInfo scrollTop lines highlights =
                 [ class "highlights" ]
                 (List.concatMap
                     (\{ tipe, begin, end } ->
-                        (renderRange fontInfo scrollTop tipe begin end lines False)
+                        renderRange fontInfo scrollTop tipe begin end lines False
                     )
                     (match :: matches)
                 )
@@ -966,20 +974,19 @@ renderTipInner width y_ x_ items =
                 ( y1, x1 ) =
                     Tuple.first region
             in
-                ( abs (y1 - y), abs (x1 - x) )
+            ( abs (y1 - y), abs (x1 - x) )
 
         renderDetails ( y, x ) overview details =
             div
                 [ style "top" <| rem <| y + 1
                 , style "left" <| ch x
                 , class "tip"
-                , (case details of
+                , case details of
                     RichText rt ->
                         class ""
 
                     PlainText s ->
                         style "max-width" "400px"
-                  )
                 ]
                 [ div
                     [ class "tip-content" ]
@@ -992,27 +999,27 @@ renderTipInner width y_ x_ items =
                     )
                 ]
     in
-        items
-            |> List.filter
-                (\item ->
-                    let
-                        ( begin, end ) =
-                            Maybe.withDefault
-                                item.region
-                                item.subRegion
-                    in
-                        begin <= cursor && cursor <= end
-                )
-            |> List.sortBy (distanceFrom cursor)
-            |> List.head
-            |> Maybe.map
-                (\item ->
-                    renderDetails
-                        cursor
-                        item.overview
-                        item.details
-                )
-            |> Maybe.withDefault (text "")
+    items
+        |> List.filter
+            (\item ->
+                let
+                    ( begin, end ) =
+                        Maybe.withDefault
+                            item.region
+                            item.subRegion
+                in
+                begin <= cursor && cursor <= end
+            )
+        |> List.sortBy (distanceFrom cursor)
+        |> List.head
+        |> Maybe.map
+            (\item ->
+                renderDetails
+                    cursor
+                    item.overview
+                    item.details
+            )
+        |> Maybe.withDefault (text "")
 
 
 renderRichText : List TextWithStyle -> List (Html msg)
@@ -1023,10 +1030,12 @@ renderRichText details =
                 span
                     [ if bold then
                         style "font-weight" "700"
+
                       else
                         style "font-weight" "400"
                     , if underline then
                         style "text-decoration" "underline"
+
                       else
                         style "text-decoration" "none"
                     , case color of
@@ -1054,6 +1063,7 @@ renderTip width items maybeCursor showTip =
                     lazy4 renderTipInner width y x items
                 )
             |> Maybe.withDefault (text "")
+
     else
         text ""
 
@@ -1078,35 +1088,37 @@ renderLint fontInfo scrollTop lines items =
                     True
                 )
     in
-        div [ class "lints" ]
-            (List.filterMap
-                (\item ->
-                    let
-                        region =
-                            Maybe.withDefault item.region item.subRegion
+    div [ class "lints" ]
+        (List.filterMap
+            (\item ->
+                let
+                    region =
+                        Maybe.withDefault item.region item.subRegion
 
-                        ( b, e ) =
-                            region
+                    ( b, e ) =
+                        region
 
-                        ( by, _ ) =
-                            b
+                    ( by, _ ) =
+                        b
 
-                        ( ey, _ ) =
-                            e
+                    ( ey, _ ) =
+                        e
 
-                        classname =
-                            if item.tipe == "warning" then
-                                "lint lint-warning"
-                            else
-                                "lint"
-                    in
-                        if not (ey < scrollTop || by >= scrollTop + 50) then
-                            Just <| render classname region scrollTop lines
+                    classname =
+                        if item.tipe == "warning" then
+                            "lint lint-warning"
+
                         else
-                            Nothing
-                )
-                items
+                            "lint"
+                in
+                if not (ey < scrollTop || by >= scrollTop + 50) then
+                    Just <| render classname region scrollTop lines
+
+                else
+                    Nothing
             )
+            items
+        )
 
 
 {-| inclusive
@@ -1134,85 +1146,91 @@ renderRange fontInfo scrollTop tipe begin end lines excludeLineBreak_ =
         excludeLineBreak =
             if tipe == VisualBlock then
                 True
+
             else
                 excludeLineBreak_
     in
-        List.range by ey
-            |> List.filter (\i -> i >= scrollTop && i < scrollTop + 50)
-            |> List.filterMap
-                (\row ->
-                    let
-                        maxcol =
-                            B.getLineMaxColumn row lines
-                                - (if excludeLineBreak then
-                                    String.length B.lineBreak
-                                   else
-                                    0
-                                  )
+    List.range by ey
+        |> List.filter (\i -> i >= scrollTop && i < scrollTop + 50)
+        |> List.filterMap
+            (\row ->
+                let
+                    maxcol =
+                        B.getLineMaxColumn row lines
+                            - (if excludeLineBreak then
+                                String.length B.lineBreak
 
-                        maybeRegion =
-                            case tipe of
-                                VisualLine ->
-                                    Just ( 0, maxcol )
+                               else
+                                0
+                              )
 
-                                VisualBlock ->
-                                    let
-                                        bx1 =
-                                            Basics.min bx ex
+                    maybeRegion =
+                        case tipe of
+                            VisualLine ->
+                                Just ( 0, maxcol )
 
-                                        ex1 =
-                                            Basics.max bx ex
-                                    in
-                                        if bx1 > maxcol then
-                                            Nothing
-                                        else
-                                            Just ( bx1, Basics.min maxcol ex1 )
-
-                                _ ->
-                                    if by == ey then
-                                        Just ( bx, ex )
-                                    else if row == by then
-                                        Just ( bx, maxcol )
-                                    else if row == ey then
-                                        Just ( 0, ex )
-                                    else
-                                        Just ( 0, maxcol )
-                    in
-                        Maybe.map2
-                            (\( bx_, ex_ ) line ->
+                            VisualBlock ->
                                 let
-                                    styleTop =
-                                        row
-                                            |> rem
-                                            |> style "top"
+                                    bx1 =
+                                        Basics.min bx ex
 
-                                    styleLeft =
-                                        line
-                                            |> stringWidth fontInfo 0 bx_
-                                            |> px
-                                            |> style "left"
-
-                                    styleWidth =
-                                        line
-                                            |> stringWidth fontInfo bx_ ex_
-                                            |> (+)
-                                                (cursorCharWidth fontInfo
-                                                    ex_
-                                                    line
-                                                )
-                                            |> px
-                                            |> style "width"
+                                    ex1 =
+                                        Basics.max bx ex
                                 in
-                                    div
-                                        [ styleTop
-                                        , styleLeft
-                                        , styleWidth
-                                        ]
-                                        []
-                            )
-                            maybeRegion
-                            (B.getLine row lines)
-                )
+                                if bx1 > maxcol then
+                                    Nothing
+
+                                else
+                                    Just ( bx1, Basics.min maxcol ex1 )
+
+                            _ ->
+                                if by == ey then
+                                    Just ( bx, ex )
+
+                                else if row == by then
+                                    Just ( bx, maxcol )
+
+                                else if row == ey then
+                                    Just ( 0, ex )
+
+                                else
+                                    Just ( 0, maxcol )
+                in
+                Maybe.map2
+                    (\( bx_, ex_ ) line ->
+                        let
+                            styleTop =
+                                row
+                                    |> rem
+                                    |> style "top"
+
+                            styleLeft =
+                                line
+                                    |> stringWidth fontInfo 0 bx_
+                                    |> px
+                                    |> style "left"
+
+                            styleWidth =
+                                line
+                                    |> stringWidth fontInfo bx_ ex_
+                                    |> (+)
+                                        (cursorCharWidth fontInfo
+                                            ex_
+                                            line
+                                        )
+                                    |> px
+                                    |> style "width"
+                        in
+                        div
+                            [ styleTop
+                            , styleLeft
+                            , styleWidth
+                            ]
+                            []
+                    )
+                    maybeRegion
+                    (B.getLine row lines)
+            )
 
 
 renderGutterHighlight : Int -> Int -> Html ms
@@ -1234,16 +1252,16 @@ renderGutterInner totalLines highlightLine viewLines =
             (\lineNumber ->
                 if lineNumber < totalLines then
                     div
-                        ([ classList
+                        [ classList
                             [ ( "line-number-highlight"
                               , highlightLine == lineNumber
                               )
                             , ( "line-number", True )
                             ]
-                         , style "top" <| rem lineNumber
-                         ]
-                        )
+                        , style "top" <| rem lineNumber
+                        ]
                         [ text (String.fromInt (lineNumber + 1)) ]
+
                 else
                     div [] []
             )
@@ -1298,7 +1316,7 @@ renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
         [ class "gutter-container"
         , class "relative-gutter-container"
         , style "top" <|
-            (String.fromInt ((zeroLine - height) * lineHeight - topOffsetPx))
+            String.fromInt ((zeroLine - height) * lineHeight - topOffsetPx)
                 ++ "px"
         ]
         [ renderAllRelativeNumbers
@@ -1319,18 +1337,18 @@ renderTokens spans line i =
                 j1 =
                     Basics.min j 1000
             in
-                (span
-                    [ class sp.classname ]
-                    [ line
-                        |> String.slice i j1
-                        |> text
-                    ]
-                )
-                    :: (if j1 == j then
-                            renderTokens rest line j
-                        else
-                            []
-                       )
+            span
+                [ class sp.classname ]
+                [ line
+                    |> String.slice i j1
+                    |> text
+                ]
+                :: (if j1 == j then
+                        renderTokens rest line j
+
+                    else
+                        []
+                   )
 
         _ ->
             -- this means we have broken syntax tokens
@@ -1341,6 +1359,7 @@ renderTokens spans line i =
                         |> text
                     ]
                 ]
+
             else
                 []
 
@@ -1348,7 +1367,7 @@ renderTokens spans line i =
 scrollingStyle : Int -> Int -> Int -> Int -> Int -> List (Attribute msg)
 scrollingStyle lineHeight topOffsetPx totalLines height scrollTop =
     [ style "top" <|
-        (String.fromInt -(topOffsetPx + scrollTop * lineHeight))
+        String.fromInt -(topOffsetPx + scrollTop * lineHeight)
             ++ "px"
     , style "height" <| rem (totalLines + height)
     ]
@@ -1409,6 +1428,7 @@ renderAutoCompleteMenu topLeft lineHeight topOffsetPx isEx viewScrollTop gutterW
                 span
                     [ class "matched" ]
                     [ text s ]
+
             else
                 text s
 
@@ -1417,77 +1437,82 @@ renderAutoCompleteMenu topLeft lineHeight topOffsetPx isEx viewScrollTop gutterW
                 render i_ j matched =
                     renderSpan (String.slice i_ j s) matched
             in
-                case indexes of
-                    j :: rest ->
-                        if i < j then
-                            render i j False
-                                :: render j (j + 1) True
-                                :: renderText s rest (j + 1)
-                        else if i == j then
-                            render j (j + 1) True
-                                :: renderText s rest (j + 1)
-                        else
-                            -- shuld never happen
-                            []
+            case indexes of
+                j :: rest ->
+                    if i < j then
+                        render i j False
+                            :: render j (j + 1) True
+                            :: renderText s rest (j + 1)
 
-                    _ ->
-                        let
-                            len =
-                                String.length s
-                        in
-                            if i <= len - 1 then
-                                [ render i len False ]
-                            else
-                                []
+                    else if i == j then
+                        render j (j + 1) True
+                            :: renderText s rest (j + 1)
+
+                    else
+                        -- shuld never happen
+                        []
+
+                _ ->
+                    let
+                        len =
+                            String.length s
+                    in
+                    if i <= len - 1 then
+                        [ render i len False ]
+
+                    else
+                        []
 
         ( y, x ) =
             pos
     in
-        div
-            ([ class "auto-complete"
-             ]
-                ++ (case topLeft of
-                        Just ( top, left ) ->
-                            [ style "top" (percentStr top)
-                            , style "left" (percentStr left)
-                            ]
+    div
+        ([ class "auto-complete"
+         ]
+            ++ (case topLeft of
+                    Just ( top, left ) ->
+                        [ style "top" (percentStr top)
+                        , style "left" (percentStr left)
+                        ]
 
-                        Nothing ->
-                            []
-                   )
-                ++ (if isEx then
-                        [ class "auto-complete-ex"
-                        , style "left" <| ch (menuLeftOffset + 1)
-                        ]
-                    else
-                        [ style "left" <|
-                            ch (x + gutterWidth)
-                        , style "top" <|
-                            String.fromInt
-                                ((y + 1 - viewScrollTop)
-                                    * lineHeight
-                                    - topOffsetPx
-                                )
-                                ++ "px"
-                        ]
-                   )
+                    Nothing ->
+                        []
+               )
+            ++ (if isEx then
+                    [ class "auto-complete-ex"
+                    , style "left" <| ch (menuLeftOffset + 1)
+                    ]
+
+                else
+                    [ style "left" <|
+                        ch (x + gutterWidth)
+                    , style "top" <|
+                        String.fromInt
+                            ((y + 1 - viewScrollTop)
+                                * lineHeight
+                                - topOffsetPx
+                            )
+                            ++ "px"
+                    ]
+               )
+        )
+        (List.indexedMap
+            (\i m ->
+                div
+                    (if i == index then
+                        [ class "selected" ]
+
+                     else
+                        []
+                    )
+                    (renderText m.text m.matches 0)
             )
-            (List.indexedMap
-                (\i m ->
-                    div
-                        (if i == index then
-                            [ class "selected" ]
-                         else
-                            []
-                        )
-                        (renderText m.text m.matches 0)
-                )
-                (matches
-                    |> Array.slice 0 -1
-                    |> Array.slice scrollTop (scrollTop + 15)
-                    |> Array.toList
-                )
+            (matches
+                |> Array.slice 0 -1
+                |> Array.slice scrollTop (scrollTop + 15)
+                |> Array.toList
             )
+        )
 
 
 saveWindow : Win.Window View -> Html msg

@@ -1,55 +1,90 @@
-module Update.Service exposing (..)
+module Update.Service exposing
+    ( bootDecoder
+    , cannotFindModuleError
+    , ctagsParser
+    , elmMakeResultDecoder
+    , errorMessage
+    , eslintResultDecoder
+    , getBodyAndHeaders
+    , lineDiffDecoder
+    , parseElmMakeResponse
+    , parseFileList
+    , parseLintResult
+    , pickClosest
+    , post
+    , postRespHeaders
+    , sendBoot
+    , sendCd
+    , sendLintOnTheFly
+    , sendLintProject
+    , sendListAllFiles
+    , sendListDirectories
+    , sendListFiles
+    , sendMkDir
+    , sendReadBuffer
+    , sendReadClipboard
+    , sendReadTags
+    , sendSearch
+    , sendTokenize
+    , sendTokenizeLine
+    , sendTokenizeTask
+    , sendWriteBuffer
+    , sendWriteClipboard
+    , syntaxErrorParser
+    , tokenizeResponseDecoder
+    , tokensParser
+    , unpackClass
+    )
 
-import Dict exposing (Dict)
-import Http
-import Update.Message
-    exposing
-        ( Msg(..)
-        , TokenizeResponse(..)
-        , TokenizeRequest
-        , BufferIdentifier
-        )
-import Json.Decode as Decode exposing (decodeString)
 import Array as Array
 import Bitwise as Bit
-import Internal.Syntax exposing (Token, TokenType(..))
-import List
-import Parser as P exposing ((|.), (|=), Parser)
 import Char
-import Vim.AST exposing (AST)
+import Dict exposing (Dict)
 import Helper.Helper
     exposing
-        ( isSpace
-        , notSpace
+        ( chompUntilAfter
+        , isSpace
         , joinPath
-        , normalizePath
-        , regex
-        , oneOrMore
         , keepOneOrMore
         , keepZeroOrMore
-        , chompUntilAfter
+        , normalizePath
+        , notSpace
+        , oneOrMore
+        , regex
         )
-import Internal.TextBuffer as B
+import Http
 import Internal.Jumps exposing (Location)
-import Internal.TextBuffer exposing (Patch(..))
 import Internal.Position
     exposing
-        ( regionDecoder
+        ( endPositionDecoder
         , positionDecoder
-        , endPositionDecoder
+        , regionDecoder
         )
-import Task exposing (Task)
-import Regex as Re
+import Internal.Syntax exposing (Token, TokenType(..))
+import Internal.TextBuffer as B exposing (Patch(..))
+import Json.Decode as Decode exposing (decodeString)
+import List
 import Model
     exposing
         ( Buffer
-        , LintError
-        , Key
         , Flags
+        , Key
+        , LintError
         , RichText(..)
         , TextWithStyle
         , emptyBufferHistory
         )
+import Parser as P exposing ((|.), (|=), Parser)
+import Regex as Re
+import Task exposing (Task)
+import Update.Message
+    exposing
+        ( BufferIdentifier
+        , Msg(..)
+        , TokenizeRequest
+        , TokenizeResponse(..)
+        )
+import Vim.AST exposing (AST)
 
 
 eslintResultDecoder : Decode.Decoder (List LintError)
@@ -73,6 +108,7 @@ eslintResultDecoder =
                         (\severity ->
                             if severity == 2 then
                                 "error"
+
                             else
                                 "warning"
                         )
@@ -94,13 +130,13 @@ eslintResultDecoder =
                 (Decode.succeed Nothing)
                 |> Decode.list
     in
-        Decode.field "filePath" Decode.string
-            |> Decode.andThen
-                (\filePath ->
-                    Decode.field "messages" (messageDecoder filePath)
-                )
-            |> Decode.list
-            |> Decode.map List.concat
+    Decode.field "filePath" Decode.string
+        |> Decode.andThen
+            (\filePath ->
+                Decode.field "messages" (messageDecoder filePath)
+            )
+        |> Decode.list
+        |> Decode.map List.concat
 
 
 elmMakeResultDecoder : Decode.Decoder (List LintError)
@@ -142,17 +178,17 @@ elmMakeResultDecoder =
                 (Decode.field "message" messageDecoder |> Decode.map RichText)
                 (Decode.field "region" regionDecoder)
     in
-        Decode.field "errors"
-            (Decode.field "path" Decode.string
-                |> Decode.andThen
-                    (\path ->
-                        errorDecoder path
-                            |> Decode.list
-                            |> Decode.field "problems"
-                    )
-                |> Decode.list
-            )
-            |> Decode.map List.concat
+    Decode.field "errors"
+        (Decode.field "path" Decode.string
+            |> Decode.andThen
+                (\path ->
+                    errorDecoder path
+                        |> Decode.list
+                        |> Decode.field "problems"
+                )
+            |> Decode.list
+        )
+        |> Decode.map List.concat
 
 
 lineDiffDecoder : Decode.Decoder (List Patch)
@@ -168,7 +204,7 @@ lineDiffDecoder =
                                 |> Decode.map (\y -> ( y, 0 ))
                             )
                             (Decode.field "value" Decode.string
-                                |> Decode.map (B.fromString)
+                                |> Decode.map B.fromString
                             )
 
                     "-" ->
@@ -225,64 +261,66 @@ sendReadBuffer url viewHeight buf =
                     tokenizeLines =
                         Tuple.first buf.view.cursor + viewHeight * 2
                 in
-                    if buf.config.syntax then
-                        sendTokenizeTask url
-                            { bufId = buf.id
-                            , path = buf.path
-                            , version = 0
-                            , line = 0
-                            , lines =
-                                lines
-                                    |> B.sliceLines 0 tokenizeLines
-                                    |> B.toString
-                            }
-                            |> Task.map
-                                (\res ->
-                                    case res of
-                                        TokenizeSuccess _ syntax ->
-                                            { syntaxEnabled = True
+                if buf.config.syntax then
+                    sendTokenizeTask url
+                        { bufId = buf.id
+                        , path = buf.path
+                        , version = 0
+                        , line = 0
+                        , lines =
+                            lines
+                                |> B.sliceLines 0 tokenizeLines
+                                |> B.toString
+                        }
+                        |> Task.map
+                            (\res ->
+                                case res of
+                                    TokenizeSuccess _ syntax ->
+                                        { syntaxEnabled = True
+                                        , lines = lines
+                                        , syntax = syntax
+                                        , lastModified = lastModified
+                                        }
+
+                                    TokenizeError err ->
+                                        if err == "noextension" then
+                                            { syntaxEnabled = False
                                             , lines = lines
-                                            , syntax = syntax
+                                            , syntax = Array.empty
                                             , lastModified = lastModified
                                             }
 
-                                        TokenizeError err ->
-                                            if err == "noextension" then
-                                                { syntaxEnabled = False
-                                                , lines = lines
-                                                , syntax = Array.empty
-                                                , lastModified = lastModified
-                                                }
-                                            else
-                                                { syntaxEnabled = True
-                                                , lines = lines
-                                                , syntax = Array.empty
-                                                , lastModified = lastModified
-                                                }
-
-                                        _ ->
+                                        else
                                             { syntaxEnabled = True
                                             , lines = lines
                                             , syntax = Array.empty
                                             , lastModified = lastModified
                                             }
-                                )
-                            |> Task.onError
-                                (\_ ->
-                                    Task.succeed
+
+                                    _ ->
                                         { syntaxEnabled = True
                                         , lines = lines
                                         , syntax = Array.empty
                                         , lastModified = lastModified
                                         }
-                                )
-                    else
-                        Task.succeed
-                            { syntaxEnabled = False
-                            , lines = lines
-                            , syntax = Array.empty
-                            , lastModified = lastModified
-                            }
+                            )
+                        |> Task.onError
+                            (\_ ->
+                                Task.succeed
+                                    { syntaxEnabled = True
+                                    , lines = lines
+                                    , syntax = Array.empty
+                                    , lastModified = lastModified
+                                    }
+                            )
+
+                else
+                    Task.succeed
+                        { syntaxEnabled = False
+                        , lines = lines
+                        , syntax = Array.empty
+                        , lastModified = lastModified
+                        }
             )
         |> Task.attempt
             (\result ->
@@ -297,17 +335,18 @@ sendReadBuffer url viewHeight buf =
                                     config =
                                         buf.config
                                 in
-                                    { buf
-                                        | lines = lines
-                                        , config = { config | syntax = syntaxEnabled }
-                                        , syntax = syntax
-                                        , syntaxDirtyFrom = Array.length syntax
-                                        , history =
-                                            if history.lastModified == lastModified then
-                                                history
-                                            else
-                                                { emptyBufferHistory | lastModified = lastModified }
-                                    }
+                                { buf
+                                    | lines = lines
+                                    , config = { config | syntax = syntaxEnabled }
+                                    , syntax = syntax
+                                    , syntaxDirtyFrom = Array.length syntax
+                                    , history =
+                                        if history.lastModified == lastModified then
+                                            history
+
+                                        else
+                                            { emptyBufferHistory | lastModified = lastModified }
+                                }
                             )
                 of
                     Ok b ->
@@ -376,7 +415,7 @@ sendWriteBuffer url path buf =
                 case res of
                     Ok ( headers, patches ) ->
                         Write <|
-                            Ok ( (Dict.get "last-modified" headers |> Maybe.withDefault ""), patches )
+                            Ok ( Dict.get "last-modified" headers |> Maybe.withDefault "", patches )
 
                     Err s ->
                         Write <| Err <| errorMessage s
@@ -404,29 +443,29 @@ cannotFindModuleError path lines =
                 |> Maybe.map
                     (\y ->
                         ( ( y, 0 )
-                        , ( y, ("import " ++ name |> String.length) )
+                        , ( y, "import " ++ name |> String.length )
                         )
                     )
                 |> Maybe.withDefault ( ( 0, 0 ), ( 0, 0 ) )
     in
-        (P.succeed
-            identity
-            |. P.symbol "I cannot find module '"
-            |= keepOneOrMore (\c -> c /= '\'')
-            |. P.chompWhile (always True)
-            |. P.end
-        )
-            |> P.mapChompedString
-                (\name details ->
-                    { tipe = "error"
-                    , tag = Nothing
-                    , file = path
-                    , overview = ""
-                    , details = PlainText details
-                    , region = findRegion name lines
-                    , subRegion = Nothing
-                    }
-                )
+    (P.succeed
+        identity
+        |. P.symbol "I cannot find module '"
+        |= keepOneOrMore (\c -> c /= '\'')
+        |. P.chompWhile (always True)
+        |. P.end
+    )
+        |> P.mapChompedString
+            (\name details ->
+                { tipe = "error"
+                , tag = Nothing
+                , file = path
+                , overview = ""
+                , details = PlainText details
+                , region = findRegion name lines
+                , subRegion = Nothing
+                }
+            )
 
 
 syntaxErrorParser : Parser LintError
@@ -440,14 +479,14 @@ syntaxErrorParser =
                 x1 =
                     x - (String.fromInt y1 ++ "| " |> String.length)
             in
-                { tipe = "error"
-                , tag = Just tag
-                , file = file
-                , overview = overview
-                , details = PlainText details
-                , region = ( ( y1, x1 ), ( y1, x1 + 1 ) )
-                , subRegion = Nothing
-                }
+            { tipe = "error"
+            , tag = Just tag
+            , file = file
+            , overview = overview
+            , details = PlainText details
+            , region = ( ( y1, x1 ), ( y1, x1 + 1 ) )
+            , subRegion = Nothing
+            }
         )
         |. oneOrMore (\c -> c == '-' || c == ' ')
         |= (oneOrMore Char.isUpper
@@ -484,6 +523,7 @@ parseElmMakeResponse sep path lines resp =
                 [ dir, s ] ->
                     if String.trim s == "Successfully generated /dev/null" then
                         Ok []
+
                     else if String.startsWith "{" s then
                         s
                             |> String.lines
@@ -508,6 +548,7 @@ parseElmMakeResponse sep path lines resp =
                                     ( file, tipe, region )
                                 )
                             |> Ok
+
                     else
                         case
                             P.run
@@ -529,6 +570,7 @@ parseElmMakeResponse sep path lines resp =
                                             |> String.isEmpty
                                      then
                                         []
+
                                      else
                                         [ { file = path
                                           , tag = Nothing
@@ -557,8 +599,9 @@ parseLintResult :
 parseLintResult sep path lines =
     if String.endsWith ".elm" path then
         parseElmMakeResponse sep path lines
+
     else
-        (\result ->
+        \result ->
             case result of
                 Ok s ->
                     decodeString eslintResultDecoder s
@@ -566,7 +609,6 @@ parseLintResult sep path lines =
 
                 Err err ->
                     Err <| errorMessage err
-        )
 
 
 sendLintProject : String -> String -> Int -> String -> Int -> B.TextBuffer -> Cmd Msg
@@ -581,11 +623,11 @@ sendLintOnTheFly url sep bufId path version lines =
         body =
             Http.stringBody "text/plain" <| B.toString lines
     in
-        post (url ++ "/lint?path=" ++ path) body
-            |> Http.send
-                (parseLintResult sep path lines
-                    >> Lint ( bufId, version )
-                )
+    post (url ++ "/lint?path=" ++ path) body
+        |> Http.send
+            (parseLintResult sep path lines
+                >> Lint ( bufId, version )
+            )
 
 
 unpackClass : Int -> Int -> Int -> Token
@@ -642,16 +684,21 @@ unpackClass startIndex endIndex n =
                 |> (\style ->
                         if Bit.and style italic > 0 then
                             " mtki"
+
                         else
                             ""
-                                ++ if Bit.and style bold > 0 then
-                                    " mtkb"
-                                   else
-                                    ""
-                                        ++ if Bit.and style underline > 0 then
-                                            " mtku"
-                                           else
-                                            ""
+                                ++ (if Bit.and style bold > 0 then
+                                        " mtkb"
+
+                                    else
+                                        ""
+                                            ++ (if Bit.and style underline > 0 then
+                                                    " mtku"
+
+                                                else
+                                                    ""
+                                               )
+                                   )
                    )
 
         tokenType =
@@ -659,22 +706,22 @@ unpackClass startIndex endIndex n =
                 |> Bit.and token_type_mask
                 |> Bit.shiftRightZfBy token_type_offset
     in
-        { length = endIndex - startIndex
-        , classname = "mtk" ++ (String.fromInt foreground) ++ fontStyle
-        , tipe =
-            case tokenType of
-                1 ->
-                    TokenComment
+    { length = endIndex - startIndex
+    , classname = "mtk" ++ String.fromInt foreground ++ fontStyle
+    , tipe =
+        case tokenType of
+            1 ->
+                TokenComment
 
-                2 ->
-                    TokenString
+            2 ->
+                TokenString
 
-                4 ->
-                    TokenRegex
+            4 ->
+                TokenRegex
 
-                _ ->
-                    TokenOther
-        }
+            _ ->
+                TokenOther
+    }
 
 
 tokensParser : Decode.Decoder (List Token)
@@ -689,15 +736,15 @@ tokensParser =
                                 (List.range 0 <|
                                     List.length tokens
                                 )
-                            |> List.partition (Tuple.first >> \n -> modBy 2 n == 0)
+                            |> List.partition (Tuple.first >> (\n -> modBy 2 n == 0))
                             |> (\item ->
                                     let
                                         ( a, b ) =
                                             item
                                     in
-                                        ( List.map Tuple.second a
-                                        , List.map Tuple.second b
-                                        )
+                                    ( List.map Tuple.second a
+                                    , List.map Tuple.second b
+                                    )
                                )
 
                     indexes2 =
@@ -705,18 +752,17 @@ tokensParser =
                             |> List.tail
                             |> Maybe.withDefault []
                 in
-                    (List.map3
-                        unpackClass
-                        indexes
-                        indexes2
-                        classes
-                    )
+                List.map3
+                    unpackClass
+                    indexes
+                    indexes2
+                    classes
             )
 
 
 tokenizeResponseDecoder : Int -> Decode.Decoder TokenizeResponse
 tokenizeResponseDecoder n =
-    (Decode.field "type" Decode.string)
+    Decode.field "type" Decode.string
         |> Decode.andThen
             (\tipe ->
                 case tipe of
@@ -750,7 +796,7 @@ sendTokenizeTask url { path, line, lines } =
                 ++ "/tokenize?path="
                 ++ path
                 ++ "&line="
-                ++ (String.fromInt line)
+                ++ String.fromInt line
             )
             (Http.stringBody "text/plain" lines)
         |> Http.toTask
@@ -816,17 +862,19 @@ sendListFiles url sep cwd =
         trimSep s =
             if s == "./" || s == "../" || String.toLower s == ".ds_store" then
                 Nothing
+
             else if String.endsWith sep s then
                 Just <| String.dropRight (String.length sep) s
+
             else
                 Just <| s
     in
-        Http.getString (url ++ "/ld?cwd=" ++ cwd)
-            |> Http.send
-                (parseFileList sep
-                    >> (Result.map (List.filterMap trimSep))
-                    >> ListFiles
-                )
+    Http.getString (url ++ "/ld?cwd=" ++ cwd)
+        |> Http.send
+            (parseFileList sep
+                >> Result.map (List.filterMap trimSep)
+                >> ListFiles
+            )
 
 
 sendListDirectories : String -> String -> String -> Cmd Msg
@@ -835,17 +883,19 @@ sendListDirectories url sep cwd =
         trimSep s =
             if s == "./" || s == "../" then
                 Nothing
+
             else if String.endsWith sep s then
                 Just <| String.dropRight (String.length sep) s
+
             else
                 Nothing
     in
-        Http.getString (url ++ "/ld?cwd=" ++ cwd)
-            |> Http.send
-                (parseFileList sep
-                    >> (Result.map (List.filterMap trimSep))
-                    >> ListDirectries
-                )
+    Http.getString (url ++ "/ld?cwd=" ++ cwd)
+        |> Http.send
+            (parseFileList sep
+                >> Result.map (List.filterMap trimSep)
+                >> ListDirectries
+            )
 
 
 sendReadClipboard : Bool -> Key -> String -> AST -> Cmd Msg
@@ -982,6 +1032,7 @@ bootDecoder flags =
                 | cwd =
                     if String.isEmpty flags.cwd then
                         homedir
+
                     else
                         flags.cwd
                 , pathSeperator = pathSeperator

@@ -1,8 +1,8 @@
 module Update.Keymap exposing (mapKeys)
 
-import Vim.Helper exposing (parseKeys, escapeKey)
-import Model exposing (Mode(..), Key)
 import Dict
+import Model exposing (Key, Mode(..))
+import Vim.Helper exposing (escapeKey, parseKeys)
 
 
 {-| windows doesn't have cmd key, use alt key instead
@@ -16,10 +16,11 @@ mapCmdToAlt k =
                     key1 =
                         String.replace "<m-" "<a-" key
                 in
-                    if key1 == key then
-                        Nothing
-                    else
-                        Just ( key1, keys )
+                if key1 == key then
+                    Nothing
+
+                else
+                    Just ( key1, keys )
             )
             k
 
