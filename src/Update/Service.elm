@@ -285,28 +285,45 @@ sendReadBuffer url viewHeight buf =
                             }
             )
         |> Task.attempt
-            (Result.map
-                (\{ syntax, syntaxEnabled, lines, lastModified } ->
-                    let
-                        history =
-                            buf.history
+            (\result ->
+                case
+                    result
+                        |> Result.map
+                            (\{ syntax, syntaxEnabled, lines, lastModified } ->
+                                let
+                                    history =
+                                        buf.history
 
-                        config =
-                            buf.config
-                    in
-                        { buf
-                            | lines = lines
-                            , config = { config | syntax = syntaxEnabled }
-                            , syntax = syntax
-                            , syntaxDirtyFrom = Array.length syntax
-                            , history =
-                                if history.lastModified == lastModified then
-                                    history
-                                else
-                                    { emptyBufferHistory | lastModified = lastModified }
-                        }
-                )
-                >> Read
+                                    config =
+                                        buf.config
+                                in
+                                    { buf
+                                        | lines = lines
+                                        , config = { config | syntax = syntaxEnabled }
+                                        , syntax = syntax
+                                        , syntaxDirtyFrom = Array.length syntax
+                                        , history =
+                                            if history.lastModified == lastModified then
+                                                history
+                                            else
+                                                { emptyBufferHistory | lastModified = lastModified }
+                                    }
+                            )
+                of
+                    Ok b ->
+                        Read (Ok b)
+
+                    (Err (Http.BadStatus resp)) as err ->
+                        case resp.status.code of
+                            -- 404 is ok here, the buffer is newly created
+                            404 ->
+                                Read (Ok buf)
+
+                            _ ->
+                                Read err
+
+                    err ->
+                        Read err
             )
 
 

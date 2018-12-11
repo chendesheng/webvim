@@ -2339,23 +2339,11 @@ onRead result ({ buf, global } as ed) =
                     |> applyDiff
 
         Err (Http.BadStatus resp) ->
-            case resp.status.code of
-                404 ->
-                    let
-                        ( global1, buf1 ) =
-                            createBuffer resp.body buf.view.size global
-
-                        global2 =
-                            Buf.addBuffer False buf1 global1
-                    in
-                        { ed | global = global2, buf = buf1 }
-
-                _ ->
-                    updateBuffer
-                        (Buf.errorMessage
-                            ("read " ++ resp.body ++ " failed")
-                        )
-                        ed
+            updateBuffer
+                (Buf.errorMessage
+                    ("read " ++ resp.body ++ " failed")
+                )
+                ed
 
         _ ->
             ed
