@@ -290,7 +290,14 @@ textObject map =
                 , define "\\<" (Pair '<') around
                 , define ">" (Pair '<') around
                 , define "t" (Pair 't') around
-                , define "\"" (Quote '"') around
+                , define "\""
+                    -- can't use '"' here, syntax highlighting of this file will break
+                    (String.uncons "\""
+                        |> Maybe.map Tuple.first
+                        |> Maybe.withDefault '0'
+                        |> Quote
+                    )
+                    around
                 , define "'" (Quote '\'') around
                 , define "`" (Quote '`') around
                 ]
@@ -440,7 +447,7 @@ motion isVisual map gMotion =
                                 , linewise = False
                                 }
                                 |> PushOperator
-                            , PushKey (trigger ++ ch)
+                            , PushKey (trigger ++ escapeKey ch)
                             , PushComplete
                             ]
                     )

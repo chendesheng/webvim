@@ -49,7 +49,7 @@ import Update exposing (initMode, update, updateActiveBuffer)
 import Update.Buffer as Buf
 import Update.Message exposing (Msg(..))
 import Vim.AST exposing (ModeName(..), VisualType(..))
-import Vim.Helper exposing (keyParser)
+import Vim.Helper exposing (escapeKey, keyParser)
 
 
 log : String -> (a -> b) -> a -> a
@@ -94,7 +94,7 @@ handleKeys inputs global =
                 InputKey key ->
                     global_
                         --|> Debug.log "buf_"
-                        |> update (PressKeys key)
+                        |> update (PressKeys <| escapeKey key)
                         |> Tuple.first
 
                 --|> Debug.log "return buf"
