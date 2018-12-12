@@ -19,17 +19,6 @@ function genLines(s) {
     ]`;
 }
 
-// function format(code) {
-//   return execSync('elm-format --stdin --yes', {
-//     cwd: __dirname,
-//     input: code,
-//   });
-// }
-
-function isSkip(content) {
-  return /^\s*##skip/.test(content);
-}
-
 function isOnly(content) {
   return /^\s*##only/.test(content);
 }
@@ -47,13 +36,13 @@ function genCode(files) {
           }),
       };
     }
-    return {
-      name,
-      content: '##skip',
-    };
-  }).filter(({content}) => !isSkip(content));
+    return null;
+  }).filter((a) => a !== null);
 
-  const gen = ({name, content}) => `genTest "${name}" (${genLines(content)})`;
+  const gen = ({name, content}) => {
+    const code = `genTest "${name}" (${genLines(content)})`;
+    return isOnly(content) ? `only (${code})` : code;
+  };
 
   const onlyTest = tests.find(({content}) => isOnly(content));
   if (onlyTest) {
