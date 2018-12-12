@@ -20,8 +20,8 @@ import Update.Motion exposing (setVisualEnd)
 
 {-| scroll to ensure pos it is insdie viewport
 -}
-scrollTo : Int -> Global -> View -> View
-scrollTo y global view =
+scrollTo : Int -> Int -> View -> View
+scrollTo y lineHeight view =
     let
         miny =
             view.scrollTop
@@ -39,12 +39,12 @@ scrollTo y global view =
             else
                 miny
     in
-    Buf.setScrollTop scrollTop global view
+    Buf.setScrollTop scrollTop lineHeight view
 
 
-scrollToCursor : Global -> View -> View
-scrollToCursor global view =
-    scrollTo (Tuple.first view.cursor) global view
+scrollToCursor : Int -> View -> View
+scrollToCursor lineHeight view =
+    scrollTo (Tuple.first view.cursor) lineHeight view
 
 
 correctCursor : Buffer -> Buffer

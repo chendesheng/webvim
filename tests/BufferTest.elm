@@ -372,10 +372,7 @@ suite =
                 Expect.equal
                     buf.lines
                     buf1.lines
-        , fuzz
-            (Fuzz.list fuzzPatch |> Fuzz.list)
-            "multiple undoes"
-          <|
+        , fuzz (Fuzz.list fuzzPatch |> Fuzz.list) "multiple undoes" <|
             \patcheslist ->
                 let
                     buf =
@@ -389,15 +386,10 @@ suite =
                             patcheslist
 
                     buf1 =
-                        List.foldl (\_ b -> undo b) buf patcheslist
+                        repeat (List.length patcheslist) undo buf
                 in
-                Expect.equal
-                    emptyBuffer.lines
-                    buf1.lines
-        , fuzz
-            (Fuzz.list fuzzPatch |> Fuzz.list)
-            "multiple redoes"
-          <|
+                Expect.equal emptyBuffer.lines buf1.lines
+        , fuzz (Fuzz.list fuzzPatch |> Fuzz.list) "multiple redoes" <|
             \patcheslist ->
                 let
                     buf =
@@ -414,9 +406,9 @@ suite =
                         List.foldl (\_ b -> undo b) buf patcheslist
 
                     buf2 =
-                        List.foldl (\_ b -> undo b) buf1 patcheslist
+                        List.foldl (\_ b -> redo b) buf1 patcheslist
                 in
-                Expect.equal buf1.lines buf2.lines
+                Expect.equal buf.lines buf2.lines
         , describe "history items" <|
             [ fuzz (Fuzz.intRange 0 5) "undo items amount" <|
                 \n ->

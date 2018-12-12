@@ -26,7 +26,6 @@ module Update.Buffer exposing
     , putString
     , redo
     , removeBuffer
-    , resizeView
     , scrollViewLines
     , setCursor
     , setCursorColumn
@@ -1143,16 +1142,13 @@ scrollViewLines height_ from to viewLines =
         viewLines
 
 
-setScrollTop : Int -> Global -> View -> View
-setScrollTop n global view =
+setScrollTop : Int -> Int -> View -> View
+setScrollTop n lineHeight view =
     if n == view.scrollTop then
         view
 
     else
         let
-            lineHeight =
-                global.lineHeight
-
             height =
                 view.size.height
         in
@@ -1440,20 +1436,6 @@ removeBuffer id global =
         | buffers =
             Dict.remove id global.buffers
     }
-
-
-resizeView : Size -> View -> View
-resizeView size view =
-    if size == view.size then
-        view
-
-    else
-        { view
-            | size = size
-            , lines =
-                List.range view.scrollTop
-                    (view.scrollTop + size.height + 1)
-        }
 
 
 disableSyntax : BufferConfig -> BufferConfig

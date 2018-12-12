@@ -659,7 +659,7 @@ scroll count value lineCounts global view =
                         V.ScrollToMiddle ->
                             y - (size.height - 2) // 2
             in
-            Buf.setScrollTop (scope y1) global view_
+            Buf.setScrollTop (scope y1) global.lineHeight view_
     in
     view
         |> setCursor
@@ -1639,8 +1639,10 @@ applyVimAST replaying key ast ({ buf } as ed) =
             (updateMode modeName
                 >> updateBuffer correctLines
                 >> modeChanged replaying key oldMode lineDeltaMotion
-                >> updateBuffer correctCursor
-                >> updateBuffer (Buf.updateView (scrollToCursor ed.global))
+                >> updateBuffer
+                    (correctCursor
+                        >> Buf.updateView (scrollToCursor ed.global.lineHeight)
+                    )
                 >> updateGlobal (saveDotRegister replaying)
                 >> setMatchedCursor ed
                 >> applyDiff
@@ -1912,7 +1914,7 @@ updateGlobalAfterChange path oldBuf oldGlobal buf global =
         , window =
             if global.window == oldGlobal.window then
                 Win.updateView path
-                    (\{ size } -> Buf.resizeView size buf.view)
+                    (\{ size } -> resizeView size buf.view)
                     global.window
 
             else
@@ -2320,13 +2322,14 @@ resizeViews : Size -> Int -> Win.Window View -> Win.Window View
 resizeViews size lineHeight =
     Win.mapView
         (\view ( widthPercent, heightPercent ) ->
-            Buf.resizeView
-                { width = ceiling <| toFloat size.width * widthPercent
-                , height =
-                    (ceiling <| toFloat size.height * heightPercent)
-                        // lineHeight
-                }
-                view
+            view
+                |> resizeView
+                    { width = ceiling <| toFloat size.width * widthPercent
+                    , height =
+                        (ceiling <| toFloat size.height * heightPercent)
+                            // lineHeight
+                    }
+                |> scrollToCursor lineHeight
         )
 
 
@@ -2421,7 +2424,7 @@ onWrite result ({ buf, global } as ed) =
                         -- keep cursor position
                         |> Buf.updateView (Buf.setCursor buf.view.cursor True)
                         |> correctCursor
-                        |> Buf.updateView (scrollToCursor global)
+                        |> Buf.updateView (scrollToCursor global.lineHeight)
                         |> pairCursor buf.view.size
                         |> Buf.infoMessage
                             ((buf |> Buf.shortPath global |> quote) ++ " Written")
@@ -2648,3 +2651,17 @@ init flags =
         |> (::) focusHiddenInput
         |> Cmd.batch
     )
+
+
+resizeView : Size -> View -> View
+resizeView size view =
+    if size == view.size then
+        view
+
+    else
+        { view
+            | size = size
+            , lines =
+                List.range view.scrollTop
+                    (view.scrollTop + size.height + 1)
+        }

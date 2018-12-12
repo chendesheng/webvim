@@ -40,7 +40,6 @@ import Internal.Window as Win
 import Model exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Update.Buffer as Buf
-import Update.Cursor exposing (correctCursor, scrollToCursor)
 import Update.Message exposing (..)
 import Update.Motion
     exposing
@@ -121,7 +120,7 @@ tokenizeBufferCmd begin url buf =
 replaceActiveView : View -> Win.Window View -> Win.Window View
 replaceActiveView view =
     Win.updateActiveView
-        (\{ size } -> Buf.resizeView size view)
+        (\{ size } -> resizeView size view)
 
 
 jumpToLocation : Bool -> Location -> Editor -> ( Editor, Cmd Msg )
@@ -162,7 +161,7 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                     in
                     Buf.updateView
                         (Buf.setCursor cursor True
-                            >> Buf.setScrollTop scrollTop global
+                            >> Buf.setScrollTop scrollTop global.lineHeight
                         )
                         buf1
 
@@ -309,11 +308,25 @@ jumpByView factor global buf =
                 |> setVisualEnd cursor
                 |> Buf.updateView
                     (Buf.setCursor cursor True
-                        >> Buf.setScrollTop scrollTop global
+                        >> Buf.setScrollTop scrollTop global.lineHeight
                     )
 
         Nothing ->
             buf
+
+
+resizeView : Size -> View -> View
+resizeView size view =
+    if size == view.size then
+        view
+
+    else
+        { view
+            | size = size
+            , lines =
+                List.range view.scrollTop
+                    (view.scrollTop + size.height + 1)
+        }
 
 
 locationParser : Parser Location
