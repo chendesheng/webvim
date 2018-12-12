@@ -94,8 +94,12 @@ insert s buf =
                         |> autoIndent
 
             else if
-                (buf.config.indent == IndentRules Buf.cIndentRules)
-                    && (str == "}")
+                case buf.config.indent of
+                    IndentRules { trigger } ->
+                        String.contains str trigger
+
+                    _ ->
+                        False
             then
                 buf
                     |> Buf.setLastIndent 0

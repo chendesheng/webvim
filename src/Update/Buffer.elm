@@ -876,12 +876,14 @@ cIndentRules :
     { decrease : Re.Regex
     , increase : Re.Regex
     , increaseNext : Re.Regex
+    , trigger : String
     }
 cIndentRules =
     { increase = regex "^.*\\{[^}\\\"']*$"
     , decrease = regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
     , increaseNext =
         regex "^(?!.*;\\s*//).*[^\\s;{}]\\s*$"
+    , trigger = "}"
     }
 
 
@@ -968,6 +970,7 @@ configs =
                                 )
                         , decrease = regex "^(then|else( if)?|of|in)"
                         , increaseNext = regex "![\\s\\S]"
+                        , trigger = ""
                         }
             }
           )
@@ -999,6 +1002,7 @@ configs =
                                 )
                         , decrease = regex "^(then|else( if)?|of|in)"
                         , increaseNext = regex "![\\s\\S]"
+                        , trigger = ""
                         }
             }
           )
