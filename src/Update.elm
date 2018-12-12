@@ -2586,7 +2586,10 @@ init flags =
                     (List.map <|
                         \b ->
                             if isTempBuffer b.path then
-                                { b | view = initScrollTop b.view }
+                                { b
+                                    | view = initScrollTop b.view
+                                    , config = Buf.disableSyntax b.config
+                                }
                                     |> Buf.transaction b.history.changes
                                     |> Buf.updateView
                                         (Buf.setCursor b.view.cursor True)

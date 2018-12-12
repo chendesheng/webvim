@@ -11,6 +11,7 @@ module Update.Buffer exposing
     , configs
     , cursorLineFirst
     , delete
+    , disableSyntax
     , errorMessage
     , finalScrollTop
     , findBufferId
@@ -1449,3 +1450,8 @@ resizeView size view =
                 List.range view.scrollTop
                     (view.scrollTop + size.height + 1)
         }
+
+
+disableSyntax : BufferConfig -> BufferConfig
+disableSyntax config =
+    { config | syntax = False }
