@@ -422,7 +422,8 @@ transaction patches buf =
             | history =
                 { history
                     | version = history.version + 1
-                    , pendingChanges = history.pendingChanges ++ patches
+                    , pendingChanges =
+                        mergePatches history.pendingChanges patches
                     , diff =
                         List.map reversedPatchToRegionChange undoPatchs
                             ++ history.diff
@@ -494,6 +495,26 @@ updateCursor patch patch1 cursor =
 
                 Deletion _ _ ->
                     cursor
+
+
+mergePatches : List Patch -> List Patch -> List Patch
+mergePatches patches target =
+    List.foldl
+        (\patch result ->
+            case result of
+                x :: xs ->
+                    case B.mergePatch patch x of
+                        Just patch1 ->
+                            patch1 :: xs
+
+                        _ ->
+                            patch :: x :: xs
+
+                _ ->
+                    [ patch ]
+        )
+        target
+        (List.reverse patches)
 
 
 addPending : Position -> List Patch -> BufferHistory -> BufferHistory

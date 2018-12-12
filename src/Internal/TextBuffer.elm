@@ -156,6 +156,10 @@ shiftPositionByRegionChange change pos =
                 begin
 
 
+{-| p1 happens before p2
+Only merge when ends aligned
+(insert and then delete in the middle of inserted is not considered)
+-}
 mergePatch : Patch -> Patch -> Maybe Patch
 mergePatch p1 p2 =
     let
@@ -165,28 +169,52 @@ mergePatch p1 p2 =
 
             else
                 ( y1 + y2, x2 )
+
+        sub ( y1, x1 ) ( y2, x2 ) =
+            ( y1 - y2, x1 - x2 )
     in
     case p1 of
         Insertion pos1 (TextBuffer lines1) ->
             case p2 of
                 Insertion pos2 (TextBuffer lines2) ->
-                    if add pos2 (boundPosition lines2) == pos1 then
+                    if pos1 == pos2 then
                         append lines2 lines1
                             |> TextBuffer
                             |> Insertion pos2
                             |> Just
 
+                    else if add pos1 (boundPosition lines1) == pos2 then
+                        append lines1 lines2
+                            |> TextBuffer
+                            |> Insertion pos1
+                            |> Just
+
                     else
                         Nothing
 
-                _ ->
-                    Nothing
+                Deletion b2 e2 ->
+                    -- TODO: add left aligned condition (when pos1 == b2)
+                    if add pos1 (boundPosition lines1) == e2 then
+                        if pos1 < b2 then
+                            slice ( 0, 0 ) (sub b2 pos1) lines1
+                                |> TextBuffer
+                                |> Insertion pos1
+                                |> Just
+
+                        else
+                            Just <| Deletion b2 pos1
+
+                    else
+                        Nothing
 
         Deletion b1 e1 ->
             case p2 of
                 Deletion b2 e2 ->
                     if b1 == e2 then
                         Just <| Deletion b2 e1
+
+                    else if b1 == b2 then
+                        Just <| Deletion b1 (b2 |> sub e2 |> add e1)
 
                     else
                         Nothing

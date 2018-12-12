@@ -331,8 +331,7 @@ suite =
                         | undoes =
                             [ { patches =
                                     [ Insertion ( 0, 1 ) <| B.fromString "56"
-                                    , Deletion ( 0, 0 ) ( 0, 3 )
-                                    , Deletion ( 0, 0 ) ( 0, 3 )
+                                    , Deletion ( 0, 0 ) ( 0, 6 )
                                     ]
                               , cursor = ( 0, 0 )
                               }
@@ -342,8 +341,7 @@ suite =
                         , version = 3
                         , savePoint = 1
                         , changes =
-                            [ Insertion ( 0, 0 ) <| B.fromString "123"
-                            , Insertion ( 0, 0 ) <| B.fromString "456"
+                            [ Insertion ( 0, 0 ) <| B.fromString "456123"
                             , Deletion ( 0, 1 ) ( 0, 3 )
                             ]
                     }
@@ -438,7 +436,7 @@ suite =
                             buf.history.undoes
                     in
                     Expect.equal n (List.length undoes)
-            , fuzz (Fuzz.intRange 0 5) "pending patches amount" <|
+            , fuzz (Fuzz.intRange 1 5) "pending patches amount" <|
                 \n ->
                     let
                         buf =
@@ -451,7 +449,7 @@ suite =
                                 )
                                 emptyBuffer
                     in
-                    Expect.equal n
+                    Expect.equal 1
                         (List.length buf.history.pending.patches)
             , fuzz (Fuzz.intRange 0 5) "redo items amount" <|
                 \n ->

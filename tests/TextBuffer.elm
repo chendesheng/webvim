@@ -294,15 +294,15 @@ suite =
                 (List.map testMergePatch
                     [ { label = "merge success"
                       , patches =
-                            ( Insertion ( 0, 1 ) (B.fromString "2")
-                            , Insertion ( 0, 0 ) (B.fromString "1")
+                            ( Insertion ( 0, 0 ) (B.fromString "1")
+                            , Insertion ( 0, 1 ) (B.fromString "2")
                             )
                       , result = Just <| Insertion ( 0, 0 ) (B.fromString "12")
                       }
                     , { label = "merge mutiple lines success"
                       , patches =
-                            ( Insertion ( 1, 1 ) (B.fromString "2")
-                            , Insertion ( 0, 0 ) (B.fromString "13344\n2")
+                            ( Insertion ( 0, 0 ) (B.fromString "13344\n2")
+                            , Insertion ( 1, 1 ) (B.fromString "2")
                             )
                       , result =
                             Just <|
@@ -311,8 +311,40 @@ suite =
                       }
                     , { label = "merge failed"
                       , patches =
-                            ( Insertion ( 0, 0 ) (B.fromString "1")
-                            , Insertion ( 0, 2 ) (B.fromString "2")
+                            ( Insertion ( 0, 2 ) (B.fromString "2")
+                            , Insertion ( 0, 0 ) (B.fromString "1")
+                            )
+                      , result = Nothing
+                      }
+                    ]
+                )
+            , describe "insert + delete"
+                (List.map testMergePatch
+                    [ { label = "merge success - not all insert be deleted"
+                      , patches =
+                            ( Insertion ( 0, 0 ) (B.fromString "123")
+                            , Deletion ( 0, 2 ) ( 0, 3 )
+                            )
+                      , result = Just <| Insertion ( 0, 0 ) (B.fromString "12")
+                      }
+                    , { label = "merge success - not all insert be deleted & multiple lines"
+                      , patches =
+                            ( Insertion ( 0, 0 ) (B.fromString "12\n3")
+                            , Deletion ( 1, 0 ) ( 1, 1 )
+                            )
+                      , result = Just <| Insertion ( 0, 0 ) (B.fromString "12\n")
+                      }
+                    , { label = "merge success - all insert be deleted"
+                      , patches =
+                            ( Insertion ( 0, 0 ) (B.fromString "123")
+                            , Deletion ( 0, 0 ) ( 0, 3 )
+                            )
+                      , result = Just <| Deletion ( 0, 0 ) ( 0, 0 )
+                      }
+                    , { label = "merge failed"
+                      , patches =
+                            ( Insertion ( 0, 0 ) (B.fromString "123")
+                            , Deletion ( 0, 0 ) ( 0, 2 )
                             )
                       , result = Nothing
                       }
@@ -323,14 +355,35 @@ suite =
                     [ { label = "merge success"
                       , patches =
                             ( Deletion ( 0, 1 ) ( 0, 2 )
+                            , Deletion ( 0, 1 ) ( 0, 3 )
+                            )
+                      , result = Just <| Deletion ( 0, 1 ) ( 0, 4 )
+                      }
+                    , { label = "merge success - delete back"
+                      , patches =
+                            ( Deletion ( 0, 1 ) ( 0, 2 )
                             , Deletion ( 0, 0 ) ( 0, 1 )
                             )
                       , result = Just <| Deletion ( 0, 0 ) ( 0, 2 )
                       }
+                    , { label = "merge success - multiple lines"
+                      , patches =
+                            ( Deletion ( 0, 0 ) ( 0, 1 )
+                            , Deletion ( 0, 0 ) ( 1, 2 )
+                            )
+                      , result = Just <| Deletion ( 0, 0 ) ( 1, 2 )
+                      }
+                    , { label = "merge success - delete back & multiple lines"
+                      , patches =
+                            ( Deletion ( 0, 1 ) ( 1, 2 )
+                            , Deletion ( 0, 0 ) ( 0, 1 )
+                            )
+                      , result = Just <| Deletion ( 0, 0 ) ( 1, 2 )
+                      }
                     , { label = "merge failed"
                       , patches =
                             ( Deletion ( 0, 1 ) ( 0, 2 )
-                            , Deletion ( 0, 1 ) ( 0, 2 )
+                            , Deletion ( 0, 2 ) ( 0, 3 )
                             )
                       , result = Nothing
                       }
