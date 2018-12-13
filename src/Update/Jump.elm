@@ -123,9 +123,14 @@ replaceActiveView view =
         (\{ size } -> resizeView size view)
 
 
-jumpToLocation : Bool -> Location -> Editor -> ( Editor, Cmd Msg )
-jumpToLocation isSaveJump { path, cursor } ed =
-    jumpToPath isSaveJump path (Just cursor) replaceActiveView ed
+jumpToLocation :
+    (View -> Win.Window View -> Win.Window View)
+    -> Bool
+    -> Location
+    -> Editor
+    -> ( Editor, Cmd Msg )
+jumpToLocation setView isSaveJump { path, cursor } ed =
+    jumpToPath isSaveJump path (Just cursor) setView ed
 
 
 jumpToPath :
@@ -382,7 +387,8 @@ jumpHistory isForward ({ global, buf } as ed) =
     in
     case currentLocation jumps of
         Just loc ->
-            jumpToLocation False
+            jumpToLocation replaceActiveView
+                False
                 loc
                 { ed | global = { global | jumps = jumps } }
 
@@ -433,7 +439,19 @@ jumpToFile ({ buf } as ed) =
         Just ( _, s ) ->
             case P.run locationParser s of
                 Ok loc ->
-                    jumpToLocation True loc ed
+                    if buf.path == "[Search]" then
+                        jumpToLocation
+                            (\view win ->
+                                win
+                                    |> Win.activePrevView
+                                    |> replaceActiveView view
+                            )
+                            True
+                            loc
+                            ed
+
+                    else
+                        jumpToLocation replaceActiveView True loc ed
 
                 _ ->
                     ( ed, Cmd.none )

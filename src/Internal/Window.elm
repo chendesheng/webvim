@@ -7,6 +7,7 @@ module Internal.Window exposing
     , activeBottomView
     , activeLeftView
     , activeNextView
+    , activePrevView
     , activeRightView
     , activeTopView
     , empty
@@ -402,14 +403,81 @@ removeCurrent win =
                                 _ ->
                                     tree1
                         )
-                        >> activeNextViewHelper False
+                        >> activeNextViewHelper True
                     )
                 |> Maybe.withDefault win
 
 
 activeNextView : Window a -> Window a
 activeNextView win =
-    activeNextViewHelper True win
+    activeNextViewHelper False win
+
+
+activeNextViewHelper : Bool -> Window a -> Window a
+activeNextViewHelper includeCurrent win =
+    let
+        findView =
+            find includeCurrent
+                (\nd ->
+                    case nd of
+                        NoSplit v ->
+                            True
+
+                        _ ->
+                            False
+                )
+    in
+    case findView win of
+        Nothing ->
+            if isRoot win then
+                -- do nothing if already root
+                win
+
+            else
+                win
+                    |> goRoot
+                    |> findView
+                    |> Maybe.withDefault win
+
+        Just win1 ->
+            win1
+
+
+activePrevView : Window a -> Window a
+activePrevView win =
+    let
+        isLeftChild win1 =
+            case win1.path of
+                LeftChild :: _ ->
+                    True
+
+                _ ->
+                    False
+
+        findView win1 =
+            let
+                win2 =
+                    goParent win1
+            in
+            if isLeftChild win1 then
+                Maybe.andThen findView win2
+
+            else
+                Maybe.andThen goLeft win2
+    in
+    case findView win of
+        Nothing ->
+            if isRoot win then
+                -- do nothing if already root
+                win
+
+            else
+                win
+                    |> goRoot
+                    |> goRightMost
+
+        Just win1 ->
+            goRightMost win1
 
 
 activeRightView : Window a -> Window a
@@ -584,41 +652,22 @@ goLeftMost ({ current } as zipper) =
             zipper
 
 
-activeNextViewHelper : Bool -> Window a -> Window a
-activeNextViewHelper excludeCurrent win =
-    let
-        view =
-            if excludeCurrent then
-                getActiveView win
+goRightMost : Zipper a -> Zipper a
+goRightMost ({ current } as zipper) =
+    case current of
+        Node _ _ Empty ->
+            zipper
 
-            else
-                Nothing
+        Node _ _ _ ->
+            case goRight zipper of
+                Just z ->
+                    goRightMost z
 
-        findView =
-            find False
-                (\nd ->
-                    case nd of
-                        NoSplit v ->
-                            True
+                _ ->
+                    zipper
 
-                        _ ->
-                            False
-                )
-    in
-    case findView win of
-        Nothing ->
-            if isRoot win then
-                -- do nothing if already root
-                win
-
-            else
-                win
-                    |> goRoot
-                    |> findView
-                    |> Maybe.withDefault win
-
-        Just win1 ->
-            win1
+        _ ->
+            zipper
 
 
 setActive : (a -> Bool) -> Window a -> Window a

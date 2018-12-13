@@ -887,7 +887,7 @@ runOperator count register operator ({ buf, global } as ed) =
         JumpBackFromTag ->
             case global.last.jumpToTag of
                 Just loc ->
-                    jumpToLocation True loc ed
+                    jumpToLocation replaceActiveView True loc ed
 
                 _ ->
                     ( ed, Cmd.none )
@@ -998,6 +998,9 @@ switchView type_ ({ global } as ed) =
                 V.SwitchToNext ->
                     Win.activeNextView
 
+                V.SwitchToPrev ->
+                    Win.activePrevView
+
                 V.SwitchToRight ->
                     Win.activeRightView
 
@@ -1009,9 +1012,6 @@ switchView type_ ({ global } as ed) =
 
                 V.SwitchToTop ->
                     Win.activeTopView
-
-                _ ->
-                    identity
     in
     { ed
         | global =
@@ -1363,7 +1363,7 @@ execute count register str ({ buf, global } as ed) =
             in
             case nthList n global.locationList of
                 Just loc ->
-                    jumpToLocation True loc ed
+                    jumpToLocation replaceActiveView True loc ed
 
                 _ ->
                     ( { ed | buf = Buf.errorMessage "location not found" buf }
@@ -1491,14 +1491,13 @@ handleKeypress replaying key ({ buf, global } as ed) =
             applyVimAST replaying key ast ed1
 
 
-
---log : String -> (a -> b) -> a -> a
---log message selector a =
---    let
---        _ =
---            Debug.log message (selector a)
---    in
---        a
+log : String -> (a -> b) -> a -> a
+log message selector a =
+    let
+        _ =
+            Debug.log message (selector a)
+    in
+    a
 
 
 serviceBeforeApplyVimAST : Bool -> Key -> AST -> String -> Maybe (Cmd Msg)
@@ -2310,7 +2309,7 @@ onReadTags result ed =
             ed
                 |> updateBuffer Buf.clearMessage
                 |> saveLastJumpToTag
-                |> jumpToLocation True loc
+                |> jumpToLocation replaceActiveView True loc
 
         _ ->
             ( updateBuffer (Buf.errorMessage "tag not found") ed
