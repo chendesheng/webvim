@@ -346,7 +346,7 @@ renderBuffer path rect view buf isActive global =
                 :: renderLineGuide maybeCursor
                 :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
                 :: renderHighlights fontInfo scrollTop1 lines highlights
-                :: lazy4 renderLint fontInfo scrollTop1 lines lint.items
+                :: lazy5 renderLint buf.path fontInfo scrollTop1 lines lint.items
                 :: lazy3 renderLines lines syntax view.lines
                 :: div [ class "ruler" ] []
                 :: renderCursor isActive fontInfo ime1 lines "" maybeCursor
@@ -1069,50 +1069,43 @@ renderTip width items maybeCursor showTip =
 
 
 renderLint :
-    FontInfo
+    String
+    -> FontInfo
     -> Int
     -> B.TextBuffer
     -> List LintError
     -> Html msg
-renderLint fontInfo scrollTop lines items =
-    let
-        render classname ( begin, end ) scrollTop_ lines_ =
-            div
-                [ class classname ]
-                (renderRange fontInfo
-                    scrollTop_
-                    VisualChars
-                    begin
-                    end
-                    lines_
-                    True
-                )
-    in
+renderLint path fontInfo scrollTop lines items =
     div [ class "lints" ]
         (List.filterMap
             (\item ->
-                let
-                    region =
-                        Maybe.withDefault item.region item.subRegion
+                if path == item.file then
+                    let
+                        ( ( by, _ ) as b, ( ey, _ ) as e ) =
+                            Maybe.withDefault item.region item.subRegion
 
-                    ( b, e ) =
-                        region
+                        classname =
+                            if item.tipe == "warning" then
+                                "lint lint-warning"
 
-                    ( by, _ ) =
-                        b
+                            else
+                                "lint"
+                    in
+                    if not (ey < scrollTop || by >= scrollTop + 50) then
+                        Just <|
+                            div
+                                [ class classname ]
+                                (renderRange fontInfo
+                                    scrollTop
+                                    VisualChars
+                                    b
+                                    e
+                                    lines
+                                    True
+                                )
 
-                    ( ey, _ ) =
-                        e
-
-                    classname =
-                        if item.tipe == "warning" then
-                            "lint lint-warning"
-
-                        else
-                            "lint"
-                in
-                if not (ey < scrollTop || by >= scrollTop + 50) then
-                    Just <| render classname region scrollTop lines
+                    else
+                        Nothing
 
                 else
                     Nothing

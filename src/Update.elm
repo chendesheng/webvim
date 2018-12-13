@@ -1491,13 +1491,14 @@ handleKeypress replaying key ({ buf, global } as ed) =
             applyVimAST replaying key ast ed1
 
 
-log : String -> (a -> b) -> a -> a
-log message selector a =
-    let
-        _ =
-            Debug.log message (selector a)
-    in
-    a
+
+--log : String -> (a -> b) -> a -> a
+--log message selector a =
+--    let
+--        _ =
+--            Debug.log message (selector a)
+--    in
+--    a
 
 
 serviceBeforeApplyVimAST : Bool -> Key -> AST -> String -> Maybe (Cmd Msg)
