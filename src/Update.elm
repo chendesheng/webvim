@@ -2238,7 +2238,7 @@ onSearch result ed =
                         [ Insertion ( 0, 0 ) <|
                             B.fromString <|
                                 s
-                                    ++ String.repeat 80 "="
+                                    ++ String.repeat 80 "-"
                                     ++ "\n"
                                     ++ "\n"
                         ]
