@@ -58,6 +58,7 @@ type Msg
     | WriteClipboard (Result String ())
     | SendLint
     | SendTokenize
+    | PersistentAll
     | Lint BufferIdentifier (Result String (List LintError))
     | Tokenized BufferIdentifier (Result String TokenizeResponse)
     | ListFiles (Result String (List String))

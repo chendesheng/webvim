@@ -1,4 +1,13 @@
-port module Helper.Debounce exposing (DebounceEvent, debounce, debounceLint, debounceTokenize, decodeEvent, eventDecoder, onDebounce)
+port module Helper.Debounce exposing
+    ( DebounceEvent
+    , debounce
+    , debounceLint
+    , debouncePersistentAll
+    , debounceTokenize
+    , decodeEvent
+    , eventDecoder
+    , onDebounce
+    )
 
 import Json.Decode as Decode exposing (decodeValue)
 import Json.Encode as Encode
@@ -36,18 +45,24 @@ decodeEvent =
 
 
 debounceLint : Int -> Cmd msg
-debounceLint time =
-    Encode.object
-        [ ( "action", Encode.string "lint" )
-        , ( "time", Encode.int time )
-        ]
-        |> debounce
+debounceLint =
+    debounceAction "lint"
 
 
 debounceTokenize : Int -> Cmd msg
-debounceTokenize time =
+debounceTokenize =
+    debounceAction "tokenize"
+
+
+debouncePersistentAll : Int -> Cmd msg
+debouncePersistentAll =
+    debounceAction "persistentAll"
+
+
+debounceAction : String -> Int -> Cmd msg
+debounceAction action time =
     Encode.object
-        [ ( "action", Encode.string "tokenize" )
+        [ ( "action", Encode.string action )
         , ( "time", Encode.int time )
         ]
         |> debounce

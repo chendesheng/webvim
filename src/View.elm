@@ -8,6 +8,7 @@ import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events as Events
+import Html.Keyed
 import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
 import Internal.Syntax exposing (Syntax, Token)
@@ -184,26 +185,46 @@ renderStorage : Global -> Html Msg
 renderStorage global =
     div [ style "display" "none" ]
         ([ lazy saveRegisters global.registers
-         , div []
-            (global.buffers
-                |> Dict.values
-                --|> List.filter (\{ path } -> not <| isTempBuffer path)
-                |> List.indexedMap (lazy2 saveBuffer)
-            )
          , lazy saveCwd global.cwd
+         , div []
+            (List.indexedMap
+                (\i s ->
+                    renderSessionStorageItem
+                        ("exHistory[" ++ String.fromInt i ++ "]")
+                        s
+                )
+                global.exHistory
+            )
          ]
-            ++ [ saveWindow global.window
-               , div []
-                    (List.indexedMap
-                        (\i s ->
-                            renderSessionStorageItem
-                                ("exHistory[" ++ String.fromInt i ++ "]")
-                                s
-                        )
-                        global.exHistory
-                    )
-               ]
+            ++ (case global.persistent of
+                    Just { window, buffers } ->
+                        [ lazy saveWindow window
+                        , saveBuffers buffers
+                        ]
+
+                    _ ->
+                        []
+               )
         )
+
+
+saveBuffers : List Buffer -> Html msg
+saveBuffers buffers =
+    Html.Keyed.node "div"
+        []
+        (List.indexedMap
+            (\i buf ->
+                ( String.fromInt buf.id, lazy2 saveBuffer i buf )
+            )
+            buffers
+        )
+
+
+saveBuffer : Int -> Buffer -> Html msg
+saveBuffer i buf =
+    buf
+        |> bufferToString
+        |> renderSessionStorageItem ("buffers[" ++ String.fromInt i ++ "]")
 
 
 percentStr : Float -> String
@@ -1514,13 +1535,6 @@ saveWindow win =
         |> windowEncoder
         |> Encode.encode 0
         |> renderSessionStorageItem "window"
-
-
-saveBuffer : Int -> Buffer -> Html msg
-saveBuffer i buf =
-    buf
-        |> bufferToString
-        |> renderSessionStorageItem ("buffers[" ++ String.fromInt i ++ "]")
 
 
 saveRegisters : Dict String RegisterText -> Html msg

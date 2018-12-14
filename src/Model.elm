@@ -55,6 +55,7 @@ module Model exposing
     , isTempBuffer
     , patchDecoder
     , patchEncoder
+    , persistentAll
     , registerString
     , registerToString
     , registersDecoder
@@ -652,6 +653,14 @@ type alias Global =
     , statusbarHeight : Int
     , showTip : Bool
     , lineHeight : Int
+
+    -- move window and buffers to here once you need to persistent them to the session storage
+    -- this is for performance so you don't need save it on every type
+    , persistent :
+        Maybe
+            { window : Window View
+            , buffers : List Buffer
+            }
     }
 
 
@@ -851,6 +860,18 @@ emptyGlobal =
     , showTip = False
     , statusbarHeight = 1
     , lineHeight = 21
+    , persistent = Nothing
+    }
+
+
+persistentAll : Global -> Global
+persistentAll global =
+    { global
+        | persistent =
+            Just
+                { window = global.window
+                , buffers = Dict.values global.buffers
+                }
     }
 
 

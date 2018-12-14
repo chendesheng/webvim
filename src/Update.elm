@@ -2168,12 +2168,6 @@ update message global =
                 IMEFocus ->
                     ( global, focusHiddenInput )
 
-        NoneMessage ->
-            ( global, Cmd.none )
-
-        Boot _ ->
-            ( global, Cmd.none )
-
         SetCwd _ ->
             ( global, Cmd.none )
 
@@ -2186,6 +2180,15 @@ update message global =
                     ( updateActiveBuffer (Buf.errorMessage err) global
                     , Cmd.none
                     )
+
+        PersistentAll ->
+            ( persistentAll global, Cmd.none )
+
+        NoneMessage ->
+            ( global, Cmd.none )
+
+        Boot _ ->
+            ( global, Cmd.none )
 
 
 onResize : Size -> Global -> Global

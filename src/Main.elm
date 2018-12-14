@@ -2,7 +2,13 @@ module Main exposing (main, toModel)
 
 import Browser
 import Browser.Events as Events exposing (onResize)
-import Helper.Debounce exposing (DebounceEvent, decodeEvent, onDebounce)
+import Helper.Debounce
+    exposing
+        ( DebounceEvent
+        , debouncePersistentAll
+        , decodeEvent
+        , onDebounce
+        )
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html
 import Json.Decode as Decode
@@ -56,6 +62,13 @@ main =
                         case model of
                             Ready state ->
                                 update msg state
+                                    |> Tuple.mapSecond
+                                        (\cmd ->
+                                            Cmd.batch
+                                                [ cmd
+                                                , debouncePersistentAll 3000
+                                                ]
+                                        )
                                     |> toModel
 
                             _ ->
@@ -76,6 +89,9 @@ main =
 
                                             "tokenize" ->
                                                 SendTokenize
+
+                                            "persistentAll" ->
+                                                PersistentAll
 
                                             _ ->
                                                 NoneMessage
