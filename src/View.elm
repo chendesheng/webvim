@@ -573,7 +573,7 @@ renderInputChrome fontInfo isComposing compositionText =
                         (\key ->
                             { message = IMEMessage (CompositionWait key)
                             , stopPropagation = True
-                            , preventDefault = False
+                            , preventDefault = True
                             }
                          --|> Debug.log "keydown"
                         )
