@@ -179,13 +179,15 @@ function genThemeCss(uiTheme, theme, colorMap) {
     ['body, .tip { background: #fff; color: #111 } ',
       '.gutter { color: #2b91af } ',
       '.auto-complete, .tip { box-shadow: 0 0 8px #a8a8a8 }',
-      '.ruler { box-shadow: 1px 0px 0px 0px inset #d3d3d3 }',
+      '.ruler { border-right: 1px dashed #d3d3d3 }',
+      '.line-number-highlight { color: black }',
     ] :
     // dark
     ['body, .tip { background: #000; color: #ddd } ',
       '.gutter { color: #5a5a5a } ',
       '.auto-complete, .tip { box-shadow: 0 0 8px #000 }',
-      '.ruler { box-shadow: 1px 0px 0px 0px inset #5a5a5a }',
+      '.ruler { border-right: 1px dashed #5a5a5a }',
+      '.line-number-highlight { color: yellow }',
     ];
 
   function cssColor(selector, prop) {
