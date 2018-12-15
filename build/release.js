@@ -48,6 +48,8 @@ function generateMetaInfo(version, commit, code) {
 // };
 
 const releaseFrontEnd = () => {
+  // sometimes weird problem will occur when there are cached stuff
+  shell('rm -rf elm-stuff');
   const bundlepath = 'dist/.bundle.js';
   shell(`elm make src/Main.elm --output ${bundlepath} --optimize`);
   // elmMinify breaks a feature,

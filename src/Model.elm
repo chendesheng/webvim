@@ -363,6 +363,7 @@ createBuffer path size global =
                         global.homedir
                         (name ++ ext)
                         config.lint
+                , syntax = not <| isTempBuffer path
             }
         , path = path
         , name = name ++ ext
@@ -792,7 +793,7 @@ defaultBufferConfig =
     , expandTab = True
     , lint = False
     , indent = AutoIndent
-    , syntax = True
+    , syntax = False
     }
 
 

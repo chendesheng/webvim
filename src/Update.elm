@@ -1748,17 +1748,14 @@ onTokenized ({ buf, global } as ed) resp =
                     )
 
                 TokenizeLineSuccess begin tokens ->
-                    let
-                        syntax =
-                            Array.set begin tokens buf.syntax
-
-                        buf1 =
+                    ( { ed
+                        | buf =
                             { buf
-                                | syntax = syntax
+                                | syntax =
+                                    Array.set begin tokens buf.syntax
                                 , syntaxDirtyFrom = begin + 1
                             }
-                    in
-                    ( { ed | buf = buf1 }
+                      }
                     , debounceTokenize 100
                     )
 
