@@ -5,13 +5,13 @@ module Update.Cursor exposing
     , cursorScope
     , greaterTo
     , pairCursor
-    , pairSource
     , scrollTo
     , scrollToCursor
     )
 
 import Internal.Brackets exposing (pairBracketAt)
 import Internal.Position exposing (Position)
+import Internal.Syntax exposing (Syntax)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
 import Update.Buffer as Buf
@@ -47,14 +47,12 @@ scrollToCursor lineHeight view =
     scrollTo (Tuple.first view.cursor) lineHeight view
 
 
-correctCursor : Bool -> Buffer -> Buffer
-correctCursor excludeLinkBreak buf =
-    Buf.updateView
-        (Buf.setCursor
-            (correctPosition buf.view.cursor excludeLinkBreak buf.lines)
-            False
-        )
-        buf
+correctCursor : Bool -> B.TextBuffer -> View -> View
+correctCursor excludeLinkBreak lines view =
+    Buf.setCursor
+        (correctPosition view.cursor excludeLinkBreak lines)
+        False
+        view
 
 
 greaterTo : Int -> Int -> Bool
@@ -180,35 +178,26 @@ cursorScope lineHeight lines view =
                 view
 
 
-pairSource : Buffer -> Position
-pairSource buf =
-    case buf.mode of
-        Insert _ ->
-            buf.view.cursor
-                |> Tuple.mapSecond
-                    (\x -> Basics.max 0 (x - 1))
+pairCursor : Mode -> B.TextBuffer -> Syntax -> View -> View
+pairCursor mode lines syntax view =
+    let
+        cursor =
+            case mode of
+                Insert _ ->
+                    view.cursor
+                        |> Tuple.mapSecond
+                            (\x -> Basics.max 0 (x - 1))
 
-        _ ->
-            buf.view.cursor
-
-
-pairCursor : Size -> Buffer -> Buffer
-pairCursor size buf =
-    Buf.updateView
-        (\view ->
-            let
-                cursor =
-                    pairSource buf
-            in
-            { view
-                | matchedCursor =
-                    cursor
-                        |> pairBracketAt
-                            buf.view.scrollTop
-                            (buf.view.scrollTop + size.height)
-                            buf.lines
-                            buf.syntax
-                        |> Maybe.map (Tuple.pair cursor)
-            }
-        )
-        buf
+                _ ->
+                    view.cursor
+    in
+    { view
+        | matchedCursor =
+            cursor
+                |> pairBracketAt
+                    view.scrollTop
+                    (view.scrollTop + view.size.height)
+                    lines
+                    syntax
+                |> Maybe.map (Tuple.pair cursor)
+    }

@@ -29,6 +29,7 @@ import Internal.Jumps
         , applyPatchesToLocations
         )
 import Internal.Position exposing (positionShiftLeft)
+import Internal.Syntax exposing (Syntax)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Json.Decode as Decode
@@ -1570,26 +1571,6 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 |> Maybe.map isLineDeltaMotion
                 |> Maybe.withDefault False
 
-        setMatchedCursor : Editor -> Editor -> Editor
-        setMatchedCursor oldEd ed_ =
-            let
-                oldBuf =
-                    oldEd.buf
-
-                buf_ =
-                    ed_.buf
-            in
-            if
-                (pairSource oldBuf /= pairSource buf_)
-                    || (oldBuf.view.scrollTop /= buf_.view.scrollTop)
-                    || (oldBuf.view.size /= buf_.view.size)
-                    || (oldBuf.syntax /= buf_.syntax)
-            then
-                updateBuffer (pairCursor buf_.view.size) ed_
-
-            else
-                ed_
-
         doTokenize oldBuf ( ed_, cmds ) =
             if ed_.buf.config.syntax then
                 if Buf.isEditing oldBuf ed_.buf then
@@ -1640,11 +1621,17 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 >> updateBuffer correctLines
                 >> modeChanged replaying key oldMode lineDeltaMotion
                 >> updateBuffer
-                    (correctCursor False
-                        >> Buf.updateView (scrollToCursor ed.global.lineHeight)
+                    (\buf1 ->
+                        Buf.updateView
+                            (updateViewAfterCursorChanged
+                                ed.global.lineHeight
+                                buf1.mode
+                                buf1.lines
+                                buf1.syntax
+                            )
+                            buf1
                     )
                 >> updateGlobal (saveDotRegister replaying)
-                >> setMatchedCursor ed
                 >> applyDiff
             )
         |> Tuple.mapSecond List.singleton
@@ -1741,8 +1728,13 @@ onTokenized ({ buf, global } as ed) resp =
                             { buf
                                 | syntax = syntax1
                                 , syntaxDirtyFrom = Array.length syntax1
+                                , view =
+                                    pairCursor
+                                        buf.mode
+                                        buf.lines
+                                        buf.syntax
+                                        buf.view
                             }
-                                |> pairCursor buf.view.size
                       }
                     , Cmd.none
                     )
@@ -2368,6 +2360,26 @@ resizeViews size lineHeight =
 --        ed
 
 
+isExculdLineBreak : Mode -> Bool
+isExculdLineBreak mode =
+    case mode of
+        Visual _ ->
+            False
+
+        Insert _ ->
+            False
+
+        _ ->
+            True
+
+
+updateViewAfterCursorChanged : Int -> Mode -> B.TextBuffer -> Syntax -> View -> View
+updateViewAfterCursorChanged lineHeight mode lines syntax =
+    correctCursor (isExculdLineBreak mode) lines
+        >> scrollToCursor lineHeight
+        >> pairCursor mode lines syntax
+
+
 onRead : Result Http.Error Buffer -> Editor -> Editor
 onRead result ({ buf, global } as ed) =
     case result of
@@ -2376,10 +2388,18 @@ onRead result ({ buf, global } as ed) =
                 buf2 =
                     buf1
                         |> Buf.transaction buf1.history.changes
-                        |> Buf.updateView (Buf.setCursor buf1.view.cursor True)
                         |> Buf.updateHistory (always buf1.history)
-                        |> correctCursor True
-                        |> pairCursor buf.view.size
+                        |> (\buf3 ->
+                                Buf.updateView
+                                    (Buf.setCursor buf1.view.cursor True
+                                        >> updateViewAfterCursorChanged
+                                            global.lineHeight
+                                            buf3.mode
+                                            buf3.lines
+                                            buf3.syntax
+                                    )
+                                    buf3
+                           )
             in
             { ed
                 | global = Buf.addBuffer False buf2 global
@@ -2422,10 +2442,17 @@ onWrite result ({ buf, global } as ed) =
                                 }
                             )
                         -- keep cursor position
-                        |> Buf.updateView (Buf.setCursor buf.view.cursor True)
-                        |> correctCursor True
-                        |> Buf.updateView (scrollToCursor global.lineHeight)
-                        |> pairCursor buf.view.size
+                        |> (\buf2 ->
+                                Buf.updateView
+                                    (Buf.setCursor buf.view.cursor True
+                                        >> updateViewAfterCursorChanged
+                                            global.lineHeight
+                                            buf2.mode
+                                            buf2.lines
+                                            buf2.syntax
+                                    )
+                                    buf2
+                           )
                         |> Buf.infoMessage
                             ((buf |> Buf.shortPath global |> quote) ++ " Written")
 
@@ -2594,11 +2621,18 @@ init flags =
                                     , config = Buf.disableSyntax b.config
                                 }
                                     |> Buf.transaction b.history.changes
-                                    |> Buf.updateView
-                                        (Buf.setCursor b.view.cursor True)
                                     |> Buf.updateHistory (always b.history)
-                                    |> correctCursor True
-                                    |> pairCursor b.view.size
+                                    |> (\buf1 ->
+                                            Buf.updateView
+                                                (Buf.setCursor b.view.cursor True
+                                                    >> updateViewAfterCursorChanged
+                                                        lineHeight
+                                                        buf1.mode
+                                                        buf1.lines
+                                                        buf1.syntax
+                                                )
+                                                buf1
+                                       )
 
                             else
                                 { b | view = initScrollTop b.view }
