@@ -1333,7 +1333,7 @@ renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
             String.fromInt ((zeroLine - height) * lineHeight - topOffsetPx)
                 ++ "px"
         ]
-        [ renderAllRelativeNumbers
+        [ lazy2 renderAllRelativeNumbers
             height
             (Basics.min (maxLine - zeroLine) height)
         ]
