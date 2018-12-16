@@ -232,6 +232,7 @@ percentStr f =
     String.fromFloat (f * 100) ++ "%"
 
 
+isListenMouseWheel : Mode -> Bool -> BufferLint -> Bool
 isListenMouseWheel mode showTip lint =
     case mode of
         Ex _ ->
@@ -322,14 +323,11 @@ renderBuffer path rect view buf isActive global =
                 height
                 scrollTop1
 
-        mouseWheel h path1 =
+        mouseWheel path1 =
             Events.on "mousewheel"
                 (Decode.map
                     (toFloat
-                        >> (*) 1.8
-                        >> floor
-                        >> Basics.min (2 * h)
-                        >> Basics.max (-2 * h)
+                        >> round
                         >> MouseWheel path1
                     )
                     (Decode.at [ "deltaY" ] Decode.int)
@@ -343,7 +341,7 @@ renderBuffer path rect view buf isActive global =
          , style "height" (percentStr rect.height)
          ]
             ++ (if isListenMouseWheel buf.mode showTip lint then
-                    [ mouseWheel lineHeight path ]
+                    [ mouseWheel path ]
 
                 else
                     []
