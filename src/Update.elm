@@ -524,7 +524,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                     , global = global1
                 }
 
-        (Insert { visual }) as data ->
+        Insert { visual } ->
             let
                 last =
                     global.last

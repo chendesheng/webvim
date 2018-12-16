@@ -698,25 +698,6 @@ redo buf =
         |> Maybe.withDefault buf
 
 
-moveByClass : MotionData -> MotionOption -> Buffer -> Buffer
-moveByClass class option buf =
-    let
-        ( y, x ) =
-            buf.view.cursor
-    in
-    buf.lines
-        |> getLine y
-        |> Maybe.map
-            (\line ->
-                let
-                    line1 =
-                        String.dropLeft x line
-                in
-                buf
-            )
-        |> Maybe.withDefault buf
-
-
 clearHistory : Buffer -> Buffer
 clearHistory buf =
     { buf | history = emptyBufferHistory }

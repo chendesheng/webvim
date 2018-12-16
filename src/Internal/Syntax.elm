@@ -1,4 +1,13 @@
-module Internal.Syntax exposing (Syntax, Token, TokenType(..), applyPatchToSyntax, getToken, iterateTokens, splitTokens, updateToken)
+module Internal.Syntax exposing
+    ( Syntax
+    , Token
+    , TokenType(..)
+    , applyPatchToSyntax
+    , getToken
+    , iterateTokens
+    , splitTokens
+    , updateToken
+    )
 
 import Array as Array exposing (Array)
 import Internal.Position exposing (Position)
