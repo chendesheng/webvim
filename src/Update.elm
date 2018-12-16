@@ -1640,7 +1640,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 >> updateBuffer correctLines
                 >> modeChanged replaying key oldMode lineDeltaMotion
                 >> updateBuffer
-                    (correctCursor
+                    (correctCursor False
                         >> Buf.updateView (scrollToCursor ed.global.lineHeight)
                     )
                 >> updateGlobal (saveDotRegister replaying)
@@ -2378,7 +2378,7 @@ onRead result ({ buf, global } as ed) =
                         |> Buf.transaction buf1.history.changes
                         |> Buf.updateView (Buf.setCursor buf1.view.cursor True)
                         |> Buf.updateHistory (always buf1.history)
-                        |> correctCursor
+                        |> correctCursor True
                         |> pairCursor buf.view.size
             in
             { ed
@@ -2423,7 +2423,7 @@ onWrite result ({ buf, global } as ed) =
                             )
                         -- keep cursor position
                         |> Buf.updateView (Buf.setCursor buf.view.cursor True)
-                        |> correctCursor
+                        |> correctCursor True
                         |> Buf.updateView (scrollToCursor global.lineHeight)
                         |> pairCursor buf.view.size
                         |> Buf.infoMessage
@@ -2597,7 +2597,7 @@ init flags =
                                     |> Buf.updateView
                                         (Buf.setCursor b.view.cursor True)
                                     |> Buf.updateHistory (always b.history)
-                                    |> correctCursor
+                                    |> correctCursor True
                                     |> pairCursor b.view.size
 
                             else

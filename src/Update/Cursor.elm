@@ -47,11 +47,11 @@ scrollToCursor lineHeight view =
     scrollTo (Tuple.first view.cursor) lineHeight view
 
 
-correctCursor : Buffer -> Buffer
-correctCursor buf =
+correctCursor : Bool -> Buffer -> Buffer
+correctCursor excludeLinkBreak buf =
     Buf.updateView
         (Buf.setCursor
-            (correctPosition buf.view.cursor False buf.lines)
+            (correctPosition buf.view.cursor excludeLinkBreak buf.lines)
             False
         )
         buf
