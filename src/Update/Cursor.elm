@@ -2,6 +2,7 @@ module Update.Cursor exposing
     ( correctCursor
     , correctPosition
     , correctPositionOnSurrogate
+    , cursorPoint
     , cursorScope
     , greaterTo
     , pairCursor
@@ -201,3 +202,21 @@ pairCursor mode lines syntax view =
                     syntax
                 |> Maybe.map (Tuple.pair cursor)
     }
+
+
+cursorPoint : FontInfo -> B.TextBuffer -> Int -> Int -> ( Position, Position )
+cursorPoint fontInfo lines y x =
+    lines
+        |> B.getLine y
+        |> Maybe.map
+            (\line ->
+                let
+                    x1 =
+                        stringWidth fontInfo 0 x line
+
+                    w =
+                        cursorCharWidth fontInfo x line
+                in
+                ( ( y, x1 ), ( y, x1 + w ) )
+            )
+        |> Maybe.withDefault ( ( 0, 0 ), ( 0, 0 ) )

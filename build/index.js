@@ -118,6 +118,7 @@ function main() {
     window: safeJsonParse(sessionStorage.getItem('window')) || {},
     buffers: storageGetArray('buffers', true),
     registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
+    width: window.innerWidth,
     height: window.innerHeight,
     cwd: sessionStorage.getItem('cwd') || '',
     pathSeperator: '',

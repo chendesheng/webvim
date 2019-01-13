@@ -155,6 +155,7 @@ type alias Flags =
     , buffers : Encode.Value
     , window : Encode.Value
     , registers : Encode.Value
+    , width : Int
     , height : Int
     , cwd : String
     , pathSeperator : String
@@ -529,7 +530,7 @@ type alias View =
     , cursorColumn : Int
     , scrollTop : Int
     , scrollTopPx : Int
-    , scrollLeft : Int
+    , scrollLeftPx : Int
     , matchedCursor : Maybe ( Position, Position )
     , lines : List Int
     , size : Size
@@ -758,7 +759,7 @@ emptyView =
     , cursorColumn = 0
     , scrollTop = 0
     , scrollTopPx = 0
-    , scrollLeft = 0
+    , scrollLeftPx = 0
     , matchedCursor = Nothing
     , lines = [ 0, 1, 2 ]
     , size = { width = 1, height = 1 }

@@ -69,5 +69,5 @@ type Msg
     | SearchResult (Result String String)
     | SetCwd (Result String String)
     | Boot (Result String Flags)
-    | MouseWheel Path Int
+    | MouseWheel Path Int Int
     | NoneMessage

@@ -20,32 +20,11 @@ import List
 import Model exposing (..)
 import String
 import Update.Buffer as Buf
+import Update.Cursor exposing (cursorPoint)
 import Update.Message exposing (IMEMsg(..), Msg(..))
 import Update.Range exposing (visualRegions)
 import Vim.AST exposing (VisualType(..))
 import Vim.Helper exposing (parseKeys)
-
-
-type alias Point =
-    ( Int, Int )
-
-
-cursorPoint : FontInfo -> B.TextBuffer -> Int -> Int -> ( Point, Point )
-cursorPoint fontInfo lines y x =
-    lines
-        |> B.getLine y
-        |> Maybe.map
-            (\line ->
-                let
-                    x1 =
-                        stringWidth fontInfo 0 x line
-
-                    w =
-                        cursorCharWidth fontInfo x line
-                in
-                ( ( y, x1 ), ( y, x1 + w ) )
-            )
-        |> Maybe.withDefault ( ( 0, 0 ), ( 0, 0 ) )
 
 
 rem : Int -> String
@@ -323,14 +302,20 @@ renderBuffer path rect view buf isActive global =
                 height
                 scrollTop1
 
+        scrollLeftProp =
+            -view.scrollLeftPx
+                |> px
+                |> style "left"
+
         mouseWheel path1 =
             Events.on "mousewheel"
-                (Decode.map
+                (Decode.map2
                     (toFloat
                         >> round
                         >> MouseWheel path1
                     )
                     (Decode.at [ "deltaY" ] Decode.int)
+                    (Decode.at [ "deltaX" ] Decode.int)
                 )
     in
     div
@@ -360,7 +345,7 @@ renderBuffer path rect view buf isActive global =
             (relativeZeroLine - scrollTop1)
             (totalLines - scrollTop1)
         , div
-            (class "lines-container" :: scrollingCss)
+            (class "lines-container" :: scrollLeftProp :: scrollingCss)
             (renderColumnGuide fontInfo lines maybeCursor
                 :: renderLineGuide maybeCursor
                 :: lazy5 renderVisual fontInfo scrollTop1 height mode lines

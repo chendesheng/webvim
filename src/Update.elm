@@ -1633,6 +1633,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
                     )
                 >> updateGlobal (saveDotRegister replaying)
                 >> applyDiff
+                >> updateScrollLeftPx
             )
         |> Tuple.mapSecond List.singleton
         |> doLint buf
@@ -1861,8 +1862,8 @@ lintErrorToLocationList items =
         items
 
 
-onMouseWheel : Win.Path -> Int -> Editor -> ( Editor, Cmd Msg )
-onMouseWheel path delta ({ buf, global } as ed) =
+onMouseWheel : Win.Path -> Int -> Int -> Editor -> ( Editor, Cmd Msg )
+onMouseWheel path deltaY deltaX ({ buf, global } as ed) =
     let
         view =
             buf.view
@@ -1871,7 +1872,7 @@ onMouseWheel path delta ({ buf, global } as ed) =
             global.lineHeight
 
         scrollTopPx =
-            (view.scrollTopPx + delta)
+            (view.scrollTopPx + deltaY)
                 |> max 0
                 |> min ((B.count buf.lines - 2) * lineHeight)
 
@@ -1881,7 +1882,13 @@ onMouseWheel path delta ({ buf, global } as ed) =
     { ed
         | buf =
             { buf
-                | view = { view | scrollTopPx = scrollTopPx }
+                | view =
+                    { view
+                        | scrollTopPx = scrollTopPx
+                        , scrollLeftPx =
+                            (view.scrollLeftPx + deltaX)
+                                |> max 0
+                    }
             }
     }
         |> applyVimAST False
@@ -1957,8 +1964,8 @@ updateActiveBuffer fn global =
 update : Msg -> Global -> ( Global, Cmd Msg )
 update message global =
     case message of
-        MouseWheel path delta ->
-            withEditorByView path (onMouseWheel path delta) global
+        MouseWheel path deltaY deltaX ->
+            withEditorByView path (onMouseWheel path deltaY deltaX) global
 
         PressKeys keys ->
             withEditor
@@ -2593,11 +2600,11 @@ init flags =
         lineHeight =
             fontInfo.lineHeight
 
-        { window, registers, height, pathSeperator, exHistory } =
+        { window, registers, width, height, pathSeperator, exHistory } =
             flags
 
         size =
-            { width = 1
+            { width = width
             , height = height
             }
 
@@ -2699,3 +2706,70 @@ resizeView size view =
                 List.range view.scrollTop
                     (view.scrollTop + size.height + 1)
         }
+
+
+gutterWidth : B.TextBuffer -> Int
+gutterWidth lines =
+    let
+        totalLines =
+            B.count lines - 1
+    in
+    totalLines |> String.fromInt |> String.length
+
+
+updateScrollLeftPx : Editor -> Editor
+updateScrollLeftPx ({ global, buf } as ed) =
+    { ed
+        | buf =
+            Buf.updateView
+                (\view ->
+                    { view | scrollLeftPx = getScrollLeftPx global.fontInfo buf }
+                )
+                buf
+    }
+
+
+getScrollLeftPx : FontInfo -> Buffer -> Int
+getScrollLeftPx fontInfo buf =
+    let
+        view =
+            buf.view
+
+        maybeCursor =
+            case buf.mode of
+                Ex _ ->
+                    Nothing
+
+                _ ->
+                    Just view.cursor
+
+        relativeGutterWidth =
+            4
+    in
+    maybeCursor
+        |> Maybe.map
+            (\( y, x ) ->
+                let
+                    ( ( _, leftPx ), ( _, rightPx ) ) =
+                        cursorPoint fontInfo buf.lines y x
+
+                    widthPx =
+                        toFloat view.size.width
+                            - toFloat
+                                (gutterWidth buf.lines
+                                    + relativeGutterWidth
+                                    + 1
+                                )
+                            * charWidth fontInfo '0'
+                            |> floor
+                in
+                if leftPx < view.scrollLeftPx then
+                    leftPx
+
+                else if rightPx > widthPx + view.scrollLeftPx then
+                    rightPx - widthPx
+
+                else
+                    view.scrollLeftPx
+            )
+        |> Maybe.withDefault 0
