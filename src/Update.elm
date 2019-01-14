@@ -1885,9 +1885,10 @@ onMouseWheel path deltaY deltaX ({ buf, global } as ed) =
                 | view =
                     { view
                         | scrollTopPx = scrollTopPx
-                        , scrollLeftPx =
-                            (view.scrollLeftPx + deltaX)
-                                |> max 0
+
+                        --, scrollLeftPx =
+                        --    (view.scrollLeftPx + deltaX)
+                        --        |> max 0
                     }
             }
     }
