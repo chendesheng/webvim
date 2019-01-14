@@ -177,14 +177,14 @@ function genThemeCss(uiTheme, theme, colorMap) {
   const rules = uiTheme == 'vs' ?
     // light
     ['body, .tip { background: #fff; color: #111 } ',
-      '.gutter { color: #2b91af } ',
+      '.gutters { color: #2b91af } ',
       '.auto-complete, .tip { box-shadow: 0 0 8px #a8a8a8 }',
       '.ruler { border-right: 1px dashed #d3d3d3 }',
       '.line-number-highlight { color: black }',
     ] :
     // dark
     ['body, .tip { background: #000; color: #ddd } ',
-      '.gutter { color: #5a5a5a } ',
+      '.gutters { color: #5a5a5a } ',
       '.auto-complete, .tip { box-shadow: 0 0 8px #000 }',
       '.ruler { border-right: 1px dashed #5a5a5a }',
       '.line-number-highlight { color: yellow }',
@@ -237,10 +237,10 @@ function genThemeCss(uiTheme, theme, colorMap) {
   cssColor('body', 'editor.forground');
   cssBg('body, .tip', 'editor.background');
 
-  cssColor('.gutter', 'editor.foreground');
-  cssColor('.gutter', 'editorLineNumber.foreground');
-  cssBg('.gutter', 'editor.background');
-  cssBg('.gutter .line-number', 'editor.background');
+  cssColor('.gutters', 'editor.foreground');
+  cssColor('.gutters', 'editorLineNumber.foreground');
+  cssBg('.gutters', 'editor.background');
+  cssBg('.gutters .line-number', 'editor.background');
 
   cssColor('.status', 'statusBar.foreground');
   cssBg('.status', 'statusBar.background');

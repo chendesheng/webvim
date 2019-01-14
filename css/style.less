@@ -131,26 +131,27 @@ html, body {
   width: 1px;
 }
 
-.gutter-container {
+.gutters {
+  display: flex;
+  justify-content: space-evenly;
+  z-index: 1;
+}
+
+.gutter {
   user-select: none;
   margin-right: @gutter-lines-spacing;
   position: relative;
   will-change: transform;
-  z-index: 1;
-}
-.absolute-gutter-container {
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='#888'>~</text></svg>"); 
-  background-repeat: repeat-y;
-}
-.relative-gutter-container {
-  width: 3ch;
-}
-.relative-gutter {
-  padding-right: 1ch;
 }
 
 .absolute-gutter {
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='#888'>~</text></svg>"); 
+  background-repeat: repeat-y;
   position: relative;
+}
+.relative-gutter {
+  width: 2ch;
+  opacity: 0.6;
 }
 
 .lines {
@@ -347,6 +348,7 @@ html, body {
   flex-direction: column;
   overflow: auto;
   max-width: 100ch;
+  z-index: 2;
 }
 
 .auto-complete > div {

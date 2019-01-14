@@ -332,18 +332,23 @@ renderBuffer path rect view buf isActive global =
                     []
                )
         )
-        [ renderGutter
-            scrollingCss
-            gutterWidth
-            relativeZeroLine
-            totalLines
-            view.lines
-        , lazy5 renderRelativeGutter
-            lineHeight
-            topOffsetPx
-            height
-            (relativeZeroLine - scrollTop1)
-            (totalLines - scrollTop1)
+        [ div
+            [ class "gutters"
+            , style "width" <| ch (gutterWidth + relativeGutterWidth + 1)
+            ]
+            [ renderGutter
+                scrollingCss
+                gutterWidth
+                relativeZeroLine
+                totalLines
+                view.lines
+            , lazy5 renderRelativeGutter
+                lineHeight
+                topOffsetPx
+                height
+                (relativeZeroLine - scrollTop1)
+                (totalLines - scrollTop1)
+            ]
         , div
             (class "lines-container" :: scrollLeftProp :: scrollingCss)
             (renderColumnGuide fontInfo lines maybeCursor
@@ -1242,9 +1247,7 @@ renderGutterHighlight offset highlightLine =
 renderGutterInner : Int -> Int -> List Int -> Html msg
 renderGutterInner totalLines highlightLine viewLines =
     div
-        [ class "gutter"
-        , class "absolute-gutter"
-        ]
+        []
         (List.map
             (\lineNumber ->
                 if lineNumber < totalLines then
@@ -1275,7 +1278,7 @@ renderGutter :
     -> Html msg
 renderGutter scrollingCss totalWidth highlightLine totalLines viewLines =
     div
-        ([ class "gutter-container absolute-gutter-container"
+        ([ class "gutter absolute-gutter"
          , style "width" <| ch <| totalWidth + 1
          ]
             ++ scrollingCss
@@ -1286,9 +1289,7 @@ renderGutter scrollingCss totalWidth highlightLine totalLines viewLines =
 renderAllRelativeNumbers : Int -> Int -> Html msg
 renderAllRelativeNumbers low high =
     div
-        [ class "gutter"
-        , class "relative-gutter"
-        ]
+        []
         ((List.range 1 low
             |> List.reverse
             |> List.map
@@ -1310,8 +1311,8 @@ renderAllRelativeNumbers low high =
 renderRelativeGutter : Int -> Int -> Int -> Int -> Int -> Html msg
 renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
     div
-        [ class "gutter-container"
-        , class "relative-gutter-container"
+        [ class "gutter"
+        , class "relative-gutter"
         , style "top" <|
             String.fromInt ((zeroLine - height) * lineHeight - topOffsetPx)
                 ++ "px"
