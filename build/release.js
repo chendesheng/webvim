@@ -58,7 +58,8 @@ const releaseFrontEnd = () => {
 
   const code = generateMetaInfo(version, commit, [read('dist/.bundle.js'),
     read('build/index.js')
-      .replace(/\n\s*service:.*8899.*,\s*\n/, '\nservice:"",\n'),
+      .replace(/\n\s*service:.*8899.*,\s*\n/,
+        '\nservice:location.pathname.replace(/\\\/$/, \'\'),\n'),
   ].join('\n'));
   const placeholder = '<!-- inject index.js -->';
   const htmlfile = read('build/template.html');
