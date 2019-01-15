@@ -23,16 +23,16 @@ renderGutters :
 renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop1 topOffsetPx height scrollingCss =
     let
         gutterWidth =
-            totalLines |> String.fromInt |> String.length
+            1 + totalLines |> String.fromInt |> String.length
 
         relativeGutterWidth =
             4
     in
     div
         [ class "gutters"
-        , style "width" <| ch (gutterWidth + relativeGutterWidth + 1)
+        , style "width" <| ch (gutterWidth + relativeGutterWidth)
         ]
-        [ renderGutter
+        [ renderAbsoluteGutter
             scrollingCss
             gutterWidth
             relativeZeroLine
@@ -47,25 +47,25 @@ renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop1 topOff
         ]
 
 
-renderGutter :
+renderAbsoluteGutter :
     List (Attribute msg)
     -> Int
     -> Int
     -> Int
     -> List Int
     -> Html msg
-renderGutter scrollingCss totalWidth highlightLine totalLines viewLines =
+renderAbsoluteGutter scrollingCss totalWidth highlightLine totalLines viewLines =
     div
         ([ class "gutter absolute-gutter"
-         , style "width" <| ch <| totalWidth + 1
+         , style "width" <| ch <| totalWidth
          ]
             ++ scrollingCss
         )
-        [ lazy3 renderGutterInner totalLines highlightLine viewLines ]
+        [ lazy3 renderAbsoluteGutterInner totalLines highlightLine viewLines ]
 
 
-renderGutterInner : Int -> Int -> List Int -> Html msg
-renderGutterInner totalLines highlightLine viewLines =
+renderAbsoluteGutterInner : Int -> Int -> List Int -> Html msg
+renderAbsoluteGutterInner totalLines highlightLine viewLines =
     div
         []
         (List.map
@@ -89,8 +89,8 @@ renderGutterInner totalLines highlightLine viewLines =
         )
 
 
-renderAllRelativeNumbers : Int -> Int -> Html msg
-renderAllRelativeNumbers low high =
+renderRelativeNumbers : Int -> Int -> Html msg
+renderRelativeNumbers low high =
     div
         []
         ((List.range 1 low
@@ -120,7 +120,7 @@ renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
             String.fromInt ((zeroLine - height) * lineHeight - topOffsetPx)
                 ++ "px"
         ]
-        [ lazy2 renderAllRelativeNumbers
+        [ lazy2 renderRelativeNumbers
             height
             (Basics.min (maxLine - zeroLine) height)
         ]

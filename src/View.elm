@@ -186,9 +186,6 @@ renderBuffer path rect view buf isActive global =
         { fontInfo, ime, lint, lineHeight } =
             global
 
-        scrollTop =
-            view.scrollTop
-
         height =
             view.size.height
                 + 2
@@ -207,7 +204,7 @@ renderBuffer path rect view buf isActive global =
                 _ ->
                     Just cursor
 
-        scrollTop1 =
+        scrollTop =
             Buf.finalScrollTop view.size view buf
 
         highlights =
@@ -236,7 +233,7 @@ renderBuffer path rect view buf isActive global =
                 topOffsetPx
                 totalLines
                 height
-                scrollTop1
+                scrollTop
 
         scrollLeftProp =
             -view.scrollLeftPx
@@ -271,7 +268,7 @@ renderBuffer path rect view buf isActive global =
             totalLines
             lineHeight
             relativeZeroLine
-            scrollTop1
+            scrollTop
             topOffsetPx
             height
             scrollingCss
@@ -279,9 +276,9 @@ renderBuffer path rect view buf isActive global =
             (class "lines-container" :: scrollLeftProp :: scrollingCss)
             (renderColumnGuide fontInfo lines maybeCursor
                 :: renderLineGuide maybeCursor
-                :: lazy5 renderVisual fontInfo scrollTop1 height mode lines
-                :: renderHighlights fontInfo scrollTop1 lines highlights
-                :: lazy5 renderLint buf.path fontInfo scrollTop1 lines lint.items
+                :: lazy5 renderVisual fontInfo scrollTop height mode lines
+                :: renderHighlights fontInfo scrollTop lines highlights
+                :: lazy5 renderLint buf.path fontInfo scrollTop lines lint.items
                 :: lazy3 renderLines lines syntax view.lines
                 :: div [ class "ruler" ] []
                 :: renderCursor isActive fontInfo ime lines "" maybeCursor
