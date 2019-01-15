@@ -1,4 +1,54 @@
-module Helper.Helper exposing (arrayInsert, charAt, charWidthType, chompUntilAfter, dec, dropWhile, escapeRegex, extname, filename, findFirst, findIndex, floorFromZero, fromListBy, getLast, inc, isAbsolutePath, isBetween, isPathChar, isSingleChar, isSpace, joinPath, keepOneOrMore, keepZeroOrMore, maybeAndThen2, minMaybe, normalizePath, notSpace, nthList, oneOrMore, parseWords, pathBase, pathFileName, reEmoji, regex, regexWith, relativePath, repeatParser, repeatfn, replaceHomeDir, resolvePath, rightChar, safeRegex, spaceInline, swapCase, word)
+module Helper.Helper exposing
+    ( arrayInsert
+    , ch
+    , charAt
+    , charWidthType
+    , chompUntilAfter
+    , dec
+    , dropWhile
+    , escapeRegex
+    , extname
+    , filename
+    , findFirst
+    , findIndex
+    , floorFromZero
+    , fromListBy
+    , getLast
+    , inc
+    , isAbsolutePath
+    , isBetween
+    , isPathChar
+    , isSingleChar
+    , isSpace
+    , joinPath
+    , keepOneOrMore
+    , keepZeroOrMore
+    , maybeAndThen2
+    , minMaybe
+    , normalizePath
+    , notSpace
+    , nthList
+    , oneOrMore
+    , parseWords
+    , pathBase
+    , pathFileName
+    , percentStr
+    , px
+    , reEmoji
+    , regex
+    , regexWith
+    , relativePath
+    , rem
+    , repeatParser
+    , repeatfn
+    , replaceHomeDir
+    , resolvePath
+    , rightChar
+    , safeRegex
+    , spaceInline
+    , swapCase
+    , word
+    )
 
 import Array as Array exposing (Array)
 import Char
@@ -482,15 +532,15 @@ rightChar =
 
 
 swapCase : Char -> Char
-swapCase ch =
-    if Char.isUpper ch then
-        Char.toLower ch
+swapCase char =
+    if Char.isUpper char then
+        Char.toLower char
 
-    else if Char.isLower ch then
-        Char.toUpper ch
+    else if Char.isLower char then
+        Char.toUpper char
 
     else
-        ch
+        char
 
 
 floorFromZero : Float -> Int
@@ -541,10 +591,10 @@ reEmoji =
 
 
 charWidthType : Char -> String
-charWidthType ch =
+charWidthType char =
     let
         codePoint =
-            Char.toCode ch
+            Char.toCode char
     in
     -- https://github.com/Microsoft/vscode/blob/3a619f24c3b7f760f283193ebd9c3ed601768a83/src/vs/base/common/strings.ts#L535
     if
@@ -554,7 +604,7 @@ charWidthType ch =
     then
         "FULL"
 
-    else if Re.contains reEmoji <| String.fromChar ch then
+    else if Re.contains reEmoji <| String.fromChar char then
         "EMOJI"
 
     else
@@ -564,3 +614,23 @@ charWidthType ch =
 isPathChar : Char -> Bool
 isPathChar c =
     notSpace c && (c /= ':')
+
+
+rem : Int -> String
+rem n =
+    String.fromInt n ++ "rem"
+
+
+ch : Int -> String
+ch n =
+    String.fromInt n ++ "ch"
+
+
+px : Int -> String
+px n =
+    String.fromInt n ++ "px"
+
+
+percentStr : Float -> String
+percentStr f =
+    String.fromFloat (f * 100) ++ "%"
