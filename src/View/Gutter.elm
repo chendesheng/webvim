@@ -1,6 +1,6 @@
 module View.Gutter exposing (renderGutters)
 
-import Helper.Helper exposing (ch, rem)
+import Helper.Helper exposing (ch, px, rem)
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -23,7 +23,7 @@ renderGutters :
 renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop1 topOffsetPx height scrollingCss =
     let
         gutterWidth =
-            1 + totalLines |> String.fromInt |> String.length
+            1 + (totalLines |> String.fromInt |> String.length)
 
         relativeGutterWidth =
             4
@@ -89,24 +89,22 @@ renderAbsoluteGutterInner totalLines highlightLine viewLines =
         )
 
 
+renderLineNumber : Int -> Html msg
+renderLineNumber n =
+    div [ class "line-number" ]
+        [ text <| String.fromInt n ]
+
+
 renderRelativeNumbers : Int -> Int -> Html msg
 renderRelativeNumbers low high =
     div
         []
         ((List.range 1 low
             |> List.reverse
-            |> List.map
-                (\i ->
-                    div [ class "line-number" ]
-                        [ text <| String.fromInt i ]
-                )
+            |> List.map renderLineNumber
          )
             ++ (List.range 0 (high - 1)
-                    |> List.map
-                        (\i ->
-                            div [ class "line-number" ]
-                                [ text <| String.fromInt i ]
-                        )
+                    |> List.map renderLineNumber
                )
         )
 
@@ -117,8 +115,7 @@ renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
         [ class "gutter"
         , class "relative-gutter"
         , style "top" <|
-            String.fromInt ((zeroLine - height) * lineHeight - topOffsetPx)
-                ++ "px"
+            px ((zeroLine - height) * lineHeight - topOffsetPx)
         ]
         [ lazy2 renderRelativeNumbers
             height

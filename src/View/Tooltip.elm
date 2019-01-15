@@ -1,4 +1,4 @@
-module View.Tooltip exposing (renderTip)
+module View.Tooltip exposing (renderTooltip)
 
 import Helper.Helper exposing (ch, px, rem)
 import Html exposing (..)
@@ -7,34 +7,60 @@ import Html.Events as Events
 import Html.Keyed
 import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
-import Model exposing (LintError, RichText(..), TextWithStyle)
+import Internal.TextBuffer as B
+import Internal.Window as Win
+import Model
+    exposing
+        ( Buffer
+        , FontInfo
+        , Global
+        , LintError
+        , Mode(..)
+        , RichText(..)
+        , TextWithStyle
+        , View
+        )
 
 
-renderTip :
-    Int
-    -> List LintError
-    -> Maybe Position
-    -> Bool
+renderTooltip :
+    Global
+    -> View
+    -> Buffer
     -> Html msg
-renderTip width items maybeCursor showTip =
-    if showTip then
-        maybeCursor
-            |> Maybe.map
-                (\( y, x ) ->
-                    lazy4 renderTipInner width y x items
-                )
-            |> Maybe.withDefault (text "")
+renderTooltip global view buf =
+    -- lineHeight scrollTop width items showTip ( y, x ) mode =
+    if global.showTip then
+        case buf.mode of
+            Insert _ ->
+                text ""
+
+            TempNormal ->
+                text ""
+
+            Ex _ ->
+                text ""
+
+            _ ->
+                let
+                    topOffsetPx =
+                        remainderBy global.lineHeight view.scrollTopPx
+                in
+                -- FIXME: usually source should not contains full-width characters
+                -- if it does, the position here will be wrong
+                lazy5 renderTooltipInner
+                    global.lineHeight
+                    view.scrollTop
+                    topOffsetPx
+                    view.cursor
+                    global.lint.items
 
     else
         text ""
 
 
-renderTipInner : Int -> Int -> Int -> List LintError -> Html msg
-renderTipInner width y_ x_ items =
+renderTooltipInner : Int -> Int -> Int -> Position -> List LintError -> Html msg
+renderTooltipInner lineHeight scrollTop topOffsetPx cursor items =
     let
-        cursor =
-            ( y_, x_ )
-
         distanceFrom ( y, x ) { region } =
             let
                 ( y1, x1 ) =
@@ -44,7 +70,7 @@ renderTipInner width y_ x_ items =
 
         renderDetails ( y, x ) overview details =
             div
-                [ style "top" <| rem <| y + 1
+                [ style "top" <| px <| (Tuple.first cursor - scrollTop + 1) * lineHeight - topOffsetPx
                 , style "left" <| ch x
                 , class "tip"
                 , case details of

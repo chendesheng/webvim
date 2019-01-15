@@ -21,10 +21,9 @@ import List
 import Model exposing (..)
 import String
 import Update.Buffer as Buf
-import Update.Cursor exposing (cursorPoint)
 import Update.Message exposing (IMEMsg(..), Msg(..))
 import Update.Range exposing (visualRegions)
-import View.AutoComplete exposing (renderAutoComplete)
+import View.AutoComplete exposing (renderAutoComplete, renderExAutoComplete)
 import View.Cursor exposing (renderCursor, renderMatchedCursor)
 import View.Guide exposing (renderColumnGuide, renderLineGuide)
 import View.Gutter exposing (renderGutters)
@@ -37,7 +36,7 @@ import View.Lines
         )
 import View.StatusBar exposing (renderStatusBar)
 import View.Storage exposing (renderStorage)
-import View.Tooltip exposing (renderTip)
+import View.Tooltip exposing (renderTooltip)
 import Vim.AST exposing (VisualType(..))
 import Vim.Helper exposing (parseKeys)
 
@@ -64,7 +63,7 @@ page global =
                         [ div [ class "editor" ]
                             (renderBuffers global views
                                 :: renderStatus buf global
-                                :: renderAutoComplete activeViewRect view buf global
+                                :: renderExAutoComplete view buf global
                             )
                         , renderStorage global
                         ]
@@ -92,7 +91,7 @@ pageTitle buf =
 
 renderBuffers global views =
     div [ class "buffers" ]
-        (List.map
+        (List.concatMap
             (\item ->
                 let
                     view =
@@ -106,10 +105,12 @@ renderBuffers global views =
                 in
                 case Dict.get view.bufId global.buffers of
                     Just buf ->
-                        renderBuffer item.path rect view buf isActive global
+                        [ renderBuffer item.path rect view buf isActive global
+                        , renderOverlay rect view buf isActive global
+                        ]
 
                     _ ->
-                        div [] []
+                        []
             )
             views
             ++ renderBorders (Win.toBorders global.window)
@@ -172,6 +173,36 @@ isListenMouseWheel mode showTip lint =
 
         _ ->
             not showTip || List.isEmpty lint.items
+
+
+renderOverlay : Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
+renderOverlay rect view buf isActive global =
+    if isActive then
+        let
+            totalLines =
+                B.count buf.lines - 1
+
+            gutterWidth =
+                (5 + (totalLines |> String.fromInt |> String.length |> toFloat))
+                    * charWidth global.fontInfo '0'
+        in
+        div
+            [ class "overlay"
+            , style "top" <| percentStr rect.y
+            , (toFloat global.size.width * rect.x + gutterWidth)
+                |> round
+                |> px
+                |> style "left"
+            ]
+            (renderTooltip
+                global
+                view
+                buf
+                :: renderAutoComplete view buf global
+            )
+
+    else
+        text ""
 
 
 renderBuffer : Win.Path -> Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
@@ -272,21 +303,16 @@ renderBuffer path rect view buf isActive global =
             topOffsetPx
             height
             scrollingCss
+        , renderLineGuide lineHeight scrollTop topOffsetPx maybeCursor
         , div
             (class "lines-container" :: scrollLeftProp :: scrollingCss)
             (renderColumnGuide fontInfo lines maybeCursor
-                :: renderLineGuide maybeCursor
                 :: lazy5 renderVisual fontInfo scrollTop height mode lines
                 :: renderHighlights fontInfo scrollTop lines highlights
                 :: lazy5 renderLint buf.path fontInfo scrollTop lines lint.items
                 :: lazy3 renderLines lines syntax view.lines
                 :: div [ class "ruler" ] []
                 :: renderCursor isActive fontInfo ime lines "" maybeCursor
-                :: renderTip
-                    view.size.width
-                    lint.items
-                    maybeCursor
-                    showTip
                 :: renderMatchedCursor
                     isActive
                     fontInfo
@@ -333,8 +359,6 @@ incrementSearchRegion mode =
 
 scrollingStyle : Int -> Int -> Int -> Int -> Int -> List (Attribute msg)
 scrollingStyle lineHeight topOffsetPx totalLines height scrollTop =
-    [ style "top" <|
-        String.fromInt -(topOffsetPx + scrollTop * lineHeight)
-            ++ "px"
+    [ style "top" <| px -(topOffsetPx + scrollTop * lineHeight)
     , style "height" <| rem (totalLines + height)
     ]

@@ -1,7 +1,7 @@
-module View.AutoComplete exposing (renderAutoComplete)
+module View.AutoComplete exposing (renderAutoComplete, renderExAutoComplete)
 
 import Array as Array exposing (Array)
-import Helper.Helper exposing (ch, percentStr)
+import Helper.Helper exposing (ch, percentStr, px)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events as Events
@@ -13,21 +13,40 @@ import Model exposing (AutoComplete, Buffer, Global, Mode(..), View)
 import Update.Message exposing (Msg)
 
 
-renderAutoComplete : Win.Rect -> View -> Buffer -> Global -> List (Html Msg)
-renderAutoComplete rect view buf global =
+renderAutoComplete : View -> Buffer -> Global -> List (Html Msg)
+renderAutoComplete view buf global =
     let
-        lines =
-            buf.lines
+        scrollTop =
+            view.scrollTop
 
-        totalLines =
-            B.count lines - 1
+        lineHeight =
+            global.lineHeight
 
-        gutterWidth =
-            totalLines |> String.fromInt |> String.length
+        topOffsetPx =
+            remainderBy lineHeight view.scrollTopPx
+    in
+    case buf.mode of
+        Insert { autoComplete } ->
+            case autoComplete of
+                Just auto ->
+                    [ renderAutoCompleteMenu
+                        lineHeight
+                        topOffsetPx
+                        False
+                        scrollTop
+                        auto
+                    ]
 
-        relativeGutterWidth =
-            4
+                _ ->
+                    []
 
+        _ ->
+            []
+
+
+renderExAutoComplete : View -> Buffer -> Global -> List (Html Msg)
+renderExAutoComplete view buf global =
+    let
         scrollTop =
             view.scrollTop
 
@@ -44,30 +63,12 @@ renderAutoComplete rect view buf global =
                     autoComplete
                         |> Maybe.map
                             (renderAutoCompleteMenu
-                                Nothing
                                 lineHeight
                                 topOffsetPx
                                 True
                                 scrollTop
-                                (gutterWidth + relativeGutterWidth)
                             )
                         |> maybeToList
-
-                _ ->
-                    []
-
-        Insert { autoComplete } ->
-            case autoComplete of
-                Just auto ->
-                    [ renderAutoCompleteMenu
-                        (Just ( rect.y, rect.x ))
-                        lineHeight
-                        topOffsetPx
-                        False
-                        scrollTop
-                        (gutterWidth + relativeGutterWidth)
-                        auto
-                    ]
 
                 _ ->
                     []
@@ -77,15 +78,13 @@ renderAutoComplete rect view buf global =
 
 
 renderAutoCompleteMenu :
-    Maybe ( Float, Float )
-    -> Int
+    Int
     -> Int
     -> Bool
     -> Int
-    -> Int
     -> AutoComplete
     -> Html msg
-renderAutoCompleteMenu topLeft lineHeight topOffsetPx isEx viewScrollTop gutterWidth auto =
+renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop auto =
     let
         { matches, select, scrollTop, pos, menuLeftOffset } =
             auto
@@ -137,32 +136,20 @@ renderAutoCompleteMenu topLeft lineHeight topOffsetPx isEx viewScrollTop gutterW
             pos
     in
     div
-        ([ class "auto-complete"
-         ]
-            ++ (case topLeft of
-                    Just ( top, left ) ->
-                        [ style "top" (percentStr top)
-                        , style "left" (percentStr left)
-                        ]
-
-                    Nothing ->
-                        []
-               )
+        ([ class "auto-complete" ]
             ++ (if isEx then
                     [ class "auto-complete-ex"
-                    , style "left" <| ch (menuLeftOffset + 1)
+                    , style "left" <| ch (menuLeftOffset + 2)
                     ]
 
                 else
-                    [ style "left" <|
-                        ch (x + gutterWidth)
+                    [ style "left" <| ch x
                     , style "top" <|
-                        String.fromInt
+                        px
                             ((y + 1 - viewScrollTop)
                                 * lineHeight
                                 - topOffsetPx
                             )
-                            ++ "px"
                     ]
                )
         )

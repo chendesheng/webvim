@@ -1,6 +1,6 @@
 module View.Guide exposing (renderColumnGuide, renderLineGuide)
 
-import Helper.Helper exposing (px, rem)
+import Helper.Helper exposing (px)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)
@@ -10,11 +10,11 @@ import Model exposing (FontInfo)
 import Update.Cursor exposing (cursorPoint)
 
 
-renderLineGuide : Maybe Position -> Html msg
-renderLineGuide cursor =
+renderLineGuide : Int -> Int -> Int -> Maybe Position -> Html msg
+renderLineGuide lineHeight scrollTop topOffsetPx cursor =
     case cursor of
         Just ( y, x ) ->
-            lazy renderLineGuideInner y
+            lazy renderLineGuideInner (lineHeight * (y - scrollTop) - topOffsetPx)
 
         _ ->
             text ""
@@ -24,7 +24,7 @@ renderLineGuideInner : Int -> Html msg
 renderLineGuideInner y =
     div
         [ class "guide line-guide"
-        , style "top" <| rem y
+        , style "top" <| px y
         ]
         []
 
