@@ -2674,12 +2674,12 @@ init flags =
         , pathSeperator = pathSeperator
         , fontInfo = fontInfo
         , homedir = homedir
-        , isSafari = isSafari
         , registers =
             Decode.decodeValue registersDecoder registers
                 |> Result.withDefault Dict.empty
         , lineHeight = lineHeight
         , window = decodedWindow
+        , ime = { emptyIme | isSafari = isSafari }
         , buffers =
             decodedBuffers
                 |> List.map (\buf -> ( buf.id, buf ))

@@ -633,7 +633,6 @@ type alias Global =
     , pathSeperator : String
     , fontInfo : FontInfo
     , homedir : String
-    , isSafari : Bool
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
     , size : Size
     , last :
@@ -838,7 +837,6 @@ emptyGlobal =
         , name = ""
         }
     , homedir = ""
-    , isSafari = False
     , registers = Dict.empty
     , searchHistory = []
     , last =

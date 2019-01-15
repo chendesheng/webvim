@@ -140,7 +140,7 @@ renderBorders borders =
 renderStatus : Buffer -> Global -> Html Msg
 renderStatus buf global =
     let
-        { fontInfo, isSafari, ime, lint, lineHeight } =
+        { fontInfo, ime, lint, lineHeight } =
             global
 
         { mode, name, continuation } =
@@ -148,7 +148,7 @@ renderStatus buf global =
     in
     renderStatusBar
         fontInfo
-        { ime | isSafari = isSafari }
+        ime
         (Buf.isDirty buf)
         mode
         continuation
@@ -183,11 +183,8 @@ renderBuffer path rect view buf isActive global =
         cursor =
             view.cursor
 
-        { fontInfo, isSafari, ime, lint, lineHeight } =
+        { fontInfo, ime, lint, lineHeight } =
             global
-
-        ime1 =
-            { ime | isSafari = isSafari }
 
         scrollTop =
             view.scrollTop
@@ -287,7 +284,7 @@ renderBuffer path rect view buf isActive global =
                 :: lazy5 renderLint buf.path fontInfo scrollTop1 lines lint.items
                 :: lazy3 renderLines lines syntax view.lines
                 :: div [ class "ruler" ] []
-                :: renderCursor isActive fontInfo ime1 lines "" maybeCursor
+                :: renderCursor isActive fontInfo ime lines "" maybeCursor
                 :: renderTip
                     view.size.width
                     lint.items

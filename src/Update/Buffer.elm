@@ -92,7 +92,6 @@ import Model
         , defaultBufferConfig
         , emptyBuffer
         , emptyBufferHistory
-        , emptyIme
         , emptyUndo
         , emptyView
         )
