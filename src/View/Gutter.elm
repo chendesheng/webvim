@@ -23,14 +23,14 @@ renderGutters :
 renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop1 topOffsetPx height scrollingCss =
     let
         gutterWidth =
-            1 + (totalLines |> String.fromInt |> String.length)
+            totalLines |> String.fromInt |> String.length
 
         relativeGutterWidth =
             4
     in
     div
         [ class "gutters"
-        , style "width" <| ch (gutterWidth + relativeGutterWidth)
+        , style "width" <| ch (gutterWidth + relativeGutterWidth + 1)
         ]
         [ renderAbsoluteGutter
             scrollingCss
