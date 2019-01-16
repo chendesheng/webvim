@@ -2594,15 +2594,15 @@ getViewHeight heightPx lineHeightPx =
 init : Flags -> ( Global, Cmd Msg )
 init flags =
     let
-        { cwd, fontInfo, service, buffers, homedir, isSafari } =
+        { cwd, fontInfo, service, buffers, homedir, isSafari, theme } =
+            flags
+
+        { window, registers, width, height, pathSeperator, exHistory } =
             flags
 
         --|> Debug.log "flags"
         lineHeight =
             fontInfo.lineHeight
-
-        { window, registers, width, height, pathSeperator, exHistory } =
-            flags
 
         size =
             { width = width
@@ -2685,6 +2685,7 @@ init flags =
                 |> List.map (\buf -> ( buf.id, buf ))
                 |> Dict.fromList
         , maxId = maxBufferId
+        , theme = theme
       }
         |> onResize size
     , decodedBuffers

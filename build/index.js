@@ -127,16 +127,8 @@ function main() {
     isSafari: navigator.userAgent.indexOf('Safari') !== -1
       && navigator.userAgent.indexOf('Chrome') === -1,
     exHistory: storageGetArray('exHistory', false) || [],
+    theme: getTheme() || 'Solarized Dark',
   };
-
-  const applyCss = (url) => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = url;
-    document.head.appendChild(link);
-  };
-
-  applyCss(`${flags.service}/css?theme=${getTheme() || 'Solarized Dark'}`);
 
   // console.log("flags", flags);
   const app = Elm.Main.init({
@@ -171,6 +163,6 @@ function main() {
 window.onload = function() {
   // measureFont() returns wrong result after window.location.reload() on Safari
   // Add delay here seems solve the issue
-  setTimeout(main, 100);
+  setTimeout(main, 200);
 };
 

@@ -23,6 +23,7 @@ import String
 import Update.Buffer as Buf
 import Update.Message exposing (IMEMsg(..), Msg(..))
 import Update.Range exposing (visualRegions)
+import Url.Builder as Query exposing (toQuery)
 import View.AutoComplete exposing (renderAutoComplete, renderExAutoComplete)
 import View.Cursor exposing (renderCursor, renderMatchedCursor)
 import View.Guide exposing (renderColumnGuide, renderLineGuide)
@@ -60,7 +61,8 @@ page global =
                                     |> Maybe.map .rect
                                     |> Maybe.withDefault { y = 0, x = 0, width = 0, height = 0 }
                         in
-                        [ div [ class "editor" ]
+                        [ lazy2 renderThemeCss global.service global.theme
+                        , div [ class "editor" ]
                             (renderBuffers global views
                                 :: renderStatus buf global
                                 :: renderExAutoComplete view buf global
@@ -78,6 +80,24 @@ page global =
             { title = ""
             , body = []
             }
+
+
+cssLink : String -> Html msg
+cssLink href =
+    node "link"
+        [ property "rel" <| Encode.string "stylesheet"
+        , property "href" <| Encode.string href
+        ]
+        []
+
+
+renderThemeCss : String -> String -> Html msg
+renderThemeCss service theme =
+    cssLink
+        (service
+            ++ "/css"
+            ++ toQuery [ Query.string "theme" theme ]
+        )
 
 
 pageTitle : Buffer -> String

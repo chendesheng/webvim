@@ -163,6 +163,7 @@ type alias Flags =
     , homedir : String
     , isSafari : Bool
     , exHistory : List String
+    , theme : String
     }
 
 
@@ -654,6 +655,7 @@ type alias Global =
     , statusbarHeight : Int
     , showTip : Bool
     , lineHeight : Int
+    , theme : String
 
     -- move window and buffers to here once you need to persistent them to the session storage
     -- this is for performance so you don't need save it on every type
@@ -861,6 +863,7 @@ emptyGlobal =
     , statusbarHeight = 1
     , lineHeight = 21
     , persistent = Nothing
+    , theme = "Solarized Dark"
     }
 
 
