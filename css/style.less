@@ -33,7 +33,7 @@
 @statusbar-height: 1.2rem;
 @statusbar-background: lighten(#1b1d1e, 15%);
 @gutter-lines-spacing: 0ch;
-@font-family: iosevka web, menlo, consolas;
+@font-family: iosevka web, menlo, consolas, Microsoft YaHei;
 @line-height: 25px;
 @font-size: 18px;
 
@@ -113,9 +113,14 @@ html, body {
   width: 1px;
 }
 
+.gutters:before, .gutters:after {
+  display: block;
+  content: '';
+}
+
 .gutters {
   display: flex;
-  justify-content: space-evenly;
+  justify-content: space-between;
   z-index: 1;
 }
 
