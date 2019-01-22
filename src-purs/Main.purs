@@ -31,6 +31,7 @@ import Helper
     , homedir
     , boot
     , argv
+    , getMime
     )
 import TextMate (affTokenize, affLoadTheme)
 
@@ -56,7 +57,7 @@ handler req resp = do
       case input of
         StaticFile path -> do
           setCacheSeconds (24*60*60) resp
-          readFile resp path
+          readFile true resp path
 
         DynamicAction action -> do
           setNoCacheHeaders resp
@@ -72,7 +73,7 @@ dynamicActionHandler :: Request -> Response -> DynamicActions -> Aff Unit
 dynamicActionHandler req resp action = do
   case action of
     ReadFile (NonEmptyString path) ->
-      readFile resp path
+      readFile false resp path
         
     WriteFile (NonEmptyString path) ->
       writeFile req resp path 
@@ -102,14 +103,16 @@ dynamicActionHandler req resp action = do
       readTags resp cwd name
 
     Tokenize (NonEmptyString path) line -> do
-       let outputStream = responseAsStream resp
-           inputStream = requestAsStream req
-       payload <- affReadAllString inputStream
-       json <- affTokenize path line payload
-       affWriteString outputStream json
-       affEnd outputStream
+      liftEffect $ setHeader resp "Content-Type" (getMime "json")
+      let outputStream = responseAsStream resp
+          inputStream = requestAsStream req
+      payload <- affReadAllString inputStream
+      json <- affTokenize path line payload
+      affWriteString outputStream json
+      affEnd outputStream
 
     Css (NonEmptyString label)  -> do
+      liftEffect $ setHeader resp "Content-Type" (getMime "css")
       let outputStream = responseAsStream resp
       css <- affLoadTheme label
       affWriteString outputStream css 

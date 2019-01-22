@@ -45,6 +45,8 @@ foreign import writeClipboard :: String -> Effect Unit
 
 foreign import argv :: Array String
 
+foreign import getMime :: String -> String
+
 affLog :: String -> Aff Unit
 affLog s = liftEffect $ Console.log s
 

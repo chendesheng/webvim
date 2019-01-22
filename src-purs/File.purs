@@ -21,6 +21,7 @@ import Helper
     , diff
     , homedir
     , isWindows
+    , getMime
     )
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
@@ -47,8 +48,8 @@ import Data.String (Pattern(..), stripSuffix)
 import Node.FS.Stats (isDirectory, modifiedTime)
 
 
-readFile :: Response -> String -> Aff Unit
-readFile resp path = do
+readFile :: Boolean -> Response -> String -> Aff Unit
+readFile isStatic resp path = do
   affLog ("readFile: " <> path)
   result <- attempt $ writeLastModified path resp
   liftEffect $ case result of
@@ -59,6 +60,7 @@ readFile resp path = do
         void $ writeString outputStream UTF8 path $ endStream outputStream
     Right _ ->
       do
+        setHeader resp "Content-Type" (getMime (if isStatic then path else "text"))
         let outputStream = responseAsStream resp
         fileStream <- createReadStream path
         void $ pipe fileStream outputStream

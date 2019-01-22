@@ -88,3 +88,7 @@ exports.writeClipboard = function(s) {
 
 exports.argv = process.argv;
 
+var mime = require('mime-types');
+exports.getMime = function(name) {
+  return mime.lookup(name);
+};
