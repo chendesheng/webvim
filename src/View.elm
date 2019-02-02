@@ -44,42 +44,20 @@ import Vim.Helper exposing (parseKeys)
 
 page : Global -> Document Msg
 page global =
-    case Win.getActiveView global.window of
-        Just view ->
-            case Dict.get view.bufId global.buffers of
-                Just buf ->
-                    { title = pageTitle buf
-                    , body =
-                        let
-                            views =
-                                Win.toList global.window
-
-                            activeViewRect =
-                                views
-                                    |> List.filter .isActive
-                                    |> List.head
-                                    |> Maybe.map .rect
-                                    |> Maybe.withDefault { y = 0, x = 0, width = 0, height = 0 }
-                        in
-                        [ lazy2 renderThemeCss global.service global.theme
-                        , div [ class "editor" ]
-                            (renderBuffers global views
-                                :: renderStatus buf global
-                                :: renderExAutoComplete view buf global
-                            )
-                        , renderStorage global
-                        ]
-                    }
-
-                _ ->
-                    { title = ""
-                    , body = []
-                    }
-
-        _ ->
-            { title = ""
-            , body = []
-            }
+    { title =
+        getActiveBuffer global
+            |> Maybe.map pageTitle
+            |> Maybe.withDefault ""
+    , body =
+        [ lazy2 renderThemeCss global.service global.theme
+        , div
+            [ class "editor" ]
+            (renderBuffers global (Win.toList global.window)
+                :: renderActiveBufferParts global
+            )
+        , renderStorage global
+        ]
+    }
 
 
 cssLink : String -> Html msg
@@ -109,6 +87,22 @@ pageTitle buf =
         buf.name
 
 
+renderActiveBufferParts : Global -> List (Html Msg)
+renderActiveBufferParts global =
+    case Win.getActiveView global.window of
+        Just view ->
+            case getBuffer view.bufId global.buffers of
+                Just buf ->
+                    renderStatus buf global
+                        :: renderExAutoComplete view buf global
+
+                _ ->
+                    []
+
+        _ ->
+            []
+
+
 renderBuffers global views =
     div [ class "buffers" ]
         (List.concatMap
@@ -124,8 +118,14 @@ renderBuffers global views =
                         item.isActive
                 in
                 case Dict.get view.bufId global.buffers of
-                    Just buf ->
+                    Just (Loaded buf) ->
                         [ renderBuffer item.path rect view buf isActive global
+                        , renderOverlay rect view buf isActive global
+                        ]
+
+                    Just (NotLoad buf) ->
+                        -- this is a place holder for not loaded buffer
+                        [ renderNotLoadBuffer rect
                         , renderOverlay rect view buf isActive global
                         ]
 
@@ -197,32 +197,44 @@ isListenMouseWheel mode showTip lint =
 
 renderOverlay : Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
 renderOverlay rect view buf isActive global =
-    if isActive then
-        let
-            totalLines =
-                B.count buf.lines - 1
+    let
+        totalLines =
+            B.count buf.lines - 1
 
-            gutterWidth =
-                (5 + (totalLines |> String.fromInt |> String.length |> toFloat))
-                    * charWidth global.fontInfo '0'
-        in
-        div
-            [ class "overlay"
-            , style "top" <| percentStr rect.y
-            , (toFloat global.size.width * rect.x + gutterWidth)
-                |> round
-                |> px
-                |> style "left"
-            ]
-            (renderTooltip
+        gutterWidth =
+            (5 + (totalLines |> String.fromInt |> String.length |> toFloat))
+                * charWidth global.fontInfo '0'
+    in
+    div
+        [ class "overlay"
+        , style "top" <| percentStr rect.y
+        , (toFloat global.size.width * rect.x + gutterWidth)
+            |> round
+            |> px
+            |> style "left"
+        ]
+        (if isActive then
+            renderTooltip
                 global
                 view
                 buf
                 :: renderAutoComplete view buf global
-            )
 
-    else
-        text ""
+         else
+            []
+        )
+
+
+renderNotLoadBuffer : Win.Rect -> Html msg
+renderNotLoadBuffer rect =
+    div
+        [ class "buffer"
+        , style "top" (percentStr rect.y)
+        , style "left" (percentStr rect.x)
+        , style "width" (percentStr rect.width)
+        , style "height" (percentStr rect.height)
+        ]
+        []
 
 
 renderBuffer : Win.Path -> Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg

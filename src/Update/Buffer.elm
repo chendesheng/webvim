@@ -84,6 +84,7 @@ import Model
         , IME
         , IndentConfig(..)
         , LintError
+        , LoadBuffer(..)
         , Mode(..)
         , RegisterText
         , Size
@@ -94,6 +95,8 @@ import Model
         , emptyBufferHistory
         , emptyUndo
         , emptyView
+        , getBuffer
+        , getLoadedBuffer
         )
 import Regex as Re
 import String
@@ -1375,12 +1378,8 @@ activeBuffer id global =
         global
 
     else
-        case
-            global.buffers
-                |> Dict.get id
-                |> Maybe.map .view
-        of
-            Just view ->
+        case getBuffer id global.buffers of
+            Just { view } ->
                 { global | window = Win.updateActiveView (always view) global.window }
 
             _ ->
@@ -1392,7 +1391,7 @@ addBuffer setActive buf global =
     let
         global1 =
             { global
-                | buffers = Dict.insert buf.id buf global.buffers
+                | buffers = Dict.insert buf.id (Loaded buf) global.buffers
             }
     in
     if setActive then
@@ -1402,10 +1401,19 @@ addBuffer setActive buf global =
         global1
 
 
-findBufferId : String -> Dict Int Buffer -> Maybe Int
+findBufferId : String -> Dict Int LoadBuffer -> Maybe Int
 findBufferId path buffers =
     buffers
         |> Dict.values
+        |> List.map
+            (\b ->
+                case b of
+                    Loaded b1 ->
+                        b1
+
+                    NotLoad b1 ->
+                        b1
+            )
         |> findFirst (.path >> (==) path)
         |> Maybe.map .id
 

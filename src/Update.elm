@@ -1157,7 +1157,7 @@ applyEdit count edit register ({ buf } as ed) =
                                         ( \a b c ->
                                             Task.succeed
                                                 (global.buffers
-                                                    |> Dict.values
+                                                    |> getBuffers
                                                     |> List.filterMap
                                                         (\{ path } ->
                                                             if path /= buf.path && path /= "" then
@@ -1339,6 +1339,7 @@ execute count register str ({ buf, global } as ed) =
                     (path
                         |> normalizePath global.pathSeperator
                         |> replaceHomeDir global.homedir
+                        |> resolvePath global.pathSeperator global.cwd
                     )
                     Nothing
                     replaceActiveView
@@ -1907,7 +1908,7 @@ updateGlobalAfterChange : Win.Path -> Buffer -> Global -> Buffer -> Global -> Gl
 updateGlobalAfterChange path oldBuf oldGlobal buf global =
     { global
         | buffers =
-            Dict.insert buf.id buf global.buffers
+            Dict.insert buf.id (Loaded buf) global.buffers
         , window =
             if global.window == oldGlobal.window then
                 Win.updateView path
@@ -1935,7 +1936,7 @@ withEditorByView path fn global =
             Win.getView path global.window
                 |> Maybe.withDefault emptyView
     in
-    case Dict.get view.bufId global.buffers of
+    case getBuffer view.bufId global.buffers of
         Just buf ->
             { global = global
             , buf = { buf | view = view }
@@ -2006,7 +2007,7 @@ update message global =
             ( global, Cmd.none )
 
         Read result ->
-            withEditor (\ed -> ( onRead result ed, focusHiddenInput )) global
+            ( onRead result global, focusHiddenInput )
 
         Write result ->
             withEditor (onWrite result) global
@@ -2263,8 +2264,12 @@ onSearch result ed =
                                                 |> Buf.findBufferId path
                                                 |> Maybe.withDefault 0
                                             )
-                                            (Maybe.map edit)
-                                            ed1.global.buffers
+                                            (Maybe.andThen
+                                                (getLoadedBuffer
+                                                    >> Maybe.map (edit >> Loaded)
+                                                )
+                                            )
+                                            global.buffers
                                     , window =
                                         resizeViews global.size
                                             global.lineHeight
@@ -2339,33 +2344,58 @@ resizeViews size lineHeight =
 --    let
 --        _ =
 --            Debug.log (message ++ " buffers keys") (Dict.keys global.buffers)
+--
 --        _ =
---            Debug.log (message ++ " buffers") (Dict.values global.buffers |> List.map .path)
+--            Debug.log (message ++ " buffers")
+--                (Dict.values global.buffers
+--                    |> List.map
+--                        (\b ->
+--                            case b of
+--                                Loaded b1 ->
+--                                    "[loaded]" ++ b1.path
+--
+--                                NotLoad b1 ->
+--                                    "[not load]" ++ b1.path
+--                        )
+--                )
+--
 --        _ =
 --            Debug.log (message ++ " max id") global.maxId
 --    in
---        global
+--    global
 --logEd2 : String -> ( Editor, Cmd a ) -> ( Editor, Cmd a )
 --logEd2 message (( ed, _ ) as res) =
 --    let
 --        _ =
 --            logEd message ed
 --    in
---        res
+--    res
+--
+--
 --logEd : String -> Editor -> Editor
 --logEd message ed =
 --    let
 --        _ =
 --            Debug.log (message ++ " buffers") (Dict.keys ed.global.buffers)
+--
 --        _ =
 --            Debug.log (message ++ " buffers")
 --                (Dict.values ed.global.buffers
---                    |> List.map .path
+--                    |> List.map
+--                        (\b ->
+--                            case b of
+--                                Loaded b1 ->
+--                                    "[loaded]" ++ b1.path
+--
+--                                NotLoad b1 ->
+--                                    "[not load]" ++ b1.path
+--                        )
 --                )
+--
 --        _ =
---            Debug.log (message ++ " buf.view.scrollTop") (ed.buf.view.scrollTop)
+--            Debug.log (message ++ " buf.view.scrollTop") ed.buf.view.scrollTop
 --    in
---        ed
+--    ed
 
 
 isExculdLineBreak : Mode -> Bool
@@ -2388,18 +2418,20 @@ updateViewAfterCursorChanged lineHeight mode lines syntax =
         >> pairCursor mode lines syntax
 
 
-onRead : Result Http.Error Buffer -> Editor -> Editor
-onRead result ({ buf, global } as ed) =
+onRead : Result Http.Error ( Bool, Buffer ) -> Global -> Global
+onRead result global =
     case result of
-        Ok buf1 ->
+        Ok ( setActive, buf ) ->
             let
+                --_ =
+                --Debug.log "onRead" ( setActive, buf.path )
                 buf2 =
-                    buf1
-                        |> Buf.transaction buf1.history.changes
-                        |> Buf.updateHistory (always buf1.history)
+                    buf
+                        |> Buf.transaction buf.history.changes
+                        |> Buf.updateHistory (always buf.history)
                         |> (\buf3 ->
                                 Buf.updateView
-                                    (Buf.setCursor buf1.view.cursor True
+                                    (Buf.setCursor buf.view.cursor True
                                         >> updateViewAfterCursorChanged
                                             global.lineHeight
                                             buf3.mode
@@ -2409,26 +2441,13 @@ onRead result ({ buf, global } as ed) =
                                     buf3
                            )
             in
-            { ed
-                | global = Buf.addBuffer False buf2 global
-                , buf =
-                    if buf.id == buf2.id then
-                        buf2
-
-                    else
-                        buf
-            }
-                |> applyDiff
+            Buf.addBuffer setActive buf2 global
 
         Err (Http.BadStatus resp) ->
-            updateBuffer
-                (Buf.errorMessage
-                    ("read " ++ resp.body ++ " failed")
-                )
-                ed
+            global
 
         _ ->
-            ed
+            global
 
 
 onWrite : Result a ( String, List Patch ) -> Editor -> ( Editor, Cmd Msg )
@@ -2624,10 +2643,11 @@ init flags =
                     (List.map <|
                         \b ->
                             if isTempBuffer b.path then
-                                { b
+                                ( b.id
+                                , { b
                                     | view = initScrollTop b.view
                                     , config = Buf.disableSyntax b.config
-                                }
+                                  }
                                     |> Buf.transaction b.history.changes
                                     |> Buf.updateHistory (always b.history)
                                     |> (\buf1 ->
@@ -2641,15 +2661,17 @@ init flags =
                                                 )
                                                 buf1
                                        )
+                                    |> Loaded
+                                )
 
                             else
-                                { b | view = initScrollTop b.view }
+                                ( b.id, NotLoad { b | view = initScrollTop b.view } )
                     )
-                |> Result.withDefault [ { emptyBuffer | id = 1 } ]
+                |> Result.withDefault [ ( 1, Loaded { emptyBuffer | id = 1 } ) ]
 
         maxBufferId =
             decodedBuffers
-                |> List.map .id
+                |> List.map Tuple.first
                 |> List.maximum
                 |> Maybe.withDefault 0
 
@@ -2661,6 +2683,9 @@ init flags =
                 |> Result.withDefault
                     (Win.initWindow { emptyView | bufId = maxBufferId })
                 |> Win.mapView (\view _ -> initScrollTop view)
+
+        dictBuffers =
+            Dict.fromList decodedBuffers
     in
     ( { emptyGlobal
         | service = service
@@ -2680,34 +2705,23 @@ init flags =
         , lineHeight = lineHeight
         , window = decodedWindow
         , ime = { emptyIme | isSafari = isSafari }
-        , buffers =
-            decodedBuffers
-                |> List.map (\buf -> ( buf.id, buf ))
-                |> Dict.fromList
+        , buffers = dictBuffers
         , maxId = maxBufferId
         , theme = theme
       }
         |> onResize size
-    , decodedBuffers
-        |> List.filter (\{ path } -> not <| isTempBuffer path)
-        |> List.map (sendReadBuffer service viewHeight)
+    , decodedWindow
+        |> Win.toList
+        |> List.filterMap
+            (\w ->
+                dictBuffers
+                    |> Dict.get w.view.bufId
+                    |> Maybe.andThen getNotLoadBuffer
+                    |> Maybe.map (sendReadBuffer service viewHeight w.isActive)
+            )
         |> (::) focusHiddenInput
         |> Cmd.batch
     )
-
-
-resizeView : Size -> View -> View
-resizeView size view =
-    if size == view.size then
-        view
-
-    else
-        { view
-            | size = size
-            , lines =
-                List.range view.scrollTop
-                    (view.scrollTop + size.height + 1)
-        }
 
 
 gutterWidth : B.TextBuffer -> Int

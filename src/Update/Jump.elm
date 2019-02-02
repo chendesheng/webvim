@@ -7,6 +7,7 @@ module Update.Jump exposing
     , jumpToPath
     , locationParser
     , replaceActiveView
+    , resizeView
     , startJumpToTag
     , tokenizeBufferCmd
     , tokenizeLineCmd
@@ -133,6 +134,17 @@ jumpToLocation setView isSaveJump { path, cursor } ed =
     jumpToPath isSaveJump path (Just cursor) setView ed
 
 
+{-| 3 cases:
+
+  - buffer exists
+      - not loaded
+      - loaded
+      - same buffer
+  - buffer not exists
+      - temp buffer (loaded)
+      - file buffer (not loaded)
+
+-}
 jumpToPath :
     Bool
     -> String
@@ -140,82 +152,56 @@ jumpToPath :
     -> (View -> Win.Window View -> Win.Window View)
     -> Editor
     -> ( Editor, Cmd Msg )
-jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
+jumpToPath isSaveJump path overrideCursor setView ({ global, buf } as ed) =
     let
-        path =
-            if isTempBuffer path_ then
-                path_
-
-            else
-                resolvePath
-                    global.pathSeperator
-                    global.cwd
-                    path_
-
         updateCursor : Buffer -> Buffer
         updateCursor buf1 =
             case overrideCursor of
                 Just cursor ->
-                    let
-                        scrollTop =
-                            Buf.bestScrollTop
-                                (Tuple.first cursor)
-                                buf1.view.size.height
-                                buf1.lines
-                                buf1.view.scrollTop
-                    in
-                    Buf.updateView
-                        (Buf.setCursor cursor True
-                            >> Buf.setScrollTop scrollTop global.lineHeight
-                        )
-                        buf1
+                    jumpToPathSetCursor global.lineHeight cursor buf1
 
                 _ ->
                     buf1
 
-        jumps =
-            if isSaveJump then
-                saveJump { path = buf.path, cursor = buf.view.cursor } global.jumps
-
-            else
-                global.jumps
-
         global1 =
             { global
-                | jumps = jumps
+                | jumps =
+                    if isSaveJump then
+                        saveJump
+                            { path = buf.path, cursor = buf.view.cursor }
+                            global.jumps
+
+                    else
+                        global.jumps
             }
     in
-    case
-        global1.buffers
-            |> Dict.values
-            |> findFirst (\b -> b.path == path)
-    of
+    case jumpToPathFindBuffer global1 path of
         -- buffer exists
-        Just b ->
-            if buf.id == b.id then
-                ( { ed
-                    | buf = updateCursor buf
-                    , global = global1
-                  }
-                , Cmd.none
-                )
+        Just ( b, loaded ) ->
+            if loaded then
+                -- loaded
+                ( if buf.id == b.id then
+                    -- same buffer
+                    { ed
+                        | buf = updateCursor buf
+                        , global = global1
+                    }
 
-            else
-                ( { ed
-                    | global =
-                        let
-                            b1 =
-                                b
-                                    |> updateCursor
-                                    |> Buf.updateView
-                                        (\v -> { v | alternativeBuf = Just buf.path })
-                        in
-                        { global1
-                            | buffers = Dict.insert b1.id b1 global1.buffers
-                            , window =
-                                setView b1.view global1.window
-                        }
-                  }
+                  else
+                    { ed
+                        | global =
+                            let
+                                b1 =
+                                    b
+                                        |> updateCursor
+                                        |> Buf.updateView
+                                            (\v -> { v | alternativeBuf = Just buf.path })
+                            in
+                            { global1
+                                | buffers = Dict.insert b1.id (Loaded b1) global1.buffers
+                                , window = setView b1.view global1.window
+                            }
+                    }
                 , Cmd.none
                   -- , Cmd.batch
                   --     [ if b.config.lint then
@@ -228,6 +214,14 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                   --         Cmd.none
                   --     ]
                 )
+
+            else
+                -- not loaded
+                let
+                    b1 =
+                        Buf.updateView (resizeView buf.view.size) b
+                in
+                ( ed, sendReadBuffer global1.service buf.view.size.height True b1 )
 
         -- buffer not exists
         _ ->
@@ -243,21 +237,66 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                                         }
                                     )
                             )
-            in
-            ( { ed
-                | global =
+
+                global3 =
                     { global2
                         | window =
                             setView b.view global2.window
                     }
-                        |> Buf.addBuffer False b
-              }
-            , if isTempBuffer path then
-                Cmd.none
+            in
+            if isTempBuffer path then
+                ( { ed
+                    | global =
+                        { global3
+                            | buffers = Dict.insert b.id (Loaded b) global3.buffers
+                        }
+                  }
+                , Cmd.none
+                )
 
-              else
-                sendReadBuffer global2.service buf.view.size.height b
+            else
+                ( ed
+                , sendReadBuffer global3.service buf.view.size.height True b
+                )
+
+
+jumpToPathFindBuffer : Global -> String -> Maybe ( Buffer, Bool )
+jumpToPathFindBuffer global path =
+    let
+        path1 =
+            if isTempBuffer path then
+                path
+
+            else
+                resolvePath
+                    global.pathSeperator
+                    global.cwd
+                    path
+    in
+    global.buffers
+        |> listBuffers
+        |> List.map
+            (\( buf, b ) ->
+                ( buf, b )
             )
+        |> findFirst (\( b, _ ) -> b.path == path1)
+
+
+jumpToPathSetCursor : Int -> Position -> Buffer -> Buffer
+jumpToPathSetCursor lineHeight cursor buf =
+    let
+        scrollTop =
+            Buf.bestScrollTop
+                (Tuple.first cursor)
+                buf.view.size.height
+                buf.lines
+                buf.view.scrollTop
+    in
+    Buf.updateView
+        (Buf.setCursor cursor True
+            >> Buf.setScrollTop scrollTop lineHeight
+        )
+        buf
 
 
 jumpByView : Float -> Global -> Buffer -> Buffer
@@ -441,6 +480,8 @@ jumpToFile ({ buf } as ed) =
                 Ok loc ->
                     if buf.path == "[Search]" then
                         jumpToLocation
+                            -- FIXME: activePreView will not work
+                            -- when loc is a new buffer
                             (\view win ->
                                 win
                                     |> Win.activePrevView

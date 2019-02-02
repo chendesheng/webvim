@@ -20,7 +20,7 @@ renderGutters :
     -> Int
     -> List (Attribute msg)
     -> Html msg
-renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop1 topOffsetPx height scrollingCss =
+renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop topOffsetPx height scrollingCss =
     let
         gutterWidth =
             totalLines |> String.fromInt |> String.length
@@ -42,8 +42,8 @@ renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop1 topOff
             lineHeight
             topOffsetPx
             height
-            (relativeZeroLine - scrollTop1)
-            (totalLines - scrollTop1)
+            (relativeZeroLine - scrollTop)
+            (totalLines - scrollTop)
         ]
 
 
@@ -61,26 +61,30 @@ renderAbsoluteGutter scrollingCss totalWidth highlightLine totalLines viewLines 
          ]
             ++ scrollingCss
         )
-        [ lazy3 renderAbsoluteGutterInner totalLines highlightLine viewLines ]
+        [ lazy2 renderAbsoluteGutterInner totalLines viewLines
+        , lazy renderHighlightLine highlightLine
+        ]
 
 
-renderAbsoluteGutterInner : Int -> Int -> List Int -> Html msg
-renderAbsoluteGutterInner totalLines highlightLine viewLines =
+renderHighlightLine : Int -> Html msg
+renderHighlightLine highlightLine =
+    renderLineNumber
+        [ class "line-number-highlight"
+        , style "top" <| rem highlightLine
+        ]
+        (highlightLine + 1)
+
+
+renderAbsoluteGutterInner : Int -> List Int -> Html msg
+renderAbsoluteGutterInner totalLines viewLines =
     div
         []
         (List.map
             (\lineNumber ->
                 if lineNumber < totalLines then
-                    div
-                        [ classList
-                            [ ( "line-number-highlight"
-                              , highlightLine == lineNumber
-                              )
-                            , ( "line-number", True )
-                            ]
-                        , style "top" <| rem lineNumber
-                        ]
-                        [ text (String.fromInt (lineNumber + 1)) ]
+                    renderLineNumber
+                        [ style "top" <| rem lineNumber ]
+                        (lineNumber + 1)
 
                 else
                     div [] []
@@ -89,9 +93,9 @@ renderAbsoluteGutterInner totalLines highlightLine viewLines =
         )
 
 
-renderLineNumber : Int -> Html msg
-renderLineNumber n =
-    div [ class "line-number" ]
+renderLineNumber : List (Attribute msg) -> Int -> Html msg
+renderLineNumber extra n =
+    div ([ class "line-number" ] ++ extra)
         [ text <| String.fromInt n ]
 
 
@@ -101,10 +105,10 @@ renderRelativeNumbers low high =
         []
         ((List.range 1 low
             |> List.reverse
-            |> List.map renderLineNumber
+            |> List.map (renderLineNumber [])
          )
             ++ (List.range 0 (high - 1)
-                    |> List.map renderLineNumber
+                    |> List.map (renderLineNumber [])
                )
         )
 

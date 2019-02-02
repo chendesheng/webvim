@@ -15,6 +15,7 @@ module Model exposing
     , IndentConfig(..)
     , Key
     , LintError
+    , LoadBuffer(..)
     , Mode(..)
     , Model(..)
     , Redo
@@ -48,11 +49,17 @@ module Model exposing
     , emptyUndo
     , emptyView
     , getActiveBuffer
+    , getBuffer
+    , getBuffers
+    , getLoadedBuffer
+    , getLoadedBuffers
+    , getNotLoadBuffer
     , historyDecoder
     , historyEncoder
     , increaseMaxId
     , isLintEnabled
     , isTempBuffer
+    , listBuffers
     , patchDecoder
     , patchEncoder
     , persistentAll
@@ -479,6 +486,8 @@ type ExPrefix
         { forward : Bool
         , match : Maybe ( Position, Position ) -- increment cursor position
         , highlights : List ( Position, Position )
+
+        -- , scrollTop
         }
     | ExCommand
     | ExEval
@@ -603,7 +612,7 @@ type alias Buffer =
     , lines : TextBuffer
     , syntax : Syntax
     , syntaxDirtyFrom : Int
-    , path : String
+    , path : String -- absolute path
     , name : String
     , mode : Mode
     , history : BufferHistory
@@ -613,6 +622,11 @@ type alias Buffer =
     , dirtyIndent : Int
     , motionFailed : Bool
     }
+
+
+type LoadBuffer
+    = NotLoad Buffer
+    | Loaded Buffer
 
 
 type alias Global =
@@ -626,7 +640,7 @@ type alias Global =
        2. keep view change active buffer
     -}
     , window : Window View
-    , buffers : Dict Int Buffer
+    , buffers : Dict Int LoadBuffer
     , cwd : String
     , exHistory : List String
     , searchHistory : List String
@@ -672,21 +686,83 @@ isTempBuffer path =
     String.isEmpty path || path == "[Search]"
 
 
-getActiveBuffer : Global -> Maybe Buffer
-getActiveBuffer global =
-    Win.getActiveView global.window
+getLoadedBuffer : LoadBuffer -> Maybe Buffer
+getLoadedBuffer buf =
+    case buf of
+        NotLoad _ ->
+            Nothing
+
+        Loaded b ->
+            Just b
+
+
+getNotLoadBuffer : LoadBuffer -> Maybe Buffer
+getNotLoadBuffer buf =
+    case buf of
+        NotLoad b ->
+            Just b
+
+        Loaded _ ->
+            Nothing
+
+
+getBuffer : Int -> Dict Int LoadBuffer -> Maybe Buffer
+getBuffer id =
+    Dict.get id
+        >> Maybe.andThen getLoadedBuffer
+
+
+getLoadedBuffers : Dict Int LoadBuffer -> List Buffer
+getLoadedBuffers =
+    Dict.values >> List.filterMap getLoadedBuffer
+
+
+getBuffers : Dict Int LoadBuffer -> List Buffer
+getBuffers =
+    let
+        buffer buf =
+            case buf of
+                NotLoad b ->
+                    b
+
+                Loaded b ->
+                    b
+    in
+    Dict.values >> List.map buffer
+
+
+getActiveBuffer :
+    { a | window : Window View, buffers : Dict Int LoadBuffer }
+    -> Maybe Buffer
+getActiveBuffer { window, buffers } =
+    Win.getActiveView window
         |> Maybe.andThen
             (\view ->
-                Dict.get
-                    view.bufId
-                    global.buffers
+                buffers
+                    |> Dict.get view.bufId
+                    |> Maybe.andThen getLoadedBuffer
+            )
+
+
+listBuffers : Dict Int LoadBuffer -> List ( Buffer, Bool )
+listBuffers =
+    Dict.values
+        >> List.map
+            (\buf ->
+                case buf of
+                    NotLoad b ->
+                        ( b, False )
+
+                    Loaded b ->
+                        ( b, True )
             )
 
 
 setBuffer : Buffer -> Global -> Global
 setBuffer buf global =
     { global
-        | buffers = Dict.insert buf.id buf global.buffers
+        | buffers =
+            Dict.insert buf.id (Loaded buf) global.buffers
     }
 
 
@@ -873,7 +949,10 @@ persistentAll global =
         | persistent =
             Just
                 { window = global.window
-                , buffers = Dict.values global.buffers
+                , buffers =
+                    global.buffers
+                        |> Dict.values
+                        |> List.filterMap getLoadedBuffer
                 }
     }
 

@@ -241,8 +241,8 @@ getBodyAndHeaders url =
         }
 
 
-sendReadBuffer : String -> Int -> Buffer -> Cmd Msg
-sendReadBuffer url viewHeight buf =
+sendReadBuffer : String -> Int -> Bool -> Buffer -> Cmd Msg
+sendReadBuffer url viewHeight setActive buf =
     url
         ++ "/read?path="
         ++ buf.path
@@ -350,19 +350,19 @@ sendReadBuffer url viewHeight buf =
                             )
                 of
                     Ok b ->
-                        Read (Ok b)
+                        Read (Ok ( setActive, b ))
 
-                    (Err (Http.BadStatus resp)) as err ->
+                    Err ((Http.BadStatus resp) as err) ->
                         case resp.status.code of
                             -- 404 is ok here, the buffer is newly created
                             404 ->
-                                Read (Ok buf)
+                                Read (Ok ( setActive, buf ))
 
                             _ ->
-                                Read err
+                                Read (Err err)
 
-                    err ->
-                        Read err
+                    Err err ->
+                        Read (Err err)
             )
 
 

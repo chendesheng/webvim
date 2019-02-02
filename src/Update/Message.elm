@@ -44,7 +44,7 @@ type Msg
     = PressKeys Key -- buffer id, key
     | IMEMessage IMEMsg
     | Resize Size
-    | Read (Result Http.Error Buffer)
+    | Read (Result Http.Error ( Bool, Buffer )) -- setActive & buffer
     | Write (Result String ( String, List Patch ))
     | MakeDir (Result String ())
     | ReadClipboard
