@@ -108,10 +108,6 @@ type IMEMsg
 
 update : (IMEMsg -> msg) -> (String -> Cmd msg) -> IMEMsg -> IME -> ( IME, Cmd msg )
 update toMsg onKeyPress imeMsg ime =
-    let
-        _ =
-            Debug.log "update" ime
-    in
     case ime of
         NotActive ->
             case imeMsg of

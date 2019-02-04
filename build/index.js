@@ -34,54 +34,6 @@ if (typeof customElements !== 'undefined') {
   customElements.define('session-storage-item', SessionStorageItem);
 }
 
-function measureChar(ch) {
-  let s = '';
-  const repeatn = 2;
-  for (let i = 0; i < repeatn; i++) {
-    s += ch;
-  }
-
-  const span = document.getElementById('measureChar')
-  || document.createElement('span');
-  span.id = 'measureChar';
-  span.textContent = s;
-  span.className = 'editor line';
-  span.style.cssText = 'position:absolute;left:-9999px;';
-
-  // console.log(span.clientWidth);
-  // console.log(span.offsetWidth);
-  return {
-    width: span.clientWidth / repeatn,
-    height: span.clientHeight,
-  };
-}
-
-function measureFont() {
-  const span = document.createElement('span');
-  span.id = 'measureChar';
-  document.body.insertBefore(span, document.body.firstChild);
-
-  const size = measureChar('m');
-  // console.log(size);
-  const size2 = measureChar('中');
-  const size3 = measureChar('😄');
-  const style = window.getComputedStyle(span, null);
-  const fontSize = parseInt(style.getPropertyValue('font-size'));
-  const fontName = style.getPropertyValue('font-family');
-  const widths = [
-    ['HALF', size.width],
-    ['FULL', size2.width],
-    ['EMOJI', size3.width],
-  ];
-  span.remove();
-  return {
-    widths,
-    lineHeight: size.height,
-    size: fontSize,
-    name: fontName,
-  };
-}
-
 const safeJsonParse = (s) => {
   if (s) {
     return JSON.parse(s);
@@ -122,10 +74,7 @@ function main() {
     height: window.innerHeight,
     cwd: sessionStorage.getItem('cwd') || '',
     pathSeperator: '',
-    fontInfo: measureFont(),
     homedir: '',
-    isSafari: navigator.userAgent.indexOf('Safari') !== -1
-      && navigator.userAgent.indexOf('Chrome') === -1,
     exHistory: storageGetArray('exHistory', false) || [],
     theme: getTheme() || 'Solarized Dark',
   };

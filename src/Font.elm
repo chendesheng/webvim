@@ -1,8 +1,24 @@
-module Font exposing (FontInfo, charWidth, cursorCharWidth, stringWidth)
+module Font exposing
+    ( FontInfo
+    , charWidth
+    , cursorCharWidth
+    , emptyFontInfo
+    , measureFont
+    , renderMeasureDivs
+    , stringWidth
+    )
 
+import Browser.Dom as Dom
 import Dict
 import Helper.Helper exposing (findFirst, regex)
+import Html exposing (..)
+import Html.Attributes exposing (..)
 import Regex as Re
+import Task
+
+
+
+-- font description
 
 
 type alias FontInfo =
@@ -11,6 +27,78 @@ type alias FontInfo =
     , lineHeight : Int
     , size : Int -- pt
     }
+
+
+emptyFontInfo =
+    { name = "iosevka"
+    , widths = []
+    , lineHeight = 21
+    , size = 16
+    }
+
+
+
+-- measure font width
+
+
+measureDiv : String -> String -> Html msg
+measureDiv divId str =
+    div
+        [ id divId
+        , class "line"
+        , style "position" "absolute"
+        , style "left" "-999px"
+        ]
+        [ text str ]
+
+
+renderMeasureDivs : Html msg
+renderMeasureDivs =
+    div [ class "editor" ]
+        [ measureDiv "halfWidthChar" "m"
+        , measureDiv "fullWidthChar" "中"
+        , measureDiv "emojiChar" "😄"
+        ]
+
+
+measureFont : (FontInfo -> msg) -> Cmd msg
+measureFont toMsg =
+    Task.map3
+        (\v1 v2 v3 ->
+            let
+                w1 =
+                    -- clientWidth
+                    v1.viewport.width
+
+                w2 =
+                    v2.viewport.width
+
+                w3 =
+                    v3.viewport.width
+            in
+            { emptyFontInfo
+                | widths = [ ( "HALF", w1 ), ( "FULL", w2 ), ( "EMOJI", w3 ) ]
+                , lineHeight = round v1.viewport.height
+            }
+        )
+        (Dom.getViewportOf "halfWidthChar")
+        (Dom.getViewportOf "fullWidthChar")
+        (Dom.getViewportOf "emojiChar")
+        |> Task.attempt
+            (\result ->
+                (case result of
+                    Ok fontInfo ->
+                        fontInfo
+
+                    _ ->
+                        emptyFontInfo
+                )
+                    |> toMsg
+            )
+
+
+
+-- measure char/string width by fontInfo
 
 
 stringWidth : FontInfo -> Int -> Int -> String -> Int

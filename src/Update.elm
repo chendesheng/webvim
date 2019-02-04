@@ -1953,6 +1953,9 @@ updateActiveBuffer fn global =
 update : Msg -> Global -> ( Global, Cmd Msg )
 update message global =
     case message of
+        MeasureFont fontInfo ->
+            ( global, Cmd.none )
+
         MouseWheel path deltaY deltaX ->
             withEditorByView path (onMouseWheel path deltaY deltaX) global
 
@@ -2548,10 +2551,10 @@ getViewHeight heightPx lineHeightPx =
     heightPx // lineHeightPx
 
 
-init : Flags -> ( Global, Cmd Msg )
-init flags =
+init : FontInfo -> Flags -> ( Global, Cmd Msg )
+init fontInfo flags =
     let
-        { cwd, fontInfo, service, buffers, homedir, isSafari, theme } =
+        { cwd, service, buffers, homedir, theme } =
             flags
 
         { window, registers, width, height, pathSeperator, exHistory } =

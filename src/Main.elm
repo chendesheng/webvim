@@ -2,6 +2,7 @@ module Main exposing (main, toModel)
 
 import Browser
 import Browser.Events as Events exposing (onResize)
+import Font exposing (measureFont, renderMeasureDivs)
 import Helper.Debounce
     exposing
         ( DebounceEvent
@@ -31,13 +32,13 @@ toModel =
 main : Program Flags Model Msg
 main =
     Browser.document
-        { init = \flags -> ( Booting, initCommand flags )
+        { init = \flags -> ( Booting flags, initCommand flags )
         , view =
             \model ->
                 case model of
-                    Booting ->
+                    Booting _ ->
                         { title = "Initializing"
-                        , body = [ Html.text "" ]
+                        , body = [ renderMeasureDivs ]
                         }
 
                     Crashed err ->
@@ -51,8 +52,16 @@ main =
             \msg model ->
                 case msg of
                     Boot (Ok flags) ->
-                        init flags
-                            |> toModel
+                        ( Booting flags, measureFont MeasureFont )
+
+                    MeasureFont fontInfo ->
+                        case model of
+                            Booting flags ->
+                                init fontInfo flags
+                                    |> toModel
+
+                            _ ->
+                                ( model, Cmd.none )
 
                     Boot (Err err) ->
                         ( Crashed ("boot failed: " ++ err), Cmd.none )

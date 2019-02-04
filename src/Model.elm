@@ -115,7 +115,6 @@ type alias Flags =
     , pathSeperator : String
     , fontInfo : FontInfo
     , homedir : String
-    , isSafari : Bool
     , exHistory : List String
     , theme : String
     }
@@ -499,7 +498,7 @@ type alias View =
 
 
 type Model
-    = Booting
+    = Booting Flags
     | Ready Global
     | Crashed String
 

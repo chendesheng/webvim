@@ -3,7 +3,14 @@ module TestIme exposing (main)
 import Browser
 import Browser.Dom as Dom
 import Browser.Events exposing (onClick)
-import Font exposing (FontInfo, stringWidth)
+import Font
+    exposing
+        ( FontInfo
+        , emptyFontInfo
+        , measureFont
+        , renderMeasureDivs
+        , stringWidth
+        )
 import Helper.Helper exposing (px, toCmd)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -19,47 +26,9 @@ import Ime
         , update
         )
 import Json.Decode as Decode
+import Json.Encode as Encode
+import Process
 import Task
-
-
-emptyFontInfo =
-    { name = "iosevka"
-    , widths = []
-    , lineHeight = 21
-    , size = 16
-    }
-
-
-measureFont : Cmd Msg
-measureFont =
-    Task.map3
-        (\v1 v2 v3 ->
-            let
-                w1 =
-                    v1.scene.width
-
-                w2 =
-                    v2.scene.width
-
-                w3 =
-                    v3.scene.width
-            in
-            [ ( "HALF", w1 ), ( "FULL", w2 ), ( "EMOJI", w3 ) ]
-        )
-        (Dom.getViewportOf "measureFont1")
-        (Dom.getViewportOf "measureFont2")
-        (Dom.getViewportOf "measureFont3")
-        |> Task.attempt
-            (\result ->
-                (case result of
-                    Ok widths ->
-                        { emptyFontInfo | widths = widths }
-
-                    _ ->
-                        emptyFontInfo
-                )
-                    |> MeasureFont
-            )
 
 
 type Msg
@@ -68,6 +37,7 @@ type Msg
     | IMEMessage IMEMsg
     | MeasureFont FontInfo
     | OnClick
+    | StartLoad
 
 
 type Model
@@ -79,14 +49,12 @@ type Model
         }
 
 
-measureDiv : String -> String -> Html msg
-measureDiv divId str =
-    div
-        [ id divId
-        , style "position" "absolute"
-        , style "left" "-999px"
+css =
+    node "link"
+        [ property "rel" <| Encode.string "stylesheet"
+        , property "href" <| Encode.string "/dist/style.min.css"
         ]
-        [ text str ]
+        []
 
 
 main : Program () Model Msg
@@ -95,7 +63,7 @@ main =
         { init =
             \_ ->
                 ( Loading
-                , Cmd.batch [ measureFont ]
+                , Process.sleep 1000 |> Task.perform (always StartLoad)
                 )
         , view =
             \model ->
@@ -103,38 +71,19 @@ main =
                     Loading ->
                         { title = "loading"
                         , body =
-                            [ node "style"
-                                []
-                                [ text
-                                    ("body {font-size:'"
-                                        ++ px emptyFontInfo.size
-                                        ++ "';font-family: '"
-                                        ++ emptyFontInfo.name
-                                        ++ "'}"
-                                    )
-                                ]
-                            , measureDiv "measureFont1" "m"
-                            , measureDiv "measureFont2" "中"
-                            , measureDiv "measureFont3" "😄"
+                            [ css
+                            , renderMeasureDivs
                             ]
                         }
 
                     Loaded { content, ime, fontInfo } ->
                         { title = "test IME"
                         , body =
-                            [ node "style"
-                                []
-                                [ text
-                                    ("body {font-size:"
-                                        ++ px emptyFontInfo.size
-                                        ++ ";font-family: "
-                                        ++ emptyFontInfo.name
-                                        ++ "}"
-                                    )
-                                ]
+                            [ css
                             , span
                                 [ style "whitespace" "pre"
                                 , style "position" "relative"
+                                , class "editor"
                                 ]
                                 [ text content
                                 , div
@@ -148,7 +97,6 @@ main =
                                         )
                                     , style "top" "0"
                                     , style "height" (px fontInfo.lineHeight)
-                                    , class "cursor"
                                     ]
                                     [ renderIme fontInfo ime |> Html.map IMEMessage ]
                                 ]
@@ -159,7 +107,16 @@ main =
                 case model of
                     Loading ->
                         case msg of
+                            StartLoad ->
+                                ( model
+                                , measureFont MeasureFont
+                                )
+
                             MeasureFont fontInfo ->
+                                let
+                                    _ =
+                                        Debug.log "MeasureFont" fontInfo
+                                in
                                 ( Loaded
                                     { ime = setImeActive True emptyIme
                                     , content = ""
@@ -174,10 +131,6 @@ main =
                     Loaded m ->
                         case msg of
                             KeyPress s ->
-                                let
-                                    _ =
-                                        Debug.log "KeyPress" ( s, m )
-                                in
                                 ( Loaded
                                     { m
                                         | content = m.content ++ s

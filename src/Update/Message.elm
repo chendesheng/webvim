@@ -1,5 +1,6 @@
 module Update.Message exposing (BufferIdentifier, Msg(..), TokenizeRequest, TokenizeResponse(..))
 
+import Font exposing (FontInfo)
 import Http
 import Ime exposing (IMEMsg)
 import Internal.Jumps exposing (Location)
@@ -61,6 +62,7 @@ type Msg
     | SearchResult (Result String String)
     | SetCwd (Result String String)
     | Boot (Result String Flags)
+    | MeasureFont FontInfo
     | MouseWheel Path Int Int
     | FocusIme
     | NoneMessage
