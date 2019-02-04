@@ -6,13 +6,22 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events as Events
 import Html.Lazy exposing (..)
+import Ime
+    exposing
+        ( IME
+        , IMEMsg
+        , emptyIme
+        , isImeActive
+        , isImeComposing
+        , renderIme
+        )
 import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Model exposing (FontInfo, Global, IME, LintError, Mode(..), emptyIme)
+import Model exposing (FontInfo, Global, LintError, Mode(..))
 import Update.Cursor exposing (cursorPoint)
-import Update.Message exposing (IMEMsg(..), Msg(..))
+import Update.Message exposing (Msg(..))
 
 
 renderCursor :
@@ -48,10 +57,10 @@ renderCursorInner isActive isMainCursor fontInfo ime lines classname y x =
             cursorPoint fontInfo lines y x
 
         imeIsActive =
-            isMainCursor && ime.isActive
+            isMainCursor && isImeActive ime
 
         imeIsComposing =
-            imeIsActive && ime.isComposing
+            imeIsActive && isImeComposing ime
     in
     div
         ([ class "cursor"
@@ -74,167 +83,7 @@ renderCursorInner isActive isMainCursor fontInfo ime lines classname y x =
                     []
                )
         )
-        [ if imeIsActive then
-            let
-                renderInput =
-                    if ime.isSafari then
-                        renderInputSafari
-
-                    else
-                        renderInputChrome
-            in
-            lazy3 renderInput fontInfo imeIsComposing ime.compositionText
-
-          else
-            noCompositionInput
-        ]
-
-
-renderInputSafari : FontInfo -> Bool -> String -> Html Msg
-renderInputSafari fontInfo isComposing _ =
-    span
-        ((if isComposing then
-            []
-
-          else
-            [ style "opacity" "0" ]
-         )
-            ++ [ id "hidden-input"
-               , contenteditable True
-               , Events.custom "compositionstart"
-                    (Decode.field "data" Decode.string
-                        |> Decode.map
-                            (\text ->
-                                { message = IMEMessage <| CompositionStart text
-                                , stopPropagation = False
-                                , preventDefault = False
-                                }
-                             --|> Debug.log "compositionstart"
-                            )
-                    )
-
-               -- in safari keydown event is after `compositionstart` event
-               , Events.custom "keydown"
-                    (decodeKeyboardEvent False
-                        |> Decode.map
-                            (\key ->
-                                { message = IMEMessage <| CompositionTry key
-                                , stopPropagation = True
-                                , preventDefault = True
-                                }
-                             --|> Debug.log "keydown"
-                            )
-                    )
-               , Events.custom "compositionend"
-                    (Decode.field "data" Decode.string
-                        |> Decode.map
-                            (\text ->
-                                { message = IMEMessage <| CompositionCommit text
-                                , stopPropagation = True
-                                , preventDefault = True
-                                }
-                             --|> Debug.log "compositionend"
-                            )
-                    )
-               , Events.custom "textInput" <|
-                    Decode.succeed
-                        { message = NoneMessage
-                        , stopPropagation = True
-                        , preventDefault = True
-                        }
-               ]
-        )
-        []
-
-
-renderInputChrome : FontInfo -> Bool -> String -> Html Msg
-renderInputChrome fontInfo isComposing compositionText =
-    span
-        ((if isComposing then
-            []
-
-          else
-            [ Events.custom "keydown"
-                (decodeKeyboardEvent False
-                    |> Decode.map
-                        (\key ->
-                            { message = IMEMessage (CompositionWait key)
-                            , stopPropagation = True
-                            , preventDefault = True
-                            }
-                         --|> Debug.log "keydown"
-                        )
-                )
-            , style "opacity" "0"
-            , property "textContent" (Encode.string "")
-            ]
-         )
-            ++ [ id "hidden-input"
-               , contenteditable True
-               , Events.custom "compositionstart"
-                    (Decode.field "data" Decode.string
-                        |> Decode.map
-                            (\text ->
-                                { message = IMEMessage <| CompositionStart text
-                                , stopPropagation = False
-                                , preventDefault = False
-                                }
-                            )
-                     --|> Decode.map (Debug.log "compositionstart")
-                    )
-               , Events.custom "compositionupdate"
-                    (Decode.field "data" Decode.string
-                        |> Decode.map
-                            (\text ->
-                                { message = IMEMessage <| CompositionStart text
-                                , stopPropagation = False
-                                , preventDefault = False
-                                }
-                            )
-                     --|> Decode.map (Debug.log "compositionstart")
-                    )
-               , Events.custom "compositionend"
-                    (Decode.field "data" Decode.string
-                        |> Decode.map
-                            (\text ->
-                                { message =
-                                    IMEMessage <|
-                                        CompositionCommit <|
-                                            --Debug.log "compositionend.data" <|
-                                            text
-                                , stopPropagation = True
-                                , preventDefault = True
-                                }
-                            )
-                    )
-               ]
-        )
-        []
-
-
-noCompositionInput : Html Msg
-noCompositionInput =
-    span
-        [ id "hidden-input"
-        , tabindex 0
-        , autofocus True
-        , onKeyDownPressKeys True
-        , style "opacity" "0"
-        ]
-        []
-
-
-onKeyDownPressKeys replaceFullwithToHalfWidth =
-    Events.custom "keydown"
-        (decodeKeyboardEvent replaceFullwithToHalfWidth
-            |> Decode.map
-                (\key ->
-                    { message = PressKeys key
-                    , stopPropagation = True
-                    , preventDefault = True
-                    }
-                )
-        )
+        [ renderIme ime |> Html.map IMEMessage ]
 
 
 renderMatchedCursor :

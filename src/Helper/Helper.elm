@@ -47,6 +47,7 @@ module Helper.Helper exposing
     , safeRegex
     , spaceInline
     , swapCase
+    , toCmd
     , word
     )
 
@@ -55,6 +56,7 @@ import Char
 import Dict exposing (Dict)
 import Parser as P exposing ((|.), (|=), Parser)
 import Regex as Re exposing (Regex)
+import Task
 
 
 repeatParser : Parser a -> Parser (List a)
@@ -634,3 +636,8 @@ px n =
 percentStr : Float -> String
 percentStr f =
     String.fromFloat (f * 100) ++ "%"
+
+
+toCmd : msg -> Cmd msg
+toCmd m =
+    Task.perform (always m) (Task.succeed ())

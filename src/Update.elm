@@ -20,8 +20,10 @@ import Helper.Helper
         , relativePath
         , replaceHomeDir
         , resolvePath
+        , toCmd
         )
 import Http
+import Ime exposing (emptyIme, focusIme, setImeActive)
 import Internal.Jumps
     exposing
         ( Location
@@ -246,16 +248,12 @@ updateMode modeName ({ global, buf } as ed) =
 
         ime =
             if oldModeName /= newModeName then
-                let
-                    oldIme =
-                        global.ime
-                in
                 case newModeName of
                     V.ModeNameInsert ->
-                        { oldIme | isActive = True }
+                        setImeActive True global.ime
 
                     _ ->
-                        { oldIme | isActive = False }
+                        setImeActive False global.ime
 
             else
                 global.ime
@@ -679,7 +677,7 @@ runOperator count register operator ({ buf, global } as ed) =
                             (\ed1 ->
                                 { ed1
                                     | global =
-                                        updateIme (\ime -> { ime | isActive = False })
+                                        updateIme (setImeActive False)
                                             ed1.global
                                 }
                             )
@@ -807,7 +805,7 @@ runOperator count register operator ({ buf, global } as ed) =
         Replace ch ->
             ( ed
                 |> updateBuffer (applyReplace count ch global)
-                |> updateGlobal (updateIme (\ime -> { ime | isActive = False }))
+                |> updateGlobal (updateIme (setImeActive False))
             , Cmd.none
             )
 
@@ -949,7 +947,9 @@ runOperator count register operator ({ buf, global } as ed) =
             ( { ed
                 | global =
                     updateIme
-                        (\ime -> { ime | isActive = not ime.isActive })
+                        -- FIXME: add a toggle function
+                        --(\ime -> { ime | isActive = not ime.isActive })
+                        (setImeActive False)
                         global
               }
             , Cmd.none
@@ -1606,11 +1606,8 @@ applyVimAST replaying key ast ({ buf } as ed) =
                 ( ed_, cmds )
 
         doFocusInput oldEd ( ed_, cmds ) =
-            if
-                (oldEd.global.ime.isActive /= ed_.global.ime.isActive)
-                    || (isExMode oldEd.buf.mode /= isExMode ed_.buf.mode)
-            then
-                ( ed_, focusHiddenInput :: cmds )
+            if isExMode oldEd.buf.mode /= isExMode ed_.buf.mode then
+                ( ed_, Cmd.map IMEMessage focusIme :: cmds )
 
             else
                 ( ed_, cmds )
@@ -2111,60 +2108,11 @@ update message global =
             )
 
         IMEMessage imeMsg ->
-            case imeMsg of
-                CompositionTry s ->
-                    if global.ime.isComposing && s /= "<escape>" then
-                        ( global, Cmd.none )
+            Ime.update IMEMessage (PressKeys >> toCmd) imeMsg global.ime
+                |> Tuple.mapFirst (\ime -> { global | ime = ime })
 
-                    else
-                        update (PressKeys s) global
-
-                CompositionWait s ->
-                    ( global
-                    , Process.sleep 10
-                        |> Task.attempt
-                            (always (IMEMessage (CompositionTry s)))
-                    )
-
-                CompositionStart s ->
-                    ( updateIme
-                        (\ime ->
-                            { ime
-                                | isComposing = True
-                                , compositionText = s
-                            }
-                        )
-                        global
-                    , Cmd.none
-                    )
-
-                CompositionCommit keys ->
-                    global
-                        |> update (PressKeys keys)
-                        |> Tuple.mapSecond
-                            (\cmd ->
-                                Cmd.batch
-                                    [ cmd
-                                    , Process.sleep 10
-                                        |> Task.attempt
-                                            (always (IMEMessage CompositionEnd))
-                                    ]
-                            )
-
-                CompositionEnd ->
-                    ( updateIme
-                        (\ime ->
-                            { ime
-                                | isComposing = False
-                                , compositionText = ""
-                            }
-                        )
-                        global
-                    , Cmd.none
-                    )
-
-                IMEFocus ->
-                    ( global, focusHiddenInput )
+        FocusIme ->
+            ( global, Cmd.map IMEMessage focusIme )
 
         SetCwd _ ->
             ( global, Cmd.none )
@@ -2704,7 +2652,7 @@ init flags =
                 |> Result.withDefault Dict.empty
         , lineHeight = lineHeight
         , window = decodedWindow
-        , ime = { emptyIme | isSafari = isSafari }
+        , ime = emptyIme
         , buffers = dictBuffers
         , maxId = maxBufferId
         , theme = theme

@@ -76,7 +76,7 @@ main =
         , subscriptions =
             \_ ->
                 Sub.batch
-                    [ Events.onClick (Decode.succeed <| IMEMessage IMEFocus)
+                    [ Events.onClick (Decode.succeed FocusIme)
                     , Events.onResize (\w h -> Resize { width = w, height = h })
                     , onDebounce <|
                         decodeEvent

@@ -11,7 +11,6 @@ module Model exposing
     , Flags
     , FontInfo
     , Global
-    , IME
     , IndentConfig(..)
     , Key
     , LintError
@@ -45,7 +44,6 @@ module Model exposing
     , emptyBufferHistory
     , emptyExBuffer
     , emptyGlobal
-    , emptyIme
     , emptyUndo
     , emptyView
     , getActiveBuffer
@@ -89,6 +87,7 @@ import Array as Array exposing (Array)
 import Dict exposing (Dict)
 import Helper.Fuzzy exposing (FuzzyMatchItem)
 import Helper.Helper exposing (charWidthType, extname, filename, findFirst, regex, relativePath)
+import Ime exposing (IME, emptyIme)
 import Internal.Jumps exposing (..)
 import Internal.Position exposing (..)
 import Internal.Syntax exposing (..)
@@ -763,23 +762,6 @@ setBuffer buf global =
     { global
         | buffers =
             Dict.insert buf.id (Loaded buf) global.buffers
-    }
-
-
-type alias IME =
-    { isActive : Bool
-    , isComposing : Bool
-    , compositionText : String
-    , isSafari : Bool
-    }
-
-
-emptyIme : IME
-emptyIme =
-    { isActive = False
-    , isComposing = False
-    , compositionText = ""
-    , isSafari = False
     }
 
 

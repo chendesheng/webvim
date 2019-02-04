@@ -4,10 +4,11 @@ import Helper.Helper exposing (ch, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)
+import Ime exposing (IME)
 import Internal.TextBuffer as B
-import Model exposing (FontInfo, Global, IME, LintError, Mode)
+import Model exposing (FontInfo, Global, LintError, Mode)
 import Update.Buffer as Buf
-import Update.Message exposing (IMEMsg(..), Msg(..))
+import Update.Message exposing (Msg(..))
 import View.Cursor exposing (renderCursorInner)
 import Vim.Helper exposing (parseKeys)
 

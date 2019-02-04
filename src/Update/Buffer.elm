@@ -81,7 +81,6 @@ import Model
         , BufferHistory
         , ExPrefix(..)
         , Global
-        , IME
         , IndentConfig(..)
         , LintError
         , LoadBuffer(..)

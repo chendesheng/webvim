@@ -1,11 +1,12 @@
-module Update.Message exposing (BufferIdentifier, IMEMsg(..), Msg(..), TokenizeRequest, TokenizeResponse(..))
+module Update.Message exposing (BufferIdentifier, Msg(..), TokenizeRequest, TokenizeResponse(..))
 
 import Http
+import Ime exposing (IMEMsg)
 import Internal.Jumps exposing (Location)
 import Internal.Syntax exposing (Syntax, Token)
 import Internal.TextBuffer as B exposing (Patch)
 import Internal.Window exposing (Path)
-import Model exposing (Buffer, Flags, IME, Key, LintError, Size)
+import Model exposing (Buffer, Flags, Key, LintError, Size)
 import Result
 import Vim.AST exposing (AST)
 
@@ -29,15 +30,6 @@ type alias TokenizeRequest =
     , line : Int
     , lines : String
     }
-
-
-type IMEMsg
-    = CompositionWait String
-    | CompositionTry String
-    | CompositionStart String
-    | CompositionCommit String
-    | CompositionEnd
-    | IMEFocus
 
 
 type Msg
@@ -70,4 +62,5 @@ type Msg
     | SetCwd (Result String String)
     | Boot (Result String Flags)
     | MouseWheel Path Int Int
+    | FocusIme
     | NoneMessage

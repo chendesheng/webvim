@@ -21,7 +21,7 @@ import List
 import Model exposing (..)
 import String
 import Update.Buffer as Buf
-import Update.Message exposing (IMEMsg(..), Msg(..))
+import Update.Message exposing (Msg(..))
 import Update.Range exposing (visualRegions)
 import Url.Builder as Query exposing (toQuery)
 import View.AutoComplete exposing (renderAutoComplete, renderExAutoComplete)
