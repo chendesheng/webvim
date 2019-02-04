@@ -1,12 +1,13 @@
 module View.StatusBar exposing (renderStatusBar)
 
+import Font exposing (FontInfo)
 import Helper.Helper exposing (ch, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)
 import Ime exposing (IME)
 import Internal.TextBuffer as B
-import Model exposing (FontInfo, Global, LintError, Mode)
+import Model exposing (Global, LintError, Mode)
 import Update.Buffer as Buf
 import Update.Message exposing (Msg(..))
 import View.Cursor exposing (renderCursorInner)

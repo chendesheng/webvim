@@ -6,6 +6,7 @@ module View.Lines exposing
     )
 
 import Array
+import Font exposing (FontInfo, cursorCharWidth, stringWidth)
 import Helper.Helper exposing (px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -18,12 +19,9 @@ import Internal.TextBuffer as B
 import Model
     exposing
         ( ExPrefix(..)
-        , FontInfo
         , LintError
         , Mode(..)
         , VisualMode
-        , cursorCharWidth
-        , stringWidth
         )
 import Update.Range exposing (visualRegions)
 import Vim.AST exposing (VisualType(..))

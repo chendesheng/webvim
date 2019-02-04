@@ -4,6 +4,7 @@ import Array as Array exposing (Array)
 import Bitwise as BW
 import Browser exposing (Document)
 import Dict exposing (Dict)
+import Font exposing (charWidth)
 import Helper.Helper exposing (ch, percentStr, px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)

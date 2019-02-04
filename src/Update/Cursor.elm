@@ -10,6 +10,7 @@ module Update.Cursor exposing
     , scrollToCursor
     )
 
+import Font exposing (FontInfo, cursorCharWidth, stringWidth)
 import Internal.Brackets exposing (pairBracketAt)
 import Internal.Position exposing (Position)
 import Internal.Syntax exposing (Syntax)

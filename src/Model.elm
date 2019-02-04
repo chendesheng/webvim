@@ -9,7 +9,6 @@ module Model exposing
     , ExMode
     , ExPrefix(..)
     , Flags
-    , FontInfo
     , Global
     , IndentConfig(..)
     , Key
@@ -32,11 +31,9 @@ module Model exposing
     , buffersToString
     , cIndentRules
     , cacheVimAST
-    , charWidth
     , configs
     , createBuffer
     , cssFileDefaultConfig
-    , cursorCharWidth
     , cursorDecoder
     , cursorEncoder
     , defaultBufferConfig
@@ -65,7 +62,6 @@ module Model exposing
     , registerToString
     , registersDecoder
     , setBuffer
-    , stringWidth
     , undoDecoder
     , undoEncoder
     , updateBuffer
@@ -85,8 +81,9 @@ module Model exposing
 
 import Array as Array exposing (Array)
 import Dict exposing (Dict)
+import Font exposing (FontInfo)
 import Helper.Fuzzy exposing (FuzzyMatchItem)
-import Helper.Helper exposing (charWidthType, extname, filename, findFirst, regex, relativePath)
+import Helper.Helper exposing (extname, filename, findFirst, regex, relativePath)
 import Ime exposing (IME, emptyIme)
 import Internal.Jumps exposing (..)
 import Internal.Position exposing (..)
@@ -105,55 +102,6 @@ type alias Size =
 
 type alias CodePoint =
     Int
-
-
-type alias FontInfo =
-    { name : String
-    , widths : List ( String, Float )
-    , lineHeight : Int
-    , size : Int -- pt
-    }
-
-
-charWidth : FontInfo -> Char -> Float
-charWidth { widths } ch =
-    let
-        dict =
-            Dict.fromList widths
-
-        codePoint =
-            Char.toCode ch
-
-        widthType =
-            charWidthType ch
-    in
-    widths
-        |> findFirst
-            (\( tipe, width ) ->
-                tipe == widthType
-            )
-        |> Maybe.map Tuple.second
-        |> Maybe.withDefault 10
-
-
-stringWidth : FontInfo -> Int -> Int -> String -> Int
-stringWidth fontInfo b e s =
-    s
-        |> String.slice b e
-        |> String.toList
-        |> List.map (charWidth fontInfo)
-        |> List.sum
-        |> round
-
-
-cursorCharWidth : FontInfo -> Int -> String -> Int
-cursorCharWidth fontInfo x s =
-    s
-        |> String.dropLeft x
-        |> String.uncons
-        |> Maybe.map (Tuple.first >> charWidth fontInfo)
-        |> Maybe.withDefault (charWidth fontInfo '0')
-        |> round
 
 
 type alias Flags =

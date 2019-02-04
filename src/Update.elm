@@ -3,6 +3,7 @@ module Update exposing (init, initCommand, initMode, update, updateActiveBuffer)
 import Array as Array exposing (Array)
 import Browser.Dom as Dom
 import Dict exposing (Dict)
+import Font exposing (FontInfo, charWidth)
 import Helper.Debounce exposing (debounceLint, debounceTokenize)
 import Helper.Helper
     exposing

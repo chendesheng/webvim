@@ -3,6 +3,7 @@ module TestIme exposing (main)
 import Browser
 import Browser.Dom as Dom
 import Browser.Events exposing (onClick)
+import Font exposing (FontInfo, stringWidth)
 import Helper.Helper exposing (px, toCmd)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -18,7 +19,6 @@ import Ime
         , update
         )
 import Json.Decode as Decode
-import Model exposing (FontInfo, stringWidth)
 import Task
 
 
@@ -150,7 +150,7 @@ main =
                                     , style "height" (px fontInfo.lineHeight)
                                     , class "cursor"
                                     ]
-                                    [ renderIme ime |> Html.map IMEMessage ]
+                                    [ renderIme fontInfo ime |> Html.map IMEMessage ]
                                 ]
                             ]
                         }

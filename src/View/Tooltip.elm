@@ -1,5 +1,6 @@
 module View.Tooltip exposing (renderTooltip)
 
+import Font exposing (FontInfo)
 import Helper.Helper exposing (ch, px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -12,7 +13,6 @@ import Internal.Window as Win
 import Model
     exposing
         ( Buffer
-        , FontInfo
         , Global
         , LintError
         , Mode(..)

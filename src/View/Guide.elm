@@ -1,12 +1,12 @@
 module View.Guide exposing (renderColumnGuide, renderLineGuide)
 
+import Font exposing (FontInfo)
 import Helper.Helper exposing (px)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
-import Model exposing (FontInfo)
 import Update.Cursor exposing (cursorPoint)
 
 

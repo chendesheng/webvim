@@ -1,5 +1,6 @@
 module View.Cursor exposing (renderCursor, renderCursorInner, renderMatchedCursor)
 
+import Font exposing (FontInfo)
 import Helper.Helper exposing (px, rem)
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html exposing (..)
@@ -19,7 +20,7 @@ import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Model exposing (FontInfo, Global, LintError, Mode(..))
+import Model exposing (Global, LintError, Mode(..))
 import Update.Cursor exposing (cursorPoint)
 import Update.Message exposing (Msg(..))
 
@@ -83,7 +84,7 @@ renderCursorInner isActive isMainCursor fontInfo ime lines classname y x =
                     []
                )
         )
-        [ renderIme ime |> Html.map IMEMessage ]
+        [ renderIme fontInfo ime |> Html.map IMEMessage ]
 
 
 renderMatchedCursor :

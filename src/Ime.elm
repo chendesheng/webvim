@@ -11,6 +11,7 @@ module Ime exposing
     )
 
 import Browser.Dom as Dom
+import Font exposing (FontInfo, stringWidth)
 import Helper.Helper exposing (px)
 import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html exposing (..)
@@ -191,20 +192,21 @@ sendActiveIme =
 -- render
 
 
-renderIme : IME -> Html IMEMsg
-renderIme ime =
-    lazy renderInput ime
+renderIme : FontInfo -> IME -> Html IMEMsg
+renderIme fontInfo ime =
+    lazy2 renderInput fontInfo ime
 
 
-renderInput : IME -> Html IMEMsg
-renderInput ime =
-    hiddenInput
-        (case ime of
-            NotActive ->
-                [ textContent ""
-                , contenteditable False
-                , style "opacity" "0"
-                , Events.custom "keydown"
+renderInput : FontInfo -> IME -> Html IMEMsg
+renderInput fontInfo ime =
+    case ime of
+        NotActive ->
+            span
+                [ id "hidden-input"
+                , tabindex 0
+                , style "background" "none"
+                , Events.custom
+                    "keydown"
                     (decodeKeyboardEvent True
                         |> Decode.map
                             (\key ->
@@ -215,10 +217,12 @@ renderInput ime =
                             )
                     )
                 ]
+                []
 
-            Active _ ->
-                [ contenteditable True
-                , style "opacity" "0"
+        Active _ ->
+            hiddenInput fontInfo
+                ""
+                [ style "opacity" "0"
                 , Events.custom "keydown"
                     (decodeKeyboardEvent False
                         |> Decode.map
@@ -235,9 +239,10 @@ renderInput ime =
                     )
                 ]
 
-            Composing _ ->
-                [ contenteditable True
-                , Events.on "compositionupdate"
+        Composing str ->
+            hiddenInput fontInfo
+                str
+                [ Events.on "compositionupdate"
                     (Decode.map CompositionUpdate
                         (Decode.field "data" Decode.string)
                     )
@@ -251,11 +256,10 @@ renderInput ime =
                     )
                 ]
 
-            CompositionClear ->
-                [ contenteditable True
-                , textContent ""
-                ]
-        )
+        CompositionClear ->
+            hiddenInput fontInfo
+                ""
+                [ value "" ]
 
 
 textContent : String -> Html.Attribute msg
@@ -263,18 +267,18 @@ textContent s =
     property "textContent" (Encode.string s)
 
 
-hiddenInput : List (Attribute msg) -> Html msg
-hiddenInput props =
+hiddenInput : FontInfo -> String -> List (Attribute msg) -> Html msg
+hiddenInput fontInfo str props =
     -- we can use a span or an input here, span is much easier to align
-    span
+    textarea
         ([ id "hidden-input"
-         , tabindex 0
 
          --turn off auto fixups
          , autocomplete False
          , spellcheck False
          , property "autocorrect" (Encode.string "off")
          , property "autocapitalize" (Encode.string "off")
+         , style "width" (px <| stringWidth fontInfo 0 (String.length str) str)
          ]
             ++ props
         )

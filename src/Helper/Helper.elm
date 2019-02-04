@@ -2,7 +2,6 @@ module Helper.Helper exposing
     ( arrayInsert
     , ch
     , charAt
-    , charWidthType
     , chompUntilAfter
     , dec
     , dropWhile
@@ -34,7 +33,6 @@ module Helper.Helper exposing
     , pathFileName
     , percentStr
     , px
-    , reEmoji
     , regex
     , regexWith
     , relativePath
@@ -584,33 +582,6 @@ isSingleChar s =
 
         _ ->
             False
-
-
-{-| copy from: <https://github.com/Microsoft/vscode/blob/3a619f24c3b7f760f283193ebd9c3ed601768a83/src/vs/base/common/strings.ts>
--}
-reEmoji =
-    regex "(?:[\\u231A\\u231B\\u23F0\\u23F3\\u2600-\\u27BF\\u2B50\\u2B55]|\\uD83C[\\uDDE6-\\uDDFF\\uDF00-\\uDFFF]|\\uD83D[\\uDC00-\\uDE4F\\uDE80-\\uDEF8]|\\uD83E[\\uDD00-\\uDDE6])"
-
-
-charWidthType : Char -> String
-charWidthType char =
-    let
-        codePoint =
-            Char.toCode char
-    in
-    -- https://github.com/Microsoft/vscode/blob/3a619f24c3b7f760f283193ebd9c3ed601768a83/src/vs/base/common/strings.ts#L535
-    if
-        (codePoint >= 0x2E80 && codePoint <= 0xD7AF)
-            || (codePoint >= 0xF900 && codePoint <= 0xFAFF)
-            || (codePoint >= 0xFF01 && codePoint <= 0xFF5E)
-    then
-        "FULL"
-
-    else if Re.contains reEmoji <| String.fromChar char then
-        "EMOJI"
-
-    else
-        "HALF"
 
 
 isPathChar : Char -> Bool
