@@ -113,7 +113,6 @@ type alias Flags =
     , height : Int
     , cwd : String
     , pathSeperator : String
-    , fontInfo : FontInfo
     , homedir : String
     , exHistory : List String
     , theme : String
