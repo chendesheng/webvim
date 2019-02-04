@@ -73,10 +73,6 @@ emptyIme =
 
 setImeActive : Bool -> IME -> IME
 setImeActive isActive ime =
-    let
-        _ =
-            Debug.log "setImeActive" isActive
-    in
     if isActive then
         case ime of
             CompositionClear ->
@@ -129,23 +125,20 @@ update toMsg onKeyPress imeMsg ime =
         Active str ->
             case imeMsg of
                 CompositionStart s ->
-                    let
-                        _ =
-                            Debug.log "CompositionStart" s
-                    in
                     ( Composing s, Cmd.none )
 
                 CompositionUpdate s ->
                     ( Active s
                       -- delay a little bit
                       -- then stop if still not in Composing state
-                    , Process.sleep 3
+                    , Process.sleep 0
                         |> Task.perform (always <| toMsg CompositionStop)
                     )
 
                 CompositionStop ->
-                    stopComposition toMsg onKeyPress ime str
+                    ( Active "", onKeyPress str )
 
+                --stopComposition toMsg onKeyPress ime str
                 _ ->
                     ( ime, Cmd.none )
 
@@ -169,19 +162,23 @@ update toMsg onKeyPress imeMsg ime =
         CompositionClear ->
             case imeMsg of
                 ActiveIme ->
-                    ( setImeActive True ime, Cmd.map toMsg focusIme )
+                    ( setImeActive True ime, Cmd.none )
 
                 _ ->
                     ( ime, Cmd.none )
 
 
 stopComposition toMsg onKeyPress ime s =
-    ( CompositionClear
-    , Cmd.batch
-        [ onKeyPress s
-        , Cmd.map toMsg sendActiveIme
-        ]
-    )
+    if String.isEmpty s then
+        ( Active "", Cmd.none )
+
+    else
+        ( CompositionClear
+        , Cmd.batch
+            [ onKeyPress s
+            , Cmd.map toMsg sendActiveIme
+            ]
+        )
 
 
 sendActiveIme : Cmd IMEMsg
@@ -196,10 +193,6 @@ sendActiveIme =
 
 renderIme : IME -> Html IMEMsg
 renderIme ime =
-    let
-        _ =
-            Debug.log "ime" ime
-    in
     lazy renderInput ime
 
 
@@ -208,7 +201,7 @@ renderInput ime =
     hiddenInput
         (case ime of
             NotActive ->
-                [ property "textContent" (Encode.string "")
+                [ textContent ""
                 , contenteditable False
                 , style "opacity" "0"
                 , Events.custom "keydown"
@@ -259,10 +252,15 @@ renderInput ime =
                 ]
 
             CompositionClear ->
-                [ contenteditable False
-                , property "textContent" (Encode.string "")
+                [ contenteditable True
+                , textContent ""
                 ]
         )
+
+
+textContent : String -> Html.Attribute msg
+textContent s =
+    property "textContent" (Encode.string s)
 
 
 hiddenInput : List (Attribute msg) -> Html msg
@@ -271,7 +269,6 @@ hiddenInput props =
     span
         ([ id "hidden-input"
          , tabindex 0
-         , autofocus True
 
          --turn off auto fixups
          , autocomplete False
