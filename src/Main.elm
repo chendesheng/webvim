@@ -9,7 +9,6 @@ import Helper.Debounce
         , decodeEvent
         , onDebounce
         )
-import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html
 import Json.Decode as Decode
 import Model exposing (..)

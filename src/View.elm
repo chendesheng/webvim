@@ -5,7 +5,6 @@ import Bitwise as BW
 import Browser exposing (Document)
 import Dict exposing (Dict)
 import Helper.Helper exposing (ch, percentStr, px, rem)
-import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events as Events

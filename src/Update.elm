@@ -23,7 +23,7 @@ import Helper.Helper
         , toCmd
         )
 import Http
-import Ime exposing (emptyIme, focusIme, setImeActive)
+import Ime exposing (emptyIme, focusIme, isImeActive, setImeActive)
 import Internal.Jumps
     exposing
         ( Location
@@ -248,12 +248,7 @@ updateMode modeName ({ global, buf } as ed) =
 
         ime =
             if oldModeName /= newModeName then
-                case newModeName of
-                    V.ModeNameInsert ->
-                        setImeActive True global.ime
-
-                    _ ->
-                        setImeActive False global.ime
+                setImeActive (newModeName == V.ModeNameInsert) global.ime
 
             else
                 global.ime
@@ -947,9 +942,7 @@ runOperator count register operator ({ buf, global } as ed) =
             ( { ed
                 | global =
                     updateIme
-                        -- FIXME: add a toggle function
-                        --(\ime -> { ime | isActive = not ime.isActive })
-                        (setImeActive False)
+                        (\ime -> setImeActive (not <| isImeActive ime) ime)
                         global
               }
             , Cmd.none
@@ -1527,13 +1520,6 @@ serviceBeforeApplyVimAST replaying key ast service =
             Nothing
 
 
-focusHiddenInput : Cmd Msg
-focusHiddenInput =
-    Task.attempt
-        (always NoneMessage)
-        (Dom.focus "hidden-input")
-
-
 applyVimAST : Bool -> Key -> AST -> Editor -> ( Editor, Cmd Msg )
 applyVimAST replaying key ast ({ buf } as ed) =
     let
@@ -1605,8 +1591,11 @@ applyVimAST replaying key ast ({ buf } as ed) =
             else
                 ( ed_, cmds )
 
-        doFocusInput oldEd ( ed_, cmds ) =
-            if isExMode oldEd.buf.mode /= isExMode ed_.buf.mode then
+        doFocusIme oldEd ( ed_, cmds ) =
+            if
+                (isExMode oldEd.buf.mode /= isExMode ed_.buf.mode)
+                    || (oldEd.global.ime /= ed_.global.ime)
+            then
                 ( ed_, Cmd.map IMEMessage focusIme :: cmds )
 
             else
@@ -1636,7 +1625,7 @@ applyVimAST replaying key ast ({ buf } as ed) =
         |> Tuple.mapSecond List.singleton
         |> doLint buf
         |> doTokenize buf
-        |> doFocusInput ed
+        |> doFocusIme ed
         |> Tuple.mapSecond Cmd.batch
 
 
@@ -2004,7 +1993,7 @@ update message global =
             ( global, Cmd.none )
 
         Read result ->
-            ( onRead result global, focusHiddenInput )
+            ( onRead result global, Cmd.map IMEMessage focusIme )
 
         Write result ->
             withEditor (onWrite result) global
@@ -2667,7 +2656,7 @@ init flags =
                     |> Maybe.andThen getNotLoadBuffer
                     |> Maybe.map (sendReadBuffer service viewHeight w.isActive)
             )
-        |> (::) focusHiddenInput
+        |> (::) (Cmd.map IMEMessage focusIme)
         |> Cmd.batch
     )
 

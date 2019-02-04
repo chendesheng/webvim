@@ -27,7 +27,7 @@ import Task
 {- two cases:
    ## System IME disabled
        - keydown: save to Composing.str
-       - delay 10ms then, stop if not start composing
+       - delay 3ms then, stop if not start composing
 
    ## System IME enabled
        - keydown: save to Composing.str
@@ -104,13 +104,17 @@ type IMEMsg
       -- only Active ime state will handle CompositionStop
     | CompositionStop
       -- when composition end/stop, we set ime to NotActive first,
-      -- then, after 10ms, send an ActiveIme message to set ime active again
+      -- then, after 3ms, send an ActiveIme message to set ime active again
     | ActiveIme
     | NoOp
 
 
 update : (IMEMsg -> msg) -> (String -> Cmd msg) -> IMEMsg -> IME -> ( IME, Cmd msg )
 update toMsg onKeyPress imeMsg ime =
+    let
+        _ =
+            Debug.log "update" ime
+    in
     case ime of
         NotActive ->
             case imeMsg of
@@ -135,7 +139,7 @@ update toMsg onKeyPress imeMsg ime =
                     ( Active s
                       -- delay a little bit
                       -- then stop if still not in Composing state
-                    , Process.sleep 10
+                    , Process.sleep 3
                         |> Task.perform (always <| toMsg CompositionStop)
                     )
 
@@ -221,9 +225,16 @@ renderInput ime =
 
             Active _ ->
                 [ contenteditable True
-                , Events.on "keydown"
+                , style "opacity" "0"
+                , Events.custom "keydown"
                     (decodeKeyboardEvent False
-                        |> Decode.map CompositionUpdate
+                        |> Decode.map
+                            (\key ->
+                                { message = CompositionUpdate key
+                                , stopPropagation = True
+                                , preventDefault = True
+                                }
+                            )
                     )
                 , Events.on "compositionstart"
                     (Decode.map CompositionStart
@@ -258,26 +269,10 @@ hiddenInput : List (Attribute msg) -> Html msg
 hiddenInput props =
     -- we can use a span or an input here, span is much easier to align
     span
-        -- input
         ([ id "hidden-input"
-         , style "position" "absolute"
-         , style "left" "0"
-         , style "top" "0"
-         , style "outline" "none"
-         , style "position" "relative"
+         , tabindex 0
+         , autofocus True
 
-         -- for span
-         , style "whiteSpace" "nowrap"
-         , tabindex -1
-
-         -- for input
-         --, style "height" (px fontInfo.lineHeight)
-         --, style "border" "none"
-         --, style "fontSize" "inherit"
-         --, style "fontFamily" "inherit"
-         --, property "size" (Encode.string "10000")
-         --, style "padding" "0"
-         --, style "margin" "0"
          --turn off auto fixups
          , autocomplete False
          , spellcheck False
