@@ -18,7 +18,6 @@ import Helper.Helper
         , pathBase
         , pathFileName
         , regexWith
-        , relativePath
         , replaceHomeDir
         , resolvePath
         , toCmd
@@ -918,7 +917,7 @@ runOperator count register operator ({ buf, global } as ed) =
             in
             ( updateBuffer
                 (Buf.infoMessage
-                    ((buf |> Buf.shortPath global |> quote)
+                    ((buf |> Buf.shortBufferPath global |> quote)
                         ++ " line "
                         ++ (y
                                 |> inc
@@ -1154,13 +1153,18 @@ applyEdit count edit register ({ buf } as ed) =
                                                     |> getBuffers
                                                     |> List.filterMap
                                                         (\{ path } ->
+                                                            let
+                                                                _ =
+                                                                    Debug.log "path" path
+                                                            in
                                                             if path /= buf.path && path /= "" then
                                                                 Just path
 
                                                             else
                                                                 Nothing
                                                         )
-                                                    |> List.map (relativePath global.pathSeperator global.cwd)
+                                                    |> Debug.log "buffers"
+                                                    |> List.map (Buf.shortPath global)
                                                 )
                                                 |> Task.perform ListBuffers
                                         , False
@@ -1333,7 +1337,6 @@ execute count register str ({ buf, global } as ed) =
                     (path
                         |> normalizePath global.pathSeperator
                         |> replaceHomeDir global.homedir
-                        |> resolvePath global.pathSeperator global.cwd
                     )
                     Nothing
                     replaceActiveView
@@ -2422,7 +2425,7 @@ onWrite result ({ buf, global } as ed) =
                                     buf2
                            )
                         |> Buf.infoMessage
-                            ((buf |> Buf.shortPath global |> quote) ++ " Written")
+                            ((buf |> Buf.shortBufferPath global |> quote) ++ " Written")
 
                 lintCmd =
                     if buf1.config.lint then
@@ -2453,7 +2456,7 @@ onWrite result ({ buf, global } as ed) =
         _ ->
             ( updateBuffer
                 (Buf.errorMessage
-                    (Buf.shortPath global buf ++ " save error")
+                    (Buf.shortBufferPath global buf ++ " save error")
                 )
                 ed
             , Cmd.none

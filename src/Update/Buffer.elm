@@ -34,6 +34,7 @@ module Update.Buffer exposing
     , setRegister
     , setScrollTop
     , setShowTip
+    , shortBufferPath
     , shortPath
     , switchVisualEnd
     , toWords
@@ -96,6 +97,7 @@ import Model
         , emptyView
         , getBuffer
         , getLoadedBuffer
+        , isTempBuffer
         )
 import Regex as Re
 import String
@@ -1358,9 +1360,18 @@ switchVisualEnd buf =
             buf
 
 
-shortPath : Global -> Buffer -> String
-shortPath global buf =
-    relativePath global.pathSeperator global.cwd buf.path
+shortBufferPath : Global -> Buffer -> String
+shortBufferPath global buf =
+    shortPath global buf.path
+
+
+shortPath : Global -> String -> String
+shortPath global path =
+    if isTempBuffer path then
+        path
+
+    else
+        relativePath global.pathSeperator global.cwd path
 
 
 activeBuffer : Int -> Global -> Global

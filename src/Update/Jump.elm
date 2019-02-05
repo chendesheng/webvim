@@ -152,8 +152,19 @@ jumpToPath :
     -> (View -> Win.Window View -> Win.Window View)
     -> Editor
     -> ( Editor, Cmd Msg )
-jumpToPath isSaveJump path overrideCursor setView ({ global, buf } as ed) =
+jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
     let
+        -- always use abolute path
+        path =
+            if isTempBuffer path_ then
+                path_
+
+            else
+                resolvePath
+                    global.pathSeperator
+                    global.cwd
+                    path_
+
         updateCursor : Buffer -> Buffer
         updateCursor buf1 =
             case overrideCursor of
@@ -272,24 +283,9 @@ jumpToPath isSaveJump path overrideCursor setView ({ global, buf } as ed) =
 
 jumpToPathFindBuffer : Global -> String -> Maybe ( Buffer, Bool )
 jumpToPathFindBuffer global path =
-    let
-        path1 =
-            if isTempBuffer path then
-                path
-
-            else
-                resolvePath
-                    global.pathSeperator
-                    global.cwd
-                    path
-    in
     global.buffers
         |> listBuffers
-        |> List.map
-            (\( buf, b ) ->
-                ( buf, b )
-            )
-        |> findFirst (\( b, _ ) -> b.path == path1)
+        |> findFirst (\( b, _ ) -> b.path == path)
 
 
 jumpToPathSetCursor : Int -> Position -> Buffer -> Buffer
