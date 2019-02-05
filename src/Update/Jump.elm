@@ -134,7 +134,7 @@ jumpToLocation setView isSaveJump { path, cursor } ed =
     jumpToPath isSaveJump path (Just cursor) setView ed
 
 
-{-| 3 cases:
+{-| multiple cases:
 
   - buffer exists
       - not loaded
@@ -219,9 +219,13 @@ jumpToPath isSaveJump path overrideCursor setView ({ global, buf } as ed) =
                 -- not loaded
                 let
                     b1 =
-                        Buf.updateView (resizeView buf.view.size) b
+                        b
+                            |> Buf.updateView (resizeView buf.view.size)
+                            |> updateCursor
                 in
-                ( ed, sendReadBuffer global1.service buf.view.size.height True b1 )
+                ( { ed | global = global1 }
+                , sendReadBuffer global1.service buf.view.size.height True b1
+                )
 
         -- buffer not exists
         _ ->
@@ -255,8 +259,14 @@ jumpToPath isSaveJump path overrideCursor setView ({ global, buf } as ed) =
                 )
 
             else
-                ( ed
-                , sendReadBuffer global3.service buf.view.size.height True b
+                let
+                    b1 =
+                        b
+                            |> Buf.updateView (resizeView buf.view.size)
+                            |> updateCursor
+                in
+                ( { ed | global = global2 }
+                , sendReadBuffer global3.service buf.view.size.height True b1
                 )
 
 
