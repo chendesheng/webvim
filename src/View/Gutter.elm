@@ -2,12 +2,9 @@ module View.Gutter exposing (renderGutters)
 
 import Font exposing (FontInfo)
 import Helper.Helper exposing (ch, px, rem)
-import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events as Events
 import Html.Lazy exposing (..)
-import Internal.TextBuffer as B
 
 
 renderGutters :

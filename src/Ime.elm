@@ -258,11 +258,6 @@ renderInput fontInfo ime =
                 [ value "" ]
 
 
-textContent : String -> Html.Attribute msg
-textContent s =
-    property "textContent" (Encode.string s)
-
-
 hiddenInput : FontInfo -> String -> List (Attribute msg) -> Html msg
 hiddenInput fontInfo str props =
     -- we can use a span or an input here, span is much easier to align

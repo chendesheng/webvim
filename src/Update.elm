@@ -1153,17 +1153,12 @@ applyEdit count edit register ({ buf } as ed) =
                                                     |> getBuffers
                                                     |> List.filterMap
                                                         (\{ path } ->
-                                                            let
-                                                                _ =
-                                                                    Debug.log "path" path
-                                                            in
                                                             if path /= buf.path && path /= "" then
                                                                 Just path
 
                                                             else
                                                                 Nothing
                                                         )
-                                                    |> Debug.log "buffers"
                                                     |> List.map (Buf.shortPath global)
                                                 )
                                                 |> Task.perform ListBuffers
