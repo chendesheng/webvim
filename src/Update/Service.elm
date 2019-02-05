@@ -860,11 +860,8 @@ sendListFiles : String -> String -> String -> Cmd Msg
 sendListFiles url sep cwd =
     let
         trimSep s =
-            if s == "./" || s == "../" || String.toLower s == ".ds_store" then
+            if String.endsWith sep s || String.toLower s == ".ds_store" then
                 Nothing
-
-            else if String.endsWith sep s then
-                Just <| String.dropRight (String.length sep) s
 
             else
                 Just <| s
