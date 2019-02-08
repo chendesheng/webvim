@@ -132,9 +132,12 @@ html, body {
 }
 
 .absolute-gutter {
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='10.5px' alignment-baseline='central' fill='#888'>~</text></svg>"); 
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' height='@{line-height}' font-size='@{font-size}' font-family='@{font-family}' ><text x='0' y='20%' transform='scale(0.83, 0.83)' dominant-baseline='hanging' fill='#888'>~</text></svg>"); 
   background-repeat: repeat-y;
   position: relative;
+  // I don't know why that with the same font size, text in svg is bigger than text in html
+  // the svg doesn't have viewBox so it shouldn't scale
+  min-width: 1.2ch;
 }
 .relative-gutter {
   width: 2ch;
