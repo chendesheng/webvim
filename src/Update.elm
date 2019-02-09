@@ -2369,15 +2369,24 @@ onRead result global =
                         |> Buf.transaction buf.history.changes
                         |> Buf.updateHistory (always buf.history)
                         |> (\buf3 ->
-                                Buf.updateView
-                                    (Buf.setCursor buf.view.cursor True
-                                        >> updateViewAfterCursorChanged
-                                            global.lineHeight
-                                            buf3.mode
-                                            buf3.lines
-                                            buf3.syntax
-                                    )
-                                    buf3
+                                let
+                                    v1 =
+                                        buf3.view
+                                            |> Buf.setCursor buf.view.cursor True
+                                            |> updateViewAfterCursorChanged
+                                                global.lineHeight
+                                                buf3.mode
+                                                buf3.lines
+                                                buf3.syntax
+                                in
+                                { buf3
+                                    | view =
+                                        { v1
+                                            | alternativeBuf =
+                                                getActiveBuffer global
+                                                    |> Maybe.map .path
+                                        }
+                                }
                            )
             in
             Buf.addBuffer setActive buf2 global

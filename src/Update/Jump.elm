@@ -252,18 +252,20 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                                         }
                                     )
                             )
-
-                global3 =
-                    { global2
-                        | window =
-                            setView b.view global2.window
-                    }
             in
             if isTempBuffer path then
+                let
+                    b1 =
+                        Buf.updateView
+                            (\v -> { v | alternativeBuf = Just buf.path })
+                            b
+                in
                 ( { ed
                     | global =
-                        { global3
-                            | buffers = Dict.insert b.id (Loaded b) global3.buffers
+                        { global2
+                            | buffers = Dict.insert b1.id (Loaded b1) global2.buffers
+                            , window =
+                                setView b1.view global2.window
                         }
                   }
                 , Cmd.none
@@ -277,7 +279,7 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                             |> updateCursor
                 in
                 ( { ed | global = global2 }
-                , sendReadBuffer global3.service buf.view.size.height True b1
+                , sendReadBuffer global2.service buf.view.size.height True b1
                 )
 
 
