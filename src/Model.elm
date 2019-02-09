@@ -61,6 +61,8 @@ module Model exposing
     , registerString
     , registerToString
     , registersDecoder
+    , replaceActiveView
+    , resizeView
     , setBuffer
     , undoDecoder
     , undoEncoder
@@ -494,6 +496,26 @@ type alias View =
     --       update '#' register when view switch
     , alternativeBuf : Maybe String
     }
+
+
+resizeView : Size -> View -> View
+resizeView size view =
+    if size == view.size then
+        view
+
+    else
+        { view
+            | size = size
+            , lines =
+                List.range view.scrollTop
+                    (view.scrollTop + size.height + 1)
+        }
+
+
+replaceActiveView : View -> Win.Window View -> Win.Window View
+replaceActiveView view =
+    Win.updateActiveView
+        (\{ size } -> resizeView size view)
 
 
 type Model

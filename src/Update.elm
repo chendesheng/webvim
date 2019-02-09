@@ -62,6 +62,73 @@ import Vim.Helper exposing (escapeKey, parseKeys)
 import Vim.Parser exposing (parse)
 
 
+tokenizeLineCmd : String -> Int -> Buffer -> Cmd Msg
+tokenizeLineCmd url begin buf =
+    if buf.config.syntax then
+        let
+            view =
+                buf.view
+        in
+        case B.getLine begin buf.lines of
+            Just line ->
+                sendTokenizeLine url
+                    { bufId = buf.id
+                    , path = buf.path
+                    , version = buf.history.version
+                    , line = begin
+                    , lines = line
+                    }
+
+            _ ->
+                Cmd.none
+
+    else
+        Cmd.none
+
+
+tokenizeBufferCmd : Int -> String -> Buffer -> Cmd Msg
+tokenizeBufferCmd begin url buf =
+    if buf.config.syntax then
+        let
+            view =
+                buf.view
+
+            scrollTop =
+                Buf.finalScrollTop view.size view buf
+
+            scrollBottom =
+                scrollTop + view.size.height
+
+            end =
+                scrollBottom + view.size.height
+        in
+        if begin < scrollBottom then
+            let
+                lines =
+                    buf.lines
+                        |> B.sliceLines begin end
+                        |> B.toString
+            in
+            if String.isEmpty lines then
+                Cmd.none
+
+            else
+                sendTokenize
+                    url
+                    { bufId = buf.id
+                    , path = buf.path
+                    , version = buf.history.version
+                    , line = begin
+                    , lines = lines
+                    }
+
+        else
+            Cmd.none
+
+    else
+        Cmd.none
+
+
 stringToPrefix : String -> ExPrefix
 stringToPrefix prefix =
     case prefix of
@@ -2369,24 +2436,15 @@ onRead result global =
                         |> Buf.transaction buf.history.changes
                         |> Buf.updateHistory (always buf.history)
                         |> (\buf3 ->
-                                let
-                                    v1 =
-                                        buf3.view
-                                            |> Buf.setCursor buf.view.cursor True
-                                            |> updateViewAfterCursorChanged
-                                                global.lineHeight
-                                                buf3.mode
-                                                buf3.lines
-                                                buf3.syntax
-                                in
-                                { buf3
-                                    | view =
-                                        { v1
-                                            | alternativeBuf =
-                                                getActiveBuffer global
-                                                    |> Maybe.map .path
-                                        }
-                                }
+                                Buf.updateView
+                                    (Buf.setCursor buf.view.cursor True
+                                        >> updateViewAfterCursorChanged
+                                            global.lineHeight
+                                            buf3.mode
+                                            buf3.lines
+                                            buf3.syntax
+                                    )
+                                    buf3
                            )
             in
             Buf.addBuffer setActive buf2 global

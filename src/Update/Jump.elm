@@ -5,12 +5,7 @@ module Update.Jump exposing
     , jumpToFile
     , jumpToLocation
     , jumpToPath
-    , locationParser
-    , replaceActiveView
-    , resizeView
     , startJumpToTag
-    , tokenizeBufferCmd
-    , tokenizeLineCmd
     )
 
 import Array as Array exposing (Array)
@@ -51,89 +46,6 @@ import Update.Motion
 import Update.Service exposing (..)
 
 
-tokenizeLineCmd : String -> Int -> Buffer -> Cmd Msg
-tokenizeLineCmd url begin buf =
-    if buf.config.syntax then
-        let
-            view =
-                buf.view
-        in
-        case B.getLine begin buf.lines of
-            Just line ->
-                sendTokenizeLine url
-                    { bufId = buf.id
-                    , path = buf.path
-                    , version = buf.history.version
-                    , line = begin
-                    , lines = line
-                    }
-
-            _ ->
-                Cmd.none
-
-    else
-        Cmd.none
-
-
-tokenizeBufferCmd : Int -> String -> Buffer -> Cmd Msg
-tokenizeBufferCmd begin url buf =
-    if buf.config.syntax then
-        let
-            view =
-                buf.view
-
-            scrollTop =
-                Buf.finalScrollTop view.size view buf
-
-            scrollBottom =
-                scrollTop + view.size.height
-
-            end =
-                scrollBottom + view.size.height
-        in
-        if begin < scrollBottom then
-            let
-                lines =
-                    buf.lines
-                        |> B.sliceLines begin end
-                        |> B.toString
-            in
-            if String.isEmpty lines then
-                Cmd.none
-
-            else
-                sendTokenize
-                    url
-                    { bufId = buf.id
-                    , path = buf.path
-                    , version = buf.history.version
-                    , line = begin
-                    , lines = lines
-                    }
-
-        else
-            Cmd.none
-
-    else
-        Cmd.none
-
-
-replaceActiveView : View -> Win.Window View -> Win.Window View
-replaceActiveView view =
-    Win.updateActiveView
-        (\{ size } -> resizeView size view)
-
-
-jumpToLocation :
-    (View -> Win.Window View -> Win.Window View)
-    -> Bool
-    -> Location
-    -> Editor
-    -> ( Editor, Cmd Msg )
-jumpToLocation setView isSaveJump { path, cursor } ed =
-    jumpToPath isSaveJump path (Just cursor) setView ed
-
-
 {-| multiple cases:
 
   - buffer exists
@@ -143,6 +55,19 @@ jumpToLocation setView isSaveJump { path, cursor } ed =
   - buffer not exists
       - temp buffer (loaded)
       - file buffer (not loaded)
+
+switch to buffer setup:
+
+  - init cursor
+  - save jumps
+  - resize view
+  - save alternative buffer
+  - save '#' and '%' registers
+
+setup window:
+
+  - update window
+  - insert into buffers
 
 -}
 jumpToPath :
@@ -185,102 +110,53 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                     else
                         global.jumps
             }
+
+        ed1 =
+            { ed | global = global1 }
     in
     case jumpToPathFindBuffer global1 path of
         -- buffer exists
         Just ( b, loaded ) ->
             if loaded then
                 -- loaded
-                ( if buf.id == b.id then
+                if buf.id == b.id then
                     -- same buffer
-                    { ed
-                        | buf = updateCursor buf
-                        , global = global1
-                    }
+                    ( { ed1 | buf = updateCursor buf }, Cmd.none )
 
-                  else
-                    { ed
-                        | global =
-                            let
-                                b1 =
-                                    b
-                                        |> updateCursor
-                                        |> Buf.updateView
-                                            (\v -> { v | alternativeBuf = Just buf.path })
-                            in
-                            { global1
-                                | buffers = Dict.insert b1.id (Loaded b1) global1.buffers
-                                , window = setView b1.view global1.window
-                            }
-                    }
-                , Cmd.none
-                  -- , Cmd.batch
-                  --     [ if b.config.lint then
-                  --         sendLintProject global.service
-                  --             global.pathSeperator
-                  --             b.path
-                  --             b.history.version
-                  --             b.lines
-                  --       else
-                  --         Cmd.none
-                  --     ]
-                )
+                else
+                    jumpToPathBufferLoaded
+                        setView
+                        updateCursor
+                        b
+                        buf
+                        ed1
+                --     [ if b.config.lint then
+                --         sendLintProject global.service
+                --             global.pathSeperator
+                --             b.path
+                --             b.history.version
+                --             b.lines
+                --       else
+                --         Cmd.none
+                --     ]
 
             else
                 -- not loaded
-                let
-                    b1 =
-                        b
-                            |> Buf.updateView (resizeView buf.view.size)
-                            |> updateCursor
-                in
-                ( { ed | global = global1 }
-                , sendReadBuffer global1.service buf.view.size.height True b1
-                )
+                jumpToPathBufferNotLoaded updateCursor b buf ed1
 
         -- buffer not exists
         _ ->
             let
                 ( global2, b ) =
                     createBuffer path buf.view.size global1
-                        |> Tuple.mapSecond
-                            (updateCursor
-                                >> Buf.updateView
-                                    (\v ->
-                                        { v
-                                            | alternativeBuf = Just buf.path
-                                        }
-                                    )
-                            )
             in
             if isTempBuffer path then
-                let
-                    b1 =
-                        Buf.updateView
-                            (\v -> { v | alternativeBuf = Just buf.path })
-                            b
-                in
-                ( { ed
-                    | global =
-                        { global2
-                            | buffers = Dict.insert b1.id (Loaded b1) global2.buffers
-                            , window =
-                                setView b1.view global2.window
-                        }
-                  }
-                , Cmd.none
-                )
+                -- loaded
+                jumpToPathBufferLoaded setView updateCursor b buf ed1
 
             else
-                let
-                    b1 =
-                        b
-                            |> Buf.updateView (resizeView buf.view.size)
-                            |> updateCursor
-                in
-                ( { ed | global = global2 }
-                , sendReadBuffer global2.service buf.view.size.height True b1
-                )
+                -- not loaded
+                jumpToPathBufferNotLoaded updateCursor b buf ed1
 
 
 jumpToPathFindBuffer : Global -> String -> Maybe ( Buffer, Bool )
@@ -305,6 +181,76 @@ jumpToPathSetCursor lineHeight cursor buf =
             >> Buf.setScrollTop scrollTop lineHeight
         )
         buf
+
+
+jumpToPathBufferLoaded :
+    (View -> Win.Window View -> Win.Window View)
+    -> (Buffer -> Buffer)
+    -> Buffer
+    -> Buffer
+    -> Editor
+    -> ( Editor, Cmd Msg )
+jumpToPathBufferLoaded setView updateCursor toBuf buf ed =
+    let
+        b1 =
+            toBuf
+                |> Buf.updateView
+                    (\v -> { v | alternativeBuf = Just buf.path })
+                |> updateCursor
+
+        global =
+            ed.global
+
+        registers =
+            jumpToPathUpdateRegisters buf.path b1.path global.registers
+    in
+    ( { ed
+        | global =
+            { global
+                | buffers = Dict.insert b1.id (Loaded b1) global.buffers
+                , registers = registers
+                , window =
+                    setView b1.view global.window
+            }
+      }
+    , Cmd.none
+    )
+
+
+jumpToPathBufferNotLoaded :
+    (Buffer -> Buffer)
+    -> Buffer
+    -> Buffer
+    -> Editor
+    -> ( Editor, Cmd Msg )
+jumpToPathBufferNotLoaded updateCursor toBuf buf ed =
+    let
+        b1 =
+            toBuf
+                |> Buf.updateView (resizeView buf.view.size)
+                |> Buf.updateView
+                    (\v -> { v | alternativeBuf = Just buf.path })
+                |> updateCursor
+
+        global =
+            ed.global
+
+        registers =
+            jumpToPathUpdateRegisters buf.path b1.path ed.global.registers
+    in
+    ( { ed | global = { global | registers = registers } }
+    , sendReadBuffer ed.global.service buf.view.size.height True b1
+    )
+
+
+jumpToPathUpdateRegisters :
+    String
+    -> String
+    -> Dict String RegisterText
+    -> Dict String RegisterText
+jumpToPathUpdateRegisters from to =
+    Dict.insert "#" (Text from)
+        >> Dict.insert "%" (Text to)
 
 
 jumpByView : Float -> Global -> Buffer -> Buffer
@@ -367,18 +313,18 @@ jumpByView factor global buf =
             buf
 
 
-resizeView : Size -> View -> View
-resizeView size view =
-    if size == view.size then
-        view
 
-    else
-        { view
-            | size = size
-            , lines =
-                List.range view.scrollTop
-                    (view.scrollTop + size.height + 1)
-        }
+-- relies on jump to path
+
+
+jumpToLocation :
+    (View -> Win.Window View -> Win.Window View)
+    -> Bool
+    -> Location
+    -> Editor
+    -> ( Editor, Cmd Msg )
+jumpToLocation setView isSaveJump { path, cursor } ed =
+    jumpToPath isSaveJump path (Just cursor) setView ed
 
 
 locationParser : Parser Location
