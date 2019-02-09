@@ -239,8 +239,6 @@ function genThemeCss(uiTheme, theme, colorMap) {
 
   cssColor('.gutters', 'editor.foreground');
   cssColor('.gutters', 'editorLineNumber.foreground');
-  cssBg('.gutters', 'editor.background');
-  cssBg('.gutters .line-number', 'editor.background');
 
   cssColor('.status', 'statusBar.foreground');
   cssBg('.status', 'statusBar.background');

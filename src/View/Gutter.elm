@@ -78,13 +78,18 @@ renderAbsoluteGutterInner totalLines viewLines =
         []
         (List.map
             (\lineNumber ->
+                let
+                    top =
+                        style "top" <| rem lineNumber
+                in
                 if lineNumber < totalLines then
                     renderLineNumber
-                        [ style "top" <| rem lineNumber ]
+                        [ top ]
                         (lineNumber + 1)
 
                 else
-                    div [] []
+                    div [ class "line-number", top, class "line-number-hole" ]
+                        [ text "~" ]
             )
             viewLines
         )
