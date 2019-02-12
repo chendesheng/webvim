@@ -2725,7 +2725,6 @@ init fontInfo flags =
                     |> Maybe.andThen getNotLoadBuffer
                     |> Maybe.map (sendReadBuffer service viewHeight w.isActive)
             )
-        |> (::) (Cmd.map IMEMessage focusIme)
         |> Cmd.batch
     )
 

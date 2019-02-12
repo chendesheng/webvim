@@ -200,6 +200,7 @@ renderInput fontInfo ime =
             span
                 [ id "hidden-input"
                 , tabindex 0
+                , autofocus True
                 , style "background" "none"
                 , Events.custom
                     "keydown"
