@@ -90,14 +90,14 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                     global.cwd
                     path_
 
-        updateCursor : Buffer -> Buffer
-        updateCursor buf1 =
+        updateCursor : B.TextBuffer -> View -> View
+        updateCursor lines view =
             case overrideCursor of
                 Just cursor ->
-                    jumpToPathSetCursor global.lineHeight cursor buf1
+                    jumpToPathSetCursor global.lineHeight cursor lines view
 
                 _ ->
-                    buf1
+                    view
 
         global1 =
             { global
@@ -121,7 +121,7 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
                 -- loaded
                 if buf.id == b.id then
                     -- same buffer
-                    ( { ed1 | buf = updateCursor buf }, Cmd.none )
+                    ( { ed1 | buf = Buf.updateView (updateCursor buf.lines) buf }, Cmd.none )
 
                 else
                     jumpToPathBufferLoaded
@@ -166,51 +166,51 @@ jumpToPathFindBuffer global path =
         |> findFirst (\( b, _ ) -> b.path == path)
 
 
-jumpToPathSetCursor : Int -> Position -> Buffer -> Buffer
-jumpToPathSetCursor lineHeight cursor buf =
+jumpToPathSetCursor : Int -> Position -> B.TextBuffer -> View -> View
+jumpToPathSetCursor lineHeight cursor lines view =
     let
         scrollTop =
             Buf.bestScrollTop
                 (Tuple.first cursor)
-                buf.view.size.height
-                buf.lines
-                buf.view.scrollTop
+                view.size.height
+                lines
+                view.scrollTop
     in
-    Buf.updateView
-        (Buf.setCursor cursor True
-            >> Buf.setScrollTop scrollTop lineHeight
-        )
-        buf
+    view
+        |> Buf.setCursor cursor True
+        |> Buf.setScrollTop scrollTop lineHeight
 
 
 jumpToPathBufferLoaded :
     (View -> Win.Window View -> Win.Window View)
-    -> (Buffer -> Buffer)
+    -> (B.TextBuffer -> View -> View)
     -> Buffer
     -> Buffer
     -> Editor
     -> ( Editor, Cmd Msg )
 jumpToPathBufferLoaded setView updateCursor toBuf buf ed =
     let
-        b1 =
-            toBuf
-                |> Buf.updateView
-                    (\v -> { v | alternativeBuf = Just buf.path })
-                |> updateCursor
-
         global =
             ed.global
 
+        toBuf1 =
+            Buf.updateView
+                (\v ->
+                    updateCursor toBuf.lines
+                        { v | alternativeBuf = Just buf.path }
+                )
+                toBuf
+
         registers =
-            jumpToPathUpdateRegisters buf.path b1.path global.registers
+            jumpToPathUpdateRegisters buf.path toBuf.path global.registers
     in
     ( { ed
         | global =
             { global
-                | buffers = Dict.insert b1.id (Loaded b1) global.buffers
+                | buffers = Dict.insert toBuf1.id (Loaded toBuf1) global.buffers
                 , registers = registers
                 , window =
-                    setView b1.view global.window
+                    setView toBuf1.view global.window
             }
       }
     , Cmd.none
@@ -218,28 +218,29 @@ jumpToPathBufferLoaded setView updateCursor toBuf buf ed =
 
 
 jumpToPathBufferNotLoaded :
-    (Buffer -> Buffer)
+    (B.TextBuffer -> View -> View)
     -> Buffer
     -> Buffer
     -> Editor
     -> ( Editor, Cmd Msg )
 jumpToPathBufferNotLoaded updateCursor toBuf buf ed =
     let
-        b1 =
-            toBuf
-                |> Buf.updateView (resizeView buf.view.size)
-                |> Buf.updateView
-                    (\v -> { v | alternativeBuf = Just buf.path })
-                |> updateCursor
+        toBuf1 =
+            Buf.updateView
+                (resizeView buf.view.size
+                    >> (\v1 -> { v1 | alternativeBuf = Just buf.path })
+                    >> updateCursor toBuf.lines
+                )
+                toBuf
 
         global =
             ed.global
 
         registers =
-            jumpToPathUpdateRegisters buf.path b1.path ed.global.registers
+            jumpToPathUpdateRegisters buf.path toBuf1.path ed.global.registers
     in
     ( { ed | global = { global | registers = registers } }
-    , sendReadBuffer ed.global.service buf.view.size.height True b1
+    , sendReadBuffer ed.global.service buf.view.size.height True toBuf1
     )
 
 
