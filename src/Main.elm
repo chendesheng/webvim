@@ -72,10 +72,14 @@ main =
                                 update msg state
                                     |> Tuple.mapSecond
                                         (\cmd ->
-                                            Cmd.batch
-                                                [ cmd
-                                                , debouncePersistentAll 3000
-                                                ]
+                                            if msg == PersistentAll then
+                                                cmd
+
+                                            else
+                                                Cmd.batch
+                                                    [ cmd
+                                                    , debouncePersistentAll 3000
+                                                    ]
                                         )
                                     |> toModel
 
