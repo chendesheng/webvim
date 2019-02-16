@@ -1,15 +1,16 @@
-module View.Gutter exposing (renderGutters)
+module View.Gutter exposing (gutterWidth, renderGutters)
 
 import Font exposing (FontInfo)
 import Helper.Helper exposing (ch, px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)
+import Internal.TextBuffer as B
 
 
 renderGutters :
     List Int
-    -> Int
+    -> B.TextBuffer
     -> Int
     -> Int
     -> Int
@@ -17,21 +18,21 @@ renderGutters :
     -> Int
     -> List (Attribute msg)
     -> Html msg
-renderGutters viewLines totalLines lineHeight relativeZeroLine scrollTop topOffsetPx height scrollingCss =
+renderGutters viewLines lines lineHeight relativeZeroLine scrollTop topOffsetPx height scrollingCss =
     let
-        gutterWidth =
-            totalLines |> String.fromInt |> String.length
+        totalLines =
+            B.count lines - 1
 
-        relativeGutterWidth =
-            4
+        w =
+            gutterWidth lines
     in
     div
         [ class "gutters"
-        , style "width" <| ch (gutterWidth + relativeGutterWidth + 1)
+        , style "width" <| ch w
         ]
         [ renderAbsoluteGutter
             scrollingCss
-            gutterWidth
+            (w - 5)
             relativeZeroLine
             totalLines
             viewLines
@@ -127,3 +128,12 @@ renderRelativeGutter lineHeight topOffsetPx height zeroLine maxLine =
             height
             (Basics.min (maxLine - zeroLine) height)
         ]
+
+
+gutterWidth : B.TextBuffer -> Int
+gutterWidth lines =
+    let
+        n =
+            B.count lines - 1
+    in
+    (n |> String.fromInt |> String.length) + 5

@@ -26,7 +26,7 @@ import Update.Range exposing (visualRegions)
 import Url.Builder as Query exposing (toQuery)
 import View.AutoComplete exposing (renderAutoComplete, renderExAutoComplete)
 import View.Cursor exposing (renderCursor, renderMatchedCursor)
-import View.Guide exposing (renderColumnGuide, renderLineGuide)
+import View.Guide exposing (renderGuide)
 import View.Gutter exposing (renderGutters)
 import View.Lines
     exposing
@@ -328,22 +328,20 @@ renderBuffer path rect view buf isActive global =
                )
         )
         [ renderGutters view.lines
-            totalLines
+            lines
             lineHeight
             relativeZeroLine
             scrollTop
             topOffsetPx
             height
             scrollingCss
-        , renderLineGuide lineHeight scrollTop topOffsetPx maybeCursor
+        , renderGuide fontInfo lines lineHeight scrollTop topOffsetPx maybeCursor
         , div
             (class "lines-container" :: scrollLeftProp :: scrollingCss)
-            (renderColumnGuide fontInfo lines maybeCursor
-                :: lazy5 renderVisual fontInfo scrollTop height mode lines
+            (lazy5 renderVisual fontInfo scrollTop height mode lines
                 :: renderHighlights fontInfo scrollTop lines highlights
                 :: lazy5 renderLint buf.path fontInfo scrollTop lines lint.items
                 :: lazy3 renderLines lines syntax view.lines
-                :: div [ class "ruler" ] []
                 :: renderCursor isActive fontInfo ime lines "" maybeCursor
                 :: renderMatchedCursor
                     isActive
