@@ -13,6 +13,7 @@ module Helper.Helper exposing
     , floorFromZero
     , fromListBy
     , getLast
+    , httpErrorMessage
     , inc
     , isAbsolutePath
     , isBetween
@@ -52,6 +53,7 @@ module Helper.Helper exposing
 import Array as Array exposing (Array)
 import Char
 import Dict exposing (Dict)
+import Http
 import Parser as P exposing ((|.), (|=), Parser)
 import Regex as Re exposing (Regex)
 import Task
@@ -612,3 +614,22 @@ percentStr f =
 toCmd : msg -> Cmd msg
 toCmd m =
     Task.perform (always m) (Task.succeed ())
+
+
+httpErrorMessage : Http.Error -> String
+httpErrorMessage err =
+    case err of
+        Http.BadUrl s ->
+            "BadUrl: " ++ s
+
+        Http.Timeout ->
+            "Timeout"
+
+        Http.NetworkError ->
+            "NetworkError"
+
+        Http.BadStatus { status } ->
+            "NetworkError: " ++ String.fromInt status.code
+
+        Http.BadPayload s _ ->
+            "BadPayload: " ++ s

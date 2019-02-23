@@ -1,6 +1,8 @@
 module Main exposing (main, toModel)
 
+import Boot
 import Browser
+import Browser.Dom as Dom
 import Browser.Events as Events exposing (onResize)
 import Font exposing (measureFont, renderMeasureDivs)
 import Helper.Debounce
@@ -14,6 +16,7 @@ import Html
 import Json.Decode as Decode
 import Model exposing (..)
 import Platform as P
+import Task
 import Update exposing (..)
 import Update.Message exposing (..)
 import View exposing (page)
@@ -31,85 +34,101 @@ toModel =
 
 main : Program Flags Model Msg
 main =
-    Browser.document
-        { init = \flags -> ( Booting flags, initCommand flags )
+    let
+        bootTranslator flags =
+            { toMsg = BootMessage
+            , toModel = Booting flags
+            }
+    in
+    Browser.application
+        { onUrlRequest = \_ -> NoneMessage
+        , onUrlChange = \_ -> NoneMessage
+        , init =
+            \flags url key ->
+                Boot.init (bootTranslator flags) flags.service url
         , view =
             \model ->
                 case model of
-                    Booting _ ->
+                    Booting _ bootingModel ->
                         { title = "Initializing"
-                        , body = [ renderMeasureDivs ]
-                        }
-
-                    Crashed err ->
-                        { title = "Oopse"
-                        , body = [ Html.text err ]
+                        , body = [ Boot.view bootingModel ]
                         }
 
                     Ready state ->
                         page state
         , update =
             \msg model ->
-                case msg of
-                    Boot (Ok flags) ->
-                        ( Booting flags, measureFont MeasureFont )
-
-                    MeasureFont fontInfo ->
-                        case model of
-                            Booting flags ->
-                                init fontInfo flags
-                                    |> toModel
-
-                            _ ->
-                                ( model, Cmd.none )
-
-                    Boot (Err err) ->
-                        ( Crashed ("boot failed: " ++ err), Cmd.none )
-
-                    _ ->
-                        case model of
-                            Ready state ->
-                                update msg state
-                                    |> Tuple.mapSecond
-                                        (\cmd ->
-                                            if msg == PersistentAll then
-                                                cmd
-
-                                            else
-                                                Cmd.batch
-                                                    [ cmd
-                                                    , debouncePersistentAll 3000
-                                                    ]
-                                        )
-                                    |> toModel
+                case model of
+                    Booting flags bootModel ->
+                        case msg of
+                            BootMessage bootMessage ->
+                                Boot.update
+                                    (bootTranslator flags)
+                                    (\theme fontInfo size serverArgs ->
+                                        init flags theme fontInfo size serverArgs
+                                            |> Tuple.mapFirst Ready
+                                    )
+                                    bootMessage
+                                    bootModel
 
                             _ ->
                                 ( model, Cmd.none )
+
+                    Ready state ->
+                        update msg state
+                            |> Tuple.mapSecond
+                                (\cmd ->
+                                    let
+                                        persistent =
+                                            Cmd.batch
+                                                [ cmd
+                                                , debouncePersistentAll 3000
+                                                ]
+                                    in
+                                    case msg of
+                                        PressKeys _ ->
+                                            persistent
+
+                                        MouseWheel _ _ _ ->
+                                            persistent
+
+                                        Resize _ ->
+                                            persistent
+
+                                        _ ->
+                                            cmd
+                                )
+                            |> toModel
         , subscriptions =
-            \_ ->
-                Sub.batch
-                    [ Events.onClick (Decode.succeed FocusIme)
-                    , Events.onResize (\w h -> Resize { width = w, height = h })
-                    , onDebounce <|
-                        decodeEvent
-                            (\resp ->
-                                case resp of
-                                    Ok event ->
-                                        case event.action of
-                                            "lint" ->
-                                                SendLint
+            \model ->
+                case model of
+                    Booting _ _ ->
+                        Sub.none
 
-                                            "tokenize" ->
-                                                SendTokenize
+                    Ready _ ->
+                        Sub.batch
+                            [ Events.onClick (Decode.succeed FocusIme)
+                            , Events.onResize (\w h -> Resize { width = w, height = h })
+                            , onDebounce <|
+                                decodeEvent
+                                    (\resp ->
+                                        case resp of
+                                            Ok event ->
+                                                case event.action of
+                                                    "lint" ->
+                                                        SendLint
 
-                                            "persistentAll" ->
-                                                PersistentAll
+                                                    "tokenize" ->
+                                                        SendTokenize
+
+                                                    "persistentAll" ->
+                                                        PersistentAll
+
+                                                    _ ->
+                                                        NoneMessage
 
                                             _ ->
                                                 NoneMessage
-
-                                    _ ->
-                                        NoneMessage
-                            )
-                    ]
+                                    )
+                            ]
         }

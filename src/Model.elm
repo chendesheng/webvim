@@ -19,6 +19,7 @@ module Model exposing
     , Redo
     , RegisterText(..)
     , RichText(..)
+    , ServerArgs
     , Size
     , StatusMessage(..)
     , TextWithStyle
@@ -82,6 +83,7 @@ module Model exposing
 -- Model should not import Update.Message
 
 import Array as Array exposing (Array)
+import Boot
 import Dict exposing (Dict)
 import Font exposing (FontInfo)
 import Helper.Fuzzy exposing (FuzzyMatchItem)
@@ -111,13 +113,14 @@ type alias Flags =
     , buffers : Encode.Value
     , window : Encode.Value
     , registers : Encode.Value
-    , width : Int
-    , height : Int
     , cwd : String
-    , pathSeperator : String
-    , homedir : String
     , exHistory : List String
-    , theme : String
+    }
+
+
+type alias ServerArgs =
+    { pathSeperator : String
+    , homedir : String
     }
 
 
@@ -519,9 +522,8 @@ replaceActiveView view =
 
 
 type Model
-    = Booting Flags
+    = Booting Flags Boot.Model
     | Ready Global
-    | Crashed String
 
 
 type alias BufferHistory =

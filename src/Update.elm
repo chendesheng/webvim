@@ -1,4 +1,4 @@
-module Update exposing (init, initCommand, initMode, update, updateActiveBuffer)
+module Update exposing (init, initMode, update, updateActiveBuffer)
 
 import Array as Array exposing (Array)
 import Browser.Dom as Dom
@@ -2018,9 +2018,6 @@ updateActiveBuffer fn global =
 update : Msg -> Global -> ( Global, Cmd Msg )
 update message global =
     case message of
-        MeasureFont fontInfo ->
-            ( global, Cmd.none )
-
         MouseWheel path deltaY deltaX ->
             withEditorByView path (onMouseWheel path deltaY deltaX) global
 
@@ -2191,7 +2188,7 @@ update message global =
         NoneMessage ->
             ( global, Cmd.none )
 
-        Boot _ ->
+        BootMessage _ ->
             ( global, Cmd.none )
 
 
@@ -2606,36 +2603,29 @@ listFiles files global buf =
             buf
 
 
-initCommand : Flags -> Cmd Msg
-initCommand =
-    sendBoot
-
-
 getViewHeight : Int -> Int -> Int
 getViewHeight heightPx lineHeightPx =
     heightPx // lineHeightPx
 
 
-init : FontInfo -> Flags -> ( Global, Cmd Msg )
-init fontInfo flags =
+init : Flags -> String -> FontInfo -> Size -> ServerArgs -> ( Global, Cmd Msg )
+init flags theme fontInfo size args =
     let
-        { cwd, service, buffers, homedir, theme } =
+        { homedir, pathSeperator } =
+            args
+
+        { cwd, service, buffers } =
             flags
 
-        { window, registers, width, height, pathSeperator, exHistory } =
+        { window, registers, exHistory } =
             flags
 
         --|> Debug.log "flags"
         lineHeight =
             fontInfo.lineHeight
 
-        size =
-            { width = width
-            , height = height
-            }
-
         viewHeight =
-            height // lineHeight - emptyGlobal.statusbarHeight
+            size.height // lineHeight - emptyGlobal.statusbarHeight
 
         decodedBuffers =
             buffers
@@ -2698,7 +2688,7 @@ init fontInfo flags =
         , exHistory = exHistory
         , cwd =
             if String.isEmpty cwd then
-                "."
+                homedir
 
             else
                 cwd

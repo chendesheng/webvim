@@ -42,11 +42,6 @@ const safeJsonParse = (s) => {
   }
 };
 
-const getTheme = () => {
-  const m = location.search.match(/[&?]theme=([^&]*)/i);
-  return m ? m[1] : null;
-};
-
 const host = location.hostname || 'localhost';
 let scheme = '';
 if (!location.hostname) {
@@ -70,13 +65,8 @@ function main() {
     window: safeJsonParse(sessionStorage.getItem('window')) || {},
     buffers: storageGetArray('buffers', true),
     registers: safeJsonParse(sessionStorage.getItem('registers')) || {},
-    width: window.innerWidth,
-    height: window.innerHeight,
     cwd: sessionStorage.getItem('cwd') || '',
-    pathSeperator: '',
-    homedir: '',
     exHistory: storageGetArray('exHistory', false) || [],
-    theme: getTheme() || 'Solarized Dark',
   };
 
   // console.log("flags", flags);

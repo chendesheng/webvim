@@ -1,13 +1,13 @@
 module Update.Message exposing (BufferIdentifier, Msg(..), TokenizeRequest, TokenizeResponse(..))
 
-import Font exposing (FontInfo)
+import Boot
 import Http
 import Ime exposing (IMEMsg)
 import Internal.Jumps exposing (Location)
 import Internal.Syntax exposing (Syntax, Token)
 import Internal.TextBuffer as B exposing (Patch)
 import Internal.Window exposing (Path)
-import Model exposing (Buffer, Flags, Key, LintError, Size)
+import Model exposing (Buffer, Flags, Key, LintError, ServerArgs, Size)
 import Result
 import Vim.AST exposing (AST)
 
@@ -35,6 +35,7 @@ type alias TokenizeRequest =
 
 type Msg
     = PressKeys Key -- buffer id, key
+    | BootMessage Boot.Message
     | IMEMessage IMEMsg
     | Resize Size
     | Read (Result Http.Error ( Bool, Buffer )) -- setActive & buffer
@@ -61,8 +62,6 @@ type Msg
     | ReadTags (Result String Location)
     | SearchResult (Result String String)
     | SetCwd (Result String String)
-    | Boot (Result String Flags)
-    | MeasureFont FontInfo
     | MouseWheel Path Int Int
     | FocusIme
     | NoneMessage

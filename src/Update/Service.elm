@@ -3,7 +3,6 @@ module Update.Service exposing
     , cannotFindModuleError
     , ctagsParser
     , elmMakeResultDecoder
-    , errorMessage
     , eslintResultDecoder
     , getBodyAndHeaders
     , lineDiffDecoder
@@ -13,7 +12,6 @@ module Update.Service exposing
     , pickClosest
     , post
     , postRespHeaders
-    , sendBoot
     , sendCd
     , sendLintOnTheFly
     , sendLintProject
@@ -43,6 +41,7 @@ import Dict exposing (Dict)
 import Helper.Helper
     exposing
         ( chompUntilAfter
+        , httpErrorMessage
         , isSpace
         , joinPath
         , keepOneOrMore
@@ -71,6 +70,7 @@ import Model
         , Key
         , LintError
         , RichText(..)
+        , ServerArgs
         , TextWithStyle
         , emptyBufferHistory
         )
@@ -418,7 +418,7 @@ sendWriteBuffer url path buf =
                             Ok ( Dict.get "last-modified" headers |> Maybe.withDefault "", patches )
 
                     Err s ->
-                        Write <| Err <| errorMessage s
+                        Write <| Err <| httpErrorMessage s
             )
 
 
@@ -587,7 +587,7 @@ parseElmMakeResponse sep path lines resp =
                     Ok []
 
         Err err ->
-            Err (errorMessage err)
+            Err (httpErrorMessage err)
 
 
 parseLintResult :
@@ -608,7 +608,7 @@ parseLintResult sep path lines =
                         |> Result.mapError Decode.errorToString
 
                 Err err ->
-                    Err <| errorMessage err
+                    Err <| httpErrorMessage err
 
 
 sendLintProject : String -> String -> Int -> String -> Int -> B.TextBuffer -> Cmd Msg
@@ -800,7 +800,7 @@ sendTokenizeTask url { path, line, lines } =
             )
             (Http.stringBody "text/plain" lines)
         |> Http.toTask
-        |> Task.mapError errorMessage
+        |> Task.mapError httpErrorMessage
 
 
 sendTokenize : String -> TokenizeRequest -> Cmd Msg
@@ -847,7 +847,7 @@ parseFileList sep resp =
                 |> Ok
 
         Err err ->
-            Err <| errorMessage err
+            Err <| httpErrorMessage err
 
 
 sendListAllFiles : String -> String -> String -> Cmd Msg
@@ -925,7 +925,7 @@ sendWriteClipboard url str =
         |> Http.send
             (\result ->
                 WriteClipboard <|
-                    Result.mapError errorMessage result
+                    Result.mapError httpErrorMessage result
             )
 
 
@@ -972,7 +972,7 @@ sendReadTags url sep cwd path index name =
         |> Http.send
             (\result ->
                 result
-                    |> Result.mapError errorMessage
+                    |> Result.mapError httpErrorMessage
                     |> Result.andThen
                         (\s ->
                             P.run (ctagsParser sep) s
@@ -997,7 +997,7 @@ sendSearch url cwd s =
         |> Http.send
             (\res ->
                 SearchResult <|
-                    Result.mapError errorMessage res
+                    Result.mapError httpErrorMessage res
             )
 
 
@@ -1007,7 +1007,7 @@ sendCd url cwd =
         |> Http.send
             (\res ->
                 SetCwd <|
-                    Result.mapError errorMessage res
+                    Result.mapError httpErrorMessage res
             )
 
 
@@ -1015,55 +1015,19 @@ sendMkDir : String -> String -> Cmd Msg
 sendMkDir url path =
     Http.getString (url ++ "/mkdir?path=" ++ path)
         |> Http.send
-            (Result.mapError errorMessage
+            (Result.mapError httpErrorMessage
                 >> Result.map (always ())
                 >> MakeDir
             )
 
 
-bootDecoder : Flags -> Decode.Decoder Flags
-bootDecoder flags =
+bootDecoder : Decode.Decoder ServerArgs
+bootDecoder =
     Decode.map2
         (\homedir pathSeperator ->
-            { flags
-                | cwd =
-                    if String.isEmpty flags.cwd then
-                        homedir
-
-                    else
-                        flags.cwd
-                , pathSeperator = pathSeperator
-                , homedir = homedir
+            { pathSeperator = pathSeperator
+            , homedir = homedir
             }
         )
         (Decode.field "homedir" Decode.string)
         (Decode.field "pathSeperator" Decode.string)
-
-
-sendBoot : Flags -> Cmd Msg
-sendBoot ({ service } as flags) =
-    Http.get (service ++ "/boot") (bootDecoder flags)
-        |> Http.send
-            (\result ->
-                Boot <|
-                    Result.mapError errorMessage result
-            )
-
-
-errorMessage : Http.Error -> String
-errorMessage err =
-    case err of
-        Http.BadUrl s ->
-            "BadUrl: " ++ s
-
-        Http.Timeout ->
-            "Timeout"
-
-        Http.NetworkError ->
-            "NetworkError"
-
-        Http.BadStatus { status } ->
-            "NetworkError: " ++ String.fromInt status.code
-
-        Http.BadPayload s _ ->
-            "BadPayload: " ++ s
