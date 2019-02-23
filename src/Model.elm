@@ -84,8 +84,10 @@ module Model exposing
 
 import Array as Array exposing (Array)
 import Boot
+import Debouncers exposing (Debouncers, emptyDebouncers)
 import Dict exposing (Dict)
 import Font exposing (FontInfo)
+import Helper.Debounce as Deb
 import Helper.Fuzzy exposing (FuzzyMatchItem)
 import Helper.Helper exposing (extname, filename, findFirst, regex, relativePath)
 import Ime exposing (IME, emptyIme)
@@ -647,6 +649,7 @@ type alias Global =
             { window : Window View
             , buffers : List Buffer
             }
+    , debouncers : Debouncers
     }
 
 
@@ -891,7 +894,8 @@ emptyGlobal =
     , statusbarHeight = 1
     , lineHeight = 21
     , persistent = Nothing
-    , theme = "Solarized Dark"
+    , theme = ""
+    , debouncers = emptyDebouncers
     }
 
 

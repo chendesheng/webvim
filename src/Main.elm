@@ -4,14 +4,9 @@ import Boot
 import Browser
 import Browser.Dom as Dom
 import Browser.Events as Events exposing (onResize)
+import Debouncers exposing (DebounceMessage(..), debouncePersistentAll)
 import Font exposing (measureFont, renderMeasureDivs)
-import Helper.Debounce
-    exposing
-        ( DebounceEvent
-        , debouncePersistentAll
-        , decodeEvent
-        , onDebounce
-        )
+import Helper.Debounce as Deb
 import Html
 import Json.Decode as Decode
 import Model exposing (..)
@@ -79,21 +74,24 @@ main =
                             |> Tuple.mapSecond
                                 (\cmd ->
                                     let
-                                        persistent =
+                                        persistent _ =
                                             Cmd.batch
                                                 [ cmd
-                                                , debouncePersistentAll 3000
+                                                , debouncePersistentAll
+                                                    Debouncing
+                                                    state.debouncers
+                                                    3000
                                                 ]
                                     in
                                     case msg of
                                         PressKeys _ ->
-                                            persistent
+                                            persistent ()
 
                                         MouseWheel _ _ _ ->
-                                            persistent
+                                            persistent ()
 
                                         Resize _ ->
-                                            persistent
+                                            persistent ()
 
                                         _ ->
                                             cmd
@@ -109,26 +107,5 @@ main =
                         Sub.batch
                             [ Events.onClick (Decode.succeed FocusIme)
                             , Events.onResize (\w h -> Resize { width = w, height = h })
-                            , onDebounce <|
-                                decodeEvent
-                                    (\resp ->
-                                        case resp of
-                                            Ok event ->
-                                                case event.action of
-                                                    "lint" ->
-                                                        SendLint
-
-                                                    "tokenize" ->
-                                                        SendTokenize
-
-                                                    "persistentAll" ->
-                                                        PersistentAll
-
-                                                    _ ->
-                                                        NoneMessage
-
-                                            _ ->
-                                                NoneMessage
-                                    )
                             ]
         }

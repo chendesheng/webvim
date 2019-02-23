@@ -70,32 +70,8 @@ function main() {
   };
 
   // console.log("flags", flags);
-  const app = Elm.Main.init({
+  Elm.Main.init({
     flags,
-  });
-
-  const debouncers = {};
-  app.ports.debounce.subscribe(({action, time, payload}) => {
-    const debouncer = debouncers[action] || {
-      payloads: [],
-    };
-    debouncers[action] = debouncer;
-
-    // console.log('debounce', action);
-    if (payload !== undefined) {
-      debouncer.payloads.push(payload);
-    }
-
-    clearTimeout(debouncer.timer);
-    debouncer.timer = setTimeout(() => {
-      // console.log('send debounced', action);
-      const payloads = debouncer.payloads;
-      debouncer.payloads = [];
-      app.ports.onDebounce.send({
-        action,
-        payloads,
-      });
-    }, time);
   });
 }
 

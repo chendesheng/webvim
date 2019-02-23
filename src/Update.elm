@@ -2,9 +2,10 @@ module Update exposing (init, initMode, update, updateActiveBuffer)
 
 import Array as Array exposing (Array)
 import Browser.Dom as Dom
+import Debouncers exposing (..)
 import Dict exposing (Dict)
 import Font exposing (FontInfo, charWidth)
-import Helper.Debounce exposing (debounceLint, debounceTokenize)
+import Helper.Debounce as Deb
 import Helper.Helper
     exposing
         ( findFirst
@@ -1636,23 +1637,31 @@ applyVimAST replaying key ast ({ buf } as ed) =
                     )
 
                 else
-                    ( ed_, debounceTokenize 50 :: cmds )
+                    ( ed_
+                    , debounceTokenize
+                        Debouncing
+                        ed_.global.debouncers
+                        50
+                        :: cmds
+                    )
 
             else
                 ( ed_, cmds )
 
         doLint oldBuf ( ed_, cmds ) =
             if Buf.isEditing oldBuf ed_.buf then
-                let
-                    delay =
-                        case ed_.buf.mode of
-                            Insert _ ->
-                                500
+                case ed_.buf.mode of
+                    Insert _ ->
+                        ( ed_
+                        , debounceLint
+                            Debouncing
+                            ed_.global.debouncers
+                            500
+                            :: cmds
+                        )
 
-                            _ ->
-                                0
-                in
-                ( ed_, debounceLint delay :: cmds )
+                    _ ->
+                        ( ed_, (toCmd <| Debounce SendLint) :: cmds )
 
             else
                 ( ed_, cmds )
@@ -1802,7 +1811,10 @@ onTokenized ({ buf, global } as ed) resp =
                                 , syntaxDirtyFrom = begin + 1
                             }
                       }
-                    , debounceTokenize 100
+                    , debounceTokenize
+                        Debouncing
+                        ed.global.debouncers
+                        100
                     )
 
                 TokenizeCacheMiss ->
@@ -2018,6 +2030,41 @@ updateActiveBuffer fn global =
 update : Msg -> Global -> ( Global, Cmd Msg )
 update message global =
     case message of
+        Debouncing debounceMessage payload ->
+            let
+                debouncers =
+                    global.debouncers
+
+                genTranslator toDebouncers =
+                    { toMsg = Debouncing debounceMessage
+                    , toModel =
+                        \m -> { global | debouncers = toDebouncers m }
+                    , toMsgFromDebounced = Debounce
+                    }
+
+                doUpdate toDebouncers debouncer =
+                    Deb.update
+                        (genTranslator toDebouncers)
+                        update
+                        debouncer
+                        payload
+            in
+            case debounceMessage of
+                SendLint ->
+                    doUpdate
+                        (\lint -> { debouncers | lint = lint })
+                        debouncers.lint
+
+                SendTokenize ->
+                    doUpdate
+                        (\debouncer -> { debouncers | tokenize = debouncer })
+                        debouncers.tokenize
+
+                PersistentAll ->
+                    doUpdate
+                        (\debouncer -> { debouncers | persistentAll = debouncer })
+                        debouncers.persistentAll
+
         MouseWheel path deltaY deltaX ->
             withEditorByView path (onMouseWheel path deltaY deltaX) global
 
@@ -2064,25 +2111,6 @@ update message global =
         Write result ->
             withEditor (onWrite result) global
 
-        SendLint ->
-            withEditor
-                (\({ buf } as ed) ->
-                    if buf.config.lint then
-                        ( ed
-                        , sendLintOnTheFly
-                            global.service
-                            global.pathSeperator
-                            buf.id
-                            buf.path
-                            buf.history.version
-                            buf.lines
-                        )
-
-                    else
-                        ( ed, Cmd.none )
-                )
-                global
-
         Lint id resp ->
             withEditor
                 (\ed ->
@@ -2106,7 +2134,7 @@ update message global =
                 )
                 global
 
-        SendTokenize ->
+        Debounce SendTokenize ->
             withEditor
                 (\({ buf } as ed) ->
                     ( ed
@@ -2114,6 +2142,28 @@ update message global =
                     )
                 )
                 global
+
+        Debounce SendLint ->
+            withEditor
+                (\({ buf } as ed) ->
+                    if buf.config.lint then
+                        ( ed
+                        , sendLintOnTheFly
+                            global.service
+                            global.pathSeperator
+                            buf.id
+                            buf.path
+                            buf.history.version
+                            buf.lines
+                        )
+
+                    else
+                        ( ed, Cmd.none )
+                )
+                global
+
+        Debounce PersistentAll ->
+            ( persistentAll global, Cmd.none )
 
         ReadTags result ->
             withEditor (onReadTags result) global
@@ -2181,9 +2231,6 @@ update message global =
                     ( updateActiveBuffer (Buf.errorMessage err) global
                     , Cmd.none
                     )
-
-        PersistentAll ->
-            ( persistentAll global, Cmd.none )
 
         NoneMessage ->
             ( global, Cmd.none )

@@ -1,6 +1,13 @@
-module Update.Message exposing (BufferIdentifier, Msg(..), TokenizeRequest, TokenizeResponse(..))
+module Update.Message exposing
+    ( BufferIdentifier
+    , Msg(..)
+    , TokenizeRequest
+    , TokenizeResponse(..)
+    )
 
 import Boot
+import Debouncers exposing (DebounceMessage)
+import Helper.Debounce as Deb
 import Http
 import Ime exposing (IMEMsg)
 import Internal.Jumps exposing (Location)
@@ -37,6 +44,9 @@ type Msg
     = PressKeys Key -- buffer id, key
     | BootMessage Boot.Message
     | IMEMessage IMEMsg
+    | Debounce DebounceMessage
+      -- the DebounceMessage here is for finding the debouncer model
+    | Debouncing DebounceMessage (Deb.Message DebounceMessage)
     | Resize Size
     | Read (Result Http.Error ( Bool, Buffer )) -- setActive & buffer
     | Write (Result String ( String, List Patch ))
@@ -50,9 +60,6 @@ type Msg
             }
         )
     | WriteClipboard (Result String ())
-    | SendLint
-    | SendTokenize
-    | PersistentAll
     | Lint BufferIdentifier (Result String (List LintError))
     | Tokenized BufferIdentifier (Result String TokenizeResponse)
     | ListFiles (Result String (List String))

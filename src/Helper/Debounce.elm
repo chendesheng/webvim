@@ -1,68 +1,95 @@
-port module Helper.Debounce exposing
-    ( DebounceEvent
+module Helper.Debounce exposing
+    ( Message
+    , Model
+    , Translator
     , debounce
-    , debounceLint
-    , debouncePersistentAll
-    , debounceTokenize
-    , decodeEvent
-    , eventDecoder
-    , onDebounce
+    , emptyModel
+    , update
     )
 
-import Json.Decode as Decode exposing (decodeValue)
-import Json.Encode as Encode
+import Process
+import Task
+import Time
 
 
-port debounce : Encode.Value -> Cmd msg
+type Model debouncedMsg
+    = NotStart
+    | Started debouncedMsg Time.Posix
 
 
-port onDebounce : (Encode.Value -> msg) -> Sub msg
+emptyModel : Model debouncedMsg
+emptyModel =
+    NotStart
 
 
-type alias DebounceEvent =
-    { action : String
-    , payloads : List Encode.Value
+type Message debouncedMsg
+    = Timeout Time.Posix
+    | UpdateTime debouncedMsg Time.Posix
+
+
+type alias Translator debouncedMsg model msg =
+    { toModel : Model debouncedMsg -> model
+    , toMsg : Message debouncedMsg -> msg
+    , toMsgFromDebounced : debouncedMsg -> msg
     }
 
 
-eventDecoder : Decode.Decoder DebounceEvent
-eventDecoder =
-    Decode.map2
-        (\action payloads ->
-            { action = action
-            , payloads = payloads
-            }
-        )
-        (Decode.field "action" Decode.string)
-        (Decode.field "payloads" (Decode.list Decode.value))
+update :
+    Translator debouncedMsg model msg
+    -> (msg -> model -> ( model, Cmd msg ))
+    -> Model debouncedMsg
+    -> Message debouncedMsg
+    -> ( model, Cmd msg )
+update { toModel, toMsg, toMsgFromDebounced } onTimeout model msg =
+    case msg of
+        Timeout time ->
+            case model of
+                NotStart ->
+                    ( toModel model, Cmd.none )
+
+                Started debouncedMsg expectTime ->
+                    let
+                        dur =
+                            duration time expectTime
+                    in
+                    if dur > 0 then
+                        -- not reach expectTime yet, keep waiting
+                        ( toModel model
+                        , toFloat dur
+                            |> Process.sleep
+                            |> Task.perform (always <| Timeout expectTime)
+                            |> Cmd.map toMsg
+                        )
+
+                    else
+                        onTimeout (toMsgFromDebounced debouncedMsg) (toModel NotStart)
+
+        UpdateTime debouncedMsg t ->
+            ( toModel <| Started debouncedMsg t, Cmd.none )
 
 
-decodeEvent :
-    (Result Decode.Error DebounceEvent -> msg)
-    -> (Decode.Value -> msg)
-decodeEvent =
-    (>>) (decodeValue eventDecoder)
+duration : Time.Posix -> Time.Posix -> Int
+duration a b =
+    Time.posixToMillis b - Time.posixToMillis a
 
 
-debounceLint : Int -> Cmd msg
-debounceLint =
-    debounceAction "lint"
+debounce : Model msg -> Int -> debouncedMsg -> Cmd (Message debouncedMsg)
+debounce model millis msg =
+    Cmd.batch
+        [ Time.now
+            |> Task.map
+                (\time ->
+                    Time.posixToMillis time
+                        + millis
+                        |> Time.millisToPosix
+                )
+            |> Task.perform (UpdateTime msg)
+        , case model of
+            NotStart ->
+                Process.sleep (toFloat millis)
+                    |> Task.andThen (always Time.now)
+                    |> Task.perform Timeout
 
-
-debounceTokenize : Int -> Cmd msg
-debounceTokenize =
-    debounceAction "tokenize"
-
-
-debouncePersistentAll : Int -> Cmd msg
-debouncePersistentAll =
-    debounceAction "persistentAll"
-
-
-debounceAction : String -> Int -> Cmd msg
-debounceAction action time =
-    Encode.object
-        [ ( "action", Encode.string action )
-        , ( "time", Encode.int time )
+            Started _ _ ->
+                Cmd.none
         ]
-        |> debounce
