@@ -149,14 +149,17 @@ jumpToPath isSaveJump path_ overrideCursor setView ({ global, buf } as ed) =
             let
                 ( global2, b ) =
                     createBuffer path buf.view.size global1
+
+                ed2 =
+                    { ed1 | global = global2 }
             in
             if isTempBuffer path then
                 -- loaded
-                jumpToPathBufferLoaded setView updateCursor b buf ed1
+                jumpToPathBufferLoaded setView updateCursor b buf ed2
 
             else
                 -- not loaded
-                jumpToPathBufferNotLoaded updateCursor b buf ed1
+                jumpToPathBufferNotLoaded updateCursor b buf ed2
 
 
 jumpToPathFindBuffer : Global -> String -> Maybe ( Buffer, Bool )
