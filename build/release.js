@@ -23,7 +23,7 @@ const packagejson = JSON.parse(read('package.json'));
 const version = packagejson.version;
 
 const optimizeByGoogleClosureCompiler = (version, commit, code) => {
-  console.log('GoogleClosreCompiler');
+  console.log('GoogleClosureCompiler');
   const flags = {
     jsCode: [{
       src: code,
