@@ -1,14 +1,13 @@
 const gulp = require('gulp');
 const spawn = require('child_process').spawn;
 const {genTests} = require('./tests/gen/gen.js');
-const {generateCss} = require('./build/less.config.js');
+const {convertLess} = require('./build/less.config.js');
 const {generateHtml} = require('./build/html.config.js');
 const http = require('http');
 const browserSync = require('browser-sync').create();
 const AsyncLock = require('async-lock');
 const os = require('os');
 const lock = new AsyncLock();
-const fs = require('fs-extra');
 
 function log(s) {
   console.log(`[${new Date()}]: ${s}`);
@@ -52,16 +51,9 @@ function lastArg() {
 
 const noDebugger = lastArg() === '--nodebugger';
 
-if (noDebugger) {
-  gulp.task('css', generateCss);
-} else {
-  gulp.task('css', async function() {
-    await generateCss();
-    const code = await fs.readFile('./css/debugger.css', 'utf8');
-    await fs.appendFile('./dist/style.min.css', code);
-    log('append ./css/debugger.css');
-  });
-}
+gulp.task('css',
+  () => convertLess(noDebugger ? './css/style.less' : './css/debugger.less',
+    './dist/style.min.css'));
 
 gulp.task('html', generateHtml);
 gulp.task('js', function() {

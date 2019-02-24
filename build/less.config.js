@@ -10,7 +10,7 @@ const cleanCSSPlugin = new LessPluginCleanCSS({
   advanced: true,
 });
 
-async function convert(inputFilename, outputFilename) {
+exports.convertLess = async (inputFilename, outputFilename) => {
   try {
     const data = await fs.readFile(inputFilename, {
       encoding: 'utf8',
@@ -20,13 +20,15 @@ async function convert(inputFilename, outputFilename) {
       filename: inputFilename,
       ieCompat: false,
     });
-    await fs.writeFile(outputFilename, output.css);
-    console.log(`[${new Date()}]: ${outputFilename} has been saved.`);
+
+    if (outputFilename) {
+      await fs.writeFile(outputFilename, output.css);
+      console.log(`[${new Date()}]: ${outputFilename} has been saved.`);
+    }
+
+    return output.css;
   } catch ( e ) {
     console.error('ERROR:', e);
   }
-}
-
-exports.generateCss = () => convert('./css/style.less', './dist/style.min.css');
-
+};
 

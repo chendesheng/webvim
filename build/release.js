@@ -1,7 +1,7 @@
 const execa = require('execa');
 const fs = require('fs');
 const compile = require('google-closure-compiler-js').compile;
-const {generateCss} = require('./less.config.js');
+const {convertLess} = require('./less.config.js');
 
 const base64Encode = (file) => {
   const image = fs.readFileSync(file);
@@ -65,8 +65,7 @@ const releaseFrontEnd = async () => {
   const placeholder = '<!-- inject index.js -->';
   const htmlfile = read('build/template.html');
 
-  await generateCss();
-  const css = read('dist/style.min.css');
+  const css = await convertLess('css/style.less');
 
   fs.writeFileSync('dist/webvim.html',
     htmlfile
