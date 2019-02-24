@@ -1,0 +1,8 @@
+/*This style is for the elm debugger*/
+body > div:last-child {
+  font-size: 14px !important;
+  bottom: @statusbar-height !important;
+  font-family: @font-family !important;
+}
+
+

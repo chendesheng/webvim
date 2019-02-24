@@ -1,6 +1,7 @@
 const execa = require('execa');
 const fs = require('fs');
 const compile = require('google-closure-compiler-js').compile;
+const {generateCss} = require('./less.config.js');
 
 const base64Encode = (file) => {
   const image = fs.readFileSync(file);
@@ -47,7 +48,7 @@ function generateMetaInfo(version, commit, code) {
 //   shell(`./node_modules/.bin/elm-minify ${path} --replace`);
 // };
 
-const releaseFrontEnd = () => {
+const releaseFrontEnd = async () => {
   // sometimes weird problem will occur when there are cached stuff
   shell('rm -rf elm-stuff');
   const bundlepath = 'dist/.bundle.js';
@@ -63,6 +64,8 @@ const releaseFrontEnd = () => {
   ].join('\n'));
   const placeholder = '<!-- inject index.js -->';
   const htmlfile = read('build/template.html');
+
+  await generateCss();
   const css = read('dist/style.min.css');
 
   fs.writeFileSync('dist/webvim.html',
@@ -96,7 +99,14 @@ ${code}`
   console.log('Successfully generated webvim-backend.js');
 };
 
-releaseFrontEnd();
-releaseBackEnd();
+async function main() {
+  await releaseFrontEnd();
+  releaseBackEnd();
+}
 
-fs.unlinkSync('dist/.bundle.js');
+main().then(() => {
+  fs.unlinkSync('dist/.bundle.js');
+  process.exit();
+}, () => {
+  process.exit();
+});

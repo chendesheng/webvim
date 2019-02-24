@@ -9,7 +9,7 @@
     "purs": "pulp build --src-path src-purs --test-path tests-purs --to dist/webvim-backend.js",
     "purs:watch": "pulp -w run --src-path src-purs",
     "js": "gulp js",
-    "release": "gulp css && node ./build/release.js",
+    "release": "node ./build/release.js",
     "html": "gulp html",
     "eslint": "eslint tests/gen/gen.js build/*.js src-purs/**/*.js --fix",
     "test": "gulp test",

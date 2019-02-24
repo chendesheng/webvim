@@ -8,8 +8,14 @@ const browserSync = require('browser-sync').create();
 const AsyncLock = require('async-lock');
 const os = require('os');
 const lock = new AsyncLock();
+const fs = require('fs-extra');
+
+function log(s) {
+  console.log(`[${new Date()}]: ${s}`);
+}
 
 function exec(cmd) {
+  log(cmd);
   return new Promise(function(resolve, reject) {
     const parts = cmd.split(' ');
     const child = spawn(parts[0], parts.slice(1), {
@@ -40,11 +46,28 @@ gulp.task('ctags', async function() {
 
 gulp.task('genTests', genTests);
 
-gulp.task('css', generateCss);
+function lastArg() {
+  return process.argv[process.argv.length - 1].toLowerCase();
+}
+
+const noDebugger = lastArg() === '--nodebugger';
+
+if (noDebugger) {
+  gulp.task('css', generateCss);
+} else {
+  gulp.task('css', async function() {
+    await generateCss();
+    const code = await fs.readFile('./css/debugger.css', 'utf8');
+    await fs.appendFile('./dist/style.min.css', code);
+    log('append ./css/debugger.css');
+  });
+}
+
 gulp.task('html', generateHtml);
 gulp.task('js', function() {
   return lock.acquire('elm make', function() {
-    return exec('elm make src/Main.elm --output dist/elm.js');
+    const __debugger = noDebugger ? '' : '--debug ';
+    return exec(`elm make src/Main.elm ${__debugger}--output dist/elm.js`);
   });
 });
 
@@ -78,6 +101,8 @@ gulp.task('default', function() {
   gulp.watch(['tests/**/*.elm'], gulp.parallel('ctags'));
   gulp.watch(['tests/gen/data/*.*', 'tests/gen/gen.js'],
     watchOptions, gulp.parallel('genTests'));
+
+  gulp.series('js', 'css')();
 });
 
 

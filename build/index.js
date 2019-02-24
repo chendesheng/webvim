@@ -42,12 +42,6 @@ const safeJsonParse = (s) => {
   }
 };
 
-const host = location.hostname || 'localhost';
-let scheme = '';
-if (!location.hostname) {
-  scheme = 'http:';
-}
-
 function storageGetArray(key, isJson) {
   let i = 0;
   let item = null;
@@ -58,6 +52,9 @@ function storageGetArray(key, isJson) {
   }
   return res.length > 0 ? res : null;
 }
+
+const host = location.hostname || 'localhost';
+const scheme = location.hostname ? '' : 'http:';
 
 function main() {
   const flags = {
