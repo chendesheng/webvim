@@ -99,8 +99,13 @@ html, body {
   cursor: ns-resize;
 }
 
-.lines-container {
-  flex: 1;
+.content {
+  flex-grow: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.scroll-content {
   position: relative;
   will-change: transform;
 }
@@ -121,7 +126,6 @@ html, body {
 .gutters {
   display: flex;
   justify-content: space-between;
-  z-index: 1;
 }
 
 .gutter {

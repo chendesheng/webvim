@@ -327,7 +327,8 @@ renderBuffer path rect view buf isActive global =
                     []
                )
         )
-        [ renderGutters view.lines
+        [ renderGuide fontInfo lines lineHeight scrollTop topOffsetPx maybeCursor
+        , renderGutters view.lines
             lines
             lineHeight
             relativeZeroLine
@@ -335,22 +336,23 @@ renderBuffer path rect view buf isActive global =
             topOffsetPx
             height
             scrollingCss
-        , renderGuide fontInfo lines lineHeight scrollTop topOffsetPx maybeCursor
-        , div
-            (class "lines-container" :: scrollLeftProp :: scrollingCss)
-            (lazy5 renderVisual fontInfo scrollTop height mode lines
-                :: renderHighlights fontInfo scrollTop lines highlights
-                :: lazy5 renderLint buf.path fontInfo scrollTop lines lint.items
-                :: lazy3 renderLines lines syntax view.lines
-                :: renderCursor isActive fontInfo ime lines "" maybeCursor
-                :: renderMatchedCursor
-                    isActive
-                    fontInfo
-                    lines
-                    mode
-                    cursor
-                    buf.view.matchedCursor
-            )
+        , div [ class "content" ]
+            [ div
+                (class "scroll-content" :: scrollLeftProp :: scrollingCss)
+                (lazy5 renderVisual fontInfo scrollTop height mode lines
+                    :: renderHighlights fontInfo scrollTop lines highlights
+                    :: lazy5 renderLint buf.path fontInfo scrollTop lines lint.items
+                    :: lazy3 renderLines lines syntax view.lines
+                    :: renderCursor isActive fontInfo ime lines "" maybeCursor
+                    :: renderMatchedCursor
+                        isActive
+                        fontInfo
+                        lines
+                        mode
+                        cursor
+                        buf.view.matchedCursor
+                )
+            ]
         ]
 
 
