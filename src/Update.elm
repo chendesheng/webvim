@@ -1587,6 +1587,10 @@ serviceBeforeApplyVimAST replaying key ast service =
             Nothing
 
 
+updateDebouncers debouncers ({ global } as ed) =
+    { ed | global = { global | debouncers = debouncers } }
+
+
 applyVimAST : Bool -> Key -> AST -> Editor -> ( Editor, Cmd Msg )
 applyVimAST replaying key ast ({ buf } as ed) =
     let
@@ -1637,13 +1641,11 @@ applyVimAST replaying key ast ({ buf } as ed) =
                     )
 
                 else
-                    ( ed_
-                    , debounceTokenize
-                        Debouncing
-                        ed_.global.debouncers
-                        50
-                        :: cmds
-                    )
+                    let
+                        ( debouncers, cmd ) =
+                            debounceTokenize Debouncing ed_.global.debouncers 500
+                    in
+                    ( updateDebouncers debouncers ed_, cmd :: cmds )
 
             else
                 ( ed_, cmds )
@@ -1652,12 +1654,12 @@ applyVimAST replaying key ast ({ buf } as ed) =
             if Buf.isEditing oldBuf ed_.buf then
                 case ed_.buf.mode of
                     Insert _ ->
-                        ( ed_
-                        , debounceLint
-                            Debouncing
-                            ed_.global.debouncers
-                            500
-                            :: cmds
+                        let
+                            ( debouncers, cmd ) =
+                                debounceLint Debouncing ed_.global.debouncers 500
+                        in
+                        ( updateDebouncers debouncers ed_
+                        , cmd :: cmds
                         )
 
                     _ ->
@@ -1803,6 +1805,13 @@ onTokenized ({ buf, global } as ed) resp =
                     )
 
                 TokenizeLineSuccess begin tokens ->
+                    let
+                        ( debouncers, cmd ) =
+                            debounceTokenize
+                                Debouncing
+                                ed.global.debouncers
+                                100
+                    in
                     ( { ed
                         | buf =
                             { buf
@@ -1810,11 +1819,9 @@ onTokenized ({ buf, global } as ed) resp =
                                     Array.set begin tokens buf.syntax
                                 , syntaxDirtyFrom = begin + 1
                             }
+                        , global = { global | debouncers = debouncers }
                       }
-                    , debounceTokenize
-                        Debouncing
-                        ed.global.debouncers
-                        100
+                    , cmd
                     )
 
                 TokenizeCacheMiss ->
@@ -2031,39 +2038,16 @@ update : Msg -> Global -> ( Global, Cmd Msg )
 update message global =
     case message of
         Debouncing debounceMessage payload ->
-            let
-                debouncers =
-                    global.debouncers
-
-                genTranslator toDebouncers =
-                    { toMsg = Debouncing debounceMessage
-                    , toModel =
-                        \m -> { global | debouncers = toDebouncers m }
-                    , toMsgFromDebounced = Debounce
-                    }
-
-                doUpdate toDebouncers debouncer =
-                    Deb.update
-                        (genTranslator toDebouncers)
-                        update
-                        debouncer
-                        payload
-            in
-            case debounceMessage of
-                SendLint ->
-                    doUpdate
-                        (\lint -> { debouncers | lint = lint })
-                        debouncers.lint
-
-                SendTokenize ->
-                    doUpdate
-                        (\debouncer -> { debouncers | tokenize = debouncer })
-                        debouncers.tokenize
-
-                PersistentAll ->
-                    doUpdate
-                        (\debouncer -> { debouncers | persistentAll = debouncer })
-                        debouncers.persistentAll
+            debouncerUpdate
+                { toMsg = Debouncing
+                , toModel =
+                    \debounceres -> { global | debouncers = debounceres }
+                , toMsgFromDebounced = Debounce
+                }
+                update
+                debounceMessage
+                payload
+                global.debouncers
 
         MouseWheel path deltaY deltaX ->
             withEditorByView path (onMouseWheel path deltaY deltaX) global

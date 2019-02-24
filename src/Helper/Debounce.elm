@@ -12,33 +12,37 @@ import Task
 import Time
 
 
-type Model debouncedMsg
+type Model debMsg
     = NotStart
-    | Started debouncedMsg Time.Posix
+    | Started debMsg Time.Posix
 
 
-emptyModel : Model debouncedMsg
+emptyModel : Model debMsg
 emptyModel =
     NotStart
 
 
-type Message debouncedMsg
+type Message debMsg
     = Timeout Time.Posix
-    | UpdateTime debouncedMsg Time.Posix
+    | UpdateTime debMsg Time.Posix
 
 
-type alias Translator debouncedMsg model msg =
-    { toModel : Model debouncedMsg -> model
-    , toMsg : Message debouncedMsg -> msg
-    , toMsgFromDebounced : debouncedMsg -> msg
+{-| There are two kinds of messages here,
+one is for debounce related actions (Message debMsg),
+the other one is the carried message which will send when timeout (debMsg)
+-}
+type alias Translator debMsg model msg =
+    { toModel : Model debMsg -> model
+    , toMsg : Message debMsg -> msg
+    , toMsgFromDebounced : debMsg -> msg
     }
 
 
 update :
-    Translator debouncedMsg model msg
+    Translator debMsg model msg
     -> (msg -> model -> ( model, Cmd msg ))
-    -> Model debouncedMsg
-    -> Message debouncedMsg
+    -> Model debMsg
+    -> Message debMsg
     -> ( model, Cmd msg )
 update { toModel, toMsg, toMsgFromDebounced } onTimeout model msg =
     case msg of
@@ -47,7 +51,7 @@ update { toModel, toMsg, toMsgFromDebounced } onTimeout model msg =
                 NotStart ->
                     ( toModel model, Cmd.none )
 
-                Started debouncedMsg expectTime ->
+                Started debMsg expectTime ->
                     let
                         dur =
                             duration time expectTime
@@ -57,39 +61,42 @@ update { toModel, toMsg, toMsgFromDebounced } onTimeout model msg =
                         ( toModel model
                         , toFloat dur
                             |> Process.sleep
+                            -- when sleep end, consider expectTime as current time
                             |> Task.perform (always <| Timeout expectTime)
                             |> Cmd.map toMsg
                         )
 
                     else
-                        onTimeout (toMsgFromDebounced debouncedMsg) (toModel NotStart)
+                        onTimeout (toMsgFromDebounced debMsg) (toModel NotStart)
 
-        UpdateTime debouncedMsg t ->
-            ( toModel <| Started debouncedMsg t, Cmd.none )
+        UpdateTime debMsg t ->
+            ( toModel <| Started debMsg t, Cmd.none )
 
 
 duration : Time.Posix -> Time.Posix -> Int
-duration a b =
-    Time.posixToMillis b - Time.posixToMillis a
+duration from to =
+    Time.posixToMillis to - Time.posixToMillis from
 
 
-debounce : Model msg -> Int -> debouncedMsg -> Cmd (Message debouncedMsg)
-debounce model millis msg =
-    Cmd.batch
-        [ Time.now
-            |> Task.map
-                (\time ->
-                    Time.posixToMillis time
-                        + millis
-                        |> Time.millisToPosix
-                )
-            |> Task.perform (UpdateTime msg)
-        , case model of
-            NotStart ->
-                Process.sleep (toFloat millis)
-                    |> Task.andThen (always Time.now)
-                    |> Task.perform Timeout
+debounce : Model debMsg -> Int -> debMsg -> ( Model debMsg, Cmd (Message debMsg) )
+debounce model millis debMsg =
+    case model of
+        NotStart ->
+            -- this will make sure we don't sleep multiple times
+            -- use 0 ensures it will smaller than current time, so
+            -- unless we send UpdateTime before sleep end, it will always timeout
+            ( Started debMsg (Time.millisToPosix 0)
+            , Process.sleep (toFloat millis)
+                |> Task.andThen (always Time.now)
+                |> Task.perform Timeout
+            )
 
-            Started _ _ ->
-                Cmd.none
-        ]
+        Started _ _ ->
+            ( model
+            , Time.now
+                |> Task.map
+                    (\time ->
+                        Time.posixToMillis time + millis |> Time.millisToPosix
+                    )
+                |> Task.perform (UpdateTime debMsg)
+            )

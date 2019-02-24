@@ -70,33 +70,39 @@ main =
                                 ( model, Cmd.none )
 
                     Ready state ->
-                        update msg state
-                            |> Tuple.mapSecond
-                                (\cmd ->
-                                    let
-                                        persistent _ =
-                                            Cmd.batch
-                                                [ cmd
-                                                , debouncePersistentAll
-                                                    Debouncing
-                                                    state.debouncers
-                                                    3000
-                                                ]
-                                    in
-                                    case msg of
-                                        PressKeys _ ->
-                                            persistent ()
+                        let
+                            persistent =
+                                case msg of
+                                    PressKeys _ ->
+                                        True
 
-                                        MouseWheel _ _ _ ->
-                                            persistent ()
+                                    MouseWheel _ _ _ ->
+                                        True
 
-                                        Resize _ ->
-                                            persistent ()
+                                    Resize _ ->
+                                        True
 
-                                        _ ->
-                                            cmd
-                                )
-                            |> toModel
+                                    _ ->
+                                        False
+                        in
+                        if persistent then
+                            let
+                                ( global, cmd ) =
+                                    update msg state
+
+                                ( debouncers, cmd2 ) =
+                                    debouncePersistentAll
+                                        Debouncing
+                                        global.debouncers
+                                        3000
+                            in
+                            ( Ready { global | debouncers = debouncers }
+                            , Cmd.batch [ cmd, cmd2 ]
+                            )
+
+                        else
+                            update msg state
+                                |> toModel
         , subscriptions =
             \model ->
                 case model of
