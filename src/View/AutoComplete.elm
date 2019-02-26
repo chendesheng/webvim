@@ -118,7 +118,7 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop auto =
                             :: renderText s rest (j + 1)
 
                     else
-                        -- shuld never happen
+                        -- should never happen
                         []
 
                 _ ->
