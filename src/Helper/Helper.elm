@@ -628,8 +628,12 @@ httpErrorMessage err =
         Http.NetworkError ->
             "NetworkError"
 
-        Http.BadStatus { status } ->
-            "NetworkError: " ++ String.fromInt status.code
+        Http.BadStatus { status, body } ->
+            if String.isEmpty body then
+                "NetworkError: " ++ String.fromInt status.code
+
+            else
+                body
 
         Http.BadPayload s _ ->
             "BadPayload: " ++ s

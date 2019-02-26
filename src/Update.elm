@@ -11,6 +11,7 @@ import Helper.Helper
         ( findFirst
         , fromListBy
         , getLast
+        , httpErrorMessage
         , inc
         , isSpace
         , normalizePath
@@ -2477,11 +2478,8 @@ onRead result global =
             in
             Buf.addBuffer setActive buf2 global
 
-        Err (Http.BadStatus resp) ->
-            global
-
-        _ ->
-            global
+        Err err ->
+            updateActiveBuffer (Buf.errorMessage <| httpErrorMessage err) global
 
 
 onWrite : Result a ( String, List Patch ) -> Editor -> ( Editor, Cmd Msg )

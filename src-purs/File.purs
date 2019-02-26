@@ -52,18 +52,26 @@ readFile :: Boolean -> Response -> String -> Aff Unit
 readFile isStatic resp path = do
   affLog ("readFile: " <> path)
   result <- attempt $ writeLastModified path resp
-  liftEffect $ case result of
+  case result of
     Left _ ->
-      do
+      liftEffect $ do
         setStatusCode resp 404
         let outputStream = responseAsStream resp
         void $ writeString outputStream UTF8 path $ endStream outputStream
     Right _ ->
       do
-        setHeader resp "Content-Type" (getMime (if isStatic then path else "text"))
-        let outputStream = responseAsStream resp
-        fileStream <- createReadStream path
-        void $ pipe fileStream outputStream
+        stat <- FS.stat path
+        if isDirectory stat then
+          liftEffect $ do
+            setStatusCode resp 500
+            let outputStream2 = responseAsStream resp
+            void $ writeString outputStream2 UTF8 "Cannot open a directory." $ endStream outputStream2
+          else
+          liftEffect $ do
+            setHeader resp "Content-Type" (getMime (if isStatic then path else "text"))
+            let outputStream = responseAsStream resp
+            fileStream <- createReadStream path
+            void $ pipe fileStream outputStream
 
 
 writeFile :: Request -> Response -> String -> Aff Unit
