@@ -2576,6 +2576,15 @@ startExAutoComplete : Int -> String -> List String -> Buffer -> Buffer
 startExAutoComplete offset trigger candidates buf =
     case buf.mode of
         Ex ({ exbuf } as ex) ->
+            let
+                pos =
+                    ( 0, offset + 1 )
+
+                target =
+                    exbuf.lines
+                        |> B.substring pos exbuf.view.cursor
+                        |> B.toString
+            in
             setExbuf buf
                 ex
                 (startAutoComplete
@@ -2583,8 +2592,8 @@ startExAutoComplete offset trigger candidates buf =
                     trigger
                     offset
                     candidates
-                    ( 0, offset + 1 )
-                    ""
+                    pos
+                    target
                     exbuf
                 )
 
