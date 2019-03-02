@@ -1,6 +1,6 @@
 module View.Tooltip exposing (renderTooltip)
 
-import Font exposing (FontInfo)
+import Font exposing (FontInfo, stringWidth)
 import Helper.Helper exposing (ch, px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -16,10 +16,12 @@ import Model
         , Global
         , LintError
         , Mode(..)
-        , RichText(..)
+        , TextFragment
+        , TextSpan(..)
         , TextWithStyle
         , View
         )
+import Update.Cursor exposing (cursorPoint)
 
 
 renderTooltip :
@@ -45,9 +47,10 @@ renderTooltip global view buf =
                     topOffsetPx =
                         remainderBy global.lineHeight view.scrollTopPx
                 in
-                -- FIXME: usually source should not contains full-width characters
-                -- if it does, the position here will be wrong
-                lazy5 renderTooltipInner
+                lazy8 renderTooltipInner
+                    global.fontInfo
+                    buf.lines
+                    global.size.width
                     global.lineHeight
                     view.scrollTop
                     topOffsetPx
@@ -58,9 +61,24 @@ renderTooltip global view buf =
         text ""
 
 
-renderTooltipInner : Int -> Int -> Int -> Position -> List LintError -> Html msg
-renderTooltipInner lineHeight scrollTop topOffsetPx cursor items =
+renderTooltipInner :
+    FontInfo
+    -> B.TextBuffer
+    -> Int
+    -> Int
+    -> Int
+    -> Int
+    -> Position
+    -> List LintError
+    -> Html msg
+renderTooltipInner fontInfo lines width lineHeight scrollTop topOffsetPx cursor items =
     let
+        ( ( _, curx ), _ ) =
+            cursorPoint fontInfo
+                lines
+                (Tuple.first cursor)
+                (Tuple.second cursor)
+
         distanceFrom ( y, x ) { region } =
             let
                 ( y1, x1 ) =
@@ -70,25 +88,30 @@ renderTooltipInner lineHeight scrollTop topOffsetPx cursor items =
 
         renderDetails ( y, x ) overview details =
             div
-                [ style "top" <| px <| (Tuple.first cursor - scrollTop + 1) * lineHeight - topOffsetPx
-                , style "left" <| ch x
+                [ style "top" <|
+                    px <|
+                        (Tuple.first cursor - scrollTop + 1)
+                            * lineHeight
+                            - topOffsetPx
+                , style "left" <| px curx
                 , class "tip"
-                , case details of
-                    RichText rt ->
-                        class ""
-
-                    PlainText s ->
-                        style "max-width" "400px"
                 ]
-                [ div
-                    [ class "tip-content" ]
-                    (case details of
-                        RichText rt ->
-                            renderRichText rt
+                [ case details of
+                    [ PlainText s ] ->
+                        div
+                            [ class "tip-content"
 
-                        PlainText s ->
-                            [ text s ]
-                    )
+                            -- FIXME
+                            , (width - 100 - curx)
+                                |> Basics.max 200
+                                |> px
+                                |> style "max-width"
+                            ]
+                            [ text (String.trim s) ]
+
+                    _ ->
+                        div [ class "tip-content" ]
+                            (renderRichText details)
                 ]
     in
     items
@@ -114,28 +137,33 @@ renderTooltipInner lineHeight scrollTop topOffsetPx cursor items =
         |> Maybe.withDefault (text "")
 
 
-renderRichText : List TextWithStyle -> List (Html msg)
+renderRichText : TextFragment -> List (Html msg)
 renderRichText details =
     details
         |> List.map
-            (\{ bold, underline, color, string } ->
-                span
-                    [ if bold then
-                        style "font-weight" "700"
+            (\sp ->
+                case sp of
+                    RichText { bold, underline, color, string } ->
+                        span
+                            [ if bold then
+                                style "font-weight" "700"
 
-                      else
-                        style "font-weight" "400"
-                    , if underline then
-                        style "text-decoration" "underline"
+                              else
+                                style "font-weight" "400"
+                            , if underline then
+                                style "text-decoration" "underline"
 
-                      else
-                        style "text-decoration" "none"
-                    , case color of
-                        Just c ->
-                            style "color" c
+                              else
+                                style "text-decoration" "none"
+                            , case color of
+                                Just c ->
+                                    style "color" c
 
-                        _ ->
-                            style "color" "inherit"
-                    ]
-                    [ text string ]
+                                _ ->
+                                    style "color" "inherit"
+                            ]
+                            [ text string ]
+
+                    PlainText s ->
+                        text s
             )

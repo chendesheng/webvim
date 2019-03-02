@@ -18,10 +18,11 @@ module Model exposing
     , Model(..)
     , Redo
     , RegisterText(..)
-    , RichText(..)
     , ServerArgs
     , Size
     , StatusMessage(..)
+    , TextFragment
+    , TextSpan(..)
     , TextWithStyle
     , Undo
     , View
@@ -134,9 +135,13 @@ type alias TextWithStyle =
     }
 
 
-type RichText
+type TextSpan
     = PlainText String
-    | RichText (List TextWithStyle)
+    | RichText TextWithStyle
+
+
+type alias TextFragment =
+    List TextSpan
 
 
 type alias LintError =
@@ -144,7 +149,7 @@ type alias LintError =
     , tag : Maybe String
     , file : String
     , overview : String
-    , details : RichText
+    , details : TextFragment
     , region : ( Position, Position )
     , subRegion : Maybe ( Position, Position )
     }

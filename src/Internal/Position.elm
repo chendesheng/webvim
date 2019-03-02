@@ -1,4 +1,17 @@
-module Internal.Position exposing (Position, endPositionDecoder, excludeRight, positionAdd, positionBound, positionDecoder, positionMax, positionMin, positionNeg, positionShiftLeft, positionSub, regionDecoder)
+module Internal.Position exposing
+    ( Position
+    , endPositionDecoder
+    , excludeRight
+    , positionAdd
+    , positionBound
+    , positionDecoder
+    , positionMax
+    , positionMin
+    , positionNeg
+    , positionShiftLeft
+    , positionSub
+    , regionDecoder
+    )
 
 import Json.Decode as Decode
 

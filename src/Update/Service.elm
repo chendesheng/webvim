@@ -55,7 +55,8 @@ import Http
 import Internal.Jumps exposing (Location)
 import Internal.Position
     exposing
-        ( endPositionDecoder
+        ( Position
+        , endPositionDecoder
         , positionDecoder
         , regionDecoder
         )
@@ -69,8 +70,8 @@ import Model
         , Flags
         , Key
         , LintError
-        , RichText(..)
         , ServerArgs
+        , TextSpan(..)
         , TextWithStyle
         , emptyBufferHistory
         )
@@ -124,7 +125,7 @@ eslintResultDecoder =
                     )
                 )
                 (Decode.field "message" Decode.string
-                    |> Decode.map PlainText
+                    |> Decode.map (PlainText >> List.singleton)
                 )
                 regionDecoder
                 (Decode.succeed Nothing)
@@ -139,22 +140,38 @@ eslintResultDecoder =
         |> Decode.map List.concat
 
 
-elmMakeResultDecoder : Decode.Decoder (List LintError)
-elmMakeResultDecoder =
+findFirstLineStartsWith : String -> B.TextBuffer -> Maybe ( Position, Position )
+findFirstLineStartsWith s lines =
+    B.findFirstLine
+        (\line i ->
+            if String.startsWith s line then
+                Just
+                    ( ( i, 0 )
+                    , ( i, String.length s )
+                    )
+
+            else
+                Nothing
+        )
+        lines
+
+
+elmMakeResultDecoder : B.TextBuffer -> Decode.Decoder (List LintError)
+elmMakeResultDecoder lines =
     let
         messageDecoder =
             Decode.list
                 (Decode.oneOf
-                    [ Decode.string
-                        |> Decode.map
-                            (\s ->
-                                { bold = False
-                                , color = Nothing
-                                , underline = False
+                    [ Decode.map PlainText Decode.string
+                    , Decode.map4
+                        (\bold color underline s ->
+                            RichText
+                                { bold = bold
+                                , color = color
+                                , underline = underline
                                 , string = s
                                 }
-                            )
-                    , Decode.map4 TextWithStyle
+                        )
                         (Decode.field "bold" Decode.bool)
                         (Decode.field "color" Decode.string |> Decode.maybe)
                         (Decode.field "underline" Decode.bool)
@@ -162,7 +179,7 @@ elmMakeResultDecoder =
                     ]
                 )
 
-        errorDecoder path =
+        compileErrorDecoder path =
             Decode.map3
                 (\title details region ->
                     { tipe = "error"
@@ -175,20 +192,70 @@ elmMakeResultDecoder =
                     }
                 )
                 (Decode.field "title" Decode.string)
-                (Decode.field "message" messageDecoder |> Decode.map RichText)
+                (Decode.field "message" messageDecoder)
                 (Decode.field "region" regionDecoder)
-    in
-    Decode.field "errors"
-        (Decode.field "path" Decode.string
-            |> Decode.andThen
-                (\path ->
-                    errorDecoder path
-                        |> Decode.list
-                        |> Decode.field "problems"
+
+        errorDecoder =
+            let
+                firstChar =
+                    ( ( 0, 0 ), ( 0, 1 ) )
+
+                formatUnknownImportError title messages error =
+                    if title == "UNKNOWN IMPORT" then
+                        case messages of
+                            _ :: (RichText { string }) :: rest ->
+                                { error
+                                    | region =
+                                        lines
+                                            |> findFirstLineStartsWith string
+                                            |> Maybe.withDefault firstChar
+                                    , details = rest
+                                }
+
+                            _ ->
+                                error
+
+                    else
+                        error
+            in
+            Decode.map3
+                (\path title messages ->
+                    { tipe = "error"
+                    , tag = Nothing
+                    , file = path
+                    , overview = title
+                    , details = messages
+                    , region = firstChar
+                    , subRegion = Nothing
+                    }
+                        |> formatUnknownImportError title messages
                 )
-            |> Decode.list
-        )
-        |> Decode.map List.concat
+                (Decode.field "path" Decode.string)
+                (Decode.field "title" Decode.string)
+                (Decode.field "message" messageDecoder)
+    in
+    Decode.field "type" Decode.string
+        |> Decode.andThen
+            (\typ ->
+                if typ == "compile-errors" then
+                    Decode.field "errors"
+                        (Decode.field "path" Decode.string
+                            |> Decode.andThen
+                                (\path ->
+                                    compileErrorDecoder path
+                                        |> Decode.list
+                                        |> Decode.field "problems"
+                                )
+                            |> Decode.list
+                        )
+                        |> Decode.map List.concat
+
+                else if typ == "error" then
+                    Decode.map List.singleton errorDecoder
+
+                else
+                    Decode.succeed []
+            )
 
 
 lineDiffDecoder : Decode.Decoder (List Patch)
@@ -461,7 +528,7 @@ cannotFindModuleError path lines =
                 , tag = Nothing
                 , file = path
                 , overview = ""
-                , details = PlainText details
+                , details = [ PlainText details ]
                 , region = findRegion name lines
                 , subRegion = Nothing
                 }
@@ -483,7 +550,7 @@ syntaxErrorParser =
             , tag = Just tag
             , file = file
             , overview = overview
-            , details = PlainText details
+            , details = [ PlainText details ]
             , region = ( ( y1, x1 ), ( y1, x1 + 1 ) )
             , subRegion = Nothing
             }
@@ -528,7 +595,7 @@ parseElmMakeResponse sep path lines resp =
                         s
                             |> String.lines
                             |> List.map
-                                (decodeString elmMakeResultDecoder
+                                (decodeString (elmMakeResultDecoder lines)
                                     >> Result.map
                                         (List.map
                                             (\item ->
@@ -578,7 +645,7 @@ parseElmMakeResponse sep path lines resp =
                                           , region = ( ( 0, 0 ), ( 0, 0 ) )
                                           , subRegion = Nothing
                                           , overview = ""
-                                          , details = PlainText s
+                                          , details = [ PlainText s ]
                                           }
                                         ]
                                     )

@@ -6,7 +6,7 @@ import Internal.PositionClass
         ( parserBackwardCharRespectBackslash
         , parserForwardCharRespectBackslash
         )
-import Model exposing (RichText(..))
+import Model exposing (TextSpan(..))
 import Parser as P exposing ((|.), (|=), Parser)
 import Test exposing (..)
 import Update.Service exposing (syntaxErrorParser)
@@ -27,7 +27,7 @@ suite =
                         , tag = Just "SYNTAX PROBLEM"
                         , file = "src/View.elm"
                         , overview = "I need whitespace, but got stuck on what looks like a new declaration. You are\neither missing some stuff in the declaration above or just need to add some\nspaces here:"
-                        , details = PlainText "I am looking for one of the following things:\n\n    whitespace"
+                        , details = [ PlainText "I am looking for one of the following things:\n\n    whitespace" ]
                         , region = ( ( 30, 0 ), ( 30, 1 ) )
                         , subRegion = Nothing
                         }
