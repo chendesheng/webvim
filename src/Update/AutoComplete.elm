@@ -11,6 +11,7 @@ import Helper.Fuzzy exposing (..)
 import Helper.Helper exposing (rightChar, word)
 import Internal.Position exposing (Position, positionShiftLeft)
 import Internal.TextBuffer as B
+import Menu as Mu
 import Model exposing (AutoComplete, Buffer, Mode(..))
 import Update.Buffer as Buf
 import Update.Motion exposing (wordStringUnderCursor)
@@ -23,42 +24,20 @@ selectAutoComplete forward buf =
             case insert.autoComplete of
                 Just auto ->
                     let
-                        { pos, matches, select } =
+                        { menu, pos, word } =
                             auto
 
-                        newSelect =
-                            modBy
-                                (Array.length matches)
-                                (select
-                                    + (if forward then
-                                        1
-
-                                       else
-                                        -1
-                                      )
-                                )
-
-                        targetSelected =
-                            newSelect == Array.length matches - 1
-
-                        scrollTop =
-                            if targetSelected then
-                                auto.scrollTop
-
-                            else if newSelect < auto.scrollTop then
-                                newSelect
-
-                            else if newSelect >= auto.scrollTop + 15 then
-                                newSelect - 15 + 1
+                        menu1 =
+                            if forward then
+                                Mu.selectForward menu
 
                             else
-                                auto.scrollTop
+                                Mu.selectBackward menu
 
                         txt =
-                            matches
-                                |> Array.get newSelect
+                            Mu.getSelected menu1
                                 |> Maybe.map .text
-                                |> Maybe.withDefault ""
+                                |> Maybe.withDefault word
 
                         ( y, x ) =
                             buf.view.cursor
@@ -66,8 +45,7 @@ selectAutoComplete forward buf =
                         buf1 =
                             Buf.transaction
                                 [ B.Deletion pos buf.view.cursor
-                                , B.Insertion pos <|
-                                    B.fromString txt
+                                , B.Insertion pos (B.fromString txt)
                                 ]
                                 buf
                     in
@@ -77,10 +55,7 @@ selectAutoComplete forward buf =
                                 { insert
                                     | autoComplete =
                                         Just
-                                            { auto
-                                                | select = newSelect
-                                                , scrollTop = scrollTop
-                                            }
+                                            { auto | menu = menu1 }
                                 }
                     }
 
@@ -155,16 +130,11 @@ startAutoComplete wordChars trigger menuLeftOffset source pos word buf =
                                     { trigger = trigger
                                     , source = source
                                     , pos = pos
-                                    , matches =
+                                    , word = word
+                                    , menu =
                                         word
                                             |> fuzzyMatch source
-                                            |> Array.fromList
-                                            |> Array.push
-                                                { text = word
-                                                , matches = []
-                                                }
-                                    , select = -1
-                                    , scrollTop = 0
+                                            |> Mu.init 10
                                     , wordChars = wordChars
                                     , menuLeftOffset = menuLeftOffset
                                     }
@@ -198,16 +168,11 @@ filterAutoComplete buf =
                     then
                         Just
                             { auto
-                                | matches =
-                                    Array.push
-                                        { text = target
-                                        , matches = []
-                                        }
-                                        (target
-                                            |> fuzzyMatch source
-                                            |> Array.fromList
-                                        )
-                                , select = -1
+                                | word = target
+                                , menu =
+                                    target
+                                        |> fuzzyMatch source
+                                        |> Mu.init 10
                             }
 
                     else

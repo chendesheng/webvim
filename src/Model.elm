@@ -99,6 +99,7 @@ import Internal.TextBuffer as B exposing (Patch(..), RegionChange, TextBuffer)
 import Internal.Window as Win exposing (Window)
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Menu as Mu
 import Regex as Re
 import Vim.AST as V exposing (VisualType(..))
 
@@ -459,9 +460,8 @@ type alias VisualMode =
 
 type alias AutoComplete =
     { source : List String
-    , matches : Array FuzzyMatchItem
-    , select : Int
-    , scrollTop : Int
+    , menu : Mu.Model FuzzyMatchItem
+    , word : String
     , pos : Position
     , wordChars : String
 

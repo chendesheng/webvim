@@ -1,6 +1,6 @@
 module TestFuzzyMatch exposing (suite)
 
-import Expect exposing (Expectation)
+import Expect
 import Helper.Fuzzy exposing (..)
 import Test exposing (..)
 

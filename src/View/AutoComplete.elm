@@ -9,6 +9,7 @@ import Html.Keyed
 import Html.Lazy exposing (..)
 import Internal.TextBuffer as B
 import Internal.Window as Win
+import Menu as Mu
 import Model exposing (AutoComplete, Buffer, Global, Mode(..), View)
 import Update.Message exposing (Msg)
 
@@ -86,11 +87,8 @@ renderAutoCompleteMenu :
     -> Html msg
 renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop auto =
     let
-        { matches, select, scrollTop, pos, menuLeftOffset } =
+        { menu, pos, menuLeftOffset } =
             auto
-
-        index =
-            select - scrollTop
 
         renderSpan s matched =
             if matched then
@@ -153,10 +151,10 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop auto =
                     ]
                )
         )
-        (List.indexedMap
-            (\i m ->
+        (Mu.render
+            (\selected m ->
                 div
-                    (if i == index then
+                    (if selected then
                         [ class "selected" ]
 
                      else
@@ -164,11 +162,7 @@ renderAutoCompleteMenu lineHeight topOffsetPx isEx viewScrollTop auto =
                     )
                     (renderText m.text m.matches 0)
             )
-            (matches
-                |> Array.slice 0 -1
-                |> Array.slice scrollTop (scrollTop + 15)
-                |> Array.toList
-            )
+            menu
         )
 
 
