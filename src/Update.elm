@@ -2753,6 +2753,7 @@ init flags theme fontInfo size args =
                     |> Maybe.andThen getNotLoadBuffer
                     |> Maybe.map (sendReadBuffer service viewHeight w.isActive)
             )
+        |> ((::) <| Cmd.map IMEMessage focusIme)
         |> Cmd.batch
     )
 
