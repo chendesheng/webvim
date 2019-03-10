@@ -131,12 +131,8 @@ listFiles :: Response -> String -> Aff Unit
 listFiles resp cwd = do
   affLog ("listFiles: " <> show cwd)
   let outputStream = responseAsStream resp
-  result1 <- execAsync (Just cwd) "git ls-files" Nothing
-  result2 <- execAsync (Just cwd) "git ls-files --exclude-standard --others" Nothing
-  s1 <- affBufferToString result1.stdout
-  s2 <- affBufferToString result2.stdout
-  affWriteString outputStream (s1 <> s2)
-  affEnd outputStream
+  result <- execAsync (Just cwd) "fd -c never" Nothing
+  affWriteStdout outputStream result
 
 listDirectory :: Response -> String -> Aff Unit
 listDirectory resp cwd = do
