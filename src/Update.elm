@@ -61,7 +61,7 @@ import Update.Replace exposing (applyReplace)
 import Update.Select exposing (select)
 import Update.Service exposing (..)
 import Update.Yank exposing (put, yank, yankWholeBuffer)
-import Vim.AST as V exposing (AST, Operator(..))
+import Vim.AST as V exposing (AST, Operator(..), isEditingOperator)
 import Vim.Helper exposing (escapeKey, parseKeys)
 import Vim.Parser exposing (parse)
 
@@ -761,14 +761,12 @@ runOperator count register operator ({ buf, global } as ed) =
                         | buf =
                             buf
                                 |> insert s
-                                |> filterAutoComplete
                     }
                         |> cmdNone
 
         Delete rg ->
             ed
                 |> delete count register rg
-                |> updateBuffer filterAutoComplete
                 |> cmdNone
 
         Yank rg ->
@@ -802,7 +800,6 @@ runOperator count register operator ({ buf, global } as ed) =
         Put forward ->
             ( ed
                 |> put register forward
-                |> updateBuffer filterAutoComplete
             , Cmd.none
             )
 
@@ -1040,22 +1037,6 @@ columnInsert prepend buf =
             buf
 
 
-isExEditing : Operator -> Bool
-isExEditing op =
-    case op of
-        Delete _ ->
-            True
-
-        InsertString _ ->
-            True
-
-        Put _ ->
-            True
-
-        _ ->
-            False
-
-
 isExMode mode =
     case mode of
         Ex _ ->
@@ -1073,23 +1054,18 @@ applyEdit count edit register ({ buf } as ed) =
                 res =
                     runOperator count register operator ed
             in
-            case buf.mode of
-                Ex ex ->
-                    if isExEditing operator then
-                        let
-                            ( ed1, cmd ) =
-                                res
-
-                            ( buf1, cmd1 ) =
-                                updateAutoCompleteExEdit ed1.global ed1.buf
-                        in
-                        ( { ed1 | buf = buf1 }, Cmd.batch [ cmd, cmd1 ] )
-
-                    else
+            if isEditingOperator operator then
+                let
+                    ( ed1, cmd ) =
                         res
 
-                _ ->
-                    res
+                    ( buf1, cmd1 ) =
+                        updateAutoCompleteEdit ed1.global ed1.buf
+                in
+                ( { ed1 | buf = buf1 }, Cmd.batch [ cmd, cmd1 ] )
+
+            else
+                res
 
         Nothing ->
             ( ed, Cmd.none )

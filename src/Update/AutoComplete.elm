@@ -1,10 +1,9 @@
 module Update.AutoComplete exposing
-    ( filterAutoComplete
-    , handleSelectHistory
+    ( handleSelectHistory
     , handleSelectWord
     , startAutoCompleteFiles
     , startExAutoComplete
-    , updateAutoCompleteExEdit
+    , updateAutoCompleteEdit
     )
 
 import Array as Array
@@ -286,8 +285,8 @@ clearExBufAutoComplete exbuf =
     }
 
 
-updateAutoCompleteExEdit : Global -> Buffer -> ( Buffer, Cmd Msg )
-updateAutoCompleteExEdit global buf =
+updateAutoCompleteEdit : Global -> Buffer -> ( Buffer, Cmd Msg )
+updateAutoCompleteEdit global buf =
     case buf.mode of
         Ex ({ exbuf } as newex) ->
             let
@@ -371,7 +370,7 @@ updateAutoCompleteExEdit global buf =
                 )
 
         _ ->
-            ( buf, Cmd.none )
+            ( filterAutoComplete buf, Cmd.none )
 
 
 startExAutoComplete : Int -> String -> List String -> Buffer -> Buffer

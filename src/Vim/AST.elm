@@ -19,6 +19,7 @@ module Vim.AST exposing
     , defaultRegister
     , emptyMotionOption
     , initialMode
+    , isEditingOperator
     , isVisualRange
     , motionOption
     )
@@ -141,6 +142,22 @@ type Operator
     | ShowInfo
     | IMEToggleActive
     | SwitchView SwitchViewType
+
+
+isEditingOperator : Operator -> Bool
+isEditingOperator op =
+    case op of
+        Delete _ ->
+            True
+
+        InsertString _ ->
+            True
+
+        Put _ ->
+            True
+
+        _ ->
+            False
 
 
 type SwitchViewType
