@@ -8,7 +8,8 @@ import Font exposing (FontInfo, charWidth)
 import Helper.Debounce as Deb
 import Helper.Helper
     exposing
-        ( findFirst
+        ( fileNameWordChars
+        , findFirst
         , fromListBy
         , getLast
         , httpErrorMessage
@@ -22,6 +23,7 @@ import Helper.Helper
         , regexWith
         , replaceHomeDir
         , resolvePath
+        , toAbsolutePath
         , toCmd
         )
 import Http
@@ -651,24 +653,6 @@ correctLines buf =
         buf
 
 
-clearExBufAutoComplete : Buffer -> Buffer
-clearExBufAutoComplete exbuf =
-    { exbuf
-        | mode =
-            case exbuf.mode of
-                Insert insert ->
-                    Insert
-                        { insert
-                            | autoComplete =
-                                Nothing
-                        }
-
-                _ ->
-                    initMode exbuf
-                        V.ModeNameInsert
-    }
-
-
 scroll : Maybe Int -> V.ScrollPosition -> Int -> Global -> View -> View
 scroll count value lineCounts global view =
     let
@@ -816,7 +800,11 @@ runOperator count register operator ({ buf, global } as ed) =
             ( { ed | buf = jumpByView factor global buf }, Cmd.none )
 
         Put forward ->
-            ( put register forward ed, Cmd.none )
+            ( ed
+                |> put register forward
+                |> updateBuffer filterAutoComplete
+            , Cmd.none
+            )
 
         RepeatLastOperator ->
             replayKeys global.dotRegister ed
@@ -841,17 +829,7 @@ runOperator count register operator ({ buf, global } as ed) =
                                     register
                                     s
                                     { ed
-                                        | buf =
-                                            { buf
-                                                | mode =
-                                                    Ex
-                                                        { ex
-                                                            | exbuf =
-                                                                clearExBufAutoComplete
-                                                                    ex.exbuf
-                                                        }
-                                            }
-                                        , global =
+                                        | global =
                                             { global
                                                 | exHistory =
                                                     (s :: global.exHistory)
@@ -879,64 +857,9 @@ runOperator count register operator ({ buf, global } as ed) =
             )
 
         SelectAutoComplete forward ->
-            case buf.mode of
-                Ex ex ->
-                    ( { ed
-                        | buf =
-                            ex.exbuf
-                                |> selectAutoComplete forward
-                                |> setExbuf buf ex
-                      }
-                    , Cmd.none
-                    )
-
-                Insert { autoComplete } ->
-                    case autoComplete of
-                        Just _ ->
-                            ( updateBuffer (selectAutoComplete forward) ed
-                            , Cmd.none
-                            )
-
-                        _ ->
-                            ( { ed
-                                | buf =
-                                    case autoCompleteTarget buf.config.wordChars buf of
-                                        Just ( pos, word ) ->
-                                            let
-                                                exclude =
-                                                    wordStringUnderCursor
-                                                        buf.config.wordChars
-                                                        buf.lines
-                                                        (positionShiftLeft buf.view.cursor)
-                                                        |> Maybe.map Tuple.second
-                                                        |> Maybe.withDefault ""
-
-                                                words =
-                                                    Buf.toWords exclude buf
-                                            in
-                                            if List.isEmpty words then
-                                                Buf.errorMessage "Pattern no found"
-                                                    buf
-
-                                            else
-                                                buf
-                                                    |> startAutoComplete
-                                                        buf.config.wordChars
-                                                        ""
-                                                        0
-                                                        words
-                                                        pos
-                                                        word
-                                                    |> selectAutoComplete forward
-
-                                        _ ->
-                                            buf
-                              }
-                            , Cmd.none
-                            )
-
-                _ ->
-                    ( ed, Cmd.none )
+            ( updateBuffer (handleSelectWord forward) ed
+            , Cmd.none
+            )
 
         JumpHistory isForward ->
             jumpHistory isForward ed
@@ -1018,33 +941,9 @@ runOperator count register operator ({ buf, global } as ed) =
             )
 
         SelectHistory forward ->
-            case buf.mode of
-                Ex ex ->
-                    ( { ed
-                        | buf =
-                            if isAutoCompleteStarted ex.exbuf "$$%exHistory" then
-                                ex.exbuf
-                                    |> selectAutoComplete forward
-                                    |> setExbuf buf ex
-
-                            else
-                                ex.exbuf
-                                    |> startAutoComplete ""
-                                        "$$%exHistory"
-                                        1
-                                        (List.reverse global.exHistory)
-                                        ( 0, 1 )
-                                        (B.toString ex.exbuf.lines
-                                            |> String.dropLeft 1
-                                        )
-                                    |> selectAutoComplete forward
-                                    |> setExbuf buf ex
-                      }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( ed, Cmd.none )
+            ( updateBuffer (handleSelectHistory forward global.exHistory) ed
+            , Cmd.none
+            )
 
         SwitchView type_ ->
             ( switchView type_ ed, Cmd.none )
@@ -1150,6 +1049,9 @@ isExEditing op =
         InsertString _ ->
             True
 
+        Put _ ->
+            True
+
         _ ->
             False
 
@@ -1163,126 +1065,31 @@ isExMode mode =
             False
 
 
-setExbuf : Buffer -> ExMode -> Buffer -> Buffer
-setExbuf buf ex exbuf =
-    { buf | mode = Ex { ex | exbuf = exbuf } }
-
-
 applyEdit : Maybe Int -> Maybe Operator -> String -> Editor -> ( Editor, Cmd Msg )
 applyEdit count edit register ({ buf } as ed) =
     case edit of
         Just operator ->
+            let
+                res =
+                    runOperator count register operator ed
+            in
             case buf.mode of
                 Ex ex ->
-                    let
-                        ( ed1, cmd ) =
-                            runOperator count register operator ed
+                    if isExEditing operator then
+                        let
+                            ( ed1, cmd ) =
+                                res
 
-                        global =
-                            ed1.global
-                    in
-                    case ed1.buf.mode of
-                        Ex ({ exbuf } as newex) ->
-                            let
-                                s =
-                                    B.toString exbuf.lines
+                            ( buf1, cmd1 ) =
+                                updateAutoCompleteExEdit ed1.global ed1.buf
+                        in
+                        ( { ed1 | buf = buf1 }, Cmd.batch [ cmd, cmd1 ] )
 
-                                trigger =
-                                    if isAutoCompleteStarted exbuf "$$%exHistory" then
-                                        "$$%exHistory"
-
-                                    else if String.startsWith ":o " s then
-                                        global.cwd
-
-                                    else if String.startsWith ":b " s then
-                                        global.cwd
-
-                                    else
-                                        s
-                                            |> String.trim
-                                            |> String.split " "
-                                            |> getLast
-                                            |> Maybe.withDefault ""
-                                            |> getPath
-                                                global.pathSeperator
-                                                global.homedir
-                                                global.cwd
-
-                                ( getList, clearAutoComplete ) =
-                                    if isAutoCompleteStarted exbuf "$$%exHistory" then
-                                        ( \a b c -> Cmd.none, False )
-
-                                    else if String.startsWith ":o " s then
-                                        ( sendListAllFiles, False )
-
-                                    else if String.startsWith ":b " s then
-                                        ( \a b c ->
-                                            Task.succeed
-                                                (global.buffers
-                                                    |> getBuffers
-                                                    |> List.filterMap
-                                                        (\{ path } ->
-                                                            if path /= buf.path && path /= "" then
-                                                                Just path
-
-                                                            else
-                                                                Nothing
-                                                        )
-                                                    |> List.map (Buf.shortPath global)
-                                                )
-                                                |> Task.perform ListBuffers
-                                        , False
-                                        )
-
-                                    else if String.startsWith ":e " s then
-                                        ( sendListFiles, False )
-
-                                    else if String.startsWith ":cd " s then
-                                        ( sendListDirectories, False )
-
-                                    else
-                                        ( \a b c -> Cmd.none, True )
-                            in
-                            if clearAutoComplete then
-                                ( { ed1
-                                    | buf =
-                                        setExbuf ed1.buf
-                                            newex
-                                            (clearExBufAutoComplete exbuf)
-                                  }
-                                , cmd
-                                )
-
-                            else if isExEditing operator then
-                                if isAutoCompleteStarted exbuf trigger then
-                                    ( { ed1
-                                        | buf =
-                                            exbuf
-                                                |> filterAutoComplete
-                                                |> setExbuf ed1.buf newex
-                                      }
-                                    , cmd
-                                    )
-
-                                else
-                                    ( ed1
-                                    , Cmd.batch
-                                        [ cmd
-                                        , getList
-                                            global.service
-                                            global.pathSeperator
-                                            trigger
-                                        ]
-                                    )
-
-                            else
-                                ( ed1, cmd )
-
-                        _ ->
-                            ( ed1, cmd )
+                    else
+                        res
 
                 _ ->
-                    runOperator count register operator ed
+                    res
 
         Nothing ->
             ( ed, Cmd.none )
@@ -2171,7 +1978,9 @@ update message global =
         ListDirectries resp ->
             case resp of
                 Ok files ->
-                    ( updateActiveBuffer (listFiles files global) global
+                    ( updateActiveBuffer
+                        (startAutoCompleteFiles files global)
+                        global
                     , Cmd.none
                     )
 
@@ -2181,7 +1990,11 @@ update message global =
         ListFiles resp ->
             case resp of
                 Ok files ->
-                    ( updateActiveBuffer (listFiles files global) global, Cmd.none )
+                    ( updateActiveBuffer
+                        (startAutoCompleteFiles files global)
+                        global
+                    , Cmd.none
+                    )
 
                 Err _ ->
                     ( global, Cmd.none )
@@ -2549,96 +2362,6 @@ onWrite result ({ buf, global } as ed) =
                 ed
             , Cmd.none
             )
-
-
-getPath : String -> String -> String -> String -> String
-getPath sep homedir cwd s1 =
-    let
-        s =
-            replaceHomeDir homedir s1
-
-        base =
-            if s == homedir then
-                s
-
-            else
-                pathBase sep s
-    in
-    resolvePath sep cwd base
-
-
-fileNameWordChars : String
-fileNameWordChars =
-    "/\\-._"
-
-
-startExAutoComplete : Int -> String -> List String -> Buffer -> Buffer
-startExAutoComplete offset trigger candidates buf =
-    case buf.mode of
-        Ex ({ exbuf } as ex) ->
-            let
-                pos =
-                    ( 0, offset + 1 )
-
-                target =
-                    exbuf.lines
-                        |> B.substring pos exbuf.view.cursor
-                        |> B.toString
-            in
-            setExbuf buf
-                ex
-                (startAutoComplete
-                    fileNameWordChars
-                    trigger
-                    offset
-                    candidates
-                    pos
-                    target
-                    exbuf
-                )
-
-        _ ->
-            buf
-
-
-listFiles : List String -> Global -> Buffer -> Buffer
-listFiles files global buf =
-    case buf.mode of
-        Ex ({ exbuf } as ex) ->
-            let
-                sep =
-                    global.pathSeperator
-            in
-            setExbuf buf
-                ex
-                (case
-                    exbuf.lines
-                        |> B.toString
-                        |> String.split " "
-                 of
-                    [ prefix, path ] ->
-                        startAutoComplete
-                            fileNameWordChars
-                            (getPath sep global.homedir global.cwd path)
-                            (String.length prefix)
-                            files
-                            ( 0
-                            , (path
-                                |> pathBase sep
-                                |> String.length
-                              )
-                                + String.length prefix
-                                + String.length sep
-                            )
-                            ""
-                            exbuf
-
-                    _ ->
-                        exbuf
-                )
-
-        _ ->
-            buf
 
 
 getViewHeight : Int -> Int -> Int

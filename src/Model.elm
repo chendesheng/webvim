@@ -66,6 +66,7 @@ module Model exposing
     , replaceActiveView
     , resizeView
     , setBuffer
+    , setExbuf
     , undoDecoder
     , undoEncoder
     , updateBuffer
@@ -489,6 +490,11 @@ type alias ExMode =
     , visual : Maybe VisualMode
     , message : StatusMessage
     }
+
+
+setExbuf : Buffer -> ExMode -> Buffer -> Buffer
+setExbuf buf ex exbuf =
+    { buf | mode = Ex { ex | exbuf = exbuf } }
 
 
 type alias View =

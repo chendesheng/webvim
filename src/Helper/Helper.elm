@@ -7,6 +7,7 @@ module Helper.Helper exposing
     , dropWhile
     , escapeRegex
     , extname
+    , fileNameWordChars
     , filename
     , findFirst
     , findIndex
@@ -46,6 +47,7 @@ module Helper.Helper exposing
     , safeRegex
     , spaceInline
     , swapCase
+    , toAbsolutePath
     , toCmd
     , word
     )
@@ -637,3 +639,24 @@ httpErrorMessage err =
 
         Http.BadPayload s _ ->
             "BadPayload: " ++ s
+
+
+toAbsolutePath : String -> String -> String -> String -> String
+toAbsolutePath sep homedir cwd s1 =
+    let
+        s =
+            replaceHomeDir homedir s1
+
+        base =
+            if s == homedir then
+                s
+
+            else
+                pathBase sep s
+    in
+    resolvePath sep cwd base
+
+
+fileNameWordChars : String
+fileNameWordChars =
+    "/\\-._"
