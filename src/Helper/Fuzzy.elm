@@ -119,5 +119,5 @@ fuzzyMatch src target =
                                 |> getLast
                                 |> Maybe.withDefault 0
                     in
-                    ( last - first, first )
+                    ( last - first, first, String.length item.text )
                 )

@@ -131,7 +131,7 @@ listFiles :: Response -> String -> Aff Unit
 listFiles resp cwd = do
   affLog ("listFiles: " <> show cwd)
   let outputStream = responseAsStream resp
-  result <- execAsync (Just cwd) "fd -c never" Nothing
+  result <- execAsync (Just cwd) "fd -t f -c never" Nothing
   affWriteStdout outputStream result
 
 listDirectory :: Response -> String -> Aff Unit
