@@ -76,24 +76,27 @@ renderHighlightLine highlightLine =
 renderAbsoluteGutterInner : Int -> List Int -> Html msg
 renderAbsoluteGutterInner totalLines viewLines =
     div
-        []
+        [ style "position" "relative" ]
         (List.map
-            (\lineNumber ->
-                let
-                    top =
-                        style "top" <| rem lineNumber
-                in
-                if lineNumber < totalLines then
-                    renderLineNumber
-                        [ top ]
-                        (lineNumber + 1)
-
-                else
-                    div [ class "line-number", top, class "line-number-hole" ]
-                        [ text "~" ]
-            )
+            (lazy2 renderAbsoluteLineNumber totalLines)
             viewLines
         )
+
+
+renderAbsoluteLineNumber : Int -> Int -> Html msg
+renderAbsoluteLineNumber totalLines lineNumber =
+    let
+        top =
+            style "top" <| rem lineNumber
+    in
+    if lineNumber < totalLines then
+        renderLineNumber
+            [ top ]
+            (lineNumber + 1)
+
+    else
+        div [ class "line-number", top, class "line-number-hole" ]
+            [ text "~" ]
 
 
 renderLineNumber : List (Attribute msg) -> Int -> Html msg
