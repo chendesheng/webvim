@@ -13,6 +13,7 @@ import Helper.Helper
         ( fileNameWordChars
         , getLast
         , pathBase
+        , pathFileName
         , rightChar
         , toAbsolutePath
         , word
@@ -157,11 +158,11 @@ startAutoComplete wordChars trigger menuLeftOffset source pos word buf =
         buf
 
 
-filterAutoComplete : Buffer -> Buffer
-filterAutoComplete buf =
+filterAutoComplete : Bool -> Buffer -> Buffer
+filterAutoComplete resetIfEmpty buf =
     updateAutoComplete
-        (Maybe.andThen
-            (\({ pos, source, wordChars } as auto) ->
+        (Maybe.andThen <|
+            \({ pos, source, wordChars } as auto) ->
                 let
                     target =
                         buf.lines
@@ -169,9 +170,11 @@ filterAutoComplete buf =
                             |> B.toString
                 in
                 if
-                    target
-                        |> String.filter (word wordChars)
-                        |> String.isEmpty
+                    resetIfEmpty
+                        && (target
+                                |> String.filter (word wordChars)
+                                |> String.isEmpty
+                           )
                 then
                     Nothing
 
@@ -184,7 +187,6 @@ filterAutoComplete buf =
                                     |> fuzzyMatch source
                                     |> Mu.init 10
                         }
-            )
         )
         buf
 
@@ -268,23 +270,6 @@ handleSelectHistory forward exHistory buf =
             buf
 
 
-clearExBufAutoComplete : Buffer -> Buffer
-clearExBufAutoComplete exbuf =
-    { exbuf
-        | mode =
-            case exbuf.mode of
-                Insert insert ->
-                    Insert
-                        { insert
-                            | autoComplete =
-                                Nothing
-                        }
-
-                _ ->
-                    exbuf.mode
-    }
-
-
 updateAutoCompleteEdit : Global -> Buffer -> ( Buffer, Cmd Msg )
 updateAutoCompleteEdit global buf =
     case buf.mode of
@@ -350,13 +335,13 @@ updateAutoCompleteEdit global buf =
                         ( \a b c -> Cmd.none, True )
             in
             if clearAutoComplete then
-                ( setExbuf buf newex (clearExBufAutoComplete exbuf)
+                ( setExbuf buf newex (updateAutoComplete (always Nothing) exbuf)
                 , Cmd.none
                 )
 
             else if isAutoCompleteStarted exbuf trigger then
                 ( exbuf
-                    |> filterAutoComplete
+                    |> filterAutoComplete False
                     |> setExbuf buf newex
                 , Cmd.none
                 )
@@ -370,7 +355,7 @@ updateAutoCompleteEdit global buf =
                 )
 
         _ ->
-            ( filterAutoComplete buf, Cmd.none )
+            ( filterAutoComplete True buf, Cmd.none )
 
 
 startExAutoComplete : Int -> String -> List String -> Buffer -> Buffer
@@ -431,7 +416,7 @@ startAutoCompleteFiles files global buf =
                                 + String.length prefix
                                 + String.length sep
                             )
-                            ""
+                            (pathFileName sep path)
                             exbuf
 
                     _ ->
