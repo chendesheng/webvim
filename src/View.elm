@@ -329,7 +329,7 @@ renderBuffer path rect view buf isActive global =
                )
         )
         [ renderGuide fontInfo lines lineHeight scrollTop topOffsetPx maybeCursor
-        , renderGutters view.lines
+        , renderGutters view.gutterLines
             lines
             lineHeight
             relativeZeroLine

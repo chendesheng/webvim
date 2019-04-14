@@ -20,6 +20,7 @@ import Helper.Helper
         , nthList
         , pathBase
         , pathFileName
+        , rangeCount
         , regexWith
         , replaceHomeDir
         , resolvePath
@@ -323,6 +324,13 @@ updateMode modeName ({ global, buf } as ed) =
 
             else
                 global.ime
+
+        viewLines =
+            Buf.scrollViewLines
+                view.size.height
+                scrollFrom
+                scrollTo
+                view.lines
     in
     { ed
         | buf =
@@ -336,12 +344,13 @@ updateMode modeName ({ global, buf } as ed) =
                         buf1.continuation
                 , view =
                     { view
-                        | lines =
-                            Buf.scrollViewLines
-                                view.size.height
-                                scrollFrom
-                                scrollTo
-                                view.lines
+                        | lines = viewLines
+                        , gutterLines =
+                            if scrollFrom == scrollTo then
+                                view.gutterLines
+
+                            else
+                                viewLines
                     }
             }
         , global = { global | ime = ime }
@@ -575,13 +584,22 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                     | buf =
                         Buf.updateView
                             (\view ->
-                                { view
-                                    | lines =
+                                let
+                                    viewLines =
                                         Buf.scrollViewLines
                                             view.size.height
                                             scrollFrom
                                             scrollTo
                                             view.lines
+                                in
+                                { view
+                                    | lines = viewLines
+                                    , gutterLines =
+                                        if scrollFrom == scrollTo then
+                                            view.gutterLines
+
+                                        else
+                                            viewLines
                                 }
                             )
                             buf1
@@ -2379,15 +2397,15 @@ init flags theme fontInfo size args =
                                     |> Buf.transaction b.history.changes
                                     |> Buf.updateHistory (always b.history)
                                     |> (\buf1 ->
-                                            Buf.updateView
-                                                (Buf.setCursor b.view.cursor True
-                                                    >> updateViewAfterCursorChanged
-                                                        lineHeight
-                                                        buf1.mode
-                                                        buf1.lines
-                                                        buf1.syntax
-                                                )
-                                                buf1
+                                            buf1
+                                                |> Buf.updateView
+                                                    (Buf.setCursor b.view.cursor True
+                                                        >> updateViewAfterCursorChanged
+                                                            lineHeight
+                                                            buf1.mode
+                                                            buf1.lines
+                                                            buf1.syntax
+                                                    )
                                        )
                                     |> Loaded
                                 )

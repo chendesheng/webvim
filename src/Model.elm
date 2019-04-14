@@ -322,6 +322,9 @@ createBuffer path size global =
 
         global1 =
             increaseMaxId global
+
+        viewLines =
+            rangeCount 0 <| size.height + 2
     in
     ( global1
     , { emptyBuffer
@@ -329,7 +332,8 @@ createBuffer path size global =
         , view =
             { emptyView
                 | bufId = global1.maxId
-                , lines = rangeCount 0 <| size.height + 2
+                , lines = viewLines
+                , gutterLines = viewLines
                 , size = size
             }
         , config =
@@ -514,6 +518,7 @@ type alias View =
     , scrollLeftPx : Int
     , matchedCursor : Maybe ( Position, Position )
     , lines : List Int
+    , gutterLines : List Int
     , size : Size
 
     -- TODO: save buffer id when buffer switch
@@ -527,10 +532,18 @@ resizeView size view =
     if size == view.size then
         view
 
+    else if size.height == view.size.height then
+        { view | size = size }
+
     else
+        let
+            viewLines =
+                rangeCount view.scrollTop <| size.height + 2
+        in
         { view
             | size = size
-            , lines = rangeCount view.scrollTop <| size.height + 2
+            , lines = viewLines
+            , gutterLines = viewLines
         }
 
 
@@ -810,7 +823,8 @@ emptyView =
     , scrollTopPx = 0
     , scrollLeftPx = 0
     , matchedCursor = Nothing
-    , lines = [ 0, 1, 2 ]
+    , lines = rangeCount 0 3
+    , gutterLines = rangeCount 0 3
     , size = { width = 1, height = 1 }
     , alternativeBuf = Nothing
     }

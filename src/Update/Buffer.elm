@@ -1045,7 +1045,10 @@ scrollViewLines height_ from to viewLines =
         height =
             height_ + 2
     in
-    if from + height <= to || to + height <= from then
+    if from == to then
+        viewLines
+
+    else if from + height <= to || to + height <= from then
         rangeCount to height
 
     else if from > to then
@@ -1074,6 +1077,10 @@ setScrollTop n lineHeight view =
         view
 
     else
+        let
+            viewLines =
+                scrollViewLines view.size.height view.scrollTop n view.lines
+        in
         { view
             | scrollTop = n
             , scrollTopPx =
@@ -1082,8 +1089,13 @@ setScrollTop n lineHeight view =
 
                 else
                     n * lineHeight
-            , lines =
-                scrollViewLines view.size.height view.scrollTop n view.lines
+            , lines = viewLines
+            , gutterLines =
+                if view.scrollTop == n then
+                    view.gutterLines
+
+                else
+                    viewLines
         }
 
 
