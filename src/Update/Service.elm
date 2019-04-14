@@ -9,7 +9,6 @@ module Update.Service exposing
     , parseElmMakeResponse
     , parseFileList
     , parseLintResult
-    , pickClosest
     , post
     , postRespHeaders
     , sendCd
@@ -48,6 +47,7 @@ import Helper.Helper
         , keepZeroOrMore
         , normalizePath
         , notSpace
+        , nthList
         , oneOrMore
         , regex
         )
@@ -1025,12 +1025,11 @@ ctagsParser sep =
         )
 
 
-pickClosest : String -> Int -> List Location -> Maybe Location
-pickClosest path index locs =
+pickLocation : Int -> List Location -> Maybe Location
+pickLocation index locs =
     locs
-        |> List.sortBy .path
-        |> Array.fromList
-        |> Array.get index
+        |> List.sortBy (\{ path } -> ( String.length path, path ))
+        |> nthList index
 
 
 sendReadTags : String -> String -> String -> String -> Int -> String -> Cmd Msg
@@ -1049,7 +1048,7 @@ sendReadTags url sep cwd path index name =
                                 |> Result.andThen
                                     (\locs ->
                                         locs
-                                            |> pickClosest path index
+                                            |> pickLocation index
                                             |> Result.fromMaybe
                                                 "parse result error"
                                     )
