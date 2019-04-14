@@ -847,8 +847,17 @@ runOperator count register operator ({ buf, global } as ed) =
                                         | global =
                                             { global
                                                 | exHistory =
-                                                    (s :: global.exHistory)
-                                                        |> List.take 50
+                                                    case global.exHistory of
+                                                        h :: rest ->
+                                                            if s == h then
+                                                                global.exHistory
+
+                                                            else
+                                                                (s :: global.exHistory)
+                                                                    |> List.take 50
+
+                                                        _ ->
+                                                            [ s ]
                                             }
                                     }
                            )
