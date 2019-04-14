@@ -35,6 +35,7 @@ module Helper.Helper exposing
     , pathFileName
     , percentStr
     , px
+    , rangeCount
     , regex
     , regexWith
     , relativePath
@@ -660,3 +661,12 @@ toAbsolutePath sep homedir cwd s1 =
 fileNameWordChars : String
 fileNameWordChars =
     "/\\-._"
+
+
+rangeCount : Int -> Int -> List Int
+rangeCount start count =
+    if count > 0 then
+        start :: rangeCount (start + 1) (count - 1)
+
+    else
+        []

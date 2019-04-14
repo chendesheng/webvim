@@ -1,4 +1,4 @@
-module Update exposing (init, initMode, update, updateActiveBuffer)
+module Update exposing (applyDiff, init, initMode, update, updateActiveBuffer)
 
 import Array as Array exposing (Array)
 import Browser.Dom as Dom
@@ -1492,27 +1492,27 @@ applyVimAST replaying key ast ({ buf } as ed) =
 
 applyDiff : Editor -> Editor
 applyDiff ed =
-    let
-        buf =
-            ed.buf
-
-        diff =
-            buf.history.diff
-                |> List.reverse
-
-        global1 =
-            ed.global
-
-        history =
-            buf.history
-
-        view =
-            buf.view
-    in
-    if List.isEmpty diff then
+    if List.isEmpty ed.buf.history.diff then
         ed
 
     else
+        let
+            buf =
+                ed.buf
+
+            diff =
+                buf.history.diff
+                    |> List.reverse
+
+            global1 =
+                ed.global
+
+            history =
+                buf.history
+
+            view =
+                buf.view
+        in
         { ed
             | buf =
                 { buf
@@ -2338,11 +2338,6 @@ onWrite result ({ buf, global } as ed) =
                 ed
             , Cmd.none
             )
-
-
-getViewHeight : Int -> Int -> Int
-getViewHeight heightPx lineHeightPx =
-    heightPx // lineHeightPx
 
 
 init : Flags -> String -> FontInfo -> Size -> ServerArgs -> ( Global, Cmd Msg )

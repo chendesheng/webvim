@@ -34,6 +34,7 @@ import Helper.Helper
         , isSpace
         , keepZeroOrMore
         , oneOrMore
+        , rangeCount
         , regex
         , repeatParser
         , spaceInline
@@ -312,8 +313,7 @@ newBuffer mode cursor height scrollTop text =
                 , cursorColumn = Tuple.second cursor
                 , scrollTop = scrollTop
                 , scrollTopPx = scrollTop * global.lineHeight
-                , lines =
-                    List.range scrollTop (scrollTop + view.size.height + 1)
+                , lines = rangeCount scrollTop (view.size.height + 2)
             }
 
         window =

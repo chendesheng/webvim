@@ -2,6 +2,7 @@ module Update.Buffer exposing
     ( addBuffer
     , applyDiffToView
     , applyPatchesToLintErrors
+    , applyRegionChangeToView
     , bestScrollTop
     , cIndentRules
     , cancelLastIndent
@@ -46,7 +47,15 @@ module Update.Buffer exposing
 
 import Array as Array exposing (Array)
 import Dict exposing (Dict)
-import Helper.Helper exposing (filename, findFirst, parseWords, regex, relativePath)
+import Helper.Helper
+    exposing
+        ( filename
+        , findFirst
+        , parseWords
+        , rangeCount
+        , regex
+        , relativePath
+        )
 import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
 import Internal.Position exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
@@ -217,15 +226,15 @@ delete from to =
 
 
 applyInsertionToView : Int -> Int -> Int -> Int -> List Int -> List Int
-applyInsertionToView from size scrollTop height viewLines =
-    if size == 0 then
+applyInsertionToView from size scrollTop scrollBottom viewLines =
+    if size == 0 || from >= scrollBottom then
         viewLines
 
     else
         applyInsertionToViewHelper from
-            (max from scrollTop)
             size
-            (scrollTop + height)
+            scrollBottom
+            (max from scrollTop)
             viewLines
 
 
@@ -245,7 +254,7 @@ Ins 2 1
 
 -}
 applyInsertionToViewHelper : Int -> Int -> Int -> Int -> List Int -> List Int
-applyInsertionToViewHelper from i size scrollBottom viewLines =
+applyInsertionToViewHelper from size scrollBottom i viewLines =
     -- go through each line
     -- if n < from, keep it not change
     -- if n >= from, increase size
@@ -253,53 +262,33 @@ applyInsertionToViewHelper from i size scrollBottom viewLines =
     -- if it is, replace it to inserting line
     case viewLines of
         n :: rest ->
-            let
-                n1 =
-                    if n < from then
-                        n
+            if n < from then
+                n :: applyInsertionToViewHelper from size scrollBottom i rest
 
-                    else
-                        n
-                            + size
+            else if n + size < scrollBottom then
+                (n + size) :: applyInsertionToViewHelper from size scrollBottom i rest
 
-                replace =
-                    n1 >= scrollBottom
-            in
-            (if replace then
-                i
-
-             else
-                n1
-            )
-                :: applyInsertionToViewHelper from
-                    (if replace then
-                        i + 1
-
-                     else
-                        i
-                    )
-                    size
-                    scrollBottom
-                    rest
+            else
+                i :: applyInsertionToViewHelper from size scrollBottom (i + 1) rest
 
         _ ->
             []
 
 
-applyDeletionToView : Int -> Int -> Int -> Int -> List Int -> List Int
-applyDeletionToView from to scrollTop height viewLines =
+applyDeletionToView : Int -> Int -> Int -> List Int -> List Int
+applyDeletionToView from to scrollBottom viewLines =
     let
         size =
             to - from
     in
-    if size <= 0 then
+    if size <= 0 || from >= scrollBottom then
         viewLines
 
     else
         applyDeletionToViewHelper from
             to
             size
-            (max from (scrollTop + height - size))
+            (max from (scrollBottom - size))
             viewLines
 
 
@@ -307,25 +296,14 @@ applyDeletionToViewHelper : Int -> Int -> Int -> Int -> List Int -> List Int
 applyDeletionToViewHelper from to size i viewLines =
     case viewLines of
         n :: rest ->
-            (if n < from then
-                n
+            if n < from then
+                n :: applyDeletionToViewHelper from to size i rest
 
-             else if n >= to then
-                n - size
+            else if n < to then
+                i :: applyDeletionToViewHelper from to size (i + 1) rest
 
-             else
-                i
-            )
-                :: applyDeletionToViewHelper from
-                    to
-                    size
-                    (if from <= n && n < to then
-                        i + 1
-
-                     else
-                        i
-                    )
-                    rest
+            else
+                (n - size) :: applyDeletionToViewHelper from to size i rest
 
         _ ->
             []
@@ -335,34 +313,24 @@ applyDiffToView : List RegionChange -> Int -> Int -> List Int -> List Int
 applyDiffToView diff scrollTop height viewLines =
     List.foldl
         (\change viewLines1 ->
-            applyRegionChangeToView change scrollTop height viewLines1
+            applyRegionChangeToView change scrollTop (height + 2) viewLines1
         )
         viewLines
         diff
 
 
 applyRegionChangeToView : RegionChange -> Int -> Int -> List Int -> List Int
-applyRegionChangeToView change scrollTop height_ viewLines =
+applyRegionChangeToView change scrollTop height viewLines =
     let
-        height =
-            height_ + 2
+        scrollBottom =
+            scrollTop + height
     in
     case change of
-        RegionAdd ( ( by, bx ), ( ey, ex ) ) ->
-            applyInsertionToView by (ey - by) scrollTop height viewLines
+        RegionAdd ( ( by, _ ), ( ey, _ ) ) ->
+            applyInsertionToView by (ey - by) scrollTop scrollBottom viewLines
 
-        RegionRemove ( ( by, bx ), ( ey, ex ) ) ->
-            applyDeletionToView
-                (if bx == 0 then
-                    by
-
-                 else
-                    by + 1
-                )
-                ey
-                scrollTop
-                height
-                viewLines
+        RegionRemove ( ( by, _ ), ( ey, _ ) ) ->
+            applyDeletionToView by ey scrollBottom viewLines
 
 
 {-| batch edit text, keep cursor, save history
@@ -1054,73 +1022,47 @@ updateView f buf =
     { buf | view = f buf.view }
 
 
-scrollViewLinesHelper :
-    Int
-    -> Int
-    -> Int
-    -> Int
-    -> List Int
-    -> List Int
+scrollViewLinesHelper : Int -> Int -> Int -> Int -> List Int -> List Int
 scrollViewLinesHelper height from to i viewLines =
+    -- height MUST equal to List.length viewLines
+    -- from <= n < from + height
     case viewLines of
         n :: rest ->
-            let
-                replace =
-                    n < to || n >= to + height
-            in
-            (if replace then
-                i
+            if to <= n && n < to + height then
+                n :: scrollViewLinesHelper height from to i rest
 
-             else
-                n
-            )
-                :: scrollViewLinesHelper
-                    height
-                    from
-                    to
-                    (if replace then
-                        i + 1
-
-                     else
-                        i
-                    )
-                    rest
+            else
+                -- n < to || to + height <= n
+                i :: scrollViewLinesHelper height from to (i + 1) rest
 
         _ ->
             []
 
 
-scrollViewLines :
-    Int
-    -> Int
-    -> Int
-    -> List Int
-    -> List Int
+scrollViewLines : Int -> Int -> Int -> List Int -> List Int
 scrollViewLines height_ from to viewLines =
     let
         height =
             height_ + 2
     in
     if from + height <= to || to + height <= from then
-        List.range to (to + height - 1)
+        rangeCount to height
 
     else if from > to then
         -- show up contents
-        scrollViewLinesHelper
-            height
-            from
-            to
-            to
-            viewLines
+        scrollViewLinesHelper height from to to viewLines
 
     else if from < to then
         -- show down contents
-        scrollViewLinesHelper
-            height
-            from
-            to
-            (from + height)
-            viewLines
+        -- Prove of i < to + height:
+        --   n is item in viewLines, this means from <= n < from + height
+        --   also when to <= n < to + height, n will preserve
+        --   thus when to <= n < from + height, n will preserve
+        --   thus (from + height - to) items in viewLines will preserve
+        --   thus i will increase height - (from + height - to) times
+        --   since i start from (from + height),
+        --     i < (from + height) + height - (from + height - to) = to + height
+        scrollViewLinesHelper height from to (from + height) viewLines
 
     else
         viewLines
@@ -1132,10 +1074,6 @@ setScrollTop n lineHeight view =
         view
 
     else
-        let
-            height =
-                view.size.height
-        in
         { view
             | scrollTop = n
             , scrollTopPx =
@@ -1145,11 +1083,7 @@ setScrollTop n lineHeight view =
                 else
                     n * lineHeight
             , lines =
-                scrollViewLines
-                    height
-                    view.scrollTop
-                    n
-                    view.lines
+                scrollViewLines view.size.height view.scrollTop n view.lines
         }
 
 

@@ -249,9 +249,10 @@ renderBuffer path rect view buf isActive global =
         { fontInfo, ime, lint, lineHeight } =
             global
 
+        -- size.height is number of "complete" lines
+        -- first line & last may be "incomplete", so padding 2 lines
         height =
-            view.size.height
-                + 2
+            view.size.height + 2
 
         topOffsetPx =
             remainderBy lineHeight view.scrollTopPx

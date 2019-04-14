@@ -2,7 +2,8 @@ module TestViewLines exposing (applyPatches, resize, suite)
 
 import Expect exposing (Expectation)
 import Fuzz
-import Internal.TextBuffer exposing (Patch(..), fromString)
+import Helper.Helper exposing (rangeCount)
+import Internal.TextBuffer exposing (Patch(..), RegionChange(..), fromString)
 import Model
     exposing
         ( Buffer
@@ -13,6 +14,7 @@ import Model
         )
 import Test exposing (..)
 import TextBuffer exposing (..)
+import Update exposing (applyDiff)
 import Update.Buffer exposing (..)
 
 
@@ -27,7 +29,7 @@ resize height ({ buf, global } as ed) =
             { buf
                 | view =
                     { view
-                        | lines = List.range 0 (height + 1)
+                        | lines = rangeCount 0 (height + 2)
                         , size = { height = height, width = 1 }
                     }
             }
@@ -43,9 +45,10 @@ applyPatches height patches =
             }
                 |> resize height
                 |> updateBuffer (transaction patches)
+                |> applyDiff
     in
     Expect.equal
-        (List.range buf.view.scrollTop (buf.view.scrollTop + buf.view.size.height + 1))
+        (rangeCount buf.view.scrollTop (buf.view.size.height + 2))
         (List.sort buf.view.lines)
 
 
@@ -57,6 +60,88 @@ suite =
             (Fuzz.list fuzzPatch)
             "sorted viewLines should always equal to lines"
             applyPatches
+        , describe "scrollViewLines" <|
+            [ test "scroll down" <|
+                \_ ->
+                    List.range 3 6
+                        |> scrollViewLines 2 3 5
+                        |> Expect.equal [ 7, 8, 5, 6 ]
+            , test "scroll up" <|
+                \_ ->
+                    List.range 3 6
+                        |> scrollViewLines 2 3 0
+                        |> Expect.equal [ 3, 0, 1, 2 ]
+            ]
+        , describe "applyRegionChangeToView"
+            [ test "remove after scrollBottom" <|
+                \_ ->
+                    List.range 10 40
+                        |> applyRegionChangeToView (RegionRemove ( ( 35, 0 ), ( 90, 0 ) )) 10 30
+                        |> Expect.equal (List.range 10 40)
+            , test "remove 0 lines" <|
+                \_ ->
+                    List.range 10 40
+                        |> applyRegionChangeToView (RegionRemove ( ( 10, 0 ), ( 10, 0 ) )) 10 30
+                        |> Expect.equal (List.range 10 40)
+            , test "remove before scrollTop" <|
+                \_ ->
+                    List.range 10 40
+                        |> applyRegionChangeToView (RegionRemove ( ( 0, 0 ), ( 5, 0 ) )) 10 30
+                        |> List.sort
+                        |> Expect.equal (List.range 5 35)
+            , test "remove across scrollTop" <|
+                \_ ->
+                    -- diff scrollTop height
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionRemove ( ( 0, 0 ), ( 5, 0 ) )) 3 4
+                        |> Expect.equal [ 2, 3, 0, 1 ]
+            , test "remove across scrollBottom" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionRemove ( ( 5, 0 ), ( 7, 0 ) )) 3 4
+                        |> Expect.equal [ 3, 4, 5, 6 ]
+            , test "remove all view lines" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionRemove ( ( 3, 0 ), ( 7, 0 ) )) 3 4
+                        |> Expect.equal [ 3, 4, 5, 6 ]
+            , test "remove all lines" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionRemove ( ( 0, 0 ), ( 100, 0 ) )) 3 4
+                        |> Expect.equal [ 0, 1, 2, 3 ]
+            , test "remove inside view" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionRemove ( ( 4, 0 ), ( 6, 0 ) )) 3 4
+                        |> Expect.equal [ 3, 5, 6, 4 ]
+            , test "add before scrollTop" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionAdd ( ( 0, 0 ), ( 1, 1 ) )) 3 4
+                        |> Expect.equal [ 4, 5, 6, 3 ]
+            , test "add after scrollBottom" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionAdd ( ( 100, 0 ), ( 200, 0 ) )) 3 4
+                        |> Expect.equal [ 3, 4, 5, 6 ]
+            , test "add inside view" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionAdd ( ( 4, 0 ), ( 6, 0 ) )) 3 4
+                        |> Expect.equal [ 3, 6, 4, 5 ]
+            , test "add more than view" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionAdd ( ( 2, 0 ), ( 100, 0 ) )) 3 4
+                        |> Expect.equal [ 3, 4, 5, 6 ]
+            , test "add and remove" <|
+                \_ ->
+                    List.range 3 6
+                        |> applyRegionChangeToView (RegionAdd ( ( 2, 0 ), ( 4, 0 ) )) 3 4
+                        |> applyRegionChangeToView (RegionRemove ( ( 2, 0 ), ( 3, 0 ) )) 3 4
+                        |> Expect.equal [ 4, 5, 2, 3 ]
+            ]
         , test "new line" <|
             \_ ->
                 applyPatches

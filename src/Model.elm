@@ -91,7 +91,15 @@ import Dict exposing (Dict)
 import Font exposing (FontInfo)
 import Helper.Debounce as Deb
 import Helper.Fuzzy exposing (FuzzyMatchItem)
-import Helper.Helper exposing (extname, filename, findFirst, regex, relativePath)
+import Helper.Helper
+    exposing
+        ( extname
+        , filename
+        , findFirst
+        , rangeCount
+        , regex
+        , relativePath
+        )
 import Ime exposing (IME, emptyIme)
 import Internal.Jumps exposing (..)
 import Internal.Position exposing (..)
@@ -321,7 +329,7 @@ createBuffer path size global =
         , view =
             { emptyView
                 | bufId = global1.maxId
-                , lines = List.range 0 (size.height + 1)
+                , lines = rangeCount 0 <| size.height + 2
                 , size = size
             }
         , config =
@@ -522,9 +530,7 @@ resizeView size view =
     else
         { view
             | size = size
-            , lines =
-                List.range view.scrollTop
-                    (view.scrollTop + size.height + 1)
+            , lines = rangeCount view.scrollTop <| size.height + 2
         }
 
 
