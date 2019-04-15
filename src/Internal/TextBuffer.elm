@@ -4,7 +4,6 @@ module Internal.TextBuffer exposing
     , TextBuffer
     , applyPatch
     , count
-    , countLineBreaks
     , empty
     , expandTabs
     , findFirstLine
@@ -253,27 +252,6 @@ empty =
 count : TextBuffer -> Int
 count (TextBuffer buf) =
     Array.length buf
-
-
-{-| count how many \\n
--}
-countLineBreaks : TextBuffer -> Int
-countLineBreaks (TextBuffer buf) =
-    let
-        n =
-            Array.length buf
-    in
-    buf
-        |> Array.get (n - 1)
-        |> Maybe.map
-            (\line ->
-                if String.endsWith lineBreak line then
-                    n
-
-                else
-                    n - 1
-            )
-        |> Maybe.withDefault 0
 
 
 mapLines : (String -> b) -> TextBuffer -> Array b

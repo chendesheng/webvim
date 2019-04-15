@@ -61,7 +61,7 @@ import Internal.Position
         , regionDecoder
         )
 import Internal.Syntax exposing (Token, TokenType(..))
-import Internal.TextBuffer as B exposing (Patch(..))
+import Internal.TextBuffer as B exposing (Patch(..), lineBreak)
 import Json.Decode as Decode exposing (decodeString)
 import List
 import Model
@@ -316,8 +316,15 @@ sendReadBuffer url viewHeight setActive buf =
         |> getBodyAndHeaders
         |> Http.toTask
         |> Task.andThen
-            (\( headers, s ) ->
+            (\( headers, s_ ) ->
                 let
+                    s =
+                        if String.endsWith lineBreak s_ then
+                            s_
+
+                        else
+                            s_ ++ lineBreak
+
                     lines =
                         B.fromStringExpandTabs buf.config.tabSize 0 s
 
