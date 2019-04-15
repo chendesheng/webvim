@@ -936,10 +936,7 @@ persistentAll global =
         | persistent =
             Just
                 { window = global.window
-                , buffers =
-                    global.buffers
-                        |> Dict.values
-                        |> List.filterMap getLoadedBuffer
+                , buffers = getBuffers global.buffers
                 }
     }
 
