@@ -56,7 +56,6 @@ import Helper.Helper
         , regex
         , relativePath
         )
-import Internal.Jumps exposing (applyPatchesToJumps, applyPatchesToLocations)
 import Internal.Position exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
 import Internal.Syntax

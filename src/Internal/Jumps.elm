@@ -6,7 +6,6 @@ module Internal.Jumps exposing
     , currentLocation
     , jumpBackward
     , jumpForward
-    , jumpsToString
     , saveJump
     )
 
@@ -18,6 +17,7 @@ import Internal.TextBuffer
         , shiftPositionByRegionChange
         )
 import String exposing (fromInt)
+import Zipper exposing (Zipper)
 
 
 type alias Location =
@@ -32,39 +32,7 @@ type alias Location =
 
 
 type alias Jumps =
-    { backwards : List Location
-
-    -- head of forwards is current location
-    , forwards : List Location
-    }
-
-
-jumpsToString : Jumps -> String
-jumpsToString { backwards, forwards } =
-    let
-        locationToString { path, cursor } =
-            let
-                ( y, x ) =
-                    cursor
-            in
-            path ++ ":" ++ fromInt y ++ ":" ++ fromInt x
-
-        joinStr s1 s2 =
-            s1 ++ "\n\t\t↑\n" ++ s2
-
-        backwardsToString backwards_ =
-            List.foldl (\loc res -> joinStr res (locationToString loc))
-                ""
-                backwards_
-
-        forwardsToString forwards_ =
-            List.foldl (\loc res -> joinStr (locationToString loc) res)
-                ""
-                forwards_
-    in
-    backwards
-        |> backwardsToString
-        |> joinStr (forwardsToString forwards)
+    Zipper Location
 
 
 sameLine : Location -> Location -> Bool
@@ -74,82 +42,62 @@ sameLine loc1 loc2 =
 
 
 saveJump : Location -> Jumps -> Jumps
-saveJump loc { backwards, forwards } =
-    { backwards =
-        List.foldl (::) backwards forwards
-            |> List.filter (sameLine loc >> not)
-            |> (::) loc
-    , forwards = []
-    }
+saveJump loc jumps =
+    jumps
+        |> Zipper.filter (sameLine loc >> not)
+        |> Zipper.moveToEnd
+        |> Zipper.insertBackward loc
 
 
 jumpForward : Jumps -> Jumps
-jumpForward ({ backwards, forwards } as jumps) =
-    case forwards of
-        loc :: loc1 :: forwards2 ->
-            { backwards = loc :: backwards
-            , forwards = loc1 :: forwards2
-            }
-
-        _ ->
-            jumps
+jumpForward jumps =
+    jumps
+        |> Zipper.moveForward
+        |> Maybe.withDefault jumps
 
 
 jumpBackward : Location -> Jumps -> Jumps
-jumpBackward cursor ({ backwards, forwards } as jumps) =
-    case backwards of
-        loc :: backwards2 ->
-            if List.isEmpty forwards then
-                { backwards =
-                    List.filter (sameLine cursor >> not)
-                        backwards2
-                , forwards =
-                    if sameLine loc cursor then
-                        [ cursor ]
+jumpBackward cursor jumps =
+    if Zipper.isForwardsEmpty jumps then
+        jumps
+            |> Zipper.filter (sameLine cursor >> not)
+            |> Zipper.insert cursor
+            |> Zipper.moveBackward
+            |> Maybe.withDefault jumps
 
-                    else
-                        [ loc, cursor ]
-                }
-
-            else
-                { backwards = backwards2
-                , forwards = loc :: forwards
-                }
-
-        _ ->
-            jumps
+    else
+        jumps
+            |> Zipper.moveBackward
+            |> Maybe.withDefault jumps
 
 
 currentLocation : Jumps -> Maybe Location
-currentLocation { forwards } =
-    List.head forwards
+currentLocation =
+    Zipper.getCurrent
 
 
-applyPatchesToLocations : String -> List Location -> List RegionChange -> List Location
-applyPatchesToLocations path locations changes =
+applyPatchesToLocations : String -> List RegionChange -> List Location -> List Location
+applyPatchesToLocations path changes =
+    List.map (applyPatchesToLocation path changes)
+
+
+applyPatchesToLocation : String -> List RegionChange -> Location -> Location
+applyPatchesToLocation path changes location =
     List.foldl
-        (\change result ->
-            List.map
-                (\loc ->
-                    if path == loc.path then
-                        { loc
-                            | cursor =
-                                shiftPositionByRegionChange change loc.cursor
-                        }
+        (\change loc ->
+            if path == loc.path then
+                { loc
+                    | cursor =
+                        shiftPositionByRegionChange change loc.cursor
+                }
 
-                    else
-                        loc
-                )
-                result
+            else
+                loc
         )
-        locations
+        location
         changes
 
 
 applyPatchesToJumps : String -> List RegionChange -> Jumps -> Jumps
-applyPatchesToJumps path diff { backwards, forwards } =
-    { backwards =
-        applyPatchesToLocations path backwards diff
-    , forwards =
-        applyPatchesToLocations path forwards diff
-    }
+applyPatchesToJumps path diff =
+    Zipper.map (applyPatchesToLocation path diff)

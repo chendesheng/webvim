@@ -1581,8 +1581,8 @@ applyDiff ed =
                     , locationList =
                         applyPatchesToLocations
                             buf.path
-                            global1.locationList
                             diff
+                            global1.locationList
                 }
         }
 

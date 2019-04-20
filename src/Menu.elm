@@ -66,7 +66,7 @@ selectForward (Model m) =
         _ ->
             Model
                 { m
-                    | scrollPos = Zipper.rewind m.scrollPos
+                    | scrollPos = Zipper.moveToHead m.scrollPos
                     , selected = Just 0
                 }
 

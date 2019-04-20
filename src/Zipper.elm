@@ -1,6 +1,7 @@
 module Zipper exposing
     ( Zipper
     , empty
+    , filter
     , foldl
     , fromList
     , getBackwards
@@ -8,14 +9,16 @@ module Zipper exposing
     , getForwards
     , getNth
     , insert
+    , insertBackward
     , isBackwardsEmpty
     , isEmpty
     , isForwardsEmpty
     , map
     , moveBackward
     , moveForward
+    , moveToEnd
+    , moveToHead
     , remove
-    , rewind
     , toList
     )
 
@@ -72,6 +75,11 @@ moveForward ((Zipper left right) as zipper) =
             Nothing
 
 
+insertBackward : a -> Zipper a -> Zipper a
+insertBackward item (Zipper left right) =
+    Zipper (item :: left) right
+
+
 insert : a -> Zipper a -> Zipper a
 insert item (Zipper left right) =
     Zipper left (item :: right)
@@ -82,16 +90,26 @@ map update (Zipper left right) =
     Zipper (List.map update left) (List.map update right)
 
 
+filter : (a -> Bool) -> Zipper a -> Zipper a
+filter f (Zipper left right) =
+    Zipper (List.filter f left) (List.filter f right)
+
+
 foldl : (a -> b -> b) -> b -> Zipper a -> b
 foldl fn item zipper =
-    case rewind zipper of
+    case moveToHead zipper of
         Zipper _ right ->
             List.foldl fn item right
 
 
-rewind : Zipper a -> Zipper a
-rewind (Zipper left right) =
+moveToHead : Zipper a -> Zipper a
+moveToHead (Zipper left right) =
     Zipper [] (List.foldl (::) right left)
+
+
+moveToEnd : Zipper a -> Zipper a
+moveToEnd (Zipper left right) =
+    Zipper (List.foldl (::) left right) []
 
 
 remove : Zipper a -> Zipper a
@@ -106,14 +124,14 @@ fromList right =
 
 toList : Zipper a -> List a
 toList zipper =
-    case rewind zipper of
+    case moveToHead zipper of
         Zipper _ right ->
             right
 
 
 find : (a -> Bool) -> Zipper a -> Maybe (Zipper a)
 find pred zipper =
-    findHelper pred (rewind zipper)
+    findHelper pred (moveToHead zipper)
 
 
 findHelper : (a -> Bool) -> Zipper a -> Maybe (Zipper a)

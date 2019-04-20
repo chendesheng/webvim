@@ -111,6 +111,7 @@ import Json.Encode as Encode
 import Menu as Mu
 import Regex as Re
 import Vim.AST as V exposing (VisualType(..))
+import Zipper
 
 
 type alias Size =
@@ -915,10 +916,7 @@ emptyGlobal =
 
     -- TODO: add a location pool
     -- locations : Dict BufferId (Dict Int Position)
-    , jumps =
-        { backwards = []
-        , forwards = []
-        }
+    , jumps = Zipper.empty
     , lint = { items = [], count = 0 }
     , locationList = []
     , showTip = False

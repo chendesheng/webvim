@@ -95,13 +95,13 @@ suite =
                     Expect.equal (createZipper [] [ 1, 2 ] |> Zipper.getNth 3)
                         Nothing
             ]
-        , describe "rewind"
+        , describe "moveToHead"
             [ test "empty" <|
                 \_ ->
-                    Expect.equal (Zipper.rewind Zipper.empty) Zipper.empty
+                    Expect.equal (Zipper.moveToHead Zipper.empty) Zipper.empty
             , test "not empty" <|
                 \_ ->
-                    Expect.equal (createZipper [ 1, 4 ] [ 2, 3 ] |> Zipper.rewind)
+                    Expect.equal (createZipper [ 1, 4 ] [ 2, 3 ] |> Zipper.moveToHead)
                         (createZipper [] [ 1, 4, 2, 3 ])
             ]
         ]
