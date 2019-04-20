@@ -94,7 +94,7 @@ main =
                                     debouncePersistentAll
                                         Debouncing
                                         global.debouncers
-                                        3000
+                                        1000
                             in
                             ( Ready { global | debouncers = debouncers }
                             , Cmd.batch [ cmd, cmd2 ]
