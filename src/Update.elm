@@ -2113,7 +2113,7 @@ onSearch result ed =
                                         Dict.update
                                             (global.buffers
                                                 |> Buf.findBufferId path
-                                                |> Maybe.withDefault 0
+                                                |> Maybe.withDefault ""
                                             )
                                             (Maybe.andThen
                                                 (getLoadedBuffer
@@ -2210,8 +2210,6 @@ resizeViews size lineHeight =
 --                        )
 --                )
 --
---        _ =
---            Debug.log (message ++ " max id") global.maxId
 --    in
 --    global
 --logEd2 : String -> ( Editor, Cmd a ) -> ( Editor, Cmd a )
@@ -2422,13 +2420,7 @@ init flags theme fontInfo size args =
                             else
                                 ( b.id, NotLoad { b | view = initScrollTop b.view } )
                     )
-                |> Result.withDefault [ ( 1, Loaded { emptyBuffer | id = 1 } ) ]
-
-        maxBufferId =
-            decodedBuffers
-                |> List.map Tuple.first
-                |> List.maximum
-                |> Maybe.withDefault 0
+                |> Result.withDefault [ ( "", Loaded emptyBuffer ) ]
 
         initScrollTop view =
             { view | scrollTopPx = view.scrollTop * lineHeight }
@@ -2436,7 +2428,7 @@ init flags theme fontInfo size args =
         decodedWindow =
             Decode.decodeValue windowDecoder window
                 |> Result.withDefault
-                    (Win.initWindow { emptyView | bufId = maxBufferId })
+                    (Win.initWindow emptyView)
                 |> Win.mapView (\view _ -> initScrollTop view)
 
         dictBuffers =
@@ -2461,7 +2453,6 @@ init flags theme fontInfo size args =
         , window = decodedWindow
         , ime = emptyIme
         , buffers = dictBuffers
-        , maxId = maxBufferId
         , theme = theme
       }
         |> onResize size

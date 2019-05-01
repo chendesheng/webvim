@@ -685,13 +685,13 @@ parseLintResult sep path lines =
                     Err <| httpErrorMessage err
 
 
-sendLintProject : String -> String -> Int -> String -> Int -> B.TextBuffer -> Cmd Msg
+sendLintProject : String -> String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
 sendLintProject url sep bufId path version lines =
     Http.getString (url ++ "/lint?path=" ++ path)
         |> Http.send (parseLintResult sep path lines >> Lint ( bufId, version ))
 
 
-sendLintOnTheFly : String -> String -> Int -> String -> Int -> B.TextBuffer -> Cmd Msg
+sendLintOnTheFly : String -> String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
 sendLintOnTheFly url sep bufId path version lines =
     let
         body =

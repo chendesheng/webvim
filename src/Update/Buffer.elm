@@ -1319,7 +1319,7 @@ shortPath global path =
         relativePath global.pathSeperator global.cwd path
 
 
-activeBuffer : Int -> Global -> Global
+activeBuffer : String -> Global -> Global
 activeBuffer id global =
     if
         -- same buffer
@@ -1356,7 +1356,7 @@ addBuffer setActive buf global =
         global1
 
 
-findBufferId : String -> Dict Int LoadBuffer -> Maybe Int
+findBufferId : String -> Dict String LoadBuffer -> Maybe String
 findBufferId path buffers =
     buffers
         |> Dict.values
@@ -1373,7 +1373,7 @@ findBufferId path buffers =
         |> Maybe.map .id
 
 
-removeBuffer : Int -> Global -> Global
+removeBuffer : String -> Global -> Global
 removeBuffer id global =
     { global
         | buffers =

@@ -21,7 +21,7 @@ import Vim.AST exposing (AST)
 
 type alias BufferIdentifier =
     -- (bufId, version)
-    ( Int, Int )
+    ( String, Int )
 
 
 type TokenizeResponse
@@ -32,7 +32,7 @@ type TokenizeResponse
 
 
 type alias TokenizeRequest =
-    { bufId : Int
+    { bufId : String
     , path : String
     , version : Int
     , line : Int

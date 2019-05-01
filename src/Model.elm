@@ -53,7 +53,6 @@ module Model exposing
     , getNotLoadBuffer
     , historyDecoder
     , historyEncoder
-    , increaseMaxId
     , isLintEnabled
     , isTempBuffer
     , listBuffers
@@ -176,7 +175,7 @@ buffersToString buffers =
 bufferEncoder : Buffer -> Encode.Value
 bufferEncoder buf =
     Encode.object
-        [ ( "id", Encode.int buf.id )
+        [ ( "id", Encode.string buf.id )
         , ( "path", Encode.string buf.path )
         , ( "syntax", Encode.bool buf.config.syntax )
         , ( "history", historyEncoder buf.history )
@@ -305,11 +304,6 @@ isLintEnabled pathSeperator homedir name lint =
         lint
 
 
-increaseMaxId : Global -> Global
-increaseMaxId global =
-    { global | maxId = global.maxId + 1 }
-
-
 createBuffer : String -> Size -> Global -> ( Global, Buffer )
 createBuffer path size global =
     let
@@ -321,18 +315,15 @@ createBuffer path size global =
                 |> Dict.get ext
                 |> Maybe.withDefault defaultBufferConfig
 
-        global1 =
-            increaseMaxId global
-
         viewLines =
             rangeCount 0 <| size.height + 2
     in
-    ( global1
+    ( global
     , { emptyBuffer
-        | id = global1.maxId
+        | id = path
         , view =
             { emptyView
-                | bufId = global1.maxId
+                | bufId = path
                 , lines = viewLines
                 , gutterLines = viewLines
                 , size = size
@@ -364,7 +355,7 @@ viewDecoder =
                 , alternativeBuf = alternativeBuf
             }
         )
-        (Decode.field "bufId" Decode.int)
+        (Decode.field "bufId" Decode.string)
         (Decode.field "cursor" cursorDecoder)
         (Decode.field "scrollTop" Decode.int)
         (Decode.field "alternativeBuf" Decode.string |> Decode.maybe)
@@ -373,7 +364,7 @@ viewDecoder =
 viewEncoder : View -> Encode.Value
 viewEncoder view =
     Encode.object
-        ([ ( "bufId", Encode.int view.bufId )
+        ([ ( "bufId", Encode.string view.bufId )
          , ( "cursor", cursorEncoder view.cursor )
          , ( "scrollTop", Encode.int view.scrollTop )
          ]
@@ -427,7 +418,7 @@ bufferDecoder pathSeperator homedir =
                     }
             }
         )
-        (Decode.field "id" Decode.int)
+        (Decode.field "id" Decode.string)
         (Decode.field "path" Decode.string)
         (Decode.field "syntax" Decode.bool)
         (Decode.field "history" historyDecoder)
@@ -511,7 +502,7 @@ setExbuf buf ex exbuf =
 
 
 type alias View =
-    { bufId : Int
+    { bufId : String
     , cursor : ( Int, Int )
     , cursorColumn : Int
     , scrollTop : Int
@@ -610,7 +601,7 @@ type alias Editor =
 
 
 type alias Buffer =
-    { id : Int
+    { id : String
     , lines : TextBuffer
     , syntax : Syntax
     , syntaxDirtyFrom : Int
@@ -632,8 +623,7 @@ type LoadBuffer
 
 
 type alias Global =
-    { maxId : Int
-    , registers : Dict String RegisterText
+    { registers : Dict String RegisterText
     , ime : IME
     , dotRegister : String
 
@@ -642,7 +632,7 @@ type alias Global =
        2. keep view change active buffer
     -}
     , window : Window View
-    , buffers : Dict Int LoadBuffer
+    , buffers : Dict String LoadBuffer
     , cwd : String
     , exHistory : List String
     , searchHistory : List String
@@ -709,7 +699,7 @@ getNotLoadBuffer buf =
             Nothing
 
 
-getBuffer : Int -> Dict Int LoadBuffer -> Maybe Buffer
+getBuffer : String -> Dict String LoadBuffer -> Maybe Buffer
 getBuffer id =
     Dict.get id
         >> Maybe.andThen getLoadedBuffer
@@ -720,7 +710,7 @@ getLoadedBuffers =
     Dict.values >> List.filterMap getLoadedBuffer
 
 
-getBuffers : Dict Int LoadBuffer -> List Buffer
+getBuffers : Dict String LoadBuffer -> List Buffer
 getBuffers =
     let
         buffer buf =
@@ -735,7 +725,7 @@ getBuffers =
 
 
 getActiveBuffer :
-    { a | window : Window View, buffers : Dict Int LoadBuffer }
+    { a | window : Window View, buffers : Dict String LoadBuffer }
     -> Maybe Buffer
 getActiveBuffer { window, buffers } =
     Win.getActiveView window
@@ -747,7 +737,7 @@ getActiveBuffer { window, buffers } =
             )
 
 
-listBuffers : Dict Int LoadBuffer -> List ( Buffer, Bool )
+listBuffers : Dict String LoadBuffer -> List ( Buffer, Bool )
 listBuffers =
     Dict.values
         >> List.map
@@ -817,7 +807,7 @@ updateWindow fn global =
 
 emptyView : View
 emptyView =
-    { bufId = 0
+    { bufId = ""
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , scrollTop = 0
@@ -864,7 +854,7 @@ defaultBufferConfig =
 
 emptyBuffer : Buffer
 emptyBuffer =
-    { id = 0
+    { id = ""
     , lines = B.fromString B.lineBreak
     , syntax = Array.empty
     , syntaxDirtyFrom = 0
@@ -885,8 +875,7 @@ emptyBuffer =
 
 emptyGlobal : Global
 emptyGlobal =
-    { maxId = 0
-    , size = { width = 0, height = 0 }
+    { size = { width = 0, height = 0 }
     , window = Win.empty
     , dotRegister = ""
     , ime = emptyIme

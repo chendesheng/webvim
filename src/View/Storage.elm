@@ -52,7 +52,7 @@ saveBuffers buffers =
         []
         (List.indexedMap
             (\i buf ->
-                ( String.fromInt buf.id, lazy2 saveBuffer i buf )
+                ( buf.id, lazy2 saveBuffer i buf )
             )
             buffers
         )
