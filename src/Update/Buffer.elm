@@ -15,7 +15,6 @@ module Update.Buffer exposing
     , disableSyntax
     , errorMessage
     , finalScrollTop
-    , findBufferId
     , getLastDeleted
     , getStatusBar
     , gotoLine
@@ -1354,23 +1353,6 @@ addBuffer setActive buf global =
 
     else
         global1
-
-
-findBufferId : String -> Dict String LoadBuffer -> Maybe String
-findBufferId path buffers =
-    buffers
-        |> Dict.values
-        |> List.map
-            (\b ->
-                case b of
-                    Loaded b1 ->
-                        b1
-
-                    NotLoad b1 ->
-                        b1
-            )
-        |> findFirst (.path >> (==) path)
-        |> Maybe.map .id
 
 
 removeBuffer : String -> Global -> Global

@@ -2111,10 +2111,7 @@ onSearch result ed =
                                 { global
                                     | buffers =
                                         Dict.update
-                                            (global.buffers
-                                                |> Buf.findBufferId path
-                                                |> Maybe.withDefault ""
-                                            )
+                                            path
                                             (Maybe.andThen
                                                 (getLoadedBuffer
                                                     >> Maybe.map (edit >> Loaded)
