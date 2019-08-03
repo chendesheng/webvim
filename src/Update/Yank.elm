@@ -3,8 +3,10 @@ module Update.Yank exposing (put, yank, yankWholeBuffer)
 import Dict
 import Internal.TextBuffer as B
 import Internal.Window as Win
-import Model exposing (Buffer, Editor, Global, Mode(..), RegisterText(..))
+import Model exposing (Editor)
+import Model.Buffer exposing (..)
 import Model.Frame as Frame
+import Model.Global exposing (..)
 import Update.Buffer as Buf
 import Update.Message exposing (..)
 import Update.Range exposing (isLinewise, operatorRanges)

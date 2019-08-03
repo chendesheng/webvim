@@ -20,6 +20,8 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.TextObject exposing (wORDUnderCursor, wordUnderCursor)
 import Internal.Window as Win
 import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
 import Parser as P
 import Regex as Re
 import String

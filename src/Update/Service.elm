@@ -65,17 +65,11 @@ import Internal.TextBuffer as B exposing (Patch(..), lineBreak)
 import Internal.Window as Win
 import Json.Decode as Decode exposing (decodeString)
 import List
-import Model
-    exposing
-        ( Buffer
-        , Flags
-        , Key
-        , LintError
-        , ServerArgs
-        , TextSpan(..)
-        , TextWithStyle
-        , emptyBufferHistory
-        )
+import Model exposing (Flags, Key, ServerArgs)
+import Model.Buffer exposing (..)
+import Model.BufferHistory exposing (emptyBufferHistory)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Regex as Re
 import Task exposing (Task)

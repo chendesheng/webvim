@@ -21,16 +21,8 @@ import Helper.Helper
 import Internal.Position exposing (Position, positionShiftLeft)
 import Internal.TextBuffer as B
 import Menu as Mu
-import Model
-    exposing
-        ( AutoComplete
-        , Buffer
-        , ExMode
-        , Global
-        , Mode(..)
-        , getBuffers
-        , setExbuf
-        )
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
 import Task
 import Update.Buffer as Buf
 import Update.Message exposing (Msg(..))

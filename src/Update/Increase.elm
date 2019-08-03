@@ -4,6 +4,7 @@ import Char exposing (toLower, toUpper)
 import Helper.Helper exposing (keepOneOrMore, keepZeroOrMore)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
+import Model.Buffer exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Update.Buffer as Buf
 

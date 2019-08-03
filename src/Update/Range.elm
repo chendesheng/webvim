@@ -4,6 +4,8 @@ import Internal.Position exposing (Position, positionMin)
 import Internal.TextBuffer as B
 import Internal.TextObject exposing (expandTextObject)
 import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
 import Update.Motion exposing (..)
 import Vim.AST as V exposing (Operator(..))
 

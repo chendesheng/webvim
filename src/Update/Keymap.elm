@@ -1,7 +1,8 @@
 module Update.Keymap exposing (mapKeys)
 
 import Dict
-import Model exposing (Key, Mode(..))
+import Model exposing (Key)
+import Model.Buffer exposing (..)
 import Vim.Helper exposing (escapeKey, parseKeys)
 
 

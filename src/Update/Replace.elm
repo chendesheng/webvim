@@ -4,6 +4,8 @@ import Helper.Helper exposing (regex)
 import Internal.Position exposing (Position)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
 import Regex as Re
 import Update.Buffer as Buf
 import Update.Insert exposing (..)

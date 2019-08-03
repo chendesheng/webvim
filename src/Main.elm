@@ -10,6 +10,9 @@ import Helper.Debounce as Deb
 import Html
 import Json.Decode as Decode
 import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
 import Platform as P
 import Task
 import Update exposing (..)

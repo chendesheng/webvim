@@ -7,16 +7,11 @@ import Html.Keyed
 import Html.Lazy exposing (..)
 import Internal.Window as Win
 import Json.Encode as Encode
-import Model
-    exposing
-        ( Buffer
-        , Global
-        , RegisterText
-        , bufferToString
-        , registerToString
-        , windowEncoder
-        )
+import Model exposing (registerToString, windowEncoder)
+import Model.Buffer exposing (..)
 import Model.Frame exposing (Frame)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
 import Model.View exposing (View)
 
 

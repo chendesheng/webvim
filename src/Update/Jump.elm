@@ -34,7 +34,9 @@ import Internal.Position exposing (Position)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Model exposing (..)
+import Model.Buffer exposing (..)
 import Model.Frame as Frame exposing (Frame, emptyFrame)
+import Model.Global exposing (..)
 import Model.View exposing (View, emptyView, resizeView)
 import Parser as P exposing ((|.), (|=), Parser)
 import Update.Buffer as Buf

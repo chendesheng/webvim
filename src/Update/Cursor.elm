@@ -16,6 +16,8 @@ import Internal.Position exposing (Position)
 import Internal.Syntax exposing (Syntax)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
 import Model.View exposing (View)
 import Update.Buffer as Buf
 import Update.Motion exposing (setVisualEnd)

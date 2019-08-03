@@ -41,7 +41,11 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Json.Decode as Decode
 import Model exposing (..)
+import Model.Buffer exposing (..)
 import Model.Frame as Frame exposing (Frame, emptyFrame)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
+import Model.LoadBuffer exposing (..)
 import Model.Size exposing (Size)
 import Model.View exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)

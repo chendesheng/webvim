@@ -10,7 +10,9 @@ import Html.Lazy exposing (..)
 import Internal.TextBuffer as B
 import Internal.Window as Win
 import Menu as Mu
-import Model exposing (AutoComplete, Buffer, Global, Mode(..))
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
 import Model.View exposing (View)
 import Update.Message exposing (Msg)
 

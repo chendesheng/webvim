@@ -7,7 +7,9 @@ import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)
 import Ime exposing (IME)
 import Internal.TextBuffer as B
-import Model exposing (Global, LintError, Mode)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
 import Update.Buffer as Buf
 import Update.Message exposing (Msg(..))
 import View.Cursor exposing (renderCursorInner)

@@ -82,28 +82,14 @@ import Internal.TextBuffer as B
 import Internal.Window as Win exposing (Window)
 import List
 import Maybe
-import Model
-    exposing
-        ( Buffer
-        , BufferConfig
-        , BufferHistory
-        , ExPrefix(..)
-        , Global
-        , IndentConfig(..)
-        , LintError
-        , LoadBuffer(..)
-        , Mode(..)
-        , RegisterText
-        , StatusMessage(..)
-        , defaultBufferConfig
-        , emptyBuffer
-        , emptyBufferHistory
-        , emptyUndo
-        , getBuffer
-        , getLoadedBuffer
-        , isTempBuffer
-        )
+import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.BufferConfig exposing (..)
+import Model.BufferHistory exposing (..)
 import Model.Frame as Frame
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
+import Model.LoadBuffer exposing (..)
 import Model.Size exposing (Size)
 import Model.View exposing (View, emptyView)
 import Regex as Re
@@ -738,7 +724,7 @@ putString forward text buf =
                     getLine y buf.lines |> Maybe.withDefault ""
             in
             case text of
-                Model.Text s ->
+                Text s ->
                     if forward && line /= lineBreak then
                         ( s
                             |> fromStringExpandTabs tabSize (x + 1)
@@ -753,7 +739,7 @@ putString forward text buf =
                         , Nothing
                         )
 
-                Model.Lines s ->
+                Lines s ->
                     if forward then
                         let
                             s1 =
@@ -775,7 +761,7 @@ putString forward text buf =
 
                     else
                         case buf.mode of
-                            Model.Insert _ ->
+                            Insert _ ->
                                 ( s
                                     |> fromStringExpandTabs tabSize x
                                     |> Insertion ( y, x )

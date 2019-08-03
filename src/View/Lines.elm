@@ -16,13 +16,9 @@ import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
 import Internal.Syntax exposing (Syntax, Token)
 import Internal.TextBuffer as B
-import Model
-    exposing
-        ( ExPrefix(..)
-        , LintError
-        , Mode(..)
-        , VisualMode
-        )
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
 import Update.Range exposing (visualRegions)
 import Vim.AST exposing (VisualType(..))
 

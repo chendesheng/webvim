@@ -3,6 +3,8 @@ module Update.Indent exposing (applyIndent)
 import Internal.PositionClass exposing (findLineFirst)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
 import Update.Buffer as Buf
 import Update.Range exposing (operatorRanges)
 import Vim.AST as V exposing (ChangeCase(..), Operator(..))

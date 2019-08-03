@@ -10,16 +10,9 @@ import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
 import Internal.Window as Win
-import Model
-    exposing
-        ( Buffer
-        , Global
-        , LintError
-        , Mode(..)
-        , TextFragment
-        , TextSpan(..)
-        , TextWithStyle
-        )
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
+import Model.Lint exposing (..)
 import Model.View exposing (View)
 import Update.Cursor exposing (cursorPoint)
 

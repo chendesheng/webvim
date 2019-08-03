@@ -20,7 +20,8 @@ import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Model exposing (Global, LintError, Mode(..))
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
 import Update.Cursor exposing (cursorPoint)
 import Update.Message exposing (Msg(..))
 
