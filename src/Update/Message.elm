@@ -13,8 +13,9 @@ import Ime exposing (IMEMsg)
 import Internal.Jumps exposing (Location)
 import Internal.Syntax exposing (Syntax, Token)
 import Internal.TextBuffer as B exposing (Patch)
-import Internal.Window exposing (Path)
-import Model exposing (Buffer, Flags, Key, LintError, ServerArgs, Size)
+import Internal.Window as Win
+import Model exposing (Buffer, Flags, Key, LintError, ServerArgs)
+import Model.Size exposing (Size)
 import Result
 import Vim.AST exposing (AST)
 
@@ -48,7 +49,7 @@ type Msg
       -- the DebounceMessage here is for finding the debouncer model
     | Debouncing DebounceMessage (Deb.Message DebounceMessage)
     | Resize Size
-    | Read (Result Http.Error ( Bool, Buffer )) -- setActive & buffer
+    | Read (Result Http.Error ( Win.Path, Buffer )) -- setActive & buffer
     | Write (Result String ( String, List Patch ))
     | MakeDir (Result String ())
     | ReadClipboard
@@ -69,6 +70,6 @@ type Msg
     | ReadTags (Result String Location)
     | SearchResult (Result String String)
     | SetCwd (Result String String)
-    | MouseWheel Path Int Int
+    | MouseWheel Win.Path Int Int
     | FocusIme
     | NoneMessage

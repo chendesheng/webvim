@@ -1,5 +1,7 @@
 module Internal.Position exposing
     ( Position
+    , cursorDecoder
+    , cursorEncoder
     , endPositionDecoder
     , excludeRight
     , positionAdd
@@ -14,6 +16,7 @@ module Internal.Position exposing
     )
 
 import Json.Decode as Decode
+import Json.Encode as Encode
 
 
 {-| ( row, col )
@@ -108,3 +111,23 @@ excludeRight ( p1, p2 ) =
 positionShiftLeft : Position -> Position
 positionShiftLeft ( y, x ) =
     ( y, max 0 (x - 1) )
+
+
+cursorEncoder : Position -> Encode.Value
+cursorEncoder ( y, x ) =
+    Encode.list Encode.int
+        [ y, x ]
+
+
+cursorDecoder : Decode.Decoder Position
+cursorDecoder =
+    Decode.list Decode.int
+        |> Decode.map
+            (\xs ->
+                case xs of
+                    a :: b :: _ ->
+                        ( a, b )
+
+                    _ ->
+                        ( 0, 0 )
+            )

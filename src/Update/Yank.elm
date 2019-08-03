@@ -2,7 +2,9 @@ module Update.Yank exposing (put, yank, yankWholeBuffer)
 
 import Dict
 import Internal.TextBuffer as B
+import Internal.Window as Win
 import Model exposing (Buffer, Editor, Global, Mode(..), RegisterText(..))
+import Model.Frame as Frame
 import Update.Buffer as Buf
 import Update.Message exposing (..)
 import Update.Range exposing (isLinewise, operatorRanges)
@@ -76,8 +78,22 @@ put register forward ({ global, buf } as ed) =
             { global
                 | registers = Dict.remove reg global_.registers
             }
+
+        regText =
+            if register == "%" then
+                Win.getActiveFrame global.window
+                    |> Maybe.andThen Frame.getActiveViewId
+                    |> Maybe.map Text
+
+            else if register == "#" then
+                Win.getActiveFrame global.window
+                    |> Maybe.andThen Frame.getAlterViewId
+                    |> Maybe.map Text
+
+            else
+                Dict.get register global.registers
     in
-    Dict.get register global.registers
+    regText
         |> Maybe.map
             (\s ->
                 case buf.mode of

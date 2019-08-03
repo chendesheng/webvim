@@ -492,7 +492,7 @@ relativePath sep from_ to =
         |> String.join sep
 
 
-{-| Return ext name (always lower case) of a path, including '.'. Return empty stirng if not found
+{-| Return ext name (always lower case) of a path, including '.'. Return empty string if not found
 -}
 extname : String -> String
 extname path =

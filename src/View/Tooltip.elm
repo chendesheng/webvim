@@ -19,8 +19,8 @@ import Model
         , TextFragment
         , TextSpan(..)
         , TextWithStyle
-        , View
         )
+import Model.View exposing (View)
 import Update.Cursor exposing (cursorPoint)
 
 

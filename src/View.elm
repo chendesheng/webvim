@@ -19,6 +19,8 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import List
 import Model exposing (..)
+import Model.Frame as Frame exposing (Frame)
+import Model.View exposing (View, emptyView)
 import String
 import Update.Buffer as Buf
 import Update.Message exposing (Msg(..))
@@ -80,27 +82,36 @@ renderThemeCss service theme =
 
 pageTitle : Buffer -> String
 pageTitle buf =
+    let
+        name =
+            if String.isEmpty buf.name then
+                "[no name]"
+
+            else
+                buf.name
+    in
     if Buf.isDirty buf then
-        "• " ++ buf.name
+        "• " ++ name
 
     else
-        buf.name
+        name
 
 
 renderActiveBufferParts : Global -> List (Html Msg)
 renderActiveBufferParts global =
-    case Win.getActiveView global.window of
-        Just view ->
-            case getBuffer view.bufId global.buffers of
-                Just buf ->
-                    renderStatus buf global
-                        :: renderExAutoComplete view buf global
-
-                _ ->
-                    []
-
-        _ ->
-            []
+    Win.getActiveFrame global.window
+        |> Maybe.andThen Frame.getActiveView
+        |> Maybe.andThen
+            (\view ->
+                global.buffers
+                    |> getBuffer view.bufId
+                    |> Maybe.map
+                        (\buf ->
+                            renderStatus buf global
+                                :: renderExAutoComplete view buf global
+                        )
+            )
+        |> Maybe.withDefault []
 
 
 renderBuffers global views =
@@ -109,7 +120,8 @@ renderBuffers global views =
             (\item ->
                 let
                     view =
-                        item.view
+                        Frame.getActiveView item.frame
+                            |> Maybe.withDefault emptyView
 
                     rect =
                         item.rect

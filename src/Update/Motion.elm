@@ -18,6 +18,7 @@ import Internal.Position exposing (Position, excludeRight)
 import Internal.PositionClass exposing (..)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.TextObject exposing (wORDUnderCursor, wordUnderCursor)
+import Internal.Window as Win
 import Model exposing (..)
 import Parser as P
 import Regex as Re
@@ -904,7 +905,7 @@ saveCursorBeforeJump md cursorAfter loc global =
                     False
     in
     if loc.cursor /= cursorAfter && isJump md then
-        { global | jumps = saveJump loc global.jumps }
+        updateJumps (saveJump loc) global
 
     else
         global

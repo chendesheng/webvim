@@ -4,26 +4,26 @@ module Internal.Window exposing
     , Rect
     , Window
     , WindowSplit(..)
-    , activeBottomView
-    , activeLeftView
-    , activeNextView
-    , activePrevView
-    , activeRightView
-    , activeTopView
+    , activeBottomFrame
+    , activeLeftFrame
+    , activeNextFrame
+    , activePrevFrame
+    , activeRightFrame
+    , activeTopFrame
     , empty
-    , getActiveView
-    , getView
+    , getActiveFrame
+    , getFrame
     , hsplit
     , initWindow
-    , mapView
+    , mapFrame
     , removeCurrent
     , setActive
     , setSize
     , toBorders
     , toList
     , toString
-    , updateActiveView
-    , updateView
+    , updateActiveFrame
+    , updateFrame
     , vsplit
     ,  windowDecoder
        --        , logWindow
@@ -297,10 +297,10 @@ empty =
 
 
 initWindow : a -> Window a
-initWindow view =
+initWindow frame =
     let
         tree =
-            Node (NoSplit view) Empty Empty
+            Node (NoSplit frame) Empty Empty
     in
     { tree = tree
     , current = tree
@@ -308,8 +308,8 @@ initWindow view =
     }
 
 
-getActiveView : Window a -> Maybe a
-getActiveView { current } =
+getActiveFrame : Window a -> Maybe a
+getActiveFrame { current } =
     case current of
         Node (NoSplit v) _ _ ->
             Just v
@@ -318,14 +318,14 @@ getActiveView { current } =
             Nothing
 
 
-goToView : (a -> Bool) -> Window a -> Window a
-goToView pred win =
+goToFrame : (a -> Bool) -> Window a -> Window a
+goToFrame pred win =
     win
         |> find True
             (\node ->
                 case node of
-                    NoSplit view ->
-                        pred view
+                    NoSplit frame ->
+                        pred frame
 
                     _ ->
                         False
@@ -344,7 +344,7 @@ hsplit percent id win =
 
 
 split : WindowSplit a -> a -> Window a -> Window a
-split sp view win =
+split sp frame win =
     win
         |> updateSubtree
             (\tree ->
@@ -354,7 +354,7 @@ split sp view win =
                             NoSplit id ->
                                 Node sp
                                     tree
-                                    (Node (NoSplit view)
+                                    (Node (NoSplit frame)
                                         Empty
                                         Empty
                                     )
@@ -403,20 +403,20 @@ removeCurrent win =
                                 _ ->
                                     tree1
                         )
-                        >> activeNextViewHelper True
+                        >> activeNextFrameHelper True
                     )
                 |> Maybe.withDefault win
 
 
-activeNextView : Window a -> Window a
-activeNextView win =
-    activeNextViewHelper False win
+activeNextFrame : Window a -> Window a
+activeNextFrame win =
+    activeNextFrameHelper False win
 
 
-activeNextViewHelper : Bool -> Window a -> Window a
-activeNextViewHelper includeCurrent win =
+activeNextFrameHelper : Bool -> Window a -> Window a
+activeNextFrameHelper includeCurrent win =
     let
-        findView =
+        findFrame =
             find includeCurrent
                 (\nd ->
                     case nd of
@@ -427,7 +427,7 @@ activeNextViewHelper includeCurrent win =
                             False
                 )
     in
-    case findView win of
+    case findFrame win of
         Nothing ->
             if isRoot win then
                 -- do nothing if already root
@@ -436,15 +436,15 @@ activeNextViewHelper includeCurrent win =
             else
                 win
                     |> goRoot
-                    |> findView
+                    |> findFrame
                     |> Maybe.withDefault win
 
         Just win1 ->
             win1
 
 
-activePrevView : Window a -> Window a
-activePrevView win =
+activePrevFrame : Window a -> Window a
+activePrevFrame win =
     let
         isLeftChild win1 =
             case win1.path of
@@ -454,18 +454,18 @@ activePrevView win =
                 _ ->
                     False
 
-        findView win1 =
+        findFrame win1 =
             let
                 win2 =
                     goParent win1
             in
             if isLeftChild win1 then
-                Maybe.andThen findView win2
+                Maybe.andThen findFrame win2
 
             else
                 Maybe.andThen goLeft win2
     in
-    case findView win of
+    case findFrame win of
         Nothing ->
             if isRoot win then
                 -- do nothing if already root
@@ -480,27 +480,27 @@ activePrevView win =
             goRightMost win1
 
 
-activeRightView : Window a -> Window a
-activeRightView win =
-    activeRightViewHelper (LeftChild :: win.path) win
+activeRightFrame : Window a -> Window a
+activeRightFrame win =
+    activeRightFrameHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
-activeLeftView : Window a -> Window a
-activeLeftView win =
-    activeLeftViewHelper (LeftChild :: win.path) win
+activeLeftFrame : Window a -> Window a
+activeLeftFrame win =
+    activeLeftFrameHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
-activeBottomView : Window a -> Window a
-activeBottomView win =
-    activeBottomViewHelper (LeftChild :: win.path) win
+activeBottomFrame : Window a -> Window a
+activeBottomFrame win =
+    activeBottomFrameHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
-activeTopView : Window a -> Window a
-activeTopView win =
-    activeTopViewHelper (LeftChild :: win.path) win
+activeTopFrame : Window a -> Window a
+activeTopFrame win =
+    activeTopFrameHelper (LeftChild :: win.path) win
         |> Maybe.withDefault win
 
 
@@ -518,8 +518,8 @@ activeTopView win =
 --        win
 
 
-activeRightViewHelper : Path -> Window a -> Maybe (Window a)
-activeRightViewHelper path ({ current } as win) =
+activeRightFrameHelper : Path -> Window a -> Maybe (Window a)
+activeRightFrameHelper path ({ current } as win) =
     case path of
         [] ->
             Nothing
@@ -536,19 +536,19 @@ activeRightViewHelper path ({ current } as win) =
                         RightChild ->
                             win
                                 |> goParent
-                                |> Maybe.andThen (activeRightViewHelper rest)
+                                |> Maybe.andThen (activeRightFrameHelper rest)
 
                 Node _ _ _ ->
                     win
                         |> goParent
-                        |> Maybe.andThen (activeRightViewHelper rest)
+                        |> Maybe.andThen (activeRightFrameHelper rest)
 
                 _ ->
                     Nothing
 
 
-activeLeftViewHelper : Path -> Window a -> Maybe (Window a)
-activeLeftViewHelper path ({ current } as win) =
+activeLeftFrameHelper : Path -> Window a -> Maybe (Window a)
+activeLeftFrameHelper path ({ current } as win) =
     case path of
         [] ->
             Nothing
@@ -560,7 +560,7 @@ activeLeftViewHelper path ({ current } as win) =
                         LeftChild ->
                             win
                                 |> goParent
-                                |> Maybe.andThen (activeLeftViewHelper rest)
+                                |> Maybe.andThen (activeLeftFrameHelper rest)
 
                         RightChild ->
                             win
@@ -570,14 +570,14 @@ activeLeftViewHelper path ({ current } as win) =
                 Node _ _ _ ->
                     win
                         |> goParent
-                        |> Maybe.andThen (activeLeftViewHelper rest)
+                        |> Maybe.andThen (activeLeftFrameHelper rest)
 
                 _ ->
                     Nothing
 
 
-activeBottomViewHelper : Path -> Window a -> Maybe (Window a)
-activeBottomViewHelper path ({ current } as win) =
+activeBottomFrameHelper : Path -> Window a -> Maybe (Window a)
+activeBottomFrameHelper path ({ current } as win) =
     case path of
         [] ->
             Nothing
@@ -594,19 +594,19 @@ activeBottomViewHelper path ({ current } as win) =
                         RightChild ->
                             win
                                 |> goParent
-                                |> Maybe.andThen (activeBottomViewHelper rest)
+                                |> Maybe.andThen (activeBottomFrameHelper rest)
 
                 Node _ _ _ ->
                     win
                         |> goParent
-                        |> Maybe.andThen (activeBottomViewHelper rest)
+                        |> Maybe.andThen (activeBottomFrameHelper rest)
 
                 _ ->
                     Nothing
 
 
-activeTopViewHelper : Path -> Window a -> Maybe (Window a)
-activeTopViewHelper path ({ current } as win) =
+activeTopFrameHelper : Path -> Window a -> Maybe (Window a)
+activeTopFrameHelper path ({ current } as win) =
     case path of
         [] ->
             Nothing
@@ -618,7 +618,7 @@ activeTopViewHelper path ({ current } as win) =
                         LeftChild ->
                             win
                                 |> goParent
-                                |> Maybe.andThen (activeTopViewHelper rest)
+                                |> Maybe.andThen (activeTopFrameHelper rest)
 
                         RightChild ->
                             win
@@ -628,7 +628,7 @@ activeTopViewHelper path ({ current } as win) =
                 Node _ _ _ ->
                     win
                         |> goParent
-                        |> Maybe.andThen (activeTopViewHelper rest)
+                        |> Maybe.andThen (activeTopFrameHelper rest)
 
                 _ ->
                     Nothing
@@ -674,36 +674,36 @@ setActive : (a -> Bool) -> Window a -> Window a
 setActive pred win =
     win
         |> goRoot
-        |> goToView pred
+        |> goToFrame pred
 
 
-updateActiveView : (a -> a) -> Window a -> Window a
-updateActiveView fn =
+updateActiveFrame : (a -> a) -> Window a -> Window a
+updateActiveFrame fn =
     updateSubtree
         (\tree1 ->
             case tree1 of
-                Node (NoSplit view) left right ->
-                    Node (NoSplit (fn view)) left right
+                Node (NoSplit frame) left right ->
+                    Node (NoSplit (fn frame)) left right
 
                 _ ->
                     tree1
         )
 
 
-getView : Path -> Window a -> Maybe a
-getView path win =
+getFrame : Path -> Window a -> Maybe a
+getFrame path win =
     case subtree (List.reverse path) win.tree of
-        Just (Node (NoSplit view) left right) ->
-            Just view
+        Just (Node (NoSplit frame) left right) ->
+            Just frame
 
         _ ->
             Nothing
 
 
-updateView : Path -> (a -> a) -> Window a -> Window a
-updateView path fn win =
+updateFrame : Path -> (a -> a) -> Window a -> Window a
+updateFrame path fn win =
     if path == win.path then
-        updateActiveView fn win
+        updateActiveFrame fn win
 
     else
         { win
@@ -711,8 +711,8 @@ updateView path fn win =
                 updateSubtreeHelper
                     (\tree1 ->
                         case tree1 of
-                            Node (NoSplit view) left right ->
-                                Node (NoSplit (fn view)) left right
+                            Node (NoSplit frame) left right ->
+                                Node (NoSplit (fn frame)) left right
 
                             _ ->
                                 tree1
@@ -722,11 +722,11 @@ updateView path fn win =
         }
 
 
-mapView : (a -> ( Float, Float ) -> a) -> Window a -> Window a
-mapView fn ({ tree } as win) =
+mapFrame : (a -> ( Float, Float ) -> a) -> Window a -> Window a
+mapFrame fn ({ tree } as win) =
     let
         tree1 =
-            updateAllViewsHelper fn ( 1.0, 1.0 ) tree
+            updateAllFramesHelper fn ( 1.0, 1.0 ) tree
     in
     { win
         | tree = tree1
@@ -737,12 +737,12 @@ mapView fn ({ tree } as win) =
     }
 
 
-updateAllViewsHelper :
+updateAllFramesHelper :
     (a -> ( Float, Float ) -> a)
     -> ( Float, Float )
     -> Tree (WindowSplit a)
     -> Tree (WindowSplit a)
-updateAllViewsHelper fn size tree =
+updateAllFramesHelper fn size tree =
     case tree of
         Node sp left right ->
             case sp of
@@ -755,8 +755,8 @@ updateAllViewsHelper fn size tree =
                             Tuple.mapFirst ((*) (1 - percent)) size
                     in
                     Node sp
-                        (updateAllViewsHelper fn leftSize left)
-                        (updateAllViewsHelper fn rightSize right)
+                        (updateAllFramesHelper fn leftSize left)
+                        (updateAllFramesHelper fn rightSize right)
 
                 HSplit percent ->
                     let
@@ -767,11 +767,11 @@ updateAllViewsHelper fn size tree =
                             Tuple.mapSecond ((*) (1 - percent)) size
                     in
                     Node sp
-                        (updateAllViewsHelper fn topSize left)
-                        (updateAllViewsHelper fn bottomSize right)
+                        (updateAllFramesHelper fn topSize left)
+                        (updateAllFramesHelper fn bottomSize right)
 
-                NoSplit view ->
-                    Node (NoSplit (fn view size)) left right
+                NoSplit frame ->
+                    Node (NoSplit (fn frame size)) left right
 
         Empty ->
             Empty
@@ -794,7 +794,7 @@ setSize : Float -> Window a -> Window a
 setSize percent win =
     let
         activeNode =
-            Node (NoSplit <| getActiveView win) Empty Empty
+            Node (NoSplit <| getActiveFrame win) Empty Empty
 
         ( goChild, percent_ ) =
             case win.path of
@@ -891,7 +891,7 @@ toBordersHelper tree rect =
 
 toList :
     Window a
-    -> List { view : a, rect : Rect, isActive : Bool, path : Path }
+    -> List { frame : a, rect : Rect, isActive : Bool, path : Path }
 toList win =
     toListHelper win.tree win.path []
 
@@ -900,23 +900,23 @@ toListHelper :
     Tree (WindowSplit a)
     -> Path
     -> Path
-    -> List { view : a, rect : Rect, isActive : Bool, path : Path }
-toListHelper tree activeViewPath path =
+    -> List { frame : a, rect : Rect, isActive : Bool, path : Path }
+toListHelper tree activeFramePath path =
     let
         updateRect fn res =
             { res | rect = fn res.rect }
     in
     case tree of
         Node (NoSplit id) Empty Empty ->
-            [ { view = id
+            [ { frame = id
               , rect = { x = 0, y = 0, width = 1.0, height = 1.0 }
-              , isActive = activeViewPath == path
+              , isActive = activeFramePath == path
               , path = path
               }
             ]
 
         Node (VSplit percent) left right ->
-            (toListHelper left activeViewPath (LeftChild :: path)
+            (toListHelper left activeFramePath (LeftChild :: path)
                 |> List.map
                     (updateRect
                         (\rect ->
@@ -927,7 +927,7 @@ toListHelper tree activeViewPath path =
                         )
                     )
             )
-                ++ (toListHelper right activeViewPath (RightChild :: path)
+                ++ (toListHelper right activeFramePath (RightChild :: path)
                         |> List.map
                             (updateRect
                                 (\rect ->
@@ -940,7 +940,7 @@ toListHelper tree activeViewPath path =
                    )
 
         Node (HSplit percent) left right ->
-            (toListHelper left activeViewPath (LeftChild :: path)
+            (toListHelper left activeFramePath (LeftChild :: path)
                 |> List.map
                     (updateRect
                         (\rect ->
@@ -951,7 +951,7 @@ toListHelper tree activeViewPath path =
                         )
                     )
             )
-                ++ (toListHelper right activeViewPath (RightChild :: path)
+                ++ (toListHelper right activeFramePath (RightChild :: path)
                         |> List.map
                             (updateRect
                                 (\rect ->
@@ -977,14 +977,14 @@ treeToString :
     -> String
 treeToString toStr tree dirs currentDirs deep parent =
     case tree of
-        Node (NoSplit view) Empty Empty ->
+        Node (NoSplit frame) Empty Empty ->
             (if dirs == currentDirs then
                 "@"
 
              else
                 ""
             )
-                ++ toStr view
+                ++ toStr frame
                 ++ "    "
                 ++ String.fromInt
                     (let
@@ -1072,7 +1072,7 @@ treeDecoder decoder =
 
 
 windowSplitDecoder : Decoder a -> Decoder (WindowSplit a)
-windowSplitDecoder viewDecoder =
+windowSplitDecoder frameDecoder =
     Decode.field "type" Decode.string
         |> Decode.andThen
             (\tp ->
@@ -1086,7 +1086,7 @@ windowSplitDecoder viewDecoder =
                             |> Decode.map HSplit
 
                     "nosplit" ->
-                        Decode.field "view" viewDecoder
+                        Decode.field "frame" frameDecoder
                             |> Decode.map NoSplit
 
                     _ ->
@@ -1113,7 +1113,7 @@ pathDecoder =
 
 
 windowDecoder : Decoder a -> Decoder (Window a)
-windowDecoder viewDecoder =
+windowDecoder frameDecoder =
     Decode.map2
         (\tree path ->
             { tree = tree
@@ -1123,17 +1123,17 @@ windowDecoder viewDecoder =
                     |> Maybe.withDefault Empty
             }
         )
-        (Decode.field "tree" <| treeDecoder (windowSplitDecoder viewDecoder))
+        (Decode.field "tree" <| treeDecoder (windowSplitDecoder frameDecoder))
         (Decode.field "path" pathDecoder)
 
 
 windowSplitEncoder : (a -> Encode.Value) -> WindowSplit a -> Encode.Value
-windowSplitEncoder viewEncoder sp =
+windowSplitEncoder frameEncoder sp =
     case sp of
         NoSplit a ->
             Encode.object
                 [ ( "type", Encode.string "nosplit" )
-                , ( "view", viewEncoder a )
+                , ( "frame", frameEncoder a )
                 ]
 
         VSplit percent ->
@@ -1177,8 +1177,8 @@ pathEncoder =
 
 
 windowEncoder : (a -> Encode.Value) -> Window a -> Encode.Value
-windowEncoder viewEncoder win =
+windowEncoder frameEncoder win =
     Encode.object
-        [ ( "tree", treeEncoder viewEncoder win.tree )
+        [ ( "tree", treeEncoder frameEncoder win.tree )
         , ( "path", pathEncoder win.path )
         ]

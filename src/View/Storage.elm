@@ -12,11 +12,12 @@ import Model
         ( Buffer
         , Global
         , RegisterText
-        , View
         , bufferToString
         , registerToString
         , windowEncoder
         )
+import Model.Frame exposing (Frame)
+import Model.View exposing (View)
 
 
 renderStorage : Global -> Html msg
@@ -65,7 +66,7 @@ saveBuffer i buf =
         |> renderSessionStorageItem ("buffers[" ++ String.fromInt i ++ "]")
 
 
-saveWindow : Win.Window View -> Html msg
+saveWindow : Win.Window Frame -> Html msg
 saveWindow win =
     win
         |> windowEncoder

@@ -94,18 +94,18 @@ import Model
         , LoadBuffer(..)
         , Mode(..)
         , RegisterText
-        , Size
         , StatusMessage(..)
-        , View
         , defaultBufferConfig
         , emptyBuffer
         , emptyBufferHistory
         , emptyUndo
-        , emptyView
         , getBuffer
         , getLoadedBuffer
         , isTempBuffer
         )
+import Model.Frame as Frame
+import Model.Size exposing (Size)
+import Model.View exposing (View, emptyView)
 import Regex as Re
 import String
 import Vim.AST
@@ -1322,37 +1322,33 @@ activeBuffer : String -> Global -> Global
 activeBuffer id global =
     if
         -- same buffer
-        case Win.getActiveView global.window of
-            Just view ->
-                view.bufId == id
-
-            _ ->
-                False
+        global.window
+            |> Win.getActiveFrame
+            |> Maybe.andThen Frame.getActiveViewId
+            |> Maybe.map ((==) id)
+            |> Maybe.withDefault False
     then
         global
 
     else
         case getBuffer id global.buffers of
             Just { view } ->
-                { global | window = Win.updateActiveView (always view) global.window }
+                { global
+                    | window =
+                        Win.updateActiveFrame
+                            (Frame.updateActiveView <| always view)
+                            global.window
+                }
 
             _ ->
                 global
 
 
-addBuffer : Bool -> Buffer -> Global -> Global
-addBuffer setActive buf global =
-    let
-        global1 =
-            { global
-                | buffers = Dict.insert buf.id (Loaded buf) global.buffers
-            }
-    in
-    if setActive then
-        activeBuffer buf.id global1
-
-    else
-        global1
+addBuffer : Buffer -> Global -> Global
+addBuffer buf global =
+    { global
+        | buffers = Dict.insert buf.id (Loaded buf) global.buffers
+    }
 
 
 removeBuffer : String -> Global -> Global

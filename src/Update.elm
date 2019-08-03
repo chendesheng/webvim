@@ -41,9 +41,13 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Json.Decode as Decode
 import Model exposing (..)
+import Model.Frame as Frame exposing (Frame, emptyFrame)
+import Model.Size exposing (Size)
+import Model.View exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Process
 import Regex as Re exposing (Regex)
+import Set
 import Task
 import Update.AutoComplete exposing (..)
 import Update.Buffer as Buf
@@ -788,7 +792,11 @@ runOperator count register operator ({ buf, global } as ed) =
                 |> cmdNone
 
         Yank rg ->
-            yank count register rg ed
+            if register == "#" || register == "%" then
+                ( ed, Cmd.none )
+
+            else
+                yank count register rg ed
 
         V.Undo ->
             ( updateBuffer Buf.undo ed, Cmd.none )
@@ -897,7 +905,7 @@ runOperator count register operator ({ buf, global } as ed) =
         JumpBackFromTag ->
             case global.last.jumpToTag of
                 Just loc ->
-                    jumpToLocation replaceActiveView True loc ed
+                    jumpToLocation True loc ed
 
                 _ ->
                     ( ed, Cmd.none )
@@ -982,22 +990,22 @@ switchView type_ ({ global } as ed) =
         switch =
             case type_ of
                 V.SwitchToNext ->
-                    Win.activeNextView
+                    Win.activeNextFrame
 
                 V.SwitchToPrev ->
-                    Win.activePrevView
+                    Win.activePrevFrame
 
                 V.SwitchToRight ->
-                    Win.activeRightView
+                    Win.activeRightFrame
 
                 V.SwitchToLeft ->
-                    Win.activeLeftView
+                    Win.activeLeftFrame
 
                 V.SwitchToBottom ->
-                    Win.activeBottomView
+                    Win.activeBottomFrame
 
                 V.SwitchToTop ->
-                    Win.activeTopView
+                    Win.activeTopFrame
     in
     { ed
         | global =
@@ -1159,10 +1167,10 @@ editTestBuffer : String -> Editor -> ( Editor, Cmd Msg )
 editTestBuffer path ({ buf, global } as ed) =
     let
         ( global1, buf1 ) =
-            createBuffer path buf.view.size global
+            createBuffer path global
 
         global2 =
-            Buf.addBuffer False buf1 global1
+            Buf.addBuffer buf1 global1
     in
     jumpToPath
         True
@@ -1171,7 +1179,6 @@ editTestBuffer path ({ buf, global } as ed) =
             |> replaceHomeDir global.homedir
         )
         Nothing
-        replaceActiveView
         { ed | global = global2 }
 
 
@@ -1213,7 +1220,6 @@ execute count register str ({ buf, global } as ed) =
                         |> replaceHomeDir global.homedir
                     )
                     Nothing
-                    replaceActiveView
                     ed
     in
     case splitFirstSpace str of
@@ -1236,7 +1242,7 @@ execute count register str ({ buf, global } as ed) =
             in
             case nthList n global.locationList of
                 Just loc ->
-                    jumpToLocation replaceActiveView True loc ed
+                    jumpToLocation True loc ed
 
                 _ ->
                     ( { ed | buf = Buf.errorMessage "location not found" buf }
@@ -1284,8 +1290,15 @@ execute count register str ({ buf, global } as ed) =
                 | global =
                     { global
                         | window =
-                            Win.vsplit 0.5 buf.view global.window
-                                |> resizeViews global.size global.lineHeight
+                            global.window
+                                |> Win.getActiveFrame
+                                |> Maybe.map
+                                    (\frame ->
+                                        Win.vsplit 0.5 frame global.window
+                                    )
+                                |> Maybe.map
+                                    (resizeViews global.size global.lineHeight)
+                                |> Maybe.withDefault global.window
                     }
               }
             , Cmd.none
@@ -1296,8 +1309,15 @@ execute count register str ({ buf, global } as ed) =
                 | global =
                     { global
                         | window =
-                            Win.hsplit 0.5 buf.view global.window
-                                |> resizeViews global.size global.lineHeight
+                            global.window
+                                |> Win.getActiveFrame
+                                |> Maybe.map
+                                    (\frame ->
+                                        Win.hsplit 0.5 frame global.window
+                                    )
+                                |> Maybe.map
+                                    (resizeViews global.size global.lineHeight)
+                                |> Maybe.withDefault global.window
                     }
               }
             , Cmd.none
@@ -1311,6 +1331,7 @@ execute count register str ({ buf, global } as ed) =
                             Win.removeCurrent global.window
                                 |> resizeViews global.size global.lineHeight
                     }
+                        |> cleanBuffers
               }
             , Cmd.none
             )
@@ -1331,6 +1352,29 @@ execute count register str ({ buf, global } as ed) =
 
         _ ->
             ( ed, Cmd.none )
+
+
+cleanBuffers : Global -> Global
+cleanBuffers global =
+    let
+        bufIds =
+            global.window
+                |> Win.toList
+                |> List.concatMap (\item -> List.map .bufId item.frame.views)
+                |> Set.fromList
+    in
+    { global
+        | buffers =
+            Dict.filter
+                (\id b ->
+                    (b
+                        |> getBufferId
+                        |> isTempBuffer
+                    )
+                        || Set.member id bufIds
+                )
+                global.buffers
+    }
 
 
 handleKeypress : Bool -> Key -> Editor -> ( Editor, Cmd Msg )
@@ -1532,7 +1576,9 @@ applyDiff ed =
                     |> List.reverse
 
             global1 =
-                ed.global
+                updateJumps
+                    (applyPatchesToJumps buf.path diff)
+                    ed.global
 
             history =
                 buf.history
@@ -1570,8 +1616,7 @@ applyDiff ed =
                 }
             , global =
                 { global1
-                    | jumps = applyPatchesToJumps buf.path diff global1.jumps
-                    , lint =
+                    | lint =
                         { items =
                             Buf.applyPatchesToLintErrors
                                 global1.lint.items
@@ -1788,17 +1833,20 @@ onMouseWheel path deltaY deltaX ({ buf, global } as ed) =
 
 updateGlobalAfterChange : Win.Path -> Buffer -> Global -> Buffer -> Global -> Global
 updateGlobalAfterChange path oldBuf oldGlobal buf global =
+    let
+        window =
+            Win.updateFrame path
+                (Frame.updateView buf.id <| always buf.view)
+                global.window
+    in
     { global
         | buffers =
-            Dict.insert buf.id (Loaded buf) global.buffers
-        , window =
-            if global.window == oldGlobal.window then
-                Win.updateView path
-                    (\{ size } -> resizeView size buf.view)
-                    global.window
+            if Dict.member buf.id global.buffers then
+                Dict.insert buf.id (Loaded buf) global.buffers
 
             else
-                global.window
+                global.buffers
+        , window = window
     }
 
 
@@ -1813,28 +1861,36 @@ withEditorByView :
     -> Global
     -> ( Global, Cmd Msg )
 withEditorByView path fn global =
-    let
-        view =
-            Win.getView path global.window
-                |> Maybe.withDefault emptyView
-    in
-    case getBuffer view.bufId global.buffers of
-        Just buf ->
-            { global = global
-            , buf = { buf | view = view }
-            }
-                |> fn
-                |> Tuple.mapFirst
-                    (\ed ->
-                        updateGlobalAfterChange path
-                            buf
-                            global
-                            ed.buf
-                            ed.global
-                    )
-
-        _ ->
-            ( global, Cmd.none )
+    global.window
+        |> Win.getFrame path
+        |> Maybe.andThen
+            (\frame ->
+                frame
+                    |> Frame.getActiveView
+                    |> Maybe.map (\view -> { view | size = frame.size })
+            )
+        |> Maybe.andThen
+            (\view ->
+                global.buffers
+                    |> getBuffer view.bufId
+                    |> Maybe.map (\buf -> { buf | view = view })
+            )
+        |> Maybe.map
+            (\buf ->
+                { global = global
+                , buf = buf
+                }
+                    |> fn
+                    |> Tuple.mapFirst
+                        (\ed ->
+                            updateGlobalAfterChange path
+                                buf
+                                global
+                                ed.buf
+                                ed.global
+                        )
+            )
+        |> Maybe.withDefault ( global, Cmd.none )
 
 
 updateActiveBuffer : (Buffer -> Buffer) -> Global -> Global
@@ -2094,16 +2150,27 @@ onSearch result ed =
                                     ++ "\n"
                                     ++ "\n"
                         ]
+
+                window =
+                    ed.global.window
+                        |> Win.getActiveFrame
+                        |> Maybe.map
+                            (\frame ->
+                                ed.global.window
+                                    |> Win.hsplit 0.3 frame
+                                    |> Win.activeNextFrame
+                            )
+                        |> Maybe.withDefault ed.global.window
+
+                global_ =
+                    ed.global
             in
-            ed
+            { ed
+                | global = { global_ | window = window }
+            }
                 |> jumpToPath True
                     path
                     Nothing
-                    (\view window ->
-                        window
-                            |> Win.hsplit 0.3 view
-                            |> Win.activeNextView
-                    )
                 |> Tuple.mapFirst
                     (\({ global } as ed1) ->
                         { ed1
@@ -2163,7 +2230,7 @@ onReadTags result ed =
             ed
                 |> updateBuffer Buf.clearMessage
                 |> saveLastJumpToTag
-                |> jumpToLocation replaceActiveView True loc
+                |> jumpToLocation True loc
 
         _ ->
             ( updateBuffer (Buf.errorMessage "tag not found") ed
@@ -2171,18 +2238,23 @@ onReadTags result ed =
             )
 
 
-resizeViews : Size -> Int -> Win.Window View -> Win.Window View
+resizeViews : Size -> Int -> Win.Window Frame -> Win.Window Frame
 resizeViews size lineHeight =
-    Win.mapView
-        (\view ( widthPercent, heightPercent ) ->
-            view
-                |> resizeView
+    Win.mapFrame
+        (\frame ( widthPercent, heightPercent ) ->
+            let
+                frameSize =
                     { width = ceiling <| toFloat size.width * widthPercent
                     , height =
                         (ceiling <| toFloat size.height * heightPercent)
                             // lineHeight
                     }
-                |> scrollToCursor lineHeight
+            in
+            Frame.updateActiveView
+                (resizeView frameSize
+                    >> scrollToCursor lineHeight
+                )
+                { frame | size = frameSize }
         )
 
 
@@ -2264,30 +2336,54 @@ updateViewAfterCursorChanged lineHeight mode lines syntax =
         >> pairCursor mode lines syntax
 
 
-onRead : Result Http.Error ( Bool, Buffer ) -> Global -> Global
+restoreBufferHistory : Int -> Buffer -> Buffer
+restoreBufferHistory lineHeight buf =
+    buf
+        |> Buf.transaction buf.history.changes
+        |> Buf.updateHistory (always buf.history)
+        |> (\buf1 ->
+                Buf.updateView
+                    (Buf.setCursor buf.view.cursor True
+                        >> updateViewAfterCursorChanged
+                            lineHeight
+                            buf1.mode
+                            buf1.lines
+                            buf1.syntax
+                    )
+                    buf1
+           )
+
+
+onRead : Result Http.Error ( Win.Path, Buffer ) -> Global -> Global
 onRead result global =
     case result of
-        Ok ( setActive, buf ) ->
+        Ok ( framePath, buf ) ->
             let
                 --_ =
                 --Debug.log "onRead" ( setActive, buf.path )
                 buf2 =
-                    buf
-                        |> Buf.transaction buf.history.changes
-                        |> Buf.updateHistory (always buf.history)
-                        |> (\buf3 ->
-                                Buf.updateView
-                                    (Buf.setCursor buf.view.cursor True
-                                        >> updateViewAfterCursorChanged
-                                            global.lineHeight
-                                            buf3.mode
-                                            buf3.lines
-                                            buf3.syntax
-                                    )
-                                    buf3
-                           )
+                    restoreBufferHistory global.lineHeight buf
+
+                view =
+                    Win.getActiveFrame global.window
+                        |> Maybe.withDefault emptyFrame
+                        |> Frame.getView buf2.id
+                        |> Maybe.withDefault { emptyView | bufId = buf2.id }
+
+                global2 =
+                    Buf.addBuffer buf2 global
             in
-            Buf.addBuffer setActive buf2 global
+            { global2
+                | window =
+                    Win.updateFrame
+                        framePath
+                        (\frame ->
+                            Frame.addOrActiveView
+                                (resizeView frame.size view)
+                                frame
+                        )
+                        global2.window
+            }
 
         Err err ->
             updateActiveBuffer (Buf.errorMessage <| httpErrorMessage err) global
@@ -2394,39 +2490,24 @@ init flags theme fontInfo size args =
                         \b ->
                             if isTempBuffer b.path then
                                 ( b.id
-                                , { b
-                                    | view = initScrollTop b.view
-                                    , config = Buf.disableSyntax b.config
-                                  }
-                                    |> Buf.transaction b.history.changes
-                                    |> Buf.updateHistory (always b.history)
-                                    |> (\buf1 ->
-                                            buf1
-                                                |> Buf.updateView
-                                                    (Buf.setCursor b.view.cursor True
-                                                        >> updateViewAfterCursorChanged
-                                                            lineHeight
-                                                            buf1.mode
-                                                            buf1.lines
-                                                            buf1.syntax
-                                                    )
-                                       )
+                                , { b | config = Buf.disableSyntax b.config }
+                                    |> restoreBufferHistory lineHeight
                                     |> Loaded
                                 )
 
                             else
-                                ( b.id, NotLoad { b | view = initScrollTop b.view } )
+                                ( b.id, NotLoad b )
                     )
                 |> Result.withDefault [ ( "", Loaded emptyBuffer ) ]
 
-        initScrollTop view =
-            { view | scrollTopPx = view.scrollTop * lineHeight }
-
         decodedWindow =
-            Decode.decodeValue windowDecoder window
+            window
+                |> Decode.decodeValue (windowDecoder lineHeight)
                 |> Result.withDefault
-                    (Win.initWindow emptyView)
-                |> Win.mapView (\view _ -> initScrollTop view)
+                    (Win.initWindow
+                        { emptyFrame | views = [ emptyView ] }
+                    )
+                |> resizeViews size lineHeight
 
         dictBuffers =
             Dict.fromList decodedBuffers
@@ -2457,10 +2538,21 @@ init flags theme fontInfo size args =
         |> Win.toList
         |> List.filterMap
             (\w ->
-                dictBuffers
-                    |> Dict.get w.view.bufId
-                    |> Maybe.andThen getNotLoadBuffer
-                    |> Maybe.map (sendReadBuffer service viewHeight w.isActive)
+                w.frame
+                    |> Frame.getActiveView
+                    |> Maybe.andThen
+                        (\({ bufId } as view) ->
+                            dictBuffers
+                                |> Dict.get bufId
+                                |> Maybe.andThen getNotLoadBuffer
+                                |> Maybe.map
+                                    (\buf ->
+                                        sendReadBuffer service
+                                            viewHeight
+                                            w.path
+                                            { buf | view = view }
+                                    )
+                        )
             )
         |> ((::) <| Cmd.map IMEMessage focusIme)
         |> Cmd.batch

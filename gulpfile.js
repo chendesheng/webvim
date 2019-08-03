@@ -33,7 +33,7 @@ gulp.task('ctags', async function() {
       '-R',
       '--fields=+n',
       '--exclude="*.json"',
-      `--exclude="${home}/.elm/0.19.0/package/elm/**/tests"`,
+      `--exclude="${home}/.elm/0.19.1-beta-1/package/elm/**/tests"`,
       '--exclude="tests/elm-stuff/pac-community/elm-test/**/benchmarks"',
       '--exclude="tests/gen/**"',
       'src',

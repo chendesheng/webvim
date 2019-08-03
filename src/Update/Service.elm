@@ -62,6 +62,7 @@ import Internal.Position
         )
 import Internal.Syntax exposing (Token, TokenType(..))
 import Internal.TextBuffer as B exposing (Patch(..), lineBreak)
+import Internal.Window as Win
 import Json.Decode as Decode exposing (decodeString)
 import List
 import Model
@@ -308,8 +309,8 @@ getBodyAndHeaders url =
         }
 
 
-sendReadBuffer : String -> Int -> Bool -> Buffer -> Cmd Msg
-sendReadBuffer url viewHeight setActive buf =
+sendReadBuffer : String -> Int -> Win.Path -> Buffer -> Cmd Msg
+sendReadBuffer url viewHeight framePath buf =
     url
         ++ "/read?path="
         ++ buf.path
@@ -424,13 +425,13 @@ sendReadBuffer url viewHeight setActive buf =
                             )
                 of
                     Ok b ->
-                        Read (Ok ( setActive, b ))
+                        Read (Ok ( framePath, b ))
 
                     Err ((Http.BadStatus resp) as err) ->
                         case resp.status.code of
                             -- 404 is ok here, the buffer is newly created
                             404 ->
-                                Read (Ok ( setActive, buf ))
+                                Read (Ok ( framePath, buf ))
 
                             _ ->
                                 Read (Err err)

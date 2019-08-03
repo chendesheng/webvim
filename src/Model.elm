@@ -4,7 +4,6 @@ module Model exposing
     , BufferConfig
     , BufferHistory
     , BufferLint
-    , CodePoint
     , Editor
     , ExMode
     , ExPrefix(..)
@@ -19,13 +18,11 @@ module Model exposing
     , Redo
     , RegisterText(..)
     , ServerArgs
-    , Size
     , StatusMessage(..)
     , TextFragment
     , TextSpan(..)
     , TextWithStyle
     , Undo
-    , View
     , VisualMode
     , bufferDecoder
     , bufferEncoder
@@ -36,18 +33,17 @@ module Model exposing
     , configs
     , createBuffer
     , cssFileDefaultConfig
-    , cursorDecoder
-    , cursorEncoder
     , defaultBufferConfig
     , emptyBuffer
     , emptyBufferHistory
     , emptyExBuffer
     , emptyGlobal
     , emptyUndo
-    , emptyView
     , getActiveBuffer
     , getBuffer
+    , getBufferId
     , getBuffers
+    , getJumps
     , getLoadedBuffer
     , getLoadedBuffers
     , getNotLoadBuffer
@@ -62,8 +58,6 @@ module Model exposing
     , registerString
     , registerToString
     , registersDecoder
-    , replaceActiveView
-    , resizeView
     , setBuffer
     , setExbuf
     , undoDecoder
@@ -71,9 +65,8 @@ module Model exposing
     , updateBuffer
     , updateGlobal
     , updateIme
+    , updateJumps
     , updateWindow
-    , viewDecoder
-    , viewEncoder
     , windowDecoder
     , windowEncoder
     )
@@ -108,13 +101,12 @@ import Internal.Window as Win exposing (Window)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Menu as Mu
+import Model.Frame as Frame exposing (Frame, frameDecoder, frameEncoder)
+import Model.Size exposing (Size, emptySize)
+import Model.View exposing (..)
 import Regex as Re
 import Vim.AST as V exposing (VisualType(..))
 import Zipper
-
-
-type alias Size =
-    { width : Int, height : Int }
 
 
 type alias CodePoint =
@@ -188,26 +180,6 @@ bufferToString buf =
     buf
         |> bufferEncoder
         |> Encode.encode 0
-
-
-cursorEncoder : Position -> Encode.Value
-cursorEncoder ( y, x ) =
-    Encode.list Encode.int
-        [ y, x ]
-
-
-cursorDecoder : Decode.Decoder ( Int, Int )
-cursorDecoder =
-    Decode.list Decode.int
-        |> Decode.map
-            (\xs ->
-                case xs of
-                    a :: b :: _ ->
-                        ( a, b )
-
-                    _ ->
-                        ( 0, 0 )
-            )
 
 
 cIndentRules :
@@ -304,9 +276,14 @@ isLintEnabled pathSeperator homedir name lint =
         lint
 
 
-createBuffer : String -> Size -> Global -> ( Global, Buffer )
-createBuffer path size global =
+createBuffer : String -> Global -> ( Global, Buffer )
+createBuffer path global =
     let
+        size =
+            Win.getActiveFrame global.window
+                |> Maybe.map .size
+                |> Maybe.withDefault emptySize
+
         ( name, ext ) =
             filename path
 
@@ -343,55 +320,20 @@ createBuffer path size global =
     )
 
 
-viewDecoder : Decode.Decoder View
-viewDecoder =
-    Decode.map4
-        (\bufId cursor scrollTop alternativeBuf ->
-            { emptyView
-                | bufId = bufId
-                , cursor = cursor
-                , cursorColumn = Tuple.second cursor
-                , scrollTop = scrollTop
-                , alternativeBuf = alternativeBuf
-            }
-        )
-        (Decode.field "bufId" Decode.string)
-        (Decode.field "cursor" cursorDecoder)
-        (Decode.field "scrollTop" Decode.int)
-        (Decode.field "alternativeBuf" Decode.string |> Decode.maybe)
-
-
-viewEncoder : View -> Encode.Value
-viewEncoder view =
-    Encode.object
-        ([ ( "bufId", Encode.string view.bufId )
-         , ( "cursor", cursorEncoder view.cursor )
-         , ( "scrollTop", Encode.int view.scrollTop )
-         ]
-            ++ (case view.alternativeBuf of
-                    Just s ->
-                        [ ( "alternativeBuf", Encode.string s ) ]
-
-                    _ ->
-                        []
-               )
-        )
-
-
-windowEncoder : Window View -> Encode.Value
+windowEncoder : Window Frame -> Encode.Value
 windowEncoder =
-    Win.windowEncoder viewEncoder
+    Win.windowEncoder frameEncoder
 
 
-windowDecoder : Decode.Decoder (Window View)
-windowDecoder =
-    Win.windowDecoder viewDecoder
+windowDecoder : Int -> Decode.Decoder (Window Frame)
+windowDecoder lineHeight =
+    Win.windowDecoder (frameDecoder lineHeight)
 
 
 bufferDecoder : String -> String -> Decode.Decoder Buffer
 bufferDecoder pathSeperator homedir =
-    Decode.map5
-        (\id path syntax history view ->
+    Decode.map4
+        (\id path syntax history ->
             let
                 ( name, ext ) =
                     filename path
@@ -406,7 +348,6 @@ bufferDecoder pathSeperator homedir =
                 , history = history
                 , path = path
                 , name = name ++ ext
-                , view = view
                 , config =
                     { config
                         | lint =
@@ -422,7 +363,6 @@ bufferDecoder pathSeperator homedir =
         (Decode.field "path" Decode.string)
         (Decode.field "syntax" Decode.bool)
         (Decode.field "history" historyDecoder)
-        (Decode.field "view" viewDecoder)
 
 
 type alias Key =
@@ -501,50 +441,6 @@ setExbuf buf ex exbuf =
     { buf | mode = Ex { ex | exbuf = exbuf } }
 
 
-type alias View =
-    { bufId : String
-    , cursor : ( Int, Int )
-    , cursorColumn : Int
-    , scrollTop : Int
-    , scrollTopPx : Int
-    , scrollLeftPx : Int
-    , matchedCursor : Maybe ( Position, Position )
-    , lines : List Int
-    , gutterLines : List Int
-    , size : Size
-
-    -- TODO: save buffer id when buffer switch
-    --       update '#' register when view switch
-    , alternativeBuf : Maybe String
-    }
-
-
-resizeView : Size -> View -> View
-resizeView size view =
-    if size == view.size then
-        view
-
-    else if size.height == view.size.height then
-        { view | size = size }
-
-    else
-        let
-            viewLines =
-                rangeCount view.scrollTop <| size.height + 2
-        in
-        { view
-            | size = size
-            , lines = viewLines
-            , gutterLines = viewLines
-        }
-
-
-replaceActiveView : View -> Win.Window View -> Win.Window View
-replaceActiveView view =
-    Win.updateActiveView
-        (\{ size } -> resizeView size view)
-
-
 type Model
     = Booting Flags Boot.Model
     | Ready Global
@@ -610,7 +506,7 @@ type alias Buffer =
     , mode : Mode
     , history : BufferHistory
     , config : BufferConfig
-    , view : View
+    , view : View -- temp view
     , continuation : String
     , dirtyIndent : Int
     , motionFailed : Bool
@@ -631,7 +527,7 @@ type alias Global =
        1. change active view and buffer
        2. keep view change active buffer
     -}
-    , window : Window View
+    , window : Window Frame
     , buffers : Dict String LoadBuffer
     , cwd : String
     , exHistory : List String
@@ -655,7 +551,6 @@ type alias Global =
         , ex : String
         , jumpToTag : Maybe Location
         }
-    , jumps : Jumps
     , lint : BufferLint
     , locationList : List Location
     , statusbarHeight : Int
@@ -667,7 +562,7 @@ type alias Global =
     -- this is for performance so you don't need save it on every type
     , persistent :
         Maybe
-            { window : Window View
+            { window : Window Frame
             , buffers : List Buffer
             }
     , debouncers : Debouncers
@@ -724,15 +619,26 @@ getBuffers =
     Dict.values >> List.map buffer
 
 
+getBufferId : LoadBuffer -> String
+getBufferId b =
+    case b of
+        Loaded buf ->
+            buf.path
+
+        NotLoad buf ->
+            buf.path
+
+
 getActiveBuffer :
-    { a | window : Window View, buffers : Dict String LoadBuffer }
+    { a | window : Window Frame, buffers : Dict String LoadBuffer }
     -> Maybe Buffer
 getActiveBuffer { window, buffers } =
-    Win.getActiveView window
+    Win.getActiveFrame window
         |> Maybe.andThen
-            (\view ->
-                buffers
-                    |> Dict.get view.bufId
+            (\frame ->
+                frame
+                    |> Frame.getActiveViewId
+                    |> Maybe.andThen (\bufId -> Dict.get bufId buffers)
                     |> Maybe.andThen getLoadedBuffer
             )
 
@@ -800,25 +706,9 @@ updateGlobal fn ed =
     { ed | global = fn ed.global }
 
 
-updateWindow : (Window View -> Window View) -> Global -> Global
+updateWindow : (Window Frame -> Window Frame) -> Global -> Global
 updateWindow fn global =
     { global | window = fn global.window }
-
-
-emptyView : View
-emptyView =
-    { bufId = ""
-    , cursor = ( 0, 0 )
-    , cursorColumn = 0
-    , scrollTop = 0
-    , scrollTopPx = 0
-    , scrollLeftPx = 0
-    , matchedCursor = Nothing
-    , lines = rangeCount 0 3
-    , gutterLines = rangeCount 0 3
-    , size = { width = 1, height = 1 }
-    , alternativeBuf = Nothing
-    }
 
 
 type IndentConfig
@@ -875,7 +765,7 @@ emptyBuffer =
 
 emptyGlobal : Global
 emptyGlobal =
-    { size = { width = 0, height = 0 }
+    { size = emptySize
     , window = Win.empty
     , dotRegister = ""
     , ime = emptyIme
@@ -905,7 +795,6 @@ emptyGlobal =
 
     -- TODO: add a location pool
     -- locations : Dict BufferId (Dict Int Position)
-    , jumps = Zipper.empty
     , lint = { items = [], count = 0 }
     , locationList = []
     , showTip = False
@@ -1080,3 +969,21 @@ undoEncoder { cursor, patches } =
         [ ( "cursor", cursorEncoder cursor )
         , ( "patches", Encode.list patchEncoder patches )
         ]
+
+
+updateJumps : (Jumps -> Jumps) -> Global -> Global
+updateJumps fn global =
+    { global
+        | window =
+            Win.updateActiveFrame
+                (\frame -> { frame | jumps = fn frame.jumps })
+                global.window
+    }
+
+
+getJumps : Global -> Jumps
+getJumps global =
+    global.window
+        |> Win.getActiveFrame
+        |> Maybe.map .jumps
+        |> Maybe.withDefault Zipper.empty
