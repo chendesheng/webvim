@@ -44,7 +44,7 @@ scrollTo y lineHeight view =
             else
                 miny
     in
-    Buf.setScrollTop scrollTop lineHeight view
+    View.setScrollTop scrollTop lineHeight view
 
 
 scrollToCursor : Int -> View -> View

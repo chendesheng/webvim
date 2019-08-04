@@ -2,8 +2,10 @@ module Model.View exposing
     ( View
     , emptyView
     , resizeView
+    , scrollViewLines
     , setCursor
     , setCursorColumn
+    , setScrollTop
     , viewDecoder
     , viewEncoder
     )
@@ -114,3 +116,80 @@ setCursor cursor saveColumn view =
 setCursorColumn : Int -> View -> View
 setCursorColumn cursorColumn view =
     { view | cursorColumn = cursorColumn }
+
+
+scrollViewLinesHelper : Int -> Int -> Int -> Int -> List Int -> List Int
+scrollViewLinesHelper height from to i viewLines =
+    -- height MUST equal to List.length viewLines
+    -- from <= n < from + height
+    case viewLines of
+        n :: rest ->
+            if to <= n && n < to + height then
+                n :: scrollViewLinesHelper height from to i rest
+
+            else
+                -- n < to || to + height <= n
+                i :: scrollViewLinesHelper height from to (i + 1) rest
+
+        _ ->
+            []
+
+
+scrollViewLines : Int -> Int -> Int -> List Int -> List Int
+scrollViewLines height_ from to viewLines =
+    let
+        height =
+            height_ + 2
+    in
+    if from == to then
+        viewLines
+
+    else if from + height <= to || to + height <= from then
+        rangeCount to height
+
+    else if from > to then
+        -- show up contents
+        scrollViewLinesHelper height from to to viewLines
+
+    else if from < to then
+        -- show down contents
+        -- Prove of i < to + height:
+        --   n is item in viewLines, this means from <= n < from + height
+        --   also when to <= n < to + height, n will preserve
+        --   thus when to <= n < from + height, n will preserve
+        --   thus (from + height - to) items in viewLines will preserve
+        --   thus i will increase height - (from + height - to) times
+        --   since i start from (from + height),
+        --     i < (from + height) + height - (from + height - to) = to + height
+        scrollViewLinesHelper height from to (from + height) viewLines
+
+    else
+        viewLines
+
+
+setScrollTop : Int -> Int -> View -> View
+setScrollTop n lineHeight view =
+    if n == view.scrollTop then
+        view
+
+    else
+        let
+            viewLines =
+                scrollViewLines view.size.height view.scrollTop n view.lines
+        in
+        { view
+            | scrollTop = n
+            , scrollTopPx =
+                if n == view.scrollTopPx // lineHeight then
+                    view.scrollTopPx
+
+                else
+                    n * lineHeight
+            , lines = viewLines
+            , gutterLines =
+                if view.scrollTop == n then
+                    view.gutterLines
+
+                else
+                    viewLines
+        }

@@ -334,7 +334,7 @@ updateMode modeName ({ global, buf } as ed) =
                 global.ime
 
         viewLines =
-            Buf.scrollViewLines
+            View.scrollViewLines
                 view.size.height
                 scrollFrom
                 scrollTo
@@ -594,7 +594,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                             (\view ->
                                 let
                                     viewLines =
-                                        Buf.scrollViewLines
+                                        View.scrollViewLines
                                             view.size.height
                                             scrollFrom
                                             scrollTo
@@ -732,7 +732,7 @@ scroll count value lineCounts global view =
                         V.ScrollToMiddle ->
                             y - (size.height - 2) // 2
             in
-            Buf.setScrollTop (scope y1) global.lineHeight view_
+            View.setScrollTop (scope y1) global.lineHeight view_
     in
     view
         |> setCursor

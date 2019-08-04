@@ -52,10 +52,15 @@ import Update.Service exposing (..)
 
 getViewFromActiveFrame : Win.Window Frame -> String -> View
 getViewFromActiveFrame window bufId =
-    Win.getActiveFrame window
-        |> Maybe.withDefault emptyFrame
+    let
+        frame =
+            Win.getActiveFrame window
+                |> Maybe.withDefault emptyFrame
+    in
+    frame
         |> Frame.getView bufId
         |> Maybe.withDefault { emptyView | bufId = bufId }
+        |> resizeView frame.size
 
 
 {-| multiple cases:
@@ -99,15 +104,6 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                     global.cwd
                     path_
 
-        updateCursor : View -> View
-        updateCursor view =
-            case overrideCursor of
-                Just cursor ->
-                    jumpToPathSetCursor global.lineHeight cursor view
-
-                _ ->
-                    view
-
         global1 =
             if isSaveJump then
                 updateJumps
@@ -129,11 +125,11 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
         Just ( b, loaded ) ->
             if loaded then
                 -- loaded
-                jumpToPathBufferLoaded updateCursor b buf ed1
+                jumpToPathBufferLoaded overrideCursor b buf ed1
 
             else
                 -- not loaded
-                jumpToPathBufferNotLoaded updateCursor b buf ed1
+                jumpToPathBufferNotLoaded overrideCursor b buf ed1
 
         -- buffer not exists
         _ ->
@@ -146,11 +142,11 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
             in
             if isTempBuffer path then
                 -- loaded
-                jumpToPathBufferLoaded updateCursor b buf ed2
+                jumpToPathBufferLoaded overrideCursor b buf ed2
 
             else
                 -- not loaded
-                jumpToPathBufferNotLoaded updateCursor b buf ed2
+                jumpToPathBufferNotLoaded overrideCursor b buf ed2
 
 
 jumpToPathFindBuffer : Global -> String -> Maybe ( Buffer, Bool )
@@ -160,30 +156,35 @@ jumpToPathFindBuffer global path =
         |> findFirst (\( b, _ ) -> b.path == path)
 
 
-jumpToPathSetCursor : Int -> Position -> View -> View
-jumpToPathSetCursor lineHeight cursor view =
-    let
-        scrollTop =
-            Buf.bestScrollTop
-                (Tuple.first cursor)
-                view.size.height
-                view.scrollTop
-    in
-    view
-        |> View.setCursor cursor True
-        |> Buf.setScrollTop scrollTop lineHeight
+jumpToPathSetCursor : Int -> Maybe Position -> View -> View
+jumpToPathSetCursor lineHeight overrideCursor view =
+    case overrideCursor of
+        Just cursor ->
+            let
+                scrollTop =
+                    Buf.bestScrollTop
+                        (Tuple.first cursor)
+                        view.size.height
+                        view.scrollTop
+                        |> Debug.log "scrollTop"
+            in
+            view
+                |> View.setCursor cursor True
+                |> View.setScrollTop scrollTop lineHeight
+
+        _ ->
+            view
 
 
-jumpToPathBufferLoaded :
-    (View -> View)
-    -> Buffer
-    -> Buffer
-    -> Editor
-    -> ( Editor, Cmd Msg )
-jumpToPathBufferLoaded updateCursor toBuf buf ed =
+jumpToPathBufferLoaded : Maybe Position -> Buffer -> Buffer -> Editor -> ( Editor, Cmd Msg )
+jumpToPathBufferLoaded overrideCursor toBuf buf ed =
     if buf.id == toBuf.id then
         -- same buffer
-        ( { ed | buf = Buf.updateView updateCursor buf }
+        ( { ed
+            | buf =
+                Buf.updateView (jumpToPathSetCursor ed.global.lineHeight overrideCursor)
+                    buf
+          }
         , Cmd.none
         )
 
@@ -191,7 +192,7 @@ jumpToPathBufferLoaded updateCursor toBuf buf ed =
         let
             view =
                 getViewFromActiveFrame ed.global.window toBuf.id
-                    |> updateCursor
+                    |> jumpToPathSetCursor global.lineHeight overrideCursor
 
             global =
                 Buf.addBuffer toBuf ed.global
@@ -204,12 +205,12 @@ jumpToPathBufferLoaded updateCursor toBuf buf ed =
         ( { ed | global = { global | window = window } }, Cmd.none )
 
 
-jumpToPathBufferNotLoaded : (View -> View) -> Buffer -> Buffer -> Editor -> ( Editor, Cmd Msg )
-jumpToPathBufferNotLoaded updateCursor toBuf buf ({ global } as ed) =
+jumpToPathBufferNotLoaded : Maybe Position -> Buffer -> Buffer -> Editor -> ( Editor, Cmd Msg )
+jumpToPathBufferNotLoaded overrideCursor toBuf buf ({ global } as ed) =
     let
         view =
             getViewFromActiveFrame ed.global.window toBuf.id
-                |> updateCursor
+                |> jumpToPathSetCursor global.lineHeight overrideCursor
     in
     ( ed
     , sendReadBuffer global.service
@@ -272,7 +273,7 @@ jumpByView factor global buf =
                 |> setVisualEnd cursor
                 |> Buf.updateView
                     (View.setCursor cursor True
-                        >> Buf.setScrollTop scrollTop global.lineHeight
+                        >> View.setScrollTop scrollTop global.lineHeight
                     )
 
         Nothing ->
