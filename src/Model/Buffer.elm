@@ -12,9 +12,12 @@ module Model.Buffer exposing
     , buffersToString
     , emptyBuffer
     , emptyExBuffer
+    , getModeName
+    , isExMode
+    , isExculdLineBreak
     , isLintEnabled
     , setExbuf
-    , setMode
+    , stringToPrefix
     )
 
 import Array as Array exposing (Array)
@@ -159,6 +162,15 @@ emptyExBuffer =
     }
 
 
+isExMode mode =
+    case mode of
+        Ex _ ->
+            True
+
+        _ ->
+            False
+
+
 bufferDecoder : String -> String -> Decode.Decoder Buffer
 bufferDecoder pathSeperator homedir =
     Decode.map4
@@ -218,6 +230,66 @@ bufferToString buf =
         |> Encode.encode 0
 
 
-setMode : Mode -> Buffer -> Buffer
-setMode mode buf =
-    { buf | mode = mode }
+isExculdLineBreak : Mode -> Bool
+isExculdLineBreak mode =
+    case mode of
+        Visual _ ->
+            False
+
+        Insert _ ->
+            False
+
+        _ ->
+            True
+
+
+getModeName : Mode -> V.ModeName
+getModeName mode =
+    case mode of
+        Normal _ ->
+            V.ModeNameNormal
+
+        Insert _ ->
+            V.ModeNameInsert
+
+        TempNormal ->
+            V.ModeNameTempNormal
+
+        Visual { tipe } ->
+            V.ModeNameVisual tipe
+
+        Ex { prefix } ->
+            V.ModeNameEx <| prefixToString prefix
+
+
+stringToPrefix : String -> ExPrefix
+stringToPrefix prefix =
+    case prefix of
+        "/" ->
+            ExSearch { forward = True, match = Nothing, highlights = [] }
+
+        "?" ->
+            ExSearch { forward = False, match = Nothing, highlights = [] }
+
+        "=" ->
+            ExEval
+
+        _ ->
+            ExCommand
+
+
+prefixToString : ExPrefix -> String
+prefixToString prefix =
+    case prefix of
+        ExSearch { forward } ->
+            if forward then
+                "/"
+
+            else
+                "?"
+
+        ExEval ->
+            "="
+
+        ExCommand ->
+            ":"

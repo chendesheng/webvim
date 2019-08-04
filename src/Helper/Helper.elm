@@ -35,6 +35,7 @@ module Helper.Helper exposing
     , pathFileName
     , percentStr
     , px
+    , quote
     , rangeCount
     , regex
     , regexWith
@@ -47,6 +48,7 @@ module Helper.Helper exposing
     , rightChar
     , safeRegex
     , spaceInline
+    , splitFirstSpace
     , swapCase
     , toAbsolutePath
     , toCmd
@@ -670,3 +672,30 @@ rangeCount start count =
 
     else
         []
+
+
+splitFirstSpace : String -> ( String, String )
+splitFirstSpace str =
+    str
+        |> String.trim
+        |> P.run
+            (P.succeed
+                (\a b c s ->
+                    ( String.slice 0 a s
+                    , String.slice b c s
+                    )
+                )
+                |. P.chompWhile notSpace
+                |= P.getOffset
+                |. P.chompWhile isSpace
+                |= P.getOffset
+                |. P.chompWhile notSpace
+                |= P.getOffset
+                |= P.getSource
+            )
+        |> Result.withDefault ( str, "" )
+
+
+quote : String -> String
+quote s =
+    "\"" ++ s ++ "\""

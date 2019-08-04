@@ -1,4 +1,4 @@
-module Update.Insert exposing (insert, openNewLine)
+module Update.Insert exposing (columnInsert, insert, openNewLine, repeatInserts)
 
 import Helper.Helper exposing (regex)
 import Internal.PositionClass exposing (findLineFirst, findPosition)
@@ -13,6 +13,7 @@ import String
 import Tuple
 import Update.Buffer as Buf
 import Update.Motion exposing (wordStringUnderCursor)
+import Update.Range exposing (visualRegions)
 import Vim.AST as V exposing (Operator(..))
 
 
@@ -61,9 +62,7 @@ insert : V.StringType -> Buffer -> Buffer
 insert s buf =
     case buf.mode of
         Ex ({ exbuf } as ex) ->
-            setMode
-                (Ex { ex | exbuf = insertString (getString buf s) exbuf })
-                buf
+            { buf | mode = Ex { ex | exbuf = insertString (getString buf s) exbuf } }
 
         _ ->
             let
@@ -76,16 +75,19 @@ insert s buf =
             if str == B.lineBreak then
                 if buf.dirtyIndent > 0 then
                     let
-                        keepLastIndent indent buf_ =
-                            buf_
-                                |> Buf.transaction
-                                    [ indent
-                                        |> repeatSpace
-                                        |> B.fromString
-                                        |> Insertion
-                                            ( Tuple.first buf_.view.cursor, 0 )
-                                    ]
-                                |> Buf.setLastIndent indent
+                        keepLastIndent indent buf1 =
+                            let
+                                buf2 =
+                                    buf1
+                                        |> Buf.transaction
+                                            [ indent
+                                                |> repeatSpace
+                                                |> B.fromString
+                                                |> Insertion
+                                                    ( Tuple.first buf1.view.cursor, 0 )
+                                            ]
+                            in
+                            { buf2 | dirtyIndent = indent }
                     in
                     buf
                         |> Buf.cancelLastIndent
@@ -105,14 +107,12 @@ insert s buf =
                     _ ->
                         False
             then
-                buf
-                    |> Buf.setLastIndent 0
+                { buf | dirtyIndent = 0 }
                     |> insertString str
                     |> autoIndent
 
             else
-                buf
-                    |> Buf.setLastIndent 0
+                { buf | dirtyIndent = 0 }
                     |> insertString str
 
 
@@ -171,7 +171,7 @@ autoIndent buf =
                     |> Maybe.map isBlank
                     |> Maybe.withDefault False
             then
-                Buf.setLastIndent indent buf_
+                { buf_ | dirtyIndent = indent }
 
             else
                 buf_
@@ -265,3 +265,148 @@ openNewLine y buf =
             ]
         |> Buf.updateView (View.setCursor ( y1, 0 ) False)
         |> autoIndent
+
+
+repeatInserts : Mode -> Buffer -> List Patch
+repeatInserts oldMode buf =
+    case oldMode of
+        Insert { startCursor, visual } ->
+            case visual of
+                Just { tipe, begin, end } ->
+                    if
+                        (startCursor <= buf.view.cursor)
+                            && (Tuple.first startCursor == Tuple.first buf.view.cursor)
+                    then
+                        case tipe of
+                            V.VisualBlock ->
+                                let
+                                    ( by, bx ) =
+                                        begin
+
+                                    ( ey, ex ) =
+                                        end
+
+                                    minY =
+                                        min by ey
+
+                                    maxY =
+                                        max by ey
+
+                                    minX =
+                                        min bx ex
+
+                                    inserts =
+                                        B.sliceRegion startCursor
+                                            ( Tuple.first buf.view.cursor
+                                            , Tuple.second buf.view.cursor + 1
+                                            )
+                                            buf.lines
+
+                                    ( _, col ) =
+                                        startCursor
+                                in
+                                if col <= minX then
+                                    buf.lines
+                                        |> visualRegions False
+                                            tipe
+                                            begin
+                                            end
+                                        |> List.tail
+                                        |> Maybe.withDefault []
+                                        |> List.map
+                                            (\( ( y, _ ), _ ) -> y)
+                                        |> List.reverse
+                                        |> List.map
+                                            (\y ->
+                                                Insertion ( y, col ) inserts
+                                            )
+
+                                else
+                                    List.range (minY + 1) maxY
+                                        |> List.reverse
+                                        |> List.map
+                                            (\y ->
+                                                let
+                                                    maxcol =
+                                                        B.getLineMaxColumn y buf.lines
+                                                in
+                                                if col > maxcol then
+                                                    Insertion
+                                                        ( y, maxcol )
+                                                        (inserts
+                                                            |> B.toString
+                                                            |> ((++) <| String.repeat (col - maxcol) " ")
+                                                            |> B.fromString
+                                                        )
+
+                                                else
+                                                    Insertion
+                                                        ( y, col )
+                                                        inserts
+                                            )
+
+                            _ ->
+                                []
+
+                    else
+                        []
+
+                _ ->
+                    []
+
+        _ ->
+            []
+
+
+columnInsert : Bool -> Buffer -> Buffer
+columnInsert prepend buf =
+    case buf.mode of
+        Visual { tipe, begin, end } ->
+            case tipe of
+                V.VisualBlock ->
+                    let
+                        ( by, bx ) =
+                            begin
+
+                        ( ey, ex ) =
+                            end
+
+                        minY =
+                            min by ey
+
+                        minX =
+                            min bx ex
+                    in
+                    if prepend then
+                        Buf.updateView (View.setCursor ( minY, minX ) True) buf
+
+                    else
+                        let
+                            x =
+                                max bx ex + 1
+
+                            maxcol =
+                                B.getLineMaxColumn minY buf.lines
+
+                            patches =
+                                if maxcol < x then
+                                    -- fill spaces
+                                    [ Insertion
+                                        ( minY, maxcol )
+                                        (B.fromString <|
+                                            String.repeat (x - maxcol) " "
+                                        )
+                                    ]
+
+                                else
+                                    []
+                        in
+                        buf
+                            |> Buf.transaction patches
+                            |> Buf.updateView (View.setCursor ( minY, x ) True)
+
+                _ ->
+                    buf
+
+        _ ->
+            buf

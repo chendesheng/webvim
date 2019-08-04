@@ -9,6 +9,7 @@ import Internal.PositionClass exposing (findLineFirst)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
 import Model.Buffer exposing (..)
+import Model.BufferHistory exposing (getLastDeleted)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.View as View
@@ -108,25 +109,29 @@ delete count register rg ({ global, buf } as ed) =
                         _ ->
                             { ed
                                 | buf =
-                                    setMode
-                                        (Ex { ex | exbuf = doDelete exbuf })
-                                        buf
+                                    { buf
+                                        | mode =
+                                            Ex { ex | exbuf = doDelete exbuf }
+                                    }
                             }
 
                 _ ->
                     { ed
                         | buf =
-                            setMode
-                                (Ex { ex | exbuf = doDelete exbuf })
-                                buf
+                            { buf
+                                | mode =
+                                    Ex { ex | exbuf = doDelete exbuf }
+                            }
                     }
 
         Insert _ ->
             { ed
                 | buf =
-                    buf
-                        |> doDelete
-                        |> Buf.setLastIndent 0
+                    let
+                        buf1 =
+                            doDelete buf
+                    in
+                    { buf1 | dirtyIndent = 0 }
             }
 
         _ ->
@@ -176,8 +181,8 @@ saveLastDeleted : Bool -> String -> Buffer -> Global -> Global
 saveLastDeleted linewise reg buf global =
     let
         s =
-            buf
-                |> Buf.getLastDeleted
+            buf.history
+                |> getLastDeleted
                 |> Maybe.map B.toString
                 |> Maybe.withDefault ""
                 |> toRegisterText linewise

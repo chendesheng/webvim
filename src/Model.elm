@@ -5,6 +5,7 @@ module Model exposing
     , Model(..)
     , ServerArgs
     , cacheVimAST
+    , cleanBuffers
     , createBuffer
     , getActiveBuffer
     , getBuffer
@@ -60,6 +61,7 @@ import Model.LoadBuffer exposing (..)
 import Model.Size exposing (Size, emptySize)
 import Model.View exposing (..)
 import Regex as Re
+import Set
 import Vim.AST as V exposing (VisualType(..))
 import Zipper
 
@@ -280,3 +282,26 @@ registersDecoder =
         (Decode.field "value" Decode.string)
         |> Decode.list
         |> Decode.map Dict.fromList
+
+
+cleanBuffers : Global -> Global
+cleanBuffers global =
+    let
+        bufIds =
+            global.window
+                |> Win.toList
+                |> List.concatMap (\item -> List.map .bufId item.frame.views)
+                |> Set.fromList
+    in
+    { global
+        | buffers =
+            Dict.filter
+                (\id b ->
+                    (b
+                        |> getBufferId
+                        |> isTempBuffer
+                    )
+                        || Set.member id bufIds
+                )
+                global.buffers
+    }

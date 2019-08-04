@@ -7,6 +7,7 @@ module Ime exposing
     , isImeComposing
     , renderIme
     , setImeActive
+    , toggleIme
     , update
     )
 
@@ -47,10 +48,17 @@ type IME
     | CompositionClear
 
 
+isImeActive : IME -> Bool
 isImeActive ime =
     ime /= NotActive
 
 
+toggleIme : IME -> IME
+toggleIme ime =
+    setImeActive (ime == NotActive) ime
+
+
+isImeComposing : IME -> Bool
 isImeComposing ime =
     case ime of
         Composing _ ->

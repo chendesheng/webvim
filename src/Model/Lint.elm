@@ -1,5 +1,13 @@
-module Model.Lint exposing (BufferLint, LintError, TextFragment, TextSpan(..), TextWithStyle)
+module Model.Lint exposing
+    ( BufferLint
+    , LintError
+    , TextFragment
+    , TextSpan(..)
+    , TextWithStyle
+    , lintErrorToLocationList
+    )
 
+import Internal.Jumps exposing (Location)
 import Internal.Position exposing (..)
 
 
@@ -35,3 +43,17 @@ type alias BufferLint =
     { items : List LintError
     , count : Int
     }
+
+
+lintErrorToLocationList : List LintError -> List Location
+lintErrorToLocationList items =
+    List.map
+        (\item ->
+            { path = item.file
+            , cursor =
+                item.subRegion
+                    |> Maybe.withDefault item.region
+                    |> Tuple.first
+            }
+        )
+        items

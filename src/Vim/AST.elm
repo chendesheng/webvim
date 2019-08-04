@@ -20,6 +20,7 @@ module Vim.AST exposing
     , emptyMotionOption
     , initialMode
     , isEditingOperator
+    , isLineDeltaMotion
     , isVisualRange
     , motionOption
     )
@@ -373,3 +374,18 @@ type MotionData
     | RepeatMatchChar
     | MatchString StringType
     | NextLineFirst -- <enter>
+
+
+isLineDeltaMotion : Operator -> Bool
+isLineDeltaMotion op =
+    case op of
+        Move mo _ ->
+            case mo of
+                LineDelta ->
+                    True
+
+                _ ->
+                    False
+
+        _ ->
+            False

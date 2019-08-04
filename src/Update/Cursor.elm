@@ -1,16 +1,12 @@
 module Update.Cursor exposing
-    ( correctCursor
-    , correctPosition
-    , correctPositionOnSurrogate
-    , cursorPoint
+    ( cursorPoint
     , cursorScope
-    , greaterTo
+    , getScrollLeftPx
     , pairCursor
-    , scrollTo
-    , scrollToCursor
+    , scroll
     )
 
-import Font exposing (FontInfo, cursorCharWidth, stringWidth)
+import Font exposing (FontInfo, charWidth, cursorCharWidth, stringWidth)
 import Internal.Brackets exposing (pairBracketAt)
 import Internal.Position exposing (Position)
 import Internal.Syntax exposing (Syntax)
@@ -21,110 +17,7 @@ import Model.Global exposing (..)
 import Model.View as View exposing (View)
 import Update.Buffer as Buf
 import Update.Motion exposing (setVisualEnd)
-
-
-{-| scroll to ensure pos it is insdie viewport
--}
-scrollTo : Int -> Int -> View -> View
-scrollTo y lineHeight view =
-    let
-        miny =
-            view.scrollTop
-
-        maxy =
-            miny + view.size.height - 1
-
-        scrollTop =
-            if miny > y then
-                y
-
-            else if y > maxy then
-                y - maxy + miny
-
-            else
-                miny
-    in
-    View.setScrollTop scrollTop lineHeight view
-
-
-scrollToCursor : Int -> View -> View
-scrollToCursor lineHeight view =
-    scrollTo (Tuple.first view.cursor) lineHeight view
-
-
-correctCursor : Bool -> B.TextBuffer -> View -> View
-correctCursor excludeLinkBreak lines view =
-    View.setCursor
-        (correctPosition view.cursor excludeLinkBreak lines)
-        False
-        view
-
-
-greaterTo : Int -> Int -> Bool
-greaterTo x y =
-    y > x
-
-
-correctPositionOnSurrogate : B.TextBuffer -> Position -> Position
-correctPositionOnSurrogate lines (( y, x ) as pos) =
-    lines
-        |> B.getLine y
-        |> Maybe.andThen
-            (\line ->
-                line
-                    |> String.dropLeft (x - 1)
-                    |> String.uncons
-                    |> Maybe.map
-                        (\( ch, _ ) ->
-                            if
-                                ch
-                                    |> String.fromChar
-                                    |> String.length
-                                    |> greaterTo 1
-                            then
-                                if x + 1 >= String.length line - 1 then
-                                    ( y, x - 1 )
-
-                                else
-                                    ( y, x + 1 )
-
-                            else
-                                pos
-                        )
-            )
-        |> Maybe.withDefault pos
-
-
-correctPosition : Position -> Bool -> B.TextBuffer -> Position
-correctPosition pos excludeLineBreak lines =
-    let
-        ( y, x ) =
-            pos
-
-        y1 =
-            0
-                |> max (B.count lines - 2)
-                |> min y
-
-        maxcol =
-            B.getLineMaxColumn y1 lines
-                - (if excludeLineBreak then
-                    String.length B.lineBreak
-
-                   else
-                    0
-                  )
-
-        x1 =
-            maxcol
-                |> max 0
-                |> min x
-    in
-    if y1 == y && x == x1 then
-        correctPositionOnSurrogate lines pos
-
-    else
-        correctPositionOnSurrogate lines ( y1, x1 )
+import Vim.AST as V
 
 
 {-| move cursor ensure cursor is insdie viewport
@@ -224,3 +117,118 @@ cursorPoint fontInfo lines y x =
                 ( ( y, x1 ), ( y, x1 + w ) )
             )
         |> Maybe.withDefault ( ( 0, 0 ), ( 0, 0 ) )
+
+
+gutterWidth : B.TextBuffer -> Int
+gutterWidth lines =
+    let
+        totalLines =
+            B.count lines - 1
+    in
+    totalLines |> String.fromInt |> String.length
+
+
+getScrollLeftPx : FontInfo -> Buffer -> Int
+getScrollLeftPx fontInfo buf =
+    let
+        view =
+            buf.view
+
+        maybeCursor =
+            case buf.mode of
+                Ex _ ->
+                    Nothing
+
+                _ ->
+                    Just view.cursor
+
+        relativeGutterWidth =
+            4
+    in
+    maybeCursor
+        |> Maybe.map
+            (\( y, x ) ->
+                let
+                    ( ( _, leftPx ), ( _, rightPx ) ) =
+                        cursorPoint fontInfo buf.lines y x
+
+                    widthPx =
+                        toFloat view.size.width
+                            - toFloat
+                                (gutterWidth buf.lines
+                                    + relativeGutterWidth
+                                    + 1
+                                )
+                            * charWidth fontInfo '0'
+                            |> floor
+                in
+                if leftPx < view.scrollLeftPx then
+                    leftPx
+
+                else if rightPx > widthPx + view.scrollLeftPx then
+                    rightPx - widthPx
+
+                else
+                    view.scrollLeftPx
+            )
+        |> Maybe.withDefault 0
+
+
+scroll : Maybe Int -> V.ScrollPosition -> Int -> Global -> View -> View
+scroll count value lineCounts global view =
+    let
+        scope n =
+            n
+                |> max 0
+                |> min (lineCounts - 1)
+
+        setCursor : View -> View
+        setCursor view_ =
+            case count of
+                Just n ->
+                    case value of
+                        V.ScrollBy _ ->
+                            view_
+
+                        _ ->
+                            View.setCursor
+                                ( scope (n - 1)
+                                , Tuple.second view_.cursor
+                                )
+                                False
+                                view_
+
+                _ ->
+                    view_
+
+        scrollInner : View -> View
+        scrollInner view_ =
+            let
+                size =
+                    view_.size
+
+                y =
+                    Tuple.first view_.cursor
+
+                y1 =
+                    case value of
+                        V.ScrollBy n ->
+                            count
+                                |> Maybe.withDefault 1
+                                |> (*) n
+                                |> (+) view_.scrollTop
+
+                        V.ScrollToTop ->
+                            y
+
+                        V.ScrollToBottom ->
+                            y - size.height - 2 + 1
+
+                        V.ScrollToMiddle ->
+                            y - (size.height - 2) // 2
+            in
+            View.setScrollTop (scope y1) global.lineHeight view_
+    in
+    view
+        |> setCursor
+        |> scrollInner

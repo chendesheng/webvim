@@ -4,6 +4,8 @@ module Model.BufferHistory exposing
     , Undo
     , emptyBufferHistory
     , emptyUndo
+    , getLastDeleted
+    , getLastPatch
     , historyDecoder
     , historyEncoder
     , patchDecoder
@@ -153,3 +155,22 @@ undoEncoder { cursor, patches } =
         [ ( "cursor", cursorEncoder cursor )
         , ( "patches", Encode.list patchEncoder patches )
         ]
+
+
+getLastPatch : BufferHistory -> Maybe Patch
+getLastPatch history =
+    List.head history.pending.patches
+
+
+getLastDeleted : BufferHistory -> Maybe TextBuffer
+getLastDeleted history =
+    getLastPatch history
+        |> Maybe.andThen
+            (\patch ->
+                case patch of
+                    Insertion _ s ->
+                        Just s
+
+                    Deletion _ _ ->
+                        Nothing
+            )

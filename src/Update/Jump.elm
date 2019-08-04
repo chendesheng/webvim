@@ -5,7 +5,6 @@ module Update.Jump exposing
     , jumpToFile
     , jumpToLocation
     , jumpToPath
-    , startJumpToTag
     )
 
 import Array as Array exposing (Array)
@@ -370,28 +369,6 @@ jumpLastBuffer ({ global, buf } as ed) =
               }
             , Cmd.none
             )
-
-
-startJumpToTag : Maybe Int -> Editor -> ( Editor, Cmd Msg )
-startJumpToTag count ({ buf, global } as ed) =
-    case
-        wordStringUnderCursor
-            buf.config.wordChars
-            buf.lines
-            buf.view.cursor
-    of
-        Just ( _, s ) ->
-            ( ed
-            , sendReadTags global.service
-                global.pathSeperator
-                global.cwd
-                buf.path
-                (Maybe.withDefault 1 count - 1)
-                s
-            )
-
-        _ ->
-            ( ed, Cmd.none )
 
 
 activePrevView : Editor -> Editor

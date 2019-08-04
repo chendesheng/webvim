@@ -1,19 +1,16 @@
 module Update.Buffer exposing
     ( addBuffer
-    , applyDiffToView
     , applyPatchesToLintErrors
-    , applyRegionChangeToView
     , bestScrollTop
+    , bufferInfo
     , cancelLastIndent
     , clearHistory
     , clearMessage
     , commit
     , cursorLineFirst
     , delete
-    , disableSyntax
     , errorMessage
     , finalScrollTop
-    , getLastDeleted
     , getStatusBar
     , gotoLine
     , indentCursorToLineFirst
@@ -21,10 +18,8 @@ module Update.Buffer exposing
     , insert
     , isDirty
     , isEditing
-    , putString
     , redo
     , removeBuffer
-    , setLastIndent
     , setRegister
     , setShowTip
     , shortBufferPath
@@ -39,15 +34,7 @@ module Update.Buffer exposing
 
 import Array as Array exposing (Array)
 import Dict exposing (Dict)
-import Helper.Helper
-    exposing
-        ( filename
-        , findFirst
-        , parseWords
-        , rangeCount
-        , regex
-        , relativePath
-        )
+import Helper.Helper exposing (..)
 import Internal.Position exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
 import Internal.Syntax
@@ -206,114 +193,6 @@ insert pos s =
 delete : Position -> Position -> Buffer -> Buffer
 delete from to =
     transaction [ Deletion from to ]
-
-
-applyInsertionToView : Int -> Int -> Int -> Int -> List Int -> List Int
-applyInsertionToView from size scrollTop scrollBottom viewLines =
-    if size == 0 || from >= scrollBottom then
-        viewLines
-
-    else
-        applyInsertionToViewHelper from
-            size
-            scrollBottom
-            (max from scrollTop)
-            viewLines
-
-
-{-| start at [ 0 , 1 , 2 ]
-
-Ins 0 1
-[ 1 , 2 , 0 ]
-
-Ins 1 2
-[ 1 , 2 , 0 ]
-
-Ins 0 1
-[ 2 , 0 , 1 ]
-
-Ins 2 1
-[ 2 , 0 , 1 ]
-
--}
-applyInsertionToViewHelper : Int -> Int -> Int -> Int -> List Int -> List Int
-applyInsertionToViewHelper from size scrollBottom i viewLines =
-    -- go through each line
-    -- if n < from, keep it not change
-    -- if n >= from, increase size
-    -- after increase size check if it's >= scrollBottom
-    -- if it is, replace it to inserting line
-    case viewLines of
-        n :: rest ->
-            if n < from then
-                n :: applyInsertionToViewHelper from size scrollBottom i rest
-
-            else if n + size < scrollBottom then
-                (n + size) :: applyInsertionToViewHelper from size scrollBottom i rest
-
-            else
-                i :: applyInsertionToViewHelper from size scrollBottom (i + 1) rest
-
-        _ ->
-            []
-
-
-applyDeletionToView : Int -> Int -> Int -> List Int -> List Int
-applyDeletionToView from to scrollBottom viewLines =
-    let
-        size =
-            to - from
-    in
-    if size <= 0 || from >= scrollBottom then
-        viewLines
-
-    else
-        applyDeletionToViewHelper from
-            to
-            size
-            (max from (scrollBottom - size))
-            viewLines
-
-
-applyDeletionToViewHelper : Int -> Int -> Int -> Int -> List Int -> List Int
-applyDeletionToViewHelper from to size i viewLines =
-    case viewLines of
-        n :: rest ->
-            if n < from then
-                n :: applyDeletionToViewHelper from to size i rest
-
-            else if n < to then
-                i :: applyDeletionToViewHelper from to size (i + 1) rest
-
-            else
-                (n - size) :: applyDeletionToViewHelper from to size i rest
-
-        _ ->
-            []
-
-
-applyDiffToView : List RegionChange -> Int -> Int -> List Int -> List Int
-applyDiffToView diff scrollTop height viewLines =
-    List.foldl
-        (\change viewLines1 ->
-            applyRegionChangeToView change scrollTop (height + 2) viewLines1
-        )
-        viewLines
-        diff
-
-
-applyRegionChangeToView : RegionChange -> Int -> Int -> List Int -> List Int
-applyRegionChangeToView change scrollTop height viewLines =
-    let
-        scrollBottom =
-            scrollTop + height
-    in
-    case change of
-        RegionAdd ( ( by, _ ), ( ey, _ ) ) ->
-            applyInsertionToView by (ey - by) scrollTop scrollBottom viewLines
-
-        RegionRemove ( ( by, _ ), ( ey, _ ) ) ->
-            applyDeletionToView by ey scrollBottom viewLines
 
 
 {-| batch edit text, keep cursor, save history
@@ -657,25 +536,6 @@ clearHistory buf =
     { buf | history = emptyBufferHistory }
 
 
-getLastPatch : Buffer -> Maybe Patch
-getLastPatch { history } =
-    List.head history.pending.patches
-
-
-getLastDeleted : Buffer -> Maybe TextBuffer
-getLastDeleted buf =
-    getLastPatch buf
-        |> Maybe.andThen
-            (\patch ->
-                case patch of
-                    Insertion _ s ->
-                        Just s
-
-                    Deletion _ _ ->
-                        Nothing
-            )
-
-
 setRegister :
     String
     -> RegisterText
@@ -688,104 +548,6 @@ setRegister reg val global =
 updateHistory : (BufferHistory -> BufferHistory) -> Buffer -> Buffer
 updateHistory update buf =
     { buf | history = update buf.history }
-
-
-putString : Bool -> RegisterText -> Buffer -> Buffer
-putString forward text buf =
-    let
-        ( y, x ) =
-            buf.view.cursor
-
-        tabSize =
-            buf.config.tabSize
-
-        ( patch, cursor ) =
-            let
-                line =
-                    getLine y buf.lines |> Maybe.withDefault ""
-            in
-            case text of
-                Text s ->
-                    if forward && line /= lineBreak then
-                        ( s
-                            |> fromStringExpandTabs tabSize (x + 1)
-                            |> Insertion ( y, x + 1 )
-                        , Nothing
-                        )
-
-                    else
-                        ( s
-                            |> fromStringExpandTabs tabSize x
-                            |> Insertion ( y, x )
-                        , Nothing
-                        )
-
-                Lines s ->
-                    if forward then
-                        let
-                            s1 =
-                                if
-                                    String.endsWith
-                                        lineBreak
-                                        line
-                                then
-                                    s
-
-                                else
-                                    lineBreak ++ s
-                        in
-                        ( s1
-                            |> fromStringExpandTabs tabSize 0
-                            |> Insertion ( y + 1, 0 )
-                        , Just ( y + 1, findLineFirst s + 1 )
-                        )
-
-                    else
-                        case buf.mode of
-                            Insert _ ->
-                                ( s
-                                    |> fromStringExpandTabs tabSize x
-                                    |> Insertion ( y, x )
-                                , Nothing
-                                )
-
-                            _ ->
-                                ( s
-                                    |> fromStringExpandTabs tabSize 0
-                                    |> Insertion ( y, 0 )
-                                , Just ( y, findLineFirst s + 1 )
-                                )
-
-        getLastDeletedTo buf_ =
-            case getLastPatch buf_ of
-                Just patch_ ->
-                    case patch_ of
-                        Deletion _ to ->
-                            to
-
-                        _ ->
-                            buf_.view.cursor
-
-                _ ->
-                    buf_.view.cursor
-    in
-    buf
-        |> setLastIndent 0
-        |> transaction [ patch ]
-        |> (\buf1 ->
-                updateView
-                    (setCursor
-                        (case cursor of
-                            Just p ->
-                                p
-
-                            Nothing ->
-                                getLastDeletedTo buf1
-                        )
-                        True
-                    )
-                    buf1
-           )
 
 
 infoMessage : String -> Buffer -> Buffer
@@ -968,11 +730,6 @@ toWords exclude { config, lines } =
         |> List.map Tuple.first
 
 
-setLastIndent : Int -> Buffer -> Buffer
-setLastIndent indent buf =
-    { buf | dirtyIndent = indent }
-
-
 cancelLastIndent : Buffer -> Buffer
 cancelLastIndent buf =
     if buf.dirtyIndent > 0 then
@@ -980,9 +737,8 @@ cancelLastIndent buf =
             ( y, _ ) =
                 buf.view.cursor
         in
-        buf
+        { buf | dirtyIndent = 0 }
             |> transaction [ Deletion ( y, 0 ) ( y, buf.dirtyIndent ) ]
-            |> setLastIndent 0
             |> updateView (setCursorColumn buf.dirtyIndent)
 
     else
@@ -1083,14 +839,14 @@ switchVisualEnd : Buffer -> Buffer
 switchVisualEnd buf =
     case buf.mode of
         Visual { tipe, begin, end } ->
-            buf
-                |> setMode
-                    (Visual
+            { buf
+                | mode =
+                    Visual
                         { tipe = tipe
                         , begin = end
                         , end = begin
                         }
-                    )
+            }
                 |> updateView (setCursor begin True)
 
         _ ->
@@ -1152,6 +908,27 @@ removeBuffer id global =
     }
 
 
-disableSyntax : BufferConfig -> BufferConfig
-disableSyntax config =
-    { config | syntax = False }
+bufferInfo : Global -> Buffer -> String
+bufferInfo global buf =
+    let
+        n =
+            B.count buf.lines - 1
+
+        ( y, x ) =
+            buf.view.cursor
+    in
+    (buf |> shortBufferPath global |> quote)
+        ++ " line "
+        ++ (y
+                |> inc
+                |> String.fromInt
+           )
+        ++ " of "
+        ++ (B.count buf.lines |> String.fromInt)
+        ++ " --"
+        ++ (y * 100 // n |> String.fromInt)
+        ++ "%-- col "
+        ++ (x
+                |> inc
+                |> String.fromInt
+           )
