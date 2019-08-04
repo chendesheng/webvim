@@ -61,7 +61,7 @@ insert : V.StringType -> Buffer -> Buffer
 insert s buf =
     case buf.mode of
         Ex ({ exbuf } as ex) ->
-            Buf.setMode
+            setMode
                 (Ex { ex | exbuf = insertString (getString buf s) exbuf })
                 buf
 

@@ -102,7 +102,7 @@ put register forward ({ global, buf } as ed) =
                     Ex ({ exbuf } as ex) ->
                         { ed
                             | buf =
-                                Buf.setMode
+                                setMode
                                     (Ex
                                         { ex
                                             | exbuf =

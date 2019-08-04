@@ -14,6 +14,7 @@ module Model.Buffer exposing
     , emptyExBuffer
     , isLintEnabled
     , setExbuf
+    , setMode
     )
 
 import Array as Array exposing (Array)
@@ -215,3 +216,8 @@ bufferToString buf =
     buf
         |> bufferEncoder
         |> Encode.encode 0
+
+
+setMode : Mode -> Buffer -> Buffer
+setMode mode buf =
+    { buf | mode = mode }

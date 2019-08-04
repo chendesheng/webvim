@@ -166,7 +166,6 @@ jumpToPathSetCursor lineHeight overrideCursor view =
                         (Tuple.first cursor)
                         view.size.height
                         view.scrollTop
-                        |> Debug.log "scrollTop"
             in
             view
                 |> View.setCursor cursor True
@@ -182,7 +181,8 @@ jumpToPathBufferLoaded overrideCursor toBuf buf ed =
         -- same buffer
         ( { ed
             | buf =
-                Buf.updateView (jumpToPathSetCursor ed.global.lineHeight overrideCursor)
+                Buf.updateView
+                    (jumpToPathSetCursor ed.global.lineHeight overrideCursor)
                     buf
           }
         , Cmd.none
@@ -190,17 +190,15 @@ jumpToPathBufferLoaded overrideCursor toBuf buf ed =
 
     else
         let
+            global =
+                ed.global
+
             view =
-                getViewFromActiveFrame ed.global.window toBuf.id
+                getViewFromActiveFrame global.window toBuf.id
                     |> jumpToPathSetCursor global.lineHeight overrideCursor
 
-            global =
-                Buf.addBuffer toBuf ed.global
-
             window =
-                Win.updateActiveFrame
-                    (Frame.addOrActiveView view)
-                    global.window
+                Win.updateActiveFrame (Frame.addOrActiveView view) global.window
         in
         ( { ed | global = { global | window = window } }, Cmd.none )
 
@@ -208,16 +206,14 @@ jumpToPathBufferLoaded overrideCursor toBuf buf ed =
 jumpToPathBufferNotLoaded : Maybe Position -> Buffer -> Buffer -> Editor -> ( Editor, Cmd Msg )
 jumpToPathBufferNotLoaded overrideCursor toBuf buf ({ global } as ed) =
     let
-        view =
-            getViewFromActiveFrame ed.global.window toBuf.id
-                |> jumpToPathSetCursor global.lineHeight overrideCursor
+        toBuf1 =
+            { toBuf
+                | view =
+                    getViewFromActiveFrame ed.global.window toBuf.id
+                        |> jumpToPathSetCursor global.lineHeight overrideCursor
+            }
     in
-    ( ed
-    , sendReadBuffer global.service
-        buf.view.size.height
-        global.window.path
-        { toBuf | view = view }
-    )
+    ( ed, sendReadBuffer global.service buf.view.size.height global.window.path toBuf1 )
 
 
 jumpByView : Float -> Global -> Buffer -> Buffer

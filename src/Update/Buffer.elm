@@ -25,7 +25,6 @@ module Update.Buffer exposing
     , redo
     , removeBuffer
     , setLastIndent
-    , setMode
     , setRegister
     , setShowTip
     , shortBufferPath
@@ -145,12 +144,18 @@ applyPatchToLintError patch ({ region, subRegion } as error) =
             )
 
 
-applyPatchesToLintErrors : List LintError -> List RegionChange -> List LintError
-applyPatchesToLintErrors =
+applyPatchesToLintErrors : String -> List LintError -> List RegionChange -> List LintError
+applyPatchesToLintErrors path =
     List.foldl
         (\patch result ->
             List.filterMap
-                (applyPatchToLintError patch)
+                (\lintError ->
+                    if lintError.file == path then
+                        applyPatchToLintError patch lintError
+
+                    else
+                        Just lintError
+                )
                 result
         )
 
@@ -680,11 +685,6 @@ setRegister reg val global =
     { global | registers = Dict.insert reg val global.registers }
 
 
-setMode : Mode -> Buffer -> Buffer
-setMode mode buf =
-    { buf | mode = mode }
-
-
 updateHistory : (BufferHistory -> BufferHistory) -> Buffer -> Buffer
 updateHistory update buf =
     { buf | history = update buf.history }
@@ -857,8 +857,7 @@ isDirty buf =
 
 isEditing : Buffer -> Buffer -> Bool
 isEditing buf1 buf2 =
-    buf1.history.version
-        /= buf2.history.version
+    buf1.history.version /= buf2.history.version
 
 
 cursorLineFirst : B.TextBuffer -> Int -> Maybe Position
@@ -898,10 +897,6 @@ indentCursorToLineFirst buf =
 
 updateView : (View -> View) -> Buffer -> Buffer
 updateView f buf =
-    let
-        view =
-            buf.view
-    in
     { buf | view = f buf.view }
 
 

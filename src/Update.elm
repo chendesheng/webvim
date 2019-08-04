@@ -35,7 +35,6 @@ import Internal.Jumps
         , applyPatchesToJumps
         , applyPatchesToLocations
         )
-import Internal.Position exposing (positionShiftLeft)
 import Internal.Syntax exposing (Syntax)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
@@ -578,7 +577,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                                     }
 
                     buf1 =
-                        Buf.setMode
+                        setMode
                             (Ex { ex | prefix = prefix1 })
                             buf
 
@@ -1589,6 +1588,12 @@ applyDiff ed =
 
             view =
                 buf.view
+
+            lintItems =
+                Buf.applyPatchesToLintErrors
+                    buf.path
+                    global1.lint.items
+                    diff
         in
         { ed
             | buf =
@@ -1621,11 +1626,8 @@ applyDiff ed =
             , global =
                 { global1
                     | lint =
-                        { items =
-                            Buf.applyPatchesToLintErrors
-                                global1.lint.items
-                                diff
-                        , count = global1.lint.count
+                        { items = lintItems
+                        , count = List.length lintItems
                         }
                     , locationList =
                         applyPatchesToLocations
@@ -1735,29 +1737,16 @@ applyLintItems items buf global =
             else
                 normalizePath global.pathSeperator file
 
-        normalizeRegion region =
-            let
-                ( b, e_ ) =
-                    region
+        normalizeRegion ( b, e_ ) =
+            ( b
+            , -- make inclusive
+              if b == e_ then
+                e_
 
-                -- make inclusive
-                e =
-                    if b == e_ then
-                        e_
-
-                    else
-                        Tuple.mapSecond
-                            (\x -> x - 1)
-                            e_
-            in
-            ( correctPosition
-                b
-                True
-                buf.lines
-            , correctPosition
-                e
-                True
-                buf.lines
+              else
+                Tuple.mapSecond
+                    (\x -> x - 1)
+                    e_
             )
 
         items1 =

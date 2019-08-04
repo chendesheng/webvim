@@ -108,7 +108,7 @@ delete count register rg ({ global, buf } as ed) =
                         _ ->
                             { ed
                                 | buf =
-                                    Buf.setMode
+                                    setMode
                                         (Ex { ex | exbuf = doDelete exbuf })
                                         buf
                             }
@@ -116,7 +116,7 @@ delete count register rg ({ global, buf } as ed) =
                 _ ->
                     { ed
                         | buf =
-                            Buf.setMode
+                            setMode
                                 (Ex { ex | exbuf = doDelete exbuf })
                                 buf
                     }
