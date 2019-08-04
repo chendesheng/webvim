@@ -2172,7 +2172,7 @@ onSearch result ed =
             { ed
                 | global = { global_ | window = window }
             }
-                |> jumpToPath True
+                |> jumpToPath False
                     path
                     Nothing
                 |> Tuple.mapFirst
@@ -2368,12 +2368,6 @@ onRead result global =
                 buf2 =
                     restoreBufferHistory global.lineHeight buf
 
-                view =
-                    Win.getActiveFrame global.window
-                        |> Maybe.withDefault emptyFrame
-                        |> Frame.getView buf2.id
-                        |> Maybe.withDefault { emptyView | bufId = buf2.id }
-
                 global2 =
                     Buf.addBuffer buf2 global
             in
@@ -2383,7 +2377,7 @@ onRead result global =
                         framePath
                         (\frame ->
                             Frame.addOrActiveView
-                                (resizeView frame.size view)
+                                buf2.view
                                 frame
                         )
                         global2.window

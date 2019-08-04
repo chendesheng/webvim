@@ -50,6 +50,14 @@ import Update.Motion
 import Update.Service exposing (..)
 
 
+getViewFromActiveFrame : Win.Window Frame -> String -> View
+getViewFromActiveFrame window bufId =
+    Win.getActiveFrame window
+        |> Maybe.withDefault emptyFrame
+        |> Frame.getView bufId
+        |> Maybe.withDefault { emptyView | bufId = bufId }
+
+
 {-| multiple cases:
 
   - buffer exists
@@ -91,11 +99,11 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                     global.cwd
                     path_
 
-        updateCursor : B.TextBuffer -> View -> View
-        updateCursor lines view =
+        updateCursor : View -> View
+        updateCursor view =
             case overrideCursor of
                 Just cursor ->
-                    jumpToPathSetCursor global.lineHeight cursor lines view
+                    jumpToPathSetCursor global.lineHeight cursor view
 
                 _ ->
                     view
@@ -125,7 +133,7 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
 
             else
                 -- not loaded
-                jumpToPathBufferNotLoaded b buf ed1
+                jumpToPathBufferNotLoaded updateCursor b buf ed1
 
         -- buffer not exists
         _ ->
@@ -142,7 +150,7 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
 
             else
                 -- not loaded
-                jumpToPathBufferNotLoaded b buf ed2
+                jumpToPathBufferNotLoaded updateCursor b buf ed2
 
 
 jumpToPathFindBuffer : Global -> String -> Maybe ( Buffer, Bool )
@@ -152,14 +160,13 @@ jumpToPathFindBuffer global path =
         |> findFirst (\( b, _ ) -> b.path == path)
 
 
-jumpToPathSetCursor : Int -> Position -> B.TextBuffer -> View -> View
-jumpToPathSetCursor lineHeight cursor lines view =
+jumpToPathSetCursor : Int -> Position -> View -> View
+jumpToPathSetCursor lineHeight cursor view =
     let
         scrollTop =
             Buf.bestScrollTop
                 (Tuple.first cursor)
                 view.size.height
-                lines
                 view.scrollTop
     in
     view
@@ -168,7 +175,7 @@ jumpToPathSetCursor lineHeight cursor lines view =
 
 
 jumpToPathBufferLoaded :
-    (B.TextBuffer -> View -> View)
+    (View -> View)
     -> Buffer
     -> Buffer
     -> Editor
@@ -176,25 +183,18 @@ jumpToPathBufferLoaded :
 jumpToPathBufferLoaded updateCursor toBuf buf ed =
     if buf.id == toBuf.id then
         -- same buffer
-        ( { ed | buf = Buf.updateView (updateCursor buf.lines) buf }
+        ( { ed | buf = Buf.updateView updateCursor buf }
         , Cmd.none
         )
 
     else
         let
             view =
-                Win.getActiveFrame ed.global.window
-                    |> Maybe.withDefault emptyFrame
-                    |> Frame.getView toBuf.id
-                    |> Maybe.withDefault { emptyView | bufId = toBuf.id }
-                    |> resizeView buf.view.size
-                    |> updateCursor toBuf.lines
-
-            toBuf1 =
-                { toBuf | view = view }
+                getViewFromActiveFrame ed.global.window toBuf.id
+                    |> updateCursor
 
             global =
-                Buf.addBuffer toBuf1 ed.global
+                Buf.addBuffer toBuf ed.global
 
             window =
                 Win.updateActiveFrame
@@ -204,13 +204,18 @@ jumpToPathBufferLoaded updateCursor toBuf buf ed =
         ( { ed | global = { global | window = window } }, Cmd.none )
 
 
-jumpToPathBufferNotLoaded : Buffer -> Buffer -> Editor -> ( Editor, Cmd Msg )
-jumpToPathBufferNotLoaded toBuf buf ({ global } as ed) =
+jumpToPathBufferNotLoaded : (View -> View) -> Buffer -> Buffer -> Editor -> ( Editor, Cmd Msg )
+jumpToPathBufferNotLoaded updateCursor toBuf buf ({ global } as ed) =
+    let
+        view =
+            getViewFromActiveFrame ed.global.window toBuf.id
+                |> updateCursor
+    in
     ( ed
     , sendReadBuffer global.service
         buf.view.size.height
         global.window.path
-        toBuf
+        { toBuf | view = view }
     )
 
 
@@ -410,7 +415,7 @@ jumpToFile ({ buf } as ed) =
                         jumpToLocation
                             -- FIXME: activePrevView will not work
                             -- when loc is a new buffer
-                            True
+                            False
                             loc
                             (activePrevView ed)
 

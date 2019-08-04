@@ -87,11 +87,6 @@ type alias ServerArgs =
 createBuffer : String -> Global -> ( Global, Buffer )
 createBuffer path global =
     let
-        size =
-            Win.getActiveFrame global.window
-                |> Maybe.map .size
-                |> Maybe.withDefault emptySize
-
         ( name, ext ) =
             filename path
 
@@ -99,20 +94,10 @@ createBuffer path global =
             configs
                 |> Dict.get ext
                 |> Maybe.withDefault defaultBufferConfig
-
-        viewLines =
-            rangeCount 0 <| size.height + 2
     in
     ( global
     , { emptyBuffer
         | id = path
-        , view =
-            { emptyView
-                | bufId = path
-                , lines = viewLines
-                , gutterLines = viewLines
-                , size = size
-            }
         , config =
             { config
                 | lint =

@@ -979,7 +979,6 @@ motion count md mo ({ buf, global } as ed) =
                     Buf.bestScrollTop
                         (Tuple.first cursor)
                         buf.view.size.height
-                        buf.lines
                         buf.view.scrollTop
 
                 scrollTop =

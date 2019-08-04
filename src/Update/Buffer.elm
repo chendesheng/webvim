@@ -984,12 +984,8 @@ setScrollTop n lineHeight view =
         }
 
 
-bestScrollTop : Int -> Int -> B.TextBuffer -> Int -> Int
-bestScrollTop y height lines scrollTop =
-    let
-        maxLine =
-            B.count lines - 1
-    in
+bestScrollTop : Int -> Int -> Int -> Int
+bestScrollTop y height scrollTop =
     if scrollTop <= y && y < scrollTop + height then
         scrollTop
 
@@ -1155,7 +1151,6 @@ finalScrollTop { height } view buf =
                                     (Tuple.first end)
                                 )
                                 height
-                                buf.lines
                                 view.scrollTop
 
                         _ ->
