@@ -138,6 +138,9 @@ update message global =
         MouseWheel path deltaY deltaX ->
             withEditorByView path (onMouseWheel path deltaY deltaX) global
 
+        MouseClick path ->
+            ( onMouseClick path global, Cmd.none )
+
         PressKeys keys ->
             withEditor
                 (\ed ->

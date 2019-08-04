@@ -1,4 +1,4 @@
-module Update.Mouse exposing (onMouseWheel, onResize)
+module Update.Mouse exposing (onMouseClick, onMouseWheel, onResize)
 
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
@@ -63,4 +63,16 @@ onResize size global =
     { global
         | window = resizeViews size1 global.lineHeight global.window
         , size = size1
+    }
+
+
+onMouseClick : Win.Path -> Global -> Global
+onMouseClick path ({ window } as global) =
+    { global
+        | window =
+            window
+                |> Win.getFrame path
+                |> Maybe.map
+                    (\frame -> Win.setActive ((==) frame) window)
+                |> Maybe.withDefault window
     }

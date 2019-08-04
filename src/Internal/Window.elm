@@ -25,9 +25,7 @@ module Internal.Window exposing
     , updateActiveFrame
     , updateFrame
     , vsplit
-    ,  windowDecoder
-       --        , logWindow
-
+    , windowDecoder
     , windowEncoder
     )
 
@@ -128,25 +126,6 @@ find includeCurrent pred ({ tree, current, path } as z) =
                         , current = tree1
                         , path = path1 ++ path
                         }
-
-        Empty ->
-            Nothing
-
-
-findHelper : Path -> (a -> Bool) -> Tree a -> Maybe ( Tree a, Path )
-findHelper path pred tree =
-    case tree of
-        Node a left right ->
-            if pred a then
-                Just ( tree, path )
-
-            else
-                case findHelper (LeftChild :: path) pred left of
-                    Nothing ->
-                        findHelper (RightChild :: path) pred right
-
-                    p ->
-                        p
 
         Empty ->
             Nothing

@@ -73,5 +73,6 @@ type Msg
     | SearchResult (Result String String)
     | SetCwd (Result String String)
     | MouseWheel Win.Path Int Int
+    | MouseClick Win.Path
     | FocusIme
     | NoneMessage

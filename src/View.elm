@@ -103,7 +103,8 @@ pageTitle buf =
 
 renderActiveBufferParts : Global -> List (Html Msg)
 renderActiveBufferParts global =
-    Win.getActiveFrame global.window
+    global.window
+        |> Win.getActiveFrame
         |> Maybe.andThen Frame.getActiveView
         |> Maybe.andThen
             (\view ->
@@ -320,13 +321,13 @@ renderBuffer path rect view buf isActive global =
                 |> px
                 |> style "left"
 
+        mouseClick path1 =
+            Events.onClick <| MouseClick path1
+
         mouseWheel path1 =
             Events.on "mousewheel" <|
                 Decode.map2
-                    (toFloat
-                        >> round
-                        >> MouseWheel path1
-                    )
+                    (toFloat >> round >> MouseWheel path1)
                     (Decode.at [ "deltaY" ] Decode.int)
                     (Decode.at [ "deltaX" ] Decode.int)
     in
@@ -338,7 +339,9 @@ renderBuffer path rect view buf isActive global =
          , style "height" (percentStr rect.height)
          ]
             ++ (if isListenMouseWheel buf.mode showTip lint then
-                    [ mouseWheel path ]
+                    [ mouseClick path
+                    , mouseWheel path
+                    ]
 
                 else
                     []
