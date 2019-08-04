@@ -47,7 +47,7 @@ import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.LoadBuffer exposing (..)
 import Model.Size exposing (Size)
-import Model.View exposing (..)
+import Model.View as View exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Process
 import Regex as Re exposing (Regex)
@@ -302,7 +302,7 @@ updateMode modeName ({ global, buf } as ed) =
                 case mode of
                     Insert { startCursor } ->
                         if startCursor /= buf_.view.cursor then
-                            Buf.updateView (Buf.setCursor startCursor True) buf_
+                            Buf.updateView (View.setCursor startCursor True) buf_
 
                         else
                             buf_
@@ -506,7 +506,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                         cursor /= buf.view.cursor
             in
             updateBuffer
-                (Buf.updateView (Buf.setCursor cursor changeColumn)
+                (Buf.updateView (View.setCursor cursor changeColumn)
                     >> Buf.cancelLastIndent
                     >> insert
                     >> Buf.commit
@@ -696,7 +696,7 @@ scroll count value lineCounts global view =
                             view_
 
                         _ ->
-                            Buf.setCursor
+                            View.setCursor
                                 ( scope (n - 1)
                                 , Tuple.second view_.cursor
                                 )
@@ -1042,7 +1042,7 @@ columnInsert prepend buf =
                             min bx ex
                     in
                     if prepend then
-                        Buf.updateView (Buf.setCursor ( minY, minX ) True) buf
+                        Buf.updateView (View.setCursor ( minY, minX ) True) buf
 
                     else
                         let
@@ -1067,7 +1067,7 @@ columnInsert prepend buf =
                         in
                         buf
                             |> Buf.transaction patches
-                            |> Buf.updateView (Buf.setCursor ( minY, x ) True)
+                            |> Buf.updateView (View.setCursor ( minY, x ) True)
 
                 _ ->
                     buf
@@ -2347,7 +2347,7 @@ restoreBufferHistory lineHeight buf =
         |> Buf.updateHistory (always buf.history)
         |> (\buf1 ->
                 Buf.updateView
-                    (Buf.setCursor buf.view.cursor True
+                    (View.setCursor buf.view.cursor True
                         >> updateViewAfterCursorChanged
                             lineHeight
                             buf1.mode
@@ -2414,7 +2414,7 @@ onWrite result ({ buf, global } as ed) =
                         -- keep cursor position
                         |> (\buf2 ->
                                 Buf.updateView
-                                    (Buf.setCursor buf.view.cursor True
+                                    (View.setCursor buf.view.cursor True
                                         >> updateViewAfterCursorChanged
                                             global.lineHeight
                                             buf2.mode

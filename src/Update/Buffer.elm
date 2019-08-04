@@ -4,12 +4,10 @@ module Update.Buffer exposing
     , applyPatchesToLintErrors
     , applyRegionChangeToView
     , bestScrollTop
-    , cIndentRules
     , cancelLastIndent
     , clearHistory
     , clearMessage
     , commit
-    , configs
     , cursorLineFirst
     , delete
     , disableSyntax
@@ -27,8 +25,6 @@ module Update.Buffer exposing
     , redo
     , removeBuffer
     , scrollViewLines
-    , setCursor
-    , setCursorColumn
     , setLastIndent
     , setMode
     , setRegister
@@ -91,7 +87,7 @@ import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.LoadBuffer exposing (..)
 import Model.Size exposing (Size)
-import Model.View exposing (View, emptyView)
+import Model.View exposing (..)
 import Regex as Re
 import String
 import Vim.AST
@@ -691,19 +687,6 @@ setMode mode buf =
     { buf | mode = mode }
 
 
-setCursor : Position -> Bool -> View -> View
-setCursor cursor saveColumn view =
-    { view
-        | cursor = cursor
-        , cursorColumn =
-            if saveColumn then
-                Tuple.second cursor
-
-            else
-                view.cursorColumn
-    }
-
-
 updateHistory : (BufferHistory -> BufferHistory) -> Buffer -> Buffer
 updateHistory update buf =
     { buf | history = update buf.history }
@@ -807,30 +790,6 @@ putString forward text buf =
            )
 
 
-cIndentRules :
-    { decrease : Re.Regex
-    , increase : Re.Regex
-    , increaseNext : Re.Regex
-    , trigger : String
-    }
-cIndentRules =
-    { increase = regex "^.*\\{[^}\\\"']*$"
-    , decrease = regex "^(.*\\*/)?\\s*\\}[;\\s]*$"
-    , increaseNext =
-        regex "^(?!.*;\\s*//).*[^\\s;{}]\\s*$"
-    , trigger = "}"
-    }
-
-
-cssFileDefaultConfig : BufferConfig
-cssFileDefaultConfig =
-    { defaultBufferConfig
-        | tabSize = 2
-        , indent = IndentRules cIndentRules
-        , wordChars = "_-.#"
-    }
-
-
 infoMessage : String -> Buffer -> Buffer
 infoMessage s buf =
     case buf.mode of
@@ -886,64 +845,6 @@ clearMessage buf =
 
         _ ->
             buf
-
-
-configs : Dict String BufferConfig
-configs =
-    Dict.fromList
-        [ ( ".elm"
-          , { defaultBufferConfig
-                | tabSize = 4
-                , lint = True
-                , indent =
-                    IndentRules
-                        { increase =
-                            regex
-                                ("(^[(]?let$)|(^[(]?if)"
-                                    ++ "|(^then$)|(^else(\\s|$))|(=$)"
-                                    ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
-                                )
-                        , decrease = regex "^(then|else( if)?|of|in)"
-                        , increaseNext = regex "![\\s\\S]"
-                        , trigger = ""
-                        }
-            }
-          )
-        , ( ".js"
-          , { defaultBufferConfig
-                | tabSize = 2
-                , lint = True
-                , indent = IndentRules cIndentRules
-            }
-          )
-        , ( ".jsx"
-          , { defaultBufferConfig
-                | tabSize = 2
-                , lint = True
-                , indent = IndentRules cIndentRules
-            }
-          )
-        , ( ".purs"
-          , { defaultBufferConfig
-                | tabSize = 2
-                , indent =
-                    IndentRules
-                        { increase =
-                            regex
-                                ("(^[(]?let$)|(^[(]?if)"
-                                    ++ "|(^then$)|(^else(\\s|$))|(=$)"
-                                    ++ "|(^in$)|(^[(]?case)|(^of$)|(->$)"
-                                    ++ "|(^when)|(\\sdo$)"
-                                )
-                        , decrease = regex "^(then|else( if)?|of|in)"
-                        , increaseNext = regex "![\\s\\S]"
-                        , trigger = ""
-                        }
-            }
-          )
-        , ( ".less", cssFileDefaultConfig )
-        , ( ".css", cssFileDefaultConfig )
-        ]
 
 
 setShowTip : Bool -> Global -> Global
@@ -1158,11 +1059,6 @@ toWords exclude { config, lines } =
 setLastIndent : Int -> Buffer -> Buffer
 setLastIndent indent buf =
     { buf | dirtyIndent = indent }
-
-
-setCursorColumn : Int -> View -> View
-setCursorColumn cursorColumn view =
-    { view | cursorColumn = cursorColumn }
 
 
 cancelLastIndent : Buffer -> Buffer

@@ -37,7 +37,7 @@ import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Frame as Frame exposing (Frame, emptyFrame)
 import Model.Global exposing (..)
-import Model.View exposing (View, emptyView, resizeView)
+import Model.View as View exposing (View, emptyView, resizeView)
 import Parser as P exposing ((|.), (|=), Parser)
 import Update.Buffer as Buf
 import Update.Message exposing (..)
@@ -163,7 +163,7 @@ jumpToPathSetCursor lineHeight cursor lines view =
                 view.scrollTop
     in
     view
-        |> Buf.setCursor cursor True
+        |> View.setCursor cursor True
         |> Buf.setScrollTop scrollTop lineHeight
 
 
@@ -176,7 +176,7 @@ jumpToPathBufferLoaded :
 jumpToPathBufferLoaded updateCursor toBuf buf ed =
     if buf.id == toBuf.id then
         -- same buffer
-        ( { ed | buf = Buf.updateView (updateCursor buf.lines) toBuf }
+        ( { ed | buf = Buf.updateView (updateCursor buf.lines) buf }
         , Cmd.none
         )
 
@@ -266,7 +266,7 @@ jumpByView factor global buf =
             buf
                 |> setVisualEnd cursor
                 |> Buf.updateView
-                    (Buf.setCursor cursor True
+                    (View.setCursor cursor True
                         >> Buf.setScrollTop scrollTop global.lineHeight
                     )
 

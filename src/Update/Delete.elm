@@ -11,6 +11,7 @@ import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
+import Model.View as View
 import Update.Buffer as Buf
 import Update.Motion exposing (..)
 import Update.Range exposing (isLinewise, operatorRanges)
@@ -69,7 +70,7 @@ delete count register rg ({ global, buf } as ed) =
                         setCursor buf__ =
                             case getLast patches of
                                 Just (Deletion b e) ->
-                                    Buf.updateView (Buf.setCursor b True) buf__
+                                    Buf.updateView (View.setCursor b True) buf__
 
                                 _ ->
                                     buf__
@@ -267,7 +268,7 @@ joinHelper collapseSpaces y buf =
             in
             buf
                 |> Buf.transaction patches
-                |> Buf.updateView (Buf.setCursor newCursor True)
+                |> Buf.updateView (View.setCursor newCursor True)
         )
         (B.getLine y buf.lines)
         (B.getLine (y + 1) buf.lines)

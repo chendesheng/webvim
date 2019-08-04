@@ -18,7 +18,7 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
-import Model.View exposing (View)
+import Model.View as View exposing (View)
 import Update.Buffer as Buf
 import Update.Motion exposing (setVisualEnd)
 
@@ -54,7 +54,7 @@ scrollToCursor lineHeight view =
 
 correctCursor : Bool -> B.TextBuffer -> View -> View
 correctCursor excludeLinkBreak lines view =
-    Buf.setCursor
+    View.setCursor
         (correctPosition view.cursor excludeLinkBreak lines)
         False
         view
@@ -172,12 +172,12 @@ cursorScope lineHeight lines view =
             view
 
         else
-            Buf.setCursor ( y1, x1 ) True view
+            View.setCursor ( y1, x1 ) True view
 
     else
         case Buf.cursorLineFirst lines y1 of
             Just cur ->
-                Buf.setCursor cur True view
+                View.setCursor cur True view
 
             _ ->
                 view

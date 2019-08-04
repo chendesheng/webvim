@@ -7,6 +7,7 @@ import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.BufferConfig exposing (..)
 import Model.Global exposing (..)
+import Model.View as View
 import Regex as Re
 import String
 import Tuple
@@ -177,7 +178,7 @@ autoIndent buf =
     in
     buf
         |> Buf.transaction (deleteIndent ++ [ insertIndent ])
-        |> Buf.updateView (Buf.setCursorColumn indent)
+        |> Buf.updateView (View.setCursorColumn indent)
         |> saveLastIndent
 
 
@@ -262,5 +263,5 @@ openNewLine y buf =
                 |> B.fromString
                 |> Insertion ( y1, 0 )
             ]
-        |> Buf.updateView (Buf.setCursor ( y1, 0 ) False)
+        |> Buf.updateView (View.setCursor ( y1, 0 ) False)
         |> autoIndent

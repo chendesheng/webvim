@@ -6,6 +6,7 @@ import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
+import Model.View as View
 import Update.Buffer as Buf
 import Update.Motion exposing (..)
 import Vim.AST as V exposing (ChangeCase(..), Operator(..))
@@ -64,13 +65,13 @@ select count textobj around ({ buf, global } as ed) =
                                         && (begin /= end)
                                 then
                                     buf
-                                        |> Buf.updateView (Buf.setCursor begin1 True)
+                                        |> Buf.updateView (View.setCursor begin1 True)
                                         |> setVisualEnd begin1
                                         |> setVisualBegin end1
 
                                 else
                                     buf
-                                        |> Buf.updateView (Buf.setCursor end1 True)
+                                        |> Buf.updateView (View.setCursor end1 True)
                                         |> setVisualEnd end1
                                         |> setVisualBegin begin1
                             )

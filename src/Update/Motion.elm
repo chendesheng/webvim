@@ -22,6 +22,7 @@ import Internal.Window as Win
 import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
+import Model.View exposing (..)
 import Parser as P
 import Regex as Re
 import String
@@ -997,7 +998,7 @@ motion count md mo ({ buf, global } as ed) =
 
                 buf1 =
                     Buf.updateView
-                        (Buf.setCursor cursor (isSaveColumn md)
+                        (setCursor cursor (isSaveColumn md)
                             >> Buf.setScrollTop scrollTop global.lineHeight
                         )
                         buf

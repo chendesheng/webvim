@@ -7,6 +7,7 @@ import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
+import Model.View as View
 import Update.Buffer as Buf
 import Update.Range exposing (operatorRanges)
 import Vim.AST as V exposing (ChangeCase(..), Operator(..))
@@ -27,7 +28,7 @@ applyCaseOperator count changeCase range global buf =
         setCursor regions_ buf_ =
             case getLast regions_ of
                 Just ( b, e ) ->
-                    Buf.setCursor b True buf_
+                    View.setCursor b True buf_
 
                 _ ->
                     buf_
@@ -50,7 +51,7 @@ applyCaseOperator count changeCase range global buf =
                                     |> B.fromString
                                     |> Insertion b
                                 ]
-                            |> Buf.updateView (Buf.setCursor buf_.view.cursor True)
+                            |> Buf.updateView (View.setCursor buf_.view.cursor True)
                 in
                 case changeCase of
                     LowerCase ->

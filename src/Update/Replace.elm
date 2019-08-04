@@ -6,6 +6,7 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
+import Model.View as View
 import Regex as Re
 import Update.Buffer as Buf
 import Update.Insert exposing (..)
@@ -36,12 +37,12 @@ replaceRegion ch b e buf =
                 |> B.fromString
     in
     buf
-        |> Buf.updateView (Buf.setCursor b False)
+        |> Buf.updateView (View.setCursor b False)
         |> Buf.transaction
             [ Deletion b e
             , Insertion b s
             ]
-        |> Buf.updateView (Buf.setCursor ( Tuple.first b, Tuple.second b + 1 ) True)
+        |> Buf.updateView (View.setCursor ( Tuple.first b, Tuple.second b + 1 ) True)
 
 
 applyReplace : Maybe Int -> String -> Global -> Buffer -> Buffer
@@ -59,7 +60,7 @@ applyReplace count ch global buf =
                             ( y, x ) =
                                 buf_.view.cursor
                         in
-                        Buf.updateView (Buf.setCursor ( y, max 0 (x - 1) ) True) buf_
+                        Buf.updateView (View.setCursor ( y, max 0 (x - 1) ) True) buf_
                    )
 
         Visual _ ->

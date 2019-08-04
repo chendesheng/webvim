@@ -2,6 +2,8 @@ module Model.View exposing
     ( View
     , emptyView
     , resizeView
+    , setCursor
+    , setCursorColumn
     , viewDecoder
     , viewEncoder
     )
@@ -94,3 +96,21 @@ resizeView size view =
             , lines = viewLines
             , gutterLines = viewLines
         }
+
+
+setCursor : Position -> Bool -> View -> View
+setCursor cursor saveColumn view =
+    { view
+        | cursor = cursor
+        , cursorColumn =
+            if saveColumn then
+                Tuple.second cursor
+
+            else
+                view.cursorColumn
+    }
+
+
+setCursorColumn : Int -> View -> View
+setCursorColumn cursorColumn view =
+    { view | cursorColumn = cursorColumn }
