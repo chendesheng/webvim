@@ -8,7 +8,6 @@ module Helper.VirtualList exposing
     )
 
 import Data.Array exposing (Array)
-import Html
 
 
 type alias VirtualList a =

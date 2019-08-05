@@ -1,7 +1,7 @@
 module Update.Insert exposing (columnInsert, insert, openNewLine, repeatInserts)
 
 import Helper.Helper exposing (regex)
-import Internal.PositionClass exposing (findLineFirst, findPosition)
+import Internal.PositionClass exposing (findLineFirst)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Model exposing (..)
 import Model.Buffer exposing (..)

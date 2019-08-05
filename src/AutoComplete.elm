@@ -1,6 +1,5 @@
 module AutoComplete exposing (Model, render)
 
-import Dict exposing (Dict)
 import Helper.Fuzzy exposing (FuzzyMatchItem, fuzzyMatch)
 import Helper.Helper
     exposing
@@ -12,7 +11,6 @@ import Helper.Helper
 import Html exposing (..)
 import Internal.Position exposing (Position)
 import Menu as Mu
-import Task
 
 
 type Model

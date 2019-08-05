@@ -5,11 +5,9 @@ import Internal.Position exposing (Position)
 import Internal.Syntax
     exposing
         ( Syntax
-        , Token
         , TokenType(..)
         , getToken
         , iterateTokens
-        , splitTokens
         )
 import Internal.TextBuffer as B exposing (TextBuffer)
 import Parser as P exposing ((|.), (|=), Parser)

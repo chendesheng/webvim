@@ -1,7 +1,6 @@
 module View.StatusBar exposing (renderStatusBar)
 
 import Font exposing (FontInfo)
-import Helper.Helper exposing (ch, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)

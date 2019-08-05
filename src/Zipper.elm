@@ -22,9 +22,6 @@ module Zipper exposing
     , toList
     )
 
-import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode
-
 
 type Zipper a
     = Zipper (List a) (List a)

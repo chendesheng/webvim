@@ -33,8 +33,7 @@ module Vim.Helper exposing
 import Char
 import Helper.Helper
     exposing
-        ( chompUntilAfter
-        , getLast
+        ( getLast
         , notSpace
         , oneOrMore
         , repeatParser
@@ -48,7 +47,6 @@ import Vim.AST
         ( Key
         , ModeDelta
         , ModeName(..)
-        , MotionOption
         , Operator
         , OperatorRange(..)
         , Register

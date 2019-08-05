@@ -7,7 +7,6 @@ import Html exposing (..)
 import Html.Attributes as HtmlAttr exposing (..)
 import Http
 import Json.Decode as Decode
-import Json.Encode as Encode
 import Svg exposing (..)
 import Svg.Attributes as SvgAttr
 import Task
@@ -33,7 +32,9 @@ type alias BootArgs =
 
 
 type alias Size =
-    { width : Int, height : Int }
+    { width : Int
+    , height : Int
+    }
 
 
 initBootArgs : String -> BootArgs

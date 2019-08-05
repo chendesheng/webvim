@@ -12,11 +12,9 @@ module Internal.Jumps exposing
 import Internal.Position exposing (Position)
 import Internal.TextBuffer
     exposing
-        ( Patch
-        , RegionChange
+        ( RegionChange
         , shiftPositionByRegionChange
         )
-import String exposing (fromInt)
 import Zipper exposing (Zipper)
 
 

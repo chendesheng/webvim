@@ -2,19 +2,13 @@ module Main exposing (main, toModel)
 
 import Boot
 import Browser
-import Browser.Dom as Dom
 import Browser.Events as Events exposing (onResize)
 import Debouncers exposing (DebounceMessage(..), debouncePersistentAll)
-import Font exposing (measureFont, renderMeasureDivs)
-import Helper.Debounce as Deb
-import Html
 import Json.Decode as Decode
 import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
-import Platform as P
-import Task
 import Update exposing (..)
 import Update.Message exposing (..)
 import View exposing (page)

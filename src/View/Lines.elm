@@ -10,8 +10,6 @@ import Font exposing (FontInfo, cursorCharWidth, stringWidth)
 import Helper.Helper exposing (px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events as Events
-import Html.Keyed
 import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
 import Internal.Syntax exposing (Syntax, Token)

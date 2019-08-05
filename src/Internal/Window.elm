@@ -32,7 +32,6 @@ module Internal.Window exposing
 import Helper.Helper exposing (dropWhile)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import Vim.Helper exposing (dropLast)
 
 
 

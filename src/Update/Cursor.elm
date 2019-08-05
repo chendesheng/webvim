@@ -16,7 +16,6 @@ import Model.Buffer exposing (..)
 import Model.Global exposing (..)
 import Model.View as View exposing (View)
 import Update.Buffer as Buf
-import Update.Motion exposing (setVisualEnd)
 import Vim.AST as V
 
 

@@ -2,26 +2,13 @@ module View.Cursor exposing (renderCursor, renderCursorInner, renderMatchedCurso
 
 import Font exposing (FontInfo)
 import Helper.Helper exposing (px, rem)
-import Helper.KeyEvent exposing (decodeKeyboardEvent)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events as Events
 import Html.Lazy exposing (..)
-import Ime
-    exposing
-        ( IME
-        , IMEMsg
-        , emptyIme
-        , isImeActive
-        , isImeComposing
-        , renderIme
-        )
+import Ime exposing (IME, emptyIme, isImeActive, isImeComposing, renderIme)
 import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
-import Json.Decode as Decode
-import Json.Encode as Encode
 import Model.Buffer exposing (..)
-import Model.Global exposing (..)
 import Update.Cursor exposing (cursorPoint)
 import Update.Message exposing (Msg(..))
 

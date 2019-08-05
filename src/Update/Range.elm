@@ -1,6 +1,6 @@
 module Update.Range exposing (isLinewise, operatorRanges, visualRegions)
 
-import Internal.Position exposing (Position, positionMin)
+import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
 import Internal.TextObject exposing (expandTextObject)
 import Model exposing (..)

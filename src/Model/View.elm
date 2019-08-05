@@ -14,15 +14,7 @@ module Model.View exposing
     , viewEncoder
     )
 
-import Helper.Helper
-    exposing
-        ( extname
-        , filename
-        , findFirst
-        , rangeCount
-        , regex
-        , relativePath
-        )
+import Helper.Helper exposing (rangeCount)
 import Internal.Position exposing (Position, cursorDecoder, cursorEncoder)
 import Internal.TextBuffer as B exposing (RegionChange(..), TextBuffer)
 import Json.Decode as Decode

@@ -1,18 +1,11 @@
 module View.AutoComplete exposing (renderAutoComplete, renderExAutoComplete)
 
-import Array as Array exposing (Array)
-import Helper.Helper exposing (ch, percentStr, px)
+import Helper.Helper exposing (ch, px)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events as Events
-import Html.Keyed
-import Html.Lazy exposing (..)
-import Internal.TextBuffer as B
-import Internal.Window as Win
 import Menu as Mu
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
-import Model.Lint exposing (..)
 import Model.View exposing (View)
 import Update.Message exposing (Msg)
 

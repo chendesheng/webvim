@@ -32,34 +32,25 @@ module Update.Buffer exposing
     , updateView
     )
 
-import Array as Array exposing (Array)
+import Array
 import Dict exposing (Dict)
 import Helper.Helper exposing (..)
 import Internal.Position exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
-import Internal.Syntax
-    exposing
-        ( Syntax
-        , Token
-        , applyPatchToSyntax
-        , splitTokens
-        )
+import Internal.Syntax exposing (Syntax, applyPatchToSyntax)
 import Internal.TextBuffer as B
     exposing
         ( Patch(..)
         , RegionChange(..)
         , TextBuffer
         , applyPatch
-        , foldlLines
         , fromString
-        , fromStringExpandTabs
         , getLine
         , isEmpty
-        , lineBreak
         , patchToRegion
         , shiftPositionByRegionChange
         )
-import Internal.Window as Win exposing (Window)
+import Internal.Window as Win
 import List
 import Maybe
 import Model exposing (..)
@@ -70,18 +61,9 @@ import Model.Frame as Frame
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.LoadBuffer exposing (..)
-import Model.Size exposing (Size)
 import Model.View exposing (..)
-import Regex as Re
 import String
-import Vim.AST
-    exposing
-        ( Direction(..)
-        , ModeName(..)
-        , MotionData(..)
-        , MotionOption
-        , VisualType(..)
-        )
+import Vim.AST exposing (Direction(..), ModeName(..), MotionData(..), VisualType(..))
 
 
 reversedPatchToRegionChange : Patch -> RegionChange

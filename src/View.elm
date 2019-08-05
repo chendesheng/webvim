@@ -1,34 +1,26 @@
 module View exposing (page)
 
-import Array as Array exposing (Array)
-import Bitwise as BW
 import Browser exposing (Document)
-import Dict exposing (Dict)
+import Dict
 import Font exposing (charWidth)
-import Helper.Helper exposing (ch, percentStr, px, rem)
+import Helper.Helper exposing (percentStr, px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events as Events
-import Html.Keyed
 import Html.Lazy exposing (..)
-import Internal.Position exposing (Position)
-import Internal.Syntax exposing (Syntax, Token)
 import Internal.TextBuffer as B
 import Internal.Window as Win
 import Json.Decode as Decode
 import Json.Encode as Encode
-import List
 import Model exposing (..)
 import Model.Buffer exposing (..)
-import Model.Frame as Frame exposing (Frame)
+import Model.Frame as Frame
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.LoadBuffer exposing (..)
-import Model.View exposing (View, emptyView)
-import String
+import Model.View exposing (emptyView)
 import Update.Buffer as Buf
 import Update.Message exposing (Msg(..))
-import Update.Range exposing (visualRegions)
 import Url.Builder as Query exposing (toQuery)
 import View.AutoComplete exposing (renderAutoComplete, renderExAutoComplete)
 import View.Cursor exposing (renderCursor, renderMatchedCursor)
@@ -45,7 +37,6 @@ import View.StatusBar exposing (renderStatusBar)
 import View.Storage exposing (renderStorage)
 import View.Tooltip exposing (renderTooltip)
 import Vim.AST exposing (VisualType(..))
-import Vim.Helper exposing (parseKeys)
 
 
 page : Global -> Document Msg

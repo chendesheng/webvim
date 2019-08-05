@@ -1,15 +1,12 @@
 module View.Tooltip exposing (renderTooltip)
 
-import Font exposing (FontInfo, stringWidth)
-import Helper.Helper exposing (ch, px, rem)
+import Font exposing (FontInfo)
+import Helper.Helper exposing (px)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events as Events
-import Html.Keyed
 import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
 import Internal.TextBuffer as B
-import Internal.Window as Win
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)

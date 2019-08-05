@@ -28,42 +28,26 @@ module Model exposing
 -- types only part of a message (like tokenize result) should be in
 -- Model should not import Update.Message
 
-import Array as Array exposing (Array)
 import Boot
-import Debouncers exposing (Debouncers, emptyDebouncers)
 import Dict exposing (Dict)
-import Font exposing (FontInfo)
-import Helper.Debounce as Deb
-import Helper.Helper
-    exposing
-        ( extname
-        , filename
-        , findFirst
-        , rangeCount
-        , regex
-        , relativePath
-        )
-import Ime exposing (IME, emptyIme)
+import Helper.Helper exposing (filename)
+import Ime exposing (IME)
 import Internal.Jumps exposing (..)
 import Internal.Position exposing (..)
 import Internal.Syntax exposing (..)
-import Internal.TextBuffer as B exposing (Patch(..), RegionChange, TextBuffer)
+import Internal.TextBuffer exposing (Patch(..))
 import Internal.Window as Win exposing (Window)
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Menu as Mu
 import Model.Buffer exposing (..)
 import Model.BufferConfig exposing (..)
 import Model.BufferHistory exposing (..)
 import Model.Frame as Frame exposing (Frame, frameDecoder, frameEncoder)
 import Model.Global exposing (..)
 import Model.LoadBuffer exposing (..)
-import Model.Size exposing (Size, emptySize)
 import Model.View exposing (..)
-import Regex as Re
 import Set
 import Vim.AST as V exposing (VisualType(..))
-import Zipper
 
 
 type alias CodePoint =

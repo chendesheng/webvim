@@ -1,15 +1,7 @@
 module Model.BufferConfig exposing (BufferConfig, IndentConfig(..), cIndentRules, configs, cssFileDefaultConfig, defaultBufferConfig)
 
 import Dict exposing (Dict)
-import Helper.Helper
-    exposing
-        ( extname
-        , filename
-        , findFirst
-        , rangeCount
-        , regex
-        , relativePath
-        )
+import Helper.Helper exposing (regex)
 import Regex as Re
 
 

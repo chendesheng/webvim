@@ -8,9 +8,7 @@ module Internal.PositionClass exposing
 
 import Helper.Helper
     exposing
-        ( isBetween
-        , isSpace
-        , keepOneOrMore
+        ( isSpace
         , keepZeroOrMore
         , notSpace
         , oneOrMore
@@ -28,7 +26,6 @@ import Vim.AST
         , MotionData(..)
         , MotionOption
         , TextObject(..)
-        , motionOption
         )
 
 

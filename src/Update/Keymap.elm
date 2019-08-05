@@ -3,7 +3,7 @@ module Update.Keymap exposing (mapKeys)
 import Dict
 import Model exposing (Key)
 import Model.Buffer exposing (..)
-import Vim.Helper exposing (escapeKey, parseKeys)
+import Vim.Helper exposing (parseKeys)
 
 
 {-| windows doesn't have cmd key, use alt key instead

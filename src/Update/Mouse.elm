@@ -4,13 +4,12 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Model exposing (..)
 import Model.Buffer exposing (..)
-import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
 import Model.Size exposing (..)
-import Model.View as View exposing (..)
+import Model.View exposing (..)
 import Update.Message exposing (..)
 import Update.Vim exposing (..)
-import Vim.AST as V exposing (AST, Operator(..), isEditingOperator)
+import Vim.AST as V exposing (Operator(..))
 
 
 onMouseWheel : Win.Path -> Int -> Int -> Editor -> ( Editor, Cmd Msg )

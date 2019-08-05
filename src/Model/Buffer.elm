@@ -20,13 +20,13 @@ module Model.Buffer exposing
     , stringToPrefix
     )
 
-import Array as Array exposing (Array)
-import Dict exposing (Dict)
+import Array as Array
+import Dict
 import Helper.Fuzzy exposing (FuzzyMatchItem)
 import Helper.Helper exposing (extname, filename, relativePath)
 import Internal.Position exposing (..)
 import Internal.Syntax exposing (..)
-import Internal.TextBuffer as B exposing (Patch(..), RegionChange, TextBuffer)
+import Internal.TextBuffer as B exposing (Patch(..), TextBuffer)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Menu as Mu

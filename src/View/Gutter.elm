@@ -1,6 +1,5 @@
 module View.Gutter exposing (gutterWidth, renderGutters)
 
-import Font exposing (FontInfo)
 import Helper.Helper exposing (ch, px, rem)
 import Html exposing (..)
 import Html.Attributes exposing (..)

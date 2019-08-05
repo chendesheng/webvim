@@ -27,7 +27,7 @@ applyCaseOperator count changeCase range global buf =
 
         setCursor regions_ buf_ =
             case getLast regions_ of
-                Just ( b, e ) ->
+                Just ( b, _ ) ->
                     View.setCursor b True buf_
 
                 _ ->

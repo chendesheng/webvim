@@ -8,12 +8,7 @@ import Parser as P exposing ((|.), (|=), Parser)
 import Update.Buffer as Buf
 import Update.Jump exposing (..)
 import Update.Message exposing (..)
-import Update.Motion
-    exposing
-        ( setVisualEnd
-        , wORDStringUnderCursor
-        , wordStringUnderCursor
-        )
+import Update.Motion exposing (wordStringUnderCursor)
 
 
 pickLocation : Int -> List Location -> Maybe Location

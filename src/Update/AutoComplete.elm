@@ -6,7 +6,6 @@ module Update.AutoComplete exposing
     , updateAutoCompleteEdit
     )
 
-import Array as Array
 import Helper.Fuzzy exposing (..)
 import Helper.Helper
     exposing
@@ -14,7 +13,6 @@ import Helper.Helper
         , getLast
         , pathBase
         , pathFileName
-        , rightChar
         , toAbsolutePath
         , word
         )

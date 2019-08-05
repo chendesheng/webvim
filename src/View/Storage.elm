@@ -12,7 +12,6 @@ import Model.Buffer exposing (..)
 import Model.Frame exposing (Frame)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
-import Model.View exposing (View)
 
 
 renderStorage : Global -> Html msg

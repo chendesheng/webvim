@@ -1,15 +1,8 @@
 module Vim.Register exposing (isRegisterChar, registerKey, registerKeyEnd)
 
-import Parser as P exposing ((|.), (|=), Parser)
+import Parser as P exposing ((|=), Parser)
 import String
-import Vim.AST
-    exposing
-        ( Key
-        , ModeDelta
-        , Register
-        , StateChange(..)
-        , defaultRegister
-        )
+import Vim.AST exposing (Key, ModeDelta, StateChange(..))
 import Vim.Helper exposing (..)
 
 

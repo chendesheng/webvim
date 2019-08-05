@@ -22,32 +22,20 @@ module Update.Vim exposing
     , updateViewAfterCursorChanged
     )
 
-import Array as Array exposing (Array)
-import Browser.Dom as Dom
 import Debouncers exposing (..)
-import Dict exposing (Dict)
-import Font exposing (FontInfo, charWidth)
-import Helper.Debounce as Deb
+import Dict
 import Helper.Helper exposing (..)
-import Http
 import Ime exposing (..)
 import Internal.Jumps exposing (..)
 import Internal.Syntax exposing (Syntax)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
-import Json.Decode as Decode
 import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
-import Model.Lint exposing (..)
-import Model.LoadBuffer exposing (..)
 import Model.Size exposing (Size)
 import Model.View as View exposing (..)
-import Parser as P exposing ((|.), (|=), Parser)
-import Process
-import Regex as Re exposing (Regex)
-import Task
 import Update.AutoComplete exposing (..)
 import Update.Buffer as Buf
 import Update.CTag exposing (..)
@@ -58,8 +46,6 @@ import Update.Increase exposing (increaseNumber)
 import Update.Indent exposing (applyIndent)
 import Update.Insert exposing (..)
 import Update.Jump exposing (..)
-import Update.Keymap exposing (mapKeys)
-import Update.Lint exposing (..)
 import Update.Message exposing (..)
 import Update.Motion exposing (..)
 import Update.Replace exposing (applyReplace)
@@ -68,7 +54,7 @@ import Update.Service exposing (..)
 import Update.Tokenize exposing (..)
 import Update.Yank exposing (put, yank, yankWholeBuffer)
 import Vim.AST as V exposing (AST, Operator(..), isEditingOperator)
-import Vim.Helper exposing (escapeKey, parseKeys)
+import Vim.Helper exposing (parseKeys)
 import Vim.Parser exposing (parse)
 
 

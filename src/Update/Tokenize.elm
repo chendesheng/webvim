@@ -17,7 +17,7 @@ import Helper.Helper exposing (httpErrorMessage)
 import Http
 import Internal.Syntax exposing (Token, TokenType(..))
 import Internal.TextBuffer as B
-import Json.Decode as Decode exposing (decodeString)
+import Json.Decode as Decode
 import Model exposing (Editor)
 import Model.Buffer exposing (..)
 import Task exposing (Task)

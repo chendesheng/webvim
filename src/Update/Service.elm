@@ -18,39 +18,21 @@ module Update.Service exposing
     )
 
 import Array as Array
-import Bitwise as Bit
-import Char
 import Dict exposing (Dict)
 import Helper.Helper exposing (..)
 import Http
-import Internal.Jumps exposing (Location)
-import Internal.Position
-    exposing
-        ( Position
-        , endPositionDecoder
-        , positionDecoder
-        , regionDecoder
-        )
-import Internal.Syntax exposing (Token, TokenType(..))
+import Internal.Syntax exposing (TokenType(..))
 import Internal.TextBuffer as B exposing (Patch(..), lineBreak)
 import Internal.Window as Win
 import Json.Decode as Decode exposing (decodeString)
 import List
-import Model exposing (Flags, Key, ServerArgs)
+import Model exposing (Key, ServerArgs)
 import Model.Buffer exposing (..)
 import Model.BufferHistory exposing (emptyBufferHistory)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
-import Parser as P exposing ((|.), (|=), Parser)
-import Regex as Re
-import Task exposing (Task)
-import Update.Message
-    exposing
-        ( BufferIdentifier
-        , Msg(..)
-        , TokenizeRequest
-        , TokenizeResponse(..)
-        )
+import Task
+import Update.Message exposing (Msg(..), TokenizeResponse(..))
 import Update.Tokenize exposing (sendTokenizeTask)
 import Vim.AST exposing (AST)
 

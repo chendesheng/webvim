@@ -1,15 +1,14 @@
 module Internal.TextObject exposing (expandSingleLineTextObject, expandTextObject, findPair, wORDUnderCursor, wordUnderCursor)
 
-import Internal.Brackets as Bracket exposing (bracket, pairBracket)
+import Internal.Brackets exposing (pairBracket)
 import Internal.Position exposing (Position)
 import Internal.PositionClass exposing (findLineFirst, findPosition)
-import Internal.Syntax as Syntax exposing (Syntax)
+import Internal.Syntax exposing (Syntax)
 import Internal.TextBuffer as B
 import Vim.AST
     exposing
         ( Direction(..)
         , MotionData(..)
-        , MotionOption
         , TextObject(..)
         , motionOption
         )

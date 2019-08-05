@@ -7,23 +7,17 @@ module Update.Jump exposing
     , jumpToPath
     )
 
-import Array as Array exposing (Array)
-import Dict exposing (Dict)
 import Helper.Helper
     exposing
-        ( extname
-        , filename
-        , findFirst
+        ( findFirst
         , floorFromZero
         , isPathChar
         , keepOneOrMore
-        , relativePath
         , resolvePath
         )
 import Internal.Jumps
     exposing
-        ( Jumps
-        , Location
+        ( Location
         , currentLocation
         , jumpBackward
         , jumpForward
@@ -36,16 +30,11 @@ import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
-import Model.View as View exposing (View, emptyView, resizeView)
+import Model.View as View exposing (View)
 import Parser as P exposing ((|.), (|=), Parser)
 import Update.Buffer as Buf
 import Update.Message exposing (..)
-import Update.Motion
-    exposing
-        ( setVisualEnd
-        , wORDStringUnderCursor
-        , wordStringUnderCursor
-        )
+import Update.Motion exposing (setVisualEnd, wORDStringUnderCursor)
 import Update.Service exposing (..)
 
 

@@ -12,13 +12,12 @@ import Http
 import Ime exposing (IMEMsg)
 import Internal.Jumps exposing (Location)
 import Internal.Syntax exposing (Syntax, Token)
-import Internal.TextBuffer as B exposing (Patch)
+import Internal.TextBuffer exposing (Patch)
 import Internal.Window as Win
-import Model exposing (Flags, Key, ServerArgs)
+import Model exposing (Key)
 import Model.Buffer exposing (Buffer)
 import Model.Lint exposing (LintError)
 import Model.Size exposing (Size)
-import Result
 import Vim.AST exposing (AST)
 
 
