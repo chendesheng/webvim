@@ -199,10 +199,10 @@ updateMode modeName ({ global, buf } as ed) =
             buf1.view
 
         scrollFrom =
-            Buf.finalScrollTop buf.view.size buf.view buf
+            Buf.finalScrollTop buf
 
         scrollTo =
-            Buf.finalScrollTop view.size view buf1
+            Buf.finalScrollTop buf1
 
         ime =
             if oldModeName /= newModeName then
@@ -353,10 +353,10 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                         { buf | mode = Ex { ex | prefix = prefix1 } }
 
                     scrollFrom =
-                        Buf.finalScrollTop buf.view.size buf.view buf
+                        Buf.finalScrollTop buf
 
                     scrollTo =
-                        Buf.finalScrollTop buf1.view.size buf1.view buf1
+                        Buf.finalScrollTop buf1
                 in
                 { ed
                     | buf =

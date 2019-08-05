@@ -58,7 +58,7 @@ tokenizeBufferCmd begin url buf =
                 buf.view
 
             scrollTop =
-                Buf.finalScrollTop view.size view buf
+                Buf.finalScrollTop buf
 
             scrollBottom =
                 scrollTop + view.size.height

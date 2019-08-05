@@ -87,7 +87,7 @@ withEditorByView path fn global =
             (\frame ->
                 frame
                     |> Frame.getActiveView
-                    |> Maybe.map (\view -> { view | size = frame.size })
+                    |> Maybe.map (\view -> { view | size = frame.size, isActive = True })
             )
         |> Maybe.andThen
             (\view ->

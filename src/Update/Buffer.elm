@@ -809,30 +809,34 @@ getStatusBar mode =
             }
 
 
-finalScrollTop : Size -> View -> Buffer -> Int
-finalScrollTop { height } view buf =
-    case buf.mode of
-        Ex { prefix, visual } ->
-            case prefix of
-                ExSearch { match } ->
-                    case match of
-                        Just ( begin, end ) ->
-                            bestScrollTop
-                                (Basics.min
-                                    (Tuple.first begin)
-                                    (Tuple.first end)
-                                )
-                                height
+finalScrollTop : Buffer -> Int
+finalScrollTop ({ view } as buf) =
+    if view.isActive then
+        case buf.mode of
+            Ex { prefix, visual } ->
+                case prefix of
+                    ExSearch { match } ->
+                        case match of
+                            Just ( begin, end ) ->
+                                bestScrollTop
+                                    (Basics.min
+                                        (Tuple.first begin)
+                                        (Tuple.first end)
+                                    )
+                                    view.size.height
+                                    view.scrollTop
+
+                            _ ->
                                 view.scrollTop
 
-                        _ ->
-                            view.scrollTop
+                    _ ->
+                        view.scrollTop
 
-                _ ->
-                    view.scrollTop
+            _ ->
+                view.scrollTop
 
-        _ ->
-            view.scrollTop
+    else
+        view.scrollTop
 
 
 switchVisualEnd : Buffer -> Buffer

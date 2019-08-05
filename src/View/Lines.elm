@@ -106,9 +106,7 @@ renderHighlights :
     -> Maybe ( VisualMode, List VisualMode )
     -> Html msg
 renderHighlights fontInfo scrollTop lines highlights =
-    case
-        highlights
-    of
+    case highlights of
         Just ( match, matches ) ->
             div
                 [ class "highlights" ]

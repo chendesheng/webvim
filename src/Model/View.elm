@@ -41,6 +41,7 @@ type alias View =
     , lines : List Int
     , gutterLines : List Int
     , size : Size
+    , isActive : Bool
     }
 
 
@@ -56,6 +57,7 @@ emptyView =
     , lines = rangeCount 0 3
     , gutterLines = rangeCount 0 3
     , size = { width = 1, height = 1 }
+    , isActive = False
     }
 
 

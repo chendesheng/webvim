@@ -130,20 +130,23 @@ renderBuffers global views =
 
                     rect =
                         item.rect
-
-                    isActive =
-                        item.isActive
                 in
                 case Dict.get view.bufId global.buffers of
                     Just (Loaded buf) ->
-                        [ renderBuffer item.path rect view buf isActive global
-                        , renderOverlay rect view buf isActive global
+                        let
+                            buf1 =
+                                { buf
+                                    | view = { view | isActive = item.isActive }
+                                }
+                        in
+                        [ renderBuffer item.path rect buf1 global
+                        , renderOverlay rect buf1 global
                         ]
 
                     Just (NotLoad buf) ->
                         -- this is a place holder for not loaded buffer
                         [ renderNotLoadBuffer rect
-                        , renderOverlay rect view buf isActive global
+                        , renderOverlay rect buf global
                         ]
 
                     _ ->
@@ -212,9 +215,15 @@ isListenMouseWheel mode showTip lint =
             not showTip || List.isEmpty lint.items
 
 
-renderOverlay : Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
-renderOverlay rect view buf isActive global =
+renderOverlay : Win.Rect -> Buffer -> Global -> Html Msg
+renderOverlay rect buf global =
     let
+        view =
+            buf.view
+
+        isActive =
+            view.isActive
+
         totalLines =
             B.count buf.lines - 1
 
@@ -254,14 +263,14 @@ renderNotLoadBuffer rect =
         []
 
 
-renderBuffer : Win.Path -> Win.Rect -> View -> Buffer -> Bool -> Global -> Html Msg
-renderBuffer path rect view buf isActive global =
+renderBuffer : Win.Path -> Win.Rect -> Buffer -> Global -> Html Msg
+renderBuffer path rect buf global =
     let
-        { mode, lines, syntax, continuation, history } =
+        { view, mode, lines, syntax, continuation, history } =
             buf
 
-        cursor =
-            view.cursor
+        { isActive, cursor } =
+            view
 
         { fontInfo, ime, lint, lineHeight } =
             global
@@ -278,18 +287,26 @@ renderBuffer path rect view buf isActive global =
             B.count lines - 1
 
         maybeCursor =
-            case mode of
-                Ex _ ->
-                    Nothing
+            if isActive then
+                case mode of
+                    Ex _ ->
+                        Nothing
 
-                _ ->
-                    Just cursor
+                    _ ->
+                        Just cursor
+
+            else
+                Just cursor
 
         scrollTop =
-            Buf.finalScrollTop view.size view buf
+            Buf.finalScrollTop buf
 
         highlights =
-            incrementSearchRegion mode
+            if isActive then
+                incrementSearchRegion mode
+
+            else
+                Nothing
 
         relativeZeroLine =
             highlights
