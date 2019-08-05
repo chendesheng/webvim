@@ -4,7 +4,7 @@ import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Model exposing (..)
 import Model.Buffer exposing (..)
-import Model.Frame as Frame exposing (Frame, emptyFrame)
+import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
 import Model.Size exposing (..)
 import Model.View as View exposing (..)
@@ -16,6 +16,12 @@ import Vim.AST as V exposing (AST, Operator(..), isEditingOperator)
 onMouseWheel : Win.Path -> Int -> Int -> Editor -> ( Editor, Cmd Msg )
 onMouseWheel path deltaY deltaX ({ buf, global } as ed) =
     let
+        --_ =
+        --    Debug.log "deltaY" deltaY
+        --_ =
+        --    Debug.log "scrollTopPx" scrollTopPx
+        --_ =
+        --    Debug.log "scrollTopOffsetPx" (remainderBy lineHeight scrollTopPx)
         view =
             buf.view
 
@@ -23,35 +29,45 @@ onMouseWheel path deltaY deltaX ({ buf, global } as ed) =
             global.lineHeight
 
         scrollTopPx =
-            (view.scrollTopPx + deltaY)
+            (view.scrollTop * lineHeight + view.scrollTopOffsetPx + deltaY)
                 |> max 0
                 |> min ((B.count buf.lines - 2) * lineHeight)
 
         scrollTopDelta =
             scrollTopPx // lineHeight - buf.view.scrollTop
+
+        ( ed1, cmd ) =
+            applyVimAST False
+                "<mousewheel>"
+                { count = Nothing
+                , edit = Just <| V.Scroll <| V.ScrollBy scrollTopDelta
+                , register = V.defaultRegister
+                , modeName = getModeName buf.mode
+                , recordMacro = Nothing
+                , recordKeys = ""
+                }
+                ed
+
+        --_ =
+        --    Debug.log "ed1.buf.view" ed1.buf.view
+        view1 =
+            ed1.buf.view
     in
-    { ed
+    ( { ed1
         | buf =
             { buf
                 | view =
-                    { view
-                        | scrollTopPx = scrollTopPx
+                    { view1
+                        | scrollTopOffsetPx = remainderBy lineHeight scrollTopPx
 
                         --, scrollLeftPx =
                         --    (view.scrollLeftPx + deltaX)
                         --        |> max 0
                     }
             }
-    }
-        |> applyVimAST False
-            "<mousewheel>"
-            { count = Nothing
-            , edit = Just <| V.Scroll <| V.ScrollBy scrollTopDelta
-            , register = V.defaultRegister
-            , modeName = getModeName buf.mode
-            , recordMacro = Nothing
-            , recordKeys = ""
-            }
+      }
+    , cmd
+    )
 
 
 onResize : Size -> Global -> Global

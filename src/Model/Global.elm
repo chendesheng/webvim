@@ -153,7 +153,7 @@ updateJumps fn global =
     { global
         | window =
             Win.updateActiveFrame
-                (\frame -> { frame | jumps = fn frame.jumps })
+                (Frame.updateJumps fn)
                 global.window
     }
 
@@ -162,5 +162,5 @@ getJumps : Global -> Jumps
 getJumps global =
     global.window
         |> Win.getActiveFrame
-        |> Maybe.map .jumps
+        |> Maybe.map Frame.getJumps
         |> Maybe.withDefault Zipper.empty

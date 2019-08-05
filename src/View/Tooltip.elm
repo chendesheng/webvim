@@ -36,17 +36,13 @@ renderTooltip global view buf =
                 text ""
 
             _ ->
-                let
-                    topOffsetPx =
-                        remainderBy global.lineHeight view.scrollTopPx
-                in
                 lazy8 renderTooltipInner
                     global.fontInfo
                     buf.lines
                     global.size.width
                     global.lineHeight
                     view.scrollTop
-                    topOffsetPx
+                    view.scrollTopOffsetPx
                     view.cursor
                     global.lint.items
 

@@ -998,7 +998,7 @@ motion count md mo ({ buf, global } as ed) =
                 buf1 =
                     Buf.updateView
                         (View.setCursor cursor (isSaveColumn md)
-                            >> View.setScrollTop scrollTop global.lineHeight
+                            >> View.setScrollTop scrollTop
                         )
                         buf
 

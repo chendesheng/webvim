@@ -120,9 +120,9 @@ windowEncoder =
     Win.windowEncoder frameEncoder
 
 
-windowDecoder : Int -> Decode.Decoder (Window Frame)
-windowDecoder lineHeight =
-    Win.windowDecoder (frameDecoder lineHeight)
+windowDecoder : Decode.Decoder (Window Frame)
+windowDecoder =
+    Win.windowDecoder frameDecoder
 
 
 type alias Key =
@@ -290,7 +290,7 @@ cleanBuffers global =
         bufIds =
             global.window
                 |> Win.toList
-                |> List.concatMap (\item -> List.map .bufId item.frame.views)
+                |> List.concatMap (\item -> List.map .bufId <| Frame.getViews item.frame)
                 |> Set.fromList
     in
     { global

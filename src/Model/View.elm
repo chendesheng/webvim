@@ -35,7 +35,7 @@ type alias View =
     , cursor : Position
     , cursorColumn : Int
     , scrollTop : Int
-    , scrollTopPx : Int
+    , scrollTopOffsetPx : Int
     , scrollLeftPx : Int
     , matchedCursor : Maybe ( Position, Position )
     , lines : List Int
@@ -51,7 +51,7 @@ emptyView =
     , cursor = ( 0, 0 )
     , cursorColumn = 0
     , scrollTop = 0
-    , scrollTopPx = 0
+    , scrollTopOffsetPx = 0
     , scrollLeftPx = 0
     , matchedCursor = Nothing
     , lines = rangeCount 0 3
@@ -70,8 +70,8 @@ viewEncoder view =
         ]
 
 
-viewDecoder : Int -> Decode.Decoder View
-viewDecoder lineHeight =
+viewDecoder : Decode.Decoder View
+viewDecoder =
     Decode.map3
         (\bufId cursor scrollTop ->
             { emptyView
@@ -79,7 +79,7 @@ viewDecoder lineHeight =
                 , cursor = cursor
                 , cursorColumn = Tuple.second cursor
                 , scrollTop = scrollTop
-                , scrollTopPx = scrollTop * lineHeight
+                , scrollTopOffsetPx = 0
             }
         )
         (Decode.field "bufId" Decode.string)
@@ -174,8 +174,8 @@ scrollViewLines height_ from to viewLines =
         viewLines
 
 
-setScrollTop : Int -> Int -> View -> View
-setScrollTop n lineHeight view =
+setScrollTop : Int -> View -> View
+setScrollTop n view =
     if n == view.scrollTop then
         view
 
@@ -186,12 +186,7 @@ setScrollTop n lineHeight view =
         in
         { view
             | scrollTop = n
-            , scrollTopPx =
-                if n == view.scrollTopPx // lineHeight then
-                    view.scrollTopPx
-
-                else
-                    n * lineHeight
+            , scrollTopOffsetPx = 0
             , lines = viewLines
             , gutterLines =
                 if view.scrollTop == n then
@@ -315,8 +310,8 @@ applyRegionChangeToView change scrollTop height viewLines =
 
 {-| scroll to ensure pos it is insdie viewport
 -}
-scrollTo : Int -> Int -> View -> View
-scrollTo y lineHeight view =
+scrollTo : Int -> View -> View
+scrollTo y view =
     let
         miny =
             view.scrollTop
@@ -333,13 +328,22 @@ scrollTo y lineHeight view =
 
             else
                 miny
+
+        updateOffsetPx v =
+            if v.scrollTop == y then
+                { v | scrollTopOffsetPx = 0 }
+
+            else
+                v
     in
-    setScrollTop scrollTop lineHeight view
+    view
+        |> setScrollTop scrollTop
+        |> updateOffsetPx
 
 
-scrollToCursor : Int -> View -> View
-scrollToCursor lineHeight view =
-    scrollTo (Tuple.first view.cursor) lineHeight view
+scrollToCursor : View -> View
+scrollToCursor view =
+    scrollTo (Tuple.first view.cursor) view
 
 
 correctCursor : Bool -> TextBuffer -> View -> View

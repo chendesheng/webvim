@@ -27,7 +27,7 @@ renderAutoComplete view buf global =
             global.lineHeight
 
         topOffsetPx =
-            remainderBy lineHeight view.scrollTopPx
+            view.scrollTopOffsetPx
     in
     case buf.mode of
         Insert { autoComplete } ->
@@ -58,7 +58,7 @@ renderExAutoComplete view buf global =
             global.lineHeight
 
         topOffsetPx =
-            remainderBy lineHeight view.scrollTopPx
+            view.scrollTopOffsetPx
     in
     case buf.mode of
         Ex ex ->

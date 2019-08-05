@@ -32,7 +32,7 @@ cursorScope lineHeight lines view =
             cursor
 
         scrollTop =
-            if remainderBy lineHeight view.scrollTopPx > 0 then
+            if view.scrollTopOffsetPx > 0 then
                 view.scrollTop + 1
 
             else
@@ -227,7 +227,7 @@ scroll count value lineCounts global view =
                         V.ScrollToMiddle ->
                             y - (size.height - 2) // 2
             in
-            View.setScrollTop (scope y1) global.lineHeight view_
+            View.setScrollTop (scope y1) view_
     in
     view
         |> setCursor

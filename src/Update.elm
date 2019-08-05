@@ -16,7 +16,7 @@ import Internal.Window as Win
 import Json.Decode as Decode
 import Model exposing (..)
 import Model.Buffer exposing (..)
-import Model.Frame as Frame exposing (Frame, emptyFrame)
+import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.LoadBuffer exposing (..)
@@ -83,12 +83,7 @@ withEditorByView :
 withEditorByView path fn global =
     global.window
         |> Win.getFrame path
-        |> Maybe.andThen
-            (\frame ->
-                frame
-                    |> Frame.getActiveView
-                    |> Maybe.map (\view -> { view | size = frame.size, isActive = True })
-            )
+        |> Maybe.andThen Frame.getActiveView
         |> Maybe.andThen
             (\view ->
                 global.buffers
@@ -365,15 +360,15 @@ onSearch result ed =
             ( ed, Cmd.none )
 
 
-updateViewAfterCursorChanged : Int -> Mode -> B.TextBuffer -> Syntax -> View -> View
-updateViewAfterCursorChanged lineHeight mode lines syntax =
+updateViewAfterCursorChanged : Mode -> B.TextBuffer -> Syntax -> View -> View
+updateViewAfterCursorChanged mode lines syntax =
     correctCursor (isExculdLineBreak mode) lines
-        >> scrollToCursor lineHeight
+        >> scrollToCursor
         >> pairCursor mode lines syntax
 
 
-restoreBufferHistory : Int -> Buffer -> Buffer
-restoreBufferHistory lineHeight buf =
+restoreBufferHistory : Buffer -> Buffer
+restoreBufferHistory buf =
     buf
         |> Buf.transaction buf.history.changes
         |> Buf.updateHistory (always buf.history)
@@ -383,7 +378,6 @@ restoreBufferHistory lineHeight buf =
                         buf1.view
                             |> View.setCursor buf.view.cursor True
                             |> updateViewAfterCursorChanged
-                                lineHeight
                                 buf1.mode
                                 buf1.lines
                                 buf1.syntax
@@ -399,7 +393,7 @@ onRead result global =
                 --_ =
                 --Debug.log "onRead" ( setActive, buf.path )
                 buf2 =
-                    restoreBufferHistory global.lineHeight buf
+                    restoreBufferHistory buf
 
                 global2 =
                     Buf.addBuffer buf2 global
@@ -443,7 +437,6 @@ onWrite result ({ buf, global } as ed) =
                                 Buf.updateView
                                     (View.setCursor buf.view.cursor True
                                         >> updateViewAfterCursorChanged
-                                            global.lineHeight
                                             buf2.mode
                                             buf2.lines
                                             buf2.syntax
@@ -529,7 +522,7 @@ init flags theme fontInfo size args =
                                         in
                                         { config | syntax = False }
                                   }
-                                    |> restoreBufferHistory lineHeight
+                                    |> restoreBufferHistory
                                     |> Loaded
                                 )
 
@@ -540,11 +533,9 @@ init flags theme fontInfo size args =
 
         decodedWindow =
             window
-                |> Decode.decodeValue (windowDecoder lineHeight)
+                |> Decode.decodeValue windowDecoder
                 |> Result.withDefault
-                    (Win.initWindow
-                        { emptyFrame | views = [ emptyView ] }
-                    )
+                    (Win.initWindow <| Frame.addOrActiveView emptyView Frame.empty)
                 |> resizeViews size lineHeight
 
         dictBuffers =

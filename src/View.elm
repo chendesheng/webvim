@@ -240,11 +240,7 @@ renderOverlay rect buf global =
             |> style "left"
         ]
         (if isActive then
-            renderTooltip
-                global
-                view
-                buf
-                :: renderAutoComplete view buf global
+            renderTooltip global view buf :: renderAutoComplete view buf global
 
          else
             []
@@ -281,7 +277,7 @@ renderBuffer path rect buf global =
             view.size.height + 2
 
         topOffsetPx =
-            remainderBy lineHeight view.scrollTopPx
+            view.scrollTopOffsetPx
 
         totalLines =
             B.count lines - 1

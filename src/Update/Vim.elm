@@ -38,7 +38,7 @@ import Internal.Window as Win
 import Json.Decode as Decode
 import Model exposing (..)
 import Model.Buffer exposing (..)
-import Model.Frame as Frame exposing (Frame, emptyFrame)
+import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.LoadBuffer exposing (..)
@@ -1077,7 +1077,6 @@ applyVimAST replaying key ast ({ buf } as ed) =
                         { buf1
                             | view =
                                 updateViewAfterCursorChanged
-                                    ed.global.lineHeight
                                     buf1.mode
                                     buf1.lines
                                     buf1.syntax
@@ -1162,26 +1161,18 @@ resizeViews : Size -> Int -> Win.Window Frame -> Win.Window Frame
 resizeViews size lineHeight =
     Win.mapFrame
         (\frame ( widthPercent, heightPercent ) ->
-            let
-                frameSize =
-                    { width = ceiling <| toFloat size.width * widthPercent
-                    , height =
-                        (ceiling <| toFloat size.height * heightPercent)
-                            // lineHeight
-                    }
-            in
-            Frame.updateActiveView
-                (resizeView frameSize
-                    >> scrollToCursor lineHeight
-                )
-                { frame | size = frameSize }
+            Frame.resize
+                { width = ceiling <| toFloat size.width * widthPercent
+                , height = (ceiling <| toFloat size.height * heightPercent) // lineHeight
+                }
+                frame
         )
 
 
-updateViewAfterCursorChanged : Int -> Mode -> B.TextBuffer -> Syntax -> View -> View
-updateViewAfterCursorChanged lineHeight mode lines syntax =
+updateViewAfterCursorChanged : Mode -> B.TextBuffer -> Syntax -> View -> View
+updateViewAfterCursorChanged mode lines syntax =
     correctCursor (isExculdLineBreak mode) lines
-        >> scrollToCursor lineHeight
+        >> scrollToCursor
         >> pairCursor mode lines syntax
 
 
