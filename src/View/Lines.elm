@@ -309,7 +309,7 @@ renderVisual fontInfo scrollTop height mode lines =
                             case prefix of
                                 ExSearch { match } ->
                                     case match of
-                                        Just ( begin, end ) ->
+                                        Just ( begin, _ ) ->
                                             Just { v | end = begin }
 
                                         _ ->

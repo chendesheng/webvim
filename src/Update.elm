@@ -152,7 +152,7 @@ update message global =
                         )
                         global
 
-                Err s ->
+                Err _ ->
                     ( global, Cmd.none )
 
         WriteClipboard _ ->

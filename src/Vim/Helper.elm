@@ -96,7 +96,7 @@ dropLast l =
         [] ->
             []
 
-        [ x ] ->
+        [ _ ] ->
             []
 
         x :: xs ->
@@ -208,7 +208,7 @@ aggregateRegister modeDelta =
         |> List.filter
             (\change ->
                 case change of
-                    PushRegister reg ->
+                    PushRegister _ ->
                         True
 
                     _ ->

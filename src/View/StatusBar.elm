@@ -42,7 +42,7 @@ renderStatusBarLeft fontInfo ime mode =
 
         divs =
             case statusBar.cursor of
-                Just ( y, x ) ->
+                Just ( _, x ) ->
                     [ renderCursorInner True
                         True
                         fontInfo

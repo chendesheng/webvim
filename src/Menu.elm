@@ -123,7 +123,7 @@ scrollBackward m =
 
 
 show : Model a -> List a
-show (Model { scrollPos, maxItems, selected }) =
+show (Model { scrollPos, maxItems }) =
     scrollPos
         |> Zipper.getForwards
         |> List.take maxItems

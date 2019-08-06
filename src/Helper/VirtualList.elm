@@ -72,7 +72,7 @@ setScrollTop i ({ scrollTop } as list) =
 
 
 getScrollTop : Int -> VirtualList a -> ( Int, Int )
-getScrollTop px ({ scrollTopPx, scrollTopOffset, scrollTop, data } as list) =
+getScrollTop px { scrollTopPx, scrollTopOffset, data } =
     if px > scrollTopPx + scrollTopOffset then
         reduceHeight (px - scrollTopPx - scrollTopOffset) data scrolltop
 
@@ -109,7 +109,7 @@ reduceHeightBackward height data i =
 
 
 setScrollTopPx : Int -> VirtualList a -> VirtualList a
-setScrollTopPx px ({ scrollTopPx } as list) =
+setScrollTopPx px list =
     let
         ( scrollTop, scrollTopOffset ) =
             getScrollTop px list
@@ -125,7 +125,7 @@ renderView : (a -> Html msg) -> VirtualList a -> Html msg
 renderView renderItem list =
     div []
         (List.map
-            (\{ item, top } ->
+            (\{ item } ->
                 renderItem <| Tuple.first item
             )
             list.view

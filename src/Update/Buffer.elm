@@ -249,7 +249,7 @@ transaction patches buf =
 updateCursor : Patch -> Patch -> Position -> Position
 updateCursor patch patch1 cursor =
     case patch of
-        Insertion pos s ->
+        Insertion pos _ ->
             if cursor < pos then
                 cursor
 
@@ -795,7 +795,7 @@ finalScrollTop : Buffer -> Int
 finalScrollTop ({ view } as buf) =
     if view.isActive then
         case buf.mode of
-            Ex { prefix, visual } ->
+            Ex { prefix } ->
                 case prefix of
                     ExSearch { match } ->
                         case match of

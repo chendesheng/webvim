@@ -13,9 +13,9 @@ import Vim.AST as V exposing (ChangeCase(..), Operator(..))
 
 
 select : Maybe Int -> V.TextObject -> Bool -> Editor -> Editor
-select count textobj around ({ buf, global } as ed) =
+select count textobj around ({ buf } as ed) =
     case buf.mode of
-        Visual { tipe, begin, end } ->
+        Visual { begin, end } ->
             { ed
                 | buf =
                     (if begin == end then

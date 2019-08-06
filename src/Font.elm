@@ -135,7 +135,7 @@ charWidth { widths } ch =
     in
     widths
         |> findFirst
-            (\( tipe, width ) ->
+            (\( tipe, _ ) ->
                 tipe == widthType
             )
         |> Maybe.map Tuple.second

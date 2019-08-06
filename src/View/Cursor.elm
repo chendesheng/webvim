@@ -42,7 +42,7 @@ renderCursorInner :
     -> Html Msg
 renderCursorInner isActive isMainCursor fontInfo ime lines classname y x =
     let
-        ( ( by, bx ), ( ey, ex ) ) =
+        ( ( _, bx ), ( _, ex ) ) =
             cursorPoint fontInfo lines y x
 
         imeIsActive =

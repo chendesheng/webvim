@@ -172,7 +172,7 @@ renderBorders borders =
 renderStatus : Buffer -> Global -> Html Msg
 renderStatus buf global =
     let
-        { fontInfo, ime, lint, lineHeight } =
+        { fontInfo, ime, lint } =
             global
 
         { mode, name, continuation } =
@@ -253,7 +253,7 @@ renderNotLoadBuffer rect =
 renderBuffer : Win.Path -> Win.Rect -> Buffer -> Global -> Html Msg
 renderBuffer path rect buf global =
     let
-        { view, mode, lines, syntax, continuation, history } =
+        { view, mode, lines, syntax } =
             buf
 
         { isActive, cursor } =
@@ -383,7 +383,7 @@ renderBuffer path rect buf global =
 incrementSearchRegion : Mode -> Maybe ( VisualMode, List VisualMode )
 incrementSearchRegion mode =
     case mode of
-        Ex { prefix, visual } ->
+        Ex { prefix } ->
             case prefix of
                 ExSearch { match, highlights } ->
                     case match of

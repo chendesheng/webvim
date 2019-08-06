@@ -13,12 +13,12 @@ import Vim.AST as V exposing (Operator(..))
 isLinewise : V.OperatorRange -> Mode -> Bool
 isLinewise range mode =
     case range of
-        V.MotionRange md mo ->
+        V.MotionRange _ mo ->
             mo.linewise
 
         V.VisualRange linewise ->
             case mode of
-                Visual { tipe, begin, end } ->
+                Visual { tipe } ->
                     case tipe of
                         V.VisualLine ->
                             True
@@ -175,7 +175,7 @@ operatorRanges count range global buf =
 
         V.TextObject textObject around ->
             let
-                ( y, x ) =
+                _ =
                     buf.view.cursor
             in
             buf.view.cursor

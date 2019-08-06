@@ -99,7 +99,7 @@ autoCompleteTarget wordChars buf =
             buf.lines
             ( y, x - 1 )
             |> Maybe.andThen
-                (\(( pos, s ) as result) ->
+                (\( pos, s ) ->
                     if pos > ( y, x - 1 ) then
                         Nothing
 

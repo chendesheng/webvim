@@ -70,7 +70,7 @@ delete count register rg ({ global, buf } as ed) =
                         setCursor : Buffer -> Buffer
                         setCursor buf__ =
                             case getLast patches of
-                                Just (Deletion b e) ->
+                                Just (Deletion b _) ->
                                     Buf.updateView (View.setCursor b True) buf__
 
                                 _ ->
@@ -193,7 +193,7 @@ saveLastDeleted linewise reg buf global =
 join : Maybe Int -> Bool -> Buffer -> Buffer
 join count collapseSpaces buf =
     let
-        ( y, x ) =
+        ( y, _ ) =
             buf.view.cursor
     in
     case buf.mode of

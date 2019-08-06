@@ -239,7 +239,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
 
                 cursor =
                     case oldMode of
-                        Insert data ->
+                        Insert _ ->
                             ( y, max (x - 1) 0 )
 
                         _ ->
@@ -372,7 +372,7 @@ modeChanged replaying key oldMode lineDeltaMotion ({ buf, global } as ed) =
                     , global = global1
                 }
 
-        Insert { visual } ->
+        Insert _ ->
             let
                 last =
                     global.last
@@ -436,7 +436,7 @@ correctLines buf =
 
 
 editTestBuffer : String -> Editor -> ( Editor, Cmd Msg )
-editTestBuffer path ({ buf, global } as ed) =
+editTestBuffer path ({ global } as ed) =
     let
         ( global1, buf1 ) =
             createBuffer path global
@@ -612,7 +612,7 @@ execute count register str { buf, global } =
 saveExHistory : String -> List String -> List String
 saveExHistory s exHistory =
     case exHistory of
-        h :: rest ->
+        h :: _ ->
             if s == h then
                 exHistory
 
@@ -660,7 +660,7 @@ serviceBeforeApplyVimAST replaying key ast service =
     case ast.edit of
         Just op ->
             case op of
-                Put forward ->
+                Put _ ->
                     if ast.register == "+" then
                         sendReadClipboard
                             replaying
@@ -680,7 +680,7 @@ serviceBeforeApplyVimAST replaying key ast service =
 
 
 replayKeys : String -> Editor -> ( Editor, Cmd Msg )
-replayKeys s ({ buf, global } as ed) =
+replayKeys s ({ global } as ed) =
     if s == "" then
         ( ed, Cmd.none )
 
@@ -919,7 +919,7 @@ switchView type_ ({ global } as ed) =
 
 
 applyEdit : Maybe Int -> Maybe Operator -> String -> Editor -> ( Editor, Cmd Msg )
-applyEdit count edit register ({ buf } as ed) =
+applyEdit count edit register ed =
     case edit of
         Just operator ->
             let

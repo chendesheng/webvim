@@ -358,7 +358,7 @@ onTokenized ({ buf, global } as ed) resp =
                                 }
                         }
 
-                TokenizeError s ->
+                TokenizeError _ ->
                     let
                         config =
                             buf.config

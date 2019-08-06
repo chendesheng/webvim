@@ -53,7 +53,7 @@ isForwardsEmpty (Zipper _ right) =
 
 
 moveBackward : Zipper a -> Maybe (Zipper a)
-moveBackward ((Zipper left right) as zipper) =
+moveBackward (Zipper left right) =
     case left of
         item :: rest ->
             Just <| Zipper rest (item :: right)
@@ -63,7 +63,7 @@ moveBackward ((Zipper left right) as zipper) =
 
 
 moveForward : Zipper a -> Maybe (Zipper a)
-moveForward ((Zipper left right) as zipper) =
+moveForward (Zipper left right) =
     case right of
         item :: ((_ :: _) as rest) ->
             Just <| Zipper (item :: left) rest
@@ -133,17 +133,16 @@ find pred zipper =
 
 findHelper : (a -> Bool) -> Zipper a -> Maybe (Zipper a)
 findHelper pred zipper =
-    case getCurrent zipper of
-        Just x ->
-            if pred x then
-                Just zipper
+    getCurrent zipper
+        |> Maybe.andThen
+            (\x ->
+                if pred x then
+                    Just zipper
 
-            else
-                moveForward zipper
-                    |> Maybe.andThen (findHelper pred)
-
-        _ ->
-            Nothing
+                else
+                    moveForward zipper
+                        |> Maybe.andThen (findHelper pred)
+            )
 
 
 getBackwards : Zipper a -> List a
@@ -162,9 +161,5 @@ getNth n zipper =
         getCurrent zipper
 
     else
-        case moveForward zipper of
-            Just z ->
-                getNth (n - 1) z
-
-            Nothing ->
-                Nothing
+        moveForward zipper
+            |> Maybe.andThen (getNth <| n - 1)

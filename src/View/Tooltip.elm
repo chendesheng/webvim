@@ -72,7 +72,7 @@ renderTooltipInner fontInfo lines width lineHeight scrollTop topOffsetPx cursor 
             in
             ( abs (y1 - y), abs (x1 - x) )
 
-        renderDetails ( y, x ) overview details =
+        renderDetails _ overview details =
             div
                 [ style "top" <|
                     px <|

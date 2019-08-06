@@ -88,9 +88,9 @@ searchTree includeCurrent pred tree path =
 {-| find start from current position (include current position)
 -}
 find : Bool -> (a -> Bool) -> Zipper a -> Maybe (Zipper a)
-find includeCurrent pred ({ tree, current, path } as z) =
+find includeCurrent pred { tree, current, path } =
     case current of
-        Node a _ right ->
+        Node _ _ _ ->
             case searchTree includeCurrent pred current [] of
                 Nothing ->
                     case
@@ -151,7 +151,7 @@ subtree path tree =
 
 
 updateSubtree : (Tree a -> Tree a) -> Zipper a -> Zipper a
-updateSubtree fn ({ tree, current, path } as zipper) =
+updateSubtree fn ({ tree, path } as zipper) =
     let
         path1 =
             List.reverse path
@@ -197,7 +197,7 @@ updateSubtreeHelper fn path tree =
 
 
 goRoot : Zipper a -> Zipper a
-goRoot { tree, current, path } =
+goRoot { tree } =
     { tree = tree
     , current = tree
     , path = []
@@ -219,7 +219,7 @@ goLeft { tree, path, current } =
 
 
 goParent : Zipper a -> Maybe (Zipper a)
-goParent { tree, path, current } =
+goParent { tree, path } =
     case path of
         [] ->
             Nothing
@@ -329,7 +329,7 @@ split sp frame win =
                 case tree of
                     Node w _ _ ->
                         case w of
-                            NoSplit id ->
+                            NoSplit _ ->
                                 Node sp
                                     tree
                                     (Node (NoSplit frame)
@@ -337,7 +337,7 @@ split sp frame win =
                                         Empty
                                     )
 
-                            o ->
+                            _ ->
                                 tree
 
                     _ ->
@@ -398,7 +398,7 @@ activeNextFrameHelper includeCurrent win =
             find includeCurrent
                 (\nd ->
                     case nd of
-                        NoSplit v ->
+                        NoSplit _ ->
                             True
 
                         _ ->
@@ -671,7 +671,7 @@ updateActiveFrame fn =
 getFrame : Path -> Window a -> Maybe a
 getFrame path win =
     case subtree (List.reverse path) win.tree of
-        Just (Node (NoSplit frame) left right) ->
+        Just (Node (NoSplit frame) _ _) ->
             Just frame
 
         _ ->
@@ -826,7 +826,7 @@ toBordersHelper :
     -> List Rect
 toBordersHelper tree rect =
     case tree of
-        Node (NoSplit id) Empty Empty ->
+        Node (NoSplit _) Empty Empty ->
             []
 
         Node (VSplit percent) left right ->
@@ -1000,10 +1000,10 @@ treeToString toStr tree dirs currentDirs deep parent =
             let
                 spDir =
                     case d of
-                        VSplit f ->
+                        VSplit _ ->
                             "v────"
 
-                        HSplit f ->
+                        HSplit _ ->
                             "h────"
 
                         _ ->

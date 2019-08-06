@@ -232,10 +232,10 @@ registerToString registers =
                 Encode.object
                     [ ( "name", Encode.string k )
                     , case v of
-                        Text s ->
+                        Text _ ->
                             ( "type", Encode.string "text" )
 
-                        Lines s ->
+                        Lines _ ->
                             ( "type", Encode.string "lines" )
                     , case v of
                         Text s ->

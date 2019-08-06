@@ -584,7 +584,7 @@ charAt x s =
 isSingleChar : String -> Bool
 isSingleChar s =
     case String.uncons s of
-        Just ( first, rest ) ->
+        Just ( _, rest ) ->
             String.isEmpty rest
 
         _ ->

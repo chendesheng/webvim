@@ -111,13 +111,13 @@ updateWord { pathSeperator, homedir, cwd } word (Model m) =
 
         newProvider =
             case provider of
-                FileName path ->
+                FileName _ ->
                     FileName <| toPath word
 
-                DirectoryName path ->
+                DirectoryName _ ->
                     DirectoryName <| toPath word
 
-                AllFiles path ->
+                AllFiles _ ->
                     AllFiles <| toPath word
 
                 WordsInBuffer _ ->
@@ -144,7 +144,7 @@ updateSource source (Model m) =
 
 
 render : Model -> Html msg
-render (Model m) =
+render (Model _) =
     div [] []
 
 

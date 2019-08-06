@@ -81,7 +81,7 @@ getActiveViewIdHelper { views } =
 getAlterViewId : Frame -> Maybe String
 getAlterViewId (Frame { views }) =
     case views of
-        a :: b :: rest ->
+        _ :: b :: _ ->
             Just b.bufId
 
         _ ->
@@ -89,7 +89,7 @@ getAlterViewId (Frame { views }) =
 
 
 getView : String -> Frame -> Maybe View
-getView id ((Frame { views, size }) as frame) =
+getView id ((Frame { views }) as frame) =
     let
         isActive =
             Just id == getActiveViewId frame

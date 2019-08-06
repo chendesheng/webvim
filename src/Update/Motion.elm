@@ -33,7 +33,7 @@ import Vim.AST as V exposing (Operator(..))
 setVisualBegin : Position -> Buffer -> Buffer
 setVisualBegin pos buf =
     case buf.mode of
-        Visual { tipe, begin, end } ->
+        Visual { tipe, end } ->
             { buf
                 | mode =
                     Visual
@@ -65,7 +65,7 @@ setVisualBegin pos buf =
 setVisualEnd : Position -> Buffer -> Buffer
 setVisualEnd pos buf =
     case buf.mode of
-        Visual { tipe, begin, end } ->
+        Visual { tipe, begin } ->
             { buf
                 | mode =
                     Visual
@@ -152,7 +152,7 @@ saveMotion md mo oldbuf buf global =
                             case buf.mode of
                                 Ex { prefix, exbuf } ->
                                     case prefix of
-                                        ExSearch { forward, match } ->
+                                        ExSearch { forward } ->
                                             let
                                                 s =
                                                     exbuf.lines
@@ -243,7 +243,7 @@ gotoMatchedString :
     -> Maybe Position
 gotoMatchedString count mo matchStr buf =
     case buf.mode of
-        Ex { prefix, exbuf } ->
+        Ex { prefix } ->
             case prefix of
                 ExSearch { match } ->
                     Maybe.map Tuple.first match
@@ -306,7 +306,7 @@ matchStringForward :
     -> Position
     -> B.TextBuffer
     -> Maybe ( Position, Position )
-matchStringForward re cursor (( y, x ) as start) lines =
+matchStringForward re cursor (( y, _ ) as start) lines =
     case B.getLine y lines of
         Just line ->
             case
@@ -517,7 +517,7 @@ runMotion count md mo global buf =
                         else
                             -(Maybe.withDefault 1 count)
 
-                    ( y, x ) =
+                    ( y, _ ) =
                         buf.view.cursor
 
                     y1 =
@@ -591,7 +591,7 @@ runMotion count md mo global buf =
                             |> Maybe.andThen
                                 (\res ->
                                     let
-                                        ( begin, str_ ) =
+                                        ( _, str_ ) =
                                             res
 
                                         maybeRe =

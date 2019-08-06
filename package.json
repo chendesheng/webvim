@@ -1,6 +1,6 @@
 {
   "name": "webvim",
-  "version": "0.17.0",
+  "version": "0.17.1",
   "description": "A tony vim clone",
   "main": "dist/webvim-backend.js",
   "scripts": {
