@@ -1,5 +1,6 @@
 module Update.CTag exposing (onReadTags, startJumpToTag)
 
+import Fs
 import Helper.Helper exposing (..)
 import Http
 import Internal.Jumps exposing (..)
@@ -86,8 +87,8 @@ startJumpToTag count ({ buf, global } as ed) =
         Just ( _, s ) ->
             ( ed
             , sendReadTags global.service
-                global.pathSeperator
-                global.cwd
+                (Fs.pathSeperator global.fs)
+                (Fs.workingDir global.fs)
                 buf.path
                 (Maybe.withDefault 1 count - 1)
                 s

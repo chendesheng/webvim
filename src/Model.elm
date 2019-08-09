@@ -87,8 +87,7 @@ createBuffer path global =
         , config =
             { config
                 | lint =
-                    isLintEnabled global.pathSeperator
-                        global.homedir
+                    isLintEnabled global.fs
                         (name ++ ext)
                         config.lint
                 , syntax = not <| isTempBuffer path

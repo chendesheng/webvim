@@ -1,21 +1,18 @@
 module Update.Service exposing
-    ( bootDecoder
-    , lineDiffDecoder
-    , parseFileList
+    ( lineDiffDecoder
     , sendCd
     , sendListAllFiles
-    , sendListDirectories
+    , sendListDirs
     , sendListFiles
     , sendMkDir
     , sendReadBuffer
-    , sendReadClipboard
     , sendSearch
     , sendWriteBuffer
-    , sendWriteClipboard
     )
 
 import Array as Array
 import Dict exposing (Dict)
+import Fs exposing (FileSystem)
 import Helper.Helper exposing (..)
 import Http
 import Internal.Syntax exposing (TokenType(..))
@@ -67,284 +64,149 @@ lineDiffDecoder =
         |> Decode.list
 
 
-sendReadBuffer : String -> Int -> Win.Path -> Buffer -> Cmd Msg
-sendReadBuffer url viewHeight framePath buf =
-    { method = "GET"
-    , headers = []
-    , url = url ++ "/read?path=" ++ buf.path
-    , body = Http.emptyBody
-    , resolver = Http.stringResolver httpStringResponse
-    , timeout = Nothing
-    }
-        |> Http.task
+sendReadBuffer : String -> FileSystem -> Int -> Win.Path -> Buffer -> Cmd Msg
+sendReadBuffer url fs viewHeight framePath buf =
+    Fs.read fs buf.path
         |> Task.andThen
-            (\( headers, body ) ->
-                let
-                    s =
-                        if String.endsWith lineBreak body then
-                            body
+            (\result ->
+                case result of
+                    Just ( lastModified, body ) ->
+                        let
+                            s =
+                                if String.endsWith lineBreak body then
+                                    body
+
+                                else
+                                    body ++ lineBreak
+
+                            lines =
+                                B.fromStringExpandTabs buf.config.tabSize 0 s
+
+                            tokenizeLines =
+                                Tuple.first buf.view.cursor + viewHeight * 2
+
+                            response =
+                                { syntaxEnabled = buf.config.syntax
+                                , lines = lines
+                                , syntax = Array.empty
+                                , lastModified = lastModified
+                                }
+                        in
+                        if buf.config.syntax then
+                            sendTokenizeTask url
+                                { bufId = buf.id
+                                , path = buf.path
+                                , version = 0
+                                , line = 0
+                                , lines =
+                                    lines
+                                        |> B.sliceLines 0 tokenizeLines
+                                        |> B.toString
+                                }
+                                |> Task.map
+                                    (\res ->
+                                        case res of
+                                            TokenizeSuccess _ syntax ->
+                                                { response | syntax = syntax }
+
+                                            TokenizeError "noextension" ->
+                                                { response | syntaxEnabled = False }
+
+                                            _ ->
+                                                response
+                                    )
+                                |> Task.onError (\_ -> Task.succeed response)
 
                         else
-                            body ++ lineBreak
+                            Task.succeed response
 
-                    lines =
-                        B.fromStringExpandTabs buf.config.tabSize 0 s
-
-                    lastModified =
-                        Dict.get "last-modified" headers
-                            |> Maybe.withDefault ""
-
-                    tokenizeLines =
-                        Tuple.first buf.view.cursor + viewHeight * 2
-
-                    response =
-                        { syntaxEnabled = True
-                        , lines = lines
-                        , syntax = Array.empty
-                        , lastModified = lastModified
-                        }
-                in
-                if buf.config.syntax then
-                    sendTokenizeTask url
-                        { bufId = buf.id
-                        , path = buf.path
-                        , version = 0
-                        , line = 0
-                        , lines =
-                            lines
-                                |> B.sliceLines 0 tokenizeLines
-                                |> B.toString
-                        }
-                        |> Task.map
-                            (\res ->
-                                case res of
-                                    TokenizeSuccess _ syntax ->
-                                        { response | syntax = syntax }
-
-                                    TokenizeError err ->
-                                        if err == "noextension" then
-                                            { response | syntaxEnabled = False }
-
-                                        else
-                                            response
-
-                                    _ ->
-                                        response
-                            )
-                        |> Task.onError (\_ -> Task.succeed response)
-
-                else
-                    Task.succeed { response | syntaxEnabled = False }
+                    _ ->
+                        Task.succeed
+                            { syntaxEnabled = buf.config.syntax
+                            , lines = B.empty
+                            , syntax = Array.empty
+                            , lastModified = ""
+                            }
             )
         |> Task.attempt
             (\result ->
-                case
-                    result
-                        |> Result.map
-                            (\{ syntax, syntaxEnabled, lines, lastModified } ->
-                                let
-                                    history =
-                                        buf.history
+                case result of
+                    Ok { syntax, syntaxEnabled, lines, lastModified } ->
+                        let
+                            config =
+                                buf.config
 
-                                    config =
-                                        buf.config
-                                in
-                                { buf
-                                    | lines = lines
-                                    , config = { config | syntax = syntaxEnabled }
-                                    , syntax = syntax
-                                    , syntaxDirtyFrom = Array.length syntax
-                                    , history =
-                                        if history.lastModified == lastModified then
-                                            history
+                            history =
+                                if buf.history.lastModified == lastModified then
+                                    buf.history
 
-                                        else
-                                            { emptyBufferHistory | lastModified = lastModified }
-                                }
-                            )
-                of
-                    Ok b ->
-                        Read (Ok ( framePath, b ))
-
-                    Err ((Http.BadStatus code) as err) ->
-                        case code of
-                            -- 404 is ok here, the buffer is newly created
-                            404 ->
-                                Read (Ok ( framePath, buf ))
-
-                            _ ->
-                                Read (Err err)
+                                else
+                                    { emptyBufferHistory | lastModified = lastModified }
+                        in
+                        ( framePath
+                        , { buf
+                            | lines = lines
+                            , config = { config | syntax = syntaxEnabled }
+                            , syntax = syntax
+                            , syntaxDirtyFrom = Array.length syntax
+                            , history = history
+                          }
+                        )
+                            |> Ok
+                            |> Read
 
                     Err err ->
                         Read (Err err)
             )
 
 
-sendWriteBuffer : String -> String -> Buffer -> Cmd Msg
-sendWriteBuffer url path buf =
-    Http.post
-        { url = url ++ "/write?path=" ++ path
-        , body = Http.stringBody "text/plain" <| B.toString buf.lines
-        , expect =
-            Http.expectStringResponse
-                Write
-                (httpJsonResponse lineDiffDecoder
-                    >> Result.map
-                        (\( headers, patches ) ->
-                            ( Dict.get "last-modified" headers |> Maybe.withDefault ""
-                            , patches
-                            )
-                        )
-                    >> Result.mapError httpErrorMessage
+sendWriteBuffer : FileSystem -> String -> Buffer -> Cmd Msg
+sendWriteBuffer fs path buf =
+    Fs.write fs path (B.toString buf.lines)
+        |> Cmd.map
+            (Result.andThen
+                (\( lastModified, content ) ->
+                    case Decode.decodeString lineDiffDecoder content of
+                        Ok patches ->
+                            Ok ( lastModified, patches )
+
+                        Err _ ->
+                            Err "decode write response error"
                 )
-        }
+                >> Write
+            )
 
 
-parseFileList : String -> Result Http.Error String -> Result String (List String)
-parseFileList sep resp =
-    case resp of
-        Ok s ->
-            s
-                |> String.split "\n"
-                |> List.map (normalizePath sep)
-                |> Ok
-
-        Err err ->
-            Err <| httpErrorMessage err
+sendListAllFiles : FileSystem -> Cmd Msg
+sendListAllFiles fs =
+    Fs.listAllFiles fs |> Cmd.map ListAllFiles
 
 
-sendListAllFiles : String -> String -> String -> Cmd Msg
-sendListAllFiles url sep cwd =
-    Http.get
-        { url = url ++ "/ls?cwd=" ++ cwd
-        , expect = Http.expectString (parseFileList sep >> ListAllFiles)
-        }
+sendListFiles : FileSystem -> String -> Cmd Msg
+sendListFiles fs cwd =
+    Fs.listFiles fs cwd
+        |> Cmd.map ListFiles
 
 
-sendListFiles : String -> String -> String -> Cmd Msg
-sendListFiles url sep cwd =
-    let
-        trimSep s =
-            if String.toLower s == ".ds_store" then
-                Nothing
-
-            else
-                Just <| s
-    in
-    Http.get
-        { url = url ++ "/ld?cwd=" ++ cwd
-        , expect =
-            Http.expectString
-                (parseFileList sep
-                    >> Result.map (List.filterMap trimSep)
-                    >> ListFiles
-                )
-        }
+sendListDirs : FileSystem -> String -> Cmd Msg
+sendListDirs fs cwd =
+    Fs.listDirs fs cwd
+        |> Cmd.map ListDirs
 
 
-sendListDirectories : String -> String -> String -> Cmd Msg
-sendListDirectories url sep cwd =
-    let
-        trimSep s =
-            if s == "./" || s == "../" then
-                Nothing
-
-            else if String.endsWith sep s then
-                Just <| String.dropRight (String.length sep) s
-
-            else
-                Nothing
-    in
-    Http.get
-        { url = url ++ "/ld?cwd=" ++ cwd
-        , expect =
-            Http.expectString
-                (parseFileList sep
-                    >> Result.map (List.filterMap trimSep)
-                    >> ListDirectries
-                )
-        }
+sendSearch : FileSystem -> String -> Cmd Msg
+sendSearch fs s =
+    Fs.search fs s
+        |> Cmd.map SearchResult
 
 
-sendReadClipboard : Bool -> Key -> String -> AST -> Cmd Msg
-sendReadClipboard replaying key url op =
-    Http.get
-        { url = url ++ "/clipboard"
-        , expect =
-            Http.expectString <|
-                Result.map
-                    (\s ->
-                        { replaying = replaying
-                        , key = key
-                        , ast = op
-                        , s = s
-                        }
-                    )
-                    >> ReadClipboard
-        }
+sendCd : FileSystem -> String -> Cmd Msg
+sendCd fs cwd =
+    Fs.cd fs cwd
+        |> Cmd.map SetCwd
 
 
-sendWriteClipboard : String -> String -> Cmd Msg
-sendWriteClipboard url str =
-    Http.post
-        { url = url ++ "/clipboard"
-        , body = Http.stringBody "text/plain" str
-        , expect =
-            Http.expectJson
-                (\result ->
-                    WriteClipboard <|
-                        Result.mapError httpErrorMessage result
-                )
-                (Decode.succeed ())
-        }
-
-
-sendSearch : String -> String -> String -> Cmd Msg
-sendSearch url cwd s =
-    Http.get
-        { url = url ++ "/search?s=" ++ s ++ "&cwd=" ++ cwd
-        , expect =
-            Http.expectString
-                (\res ->
-                    SearchResult <|
-                        Result.mapError httpErrorMessage res
-                )
-        }
-
-
-sendCd : String -> String -> Cmd Msg
-sendCd url cwd =
-    Http.get
-        { url = url ++ "/cd?cwd=" ++ cwd
-        , expect =
-            Http.expectString
-                (\res ->
-                    SetCwd <|
-                        Result.mapError httpErrorMessage res
-                )
-        }
-
-
-sendMkDir : String -> String -> Cmd Msg
-sendMkDir url path =
-    Http.get
-        { url = url ++ "/mkdir?path=" ++ path
-        , expect =
-            Http.expectString
-                (Result.mapError httpErrorMessage
-                    >> Result.map (always ())
-                    >> MakeDir
-                )
-        }
-
-
-bootDecoder : Decode.Decoder ServerArgs
-bootDecoder =
-    Decode.map2
-        (\homedir pathSeperator ->
-            { pathSeperator = pathSeperator
-            , homedir = homedir
-            }
-        )
-        (Decode.field "homedir" Decode.string)
-        (Decode.field "pathSeperator" Decode.string)
+sendMkDir : FileSystem -> String -> Cmd Msg
+sendMkDir fs path =
+    Fs.mkDir fs path
+        |> Cmd.map MakeDir

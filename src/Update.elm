@@ -1,8 +1,10 @@
 module Update exposing (init, update, updateActiveBuffer)
 
+import Clipboard
 import Debouncers exposing (..)
 import Dict
 import Font exposing (FontInfo)
+import Fs
 import Helper.Helper exposing (..)
 import Http
 import Ime exposing (..)
@@ -194,7 +196,7 @@ update message global =
                         ( ed
                         , sendLintOnTheFly
                             global.service
-                            global.pathSeperator
+                            (Fs.pathSeperator global.fs)
                             buf.id
                             buf.path
                             buf.history.version
@@ -219,7 +221,7 @@ update message global =
             case resp of
                 Ok files ->
                     ( updateActiveBuffer
-                        (startExAutoComplete 2 global.cwd files)
+                        (startExAutoComplete 2 (Fs.workingDir global.fs) files)
                         global
                     , Cmd.none
                     )
@@ -227,7 +229,7 @@ update message global =
                 Err _ ->
                     ( global, Cmd.none )
 
-        ListDirectries resp ->
+        ListDirs resp ->
             case resp of
                 Ok files ->
                     ( updateActiveBuffer (startAutoCompleteFiles files global) global
@@ -250,12 +252,12 @@ update message global =
                     ( global, Cmd.none )
 
         ListBuffers files ->
-            ( updateActiveBuffer (startExAutoComplete 2 global.cwd files) global
+            ( updateActiveBuffer (startExAutoComplete 2 (Fs.workingDir global.fs) files) global
             , Cmd.none
             )
 
         SetCwd (Ok cwd) ->
-            ( { global | cwd = cwd }
+            ( { global | fs = Fs.setWorkingDir cwd global.fs }
                 |> updateActiveBuffer (Buf.infoMessage cwd)
             , Cmd.none
             )
@@ -370,7 +372,7 @@ restoreBufferHistory buf =
            )
 
 
-onRead : Result Http.Error ( Win.Path, Buffer ) -> Global -> Global
+onRead : Result String ( Win.Path, Buffer ) -> Global -> Global
 onRead result global =
     case result of
         Ok ( framePath, buf ) ->
@@ -396,7 +398,7 @@ onRead result global =
             }
 
         Err err ->
-            updateActiveBuffer (Buf.errorMessage <| httpErrorMessage err) global
+            updateActiveBuffer (Buf.errorMessage err) global
 
 
 onWrite : Result a ( String, List Patch ) -> Editor -> ( Editor, Cmd Msg )
@@ -434,7 +436,7 @@ onWrite result ({ buf, global } as ed) =
                 lintCmd =
                     if buf1.config.lint then
                         sendLintProject global.service
-                            global.pathSeperator
+                            (Fs.pathSeperator global.fs)
                             buf1.id
                             buf1.path
                             buf1.history.version
@@ -489,11 +491,7 @@ init flags theme fontInfo size args =
         decodedBuffers =
             buffers
                 |> Decode.decodeValue
-                    (bufferDecoder
-                        pathSeperator
-                        homedir
-                        |> Decode.list
-                    )
+                    (bufferDecoder fs |> Decode.list)
                 |> Result.map
                     (List.map <|
                         \b ->
@@ -525,19 +523,15 @@ init flags theme fontInfo size args =
 
         dictBuffers =
             Dict.fromList decodedBuffers
+
+        fs =
+            Fs.fileSystem service pathSeperator homedir cwd
     in
     ( { emptyGlobal
         | service = service
+        , fs = fs
         , exHistory = exHistory
-        , cwd =
-            if String.isEmpty cwd then
-                homedir
-
-            else
-                cwd
-        , pathSeperator = pathSeperator
         , fontInfo = fontInfo
-        , homedir = homedir
         , registers =
             Decode.decodeValue registersDecoder registers
                 |> Result.withDefault Dict.empty
@@ -562,6 +556,7 @@ init flags theme fontInfo size args =
                                 |> Maybe.map
                                     (\buf ->
                                         sendReadBuffer service
+                                            fs
                                             viewHeight
                                             w.path
                                             { buf | view = view }

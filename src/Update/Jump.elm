@@ -7,6 +7,7 @@ module Update.Jump exposing
     , jumpToPath
     )
 
+import Fs
 import Helper.Helper
     exposing
         ( findFirst
@@ -86,10 +87,10 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                 path_
 
             else
-                resolvePath
-                    global.pathSeperator
-                    global.cwd
-                    path_
+                path_
+                    |> Debug.log "jumpToPath, path"
+                    |> Fs.absolutePath global.fs
+                    |> Debug.log "jumpToPath"
 
         global1 =
             if isSaveJump then
@@ -200,7 +201,13 @@ jumpToPathBufferNotLoaded overrideCursor toBuf buf ({ global } as ed) =
                         |> jumpToPathSetCursor overrideCursor
             }
     in
-    ( ed, sendReadBuffer global.service buf.view.size.height global.window.path toBuf1 )
+    ( ed
+    , sendReadBuffer global.service
+        global.fs
+        buf.view.size.height
+        global.window.path
+        toBuf1
+    )
 
 
 jumpByView : Float -> Global -> Buffer -> Buffer

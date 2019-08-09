@@ -22,8 +22,10 @@ module Update.Vim exposing
     , updateViewAfterCursorChanged
     )
 
+import Clipboard
 import Debouncers exposing (..)
 import Dict
+import Fs
 import Helper.Helper exposing (..)
 import Ime exposing (..)
 import Internal.Jumps exposing (..)
@@ -444,14 +446,7 @@ editTestBuffer path ({ global } as ed) =
         global2 =
             Buf.addBuffer buf1 global1
     in
-    jumpToPath
-        True
-        (path
-            |> normalizePath global.pathSeperator
-            |> replaceHomeDir global.homedir
-        )
-        Nothing
-        { ed | global = global2 }
+    jumpToPath True path Nothing { ed | global = global2 }
 
 
 execute : Maybe Int -> String -> String -> Editor -> ( Editor, Cmd Msg )
@@ -468,14 +463,7 @@ execute count register str { buf, global } =
                 editTestBuffer path ed
 
             else
-                jumpToPath
-                    True
-                    (path
-                        |> normalizePath global.pathSeperator
-                        |> replaceHomeDir global.homedir
-                    )
-                    Nothing
-                    ed
+                jumpToPath True path Nothing ed
     in
     case splitFirstSpace str of
         ( "e", path ) ->
@@ -488,7 +476,7 @@ execute count register str { buf, global } =
             edit path
 
         ( "w", "" ) ->
-            ( ed, sendWriteBuffer global.service buf.path buf )
+            ( ed, sendWriteBuffer global.fs buf.path buf )
 
         ( "ll", "" ) ->
             let
@@ -505,24 +493,21 @@ execute count register str { buf, global } =
                     )
 
         ( "f", s ) ->
-            ( ed, sendSearch global.service global.cwd s )
+            ( ed, sendSearch global.fs s )
 
         ( "copy", "" ) ->
             yankWholeBuffer ed
 
         ( "cd", "" ) ->
-            ( updateBuffer (Buf.infoMessage global.cwd) ed
+            ( updateBuffer (Buf.infoMessage <| Fs.workingDir global.fs) ed
             , Cmd.none
             )
 
         ( "cd", cwd ) ->
             ( ed
             , cwd
-                |> replaceHomeDir global.homedir
-                |> resolvePath
-                    global.pathSeperator
-                    global.cwd
-                |> sendCd global.service
+                |> Fs.absolutePath global.fs
+                |> sendCd global.fs
             )
 
         ( "mkdir", "" ) ->
@@ -533,11 +518,8 @@ execute count register str { buf, global } =
         ( "mkdir", path ) ->
             ( ed
             , path
-                |> replaceHomeDir global.homedir
-                |> resolvePath
-                    global.pathSeperator
-                    global.cwd
-                |> sendMkDir global.service
+                |> Fs.absolutePath global.fs
+                |> sendMkDir global.fs
             )
 
         ( "vsp", "" ) ->
@@ -662,11 +644,18 @@ serviceBeforeApplyVimAST replaying key ast service =
             case op of
                 Put _ ->
                     if ast.register == "+" then
-                        sendReadClipboard
-                            replaying
-                            key
-                            service
-                            ast
+                        Clipboard.read service
+                            |> Cmd.map
+                                (Result.map
+                                    (\s ->
+                                        { replaying = replaying
+                                        , key = key
+                                        , ast = ast
+                                        , s = s
+                                        }
+                                    )
+                                    >> ReadClipboard
+                                )
                             |> Just
 
                     else

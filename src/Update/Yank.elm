@@ -1,5 +1,6 @@
 module Update.Yank exposing (put, yank, yankWholeBuffer)
 
+import Clipboard
 import Dict
 import Internal.Position exposing (Position)
 import Internal.PositionClass exposing (findLineFirst)
@@ -14,7 +15,6 @@ import Model.View as View
 import Update.Buffer as Buf
 import Update.Message exposing (..)
 import Update.Range exposing (isLinewise, operatorRanges)
-import Update.Service exposing (sendWriteClipboard)
 import Vim.AST as V exposing (Operator(..))
 
 
@@ -23,7 +23,8 @@ yankWholeBuffer ({ buf, global } as ed) =
     ( { ed | buf = Buf.infoMessage "Whole buffer copied." buf }
     , buf.lines
         |> B.toString
-        |> sendWriteClipboard global.service
+        |> Clipboard.write global.service
+        |> Cmd.map WriteClipboard
     )
 
 
@@ -55,7 +56,8 @@ yank count register range ({ global, buf } as ed) =
 
         cmd =
             if register == "+" then
-                sendWriteClipboard global.service s
+                Clipboard.write global.service s
+                    |> Cmd.map WriteClipboard
 
             else
                 Cmd.none

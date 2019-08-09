@@ -32,6 +32,7 @@ module Helper.Helper exposing
     , notSpace
     , nthList
     , oneOrMore
+    , parseFileList
     , parseWords
     , pathBase
     , pathFileName
@@ -52,7 +53,6 @@ module Helper.Helper exposing
     , spaceInline
     , splitFirstSpace
     , swapCase
-    , toAbsolutePath
     , toCmd
     , word
     )
@@ -680,22 +680,6 @@ httpJsonResponse decoder response =
             )
 
 
-toAbsolutePath : String -> String -> String -> String -> String
-toAbsolutePath sep homedir cwd s1 =
-    let
-        s =
-            replaceHomeDir homedir s1
-
-        base =
-            if s == homedir then
-                s
-
-            else
-                pathBase sep s
-    in
-    resolvePath sep cwd base
-
-
 fileNameWordChars : String
 fileNameWordChars =
     "/\\-._"
@@ -735,3 +719,16 @@ splitFirstSpace str =
 quote : String -> String
 quote s =
     "\"" ++ s ++ "\""
+
+
+parseFileList : String -> Result Http.Error String -> Result String (List String)
+parseFileList sep resp =
+    case resp of
+        Ok s ->
+            s
+                |> String.split "\n"
+                |> List.map (normalizePath sep)
+                |> Ok
+
+        Err err ->
+            Err <| httpErrorMessage err

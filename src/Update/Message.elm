@@ -50,11 +50,11 @@ type Msg
       -- the DebounceMessage here is for finding the debouncer model
     | Debouncing DebounceMessage (Deb.Message DebounceMessage)
     | Resize Size
-    | Read (Result Http.Error ( Win.Path, Buffer )) -- setActive & buffer
+    | Read (Result String ( Win.Path, Buffer )) -- setActive & buffer
     | Write (Result String ( String, List Patch ))
     | MakeDir (Result String ())
     | ReadClipboard
-        (Result Http.Error
+        (Result String
             { replaying : Bool
             , key : Key
             , ast : AST
@@ -65,7 +65,7 @@ type Msg
     | Lint BufferIdentifier (Result String (List LintError))
     | Tokenized BufferIdentifier (Result String TokenizeResponse)
     | ListFiles (Result String (List String))
-    | ListDirectries (Result String (List String))
+    | ListDirs (Result String (List String))
     | ListAllFiles (Result String (List String)) -- recursive
     | ListBuffers (List String)
     | ReadTags (Result String Location)

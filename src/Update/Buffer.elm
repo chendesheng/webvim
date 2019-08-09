@@ -34,6 +34,7 @@ module Update.Buffer exposing
 
 import Array
 import Dict exposing (Dict)
+import Fs
 import Helper.Helper exposing (..)
 import Internal.Position exposing (..)
 import Internal.PositionClass exposing (findLineFirst)
@@ -850,7 +851,7 @@ shortPath global path =
         path
 
     else
-        relativePath global.pathSeperator global.cwd path
+        Fs.shortPath global.fs path
 
 
 activeBuffer : String -> Global -> Global

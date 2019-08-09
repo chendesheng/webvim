@@ -6,6 +6,7 @@ module Update.AutoComplete exposing
     , updateAutoCompleteEdit
     )
 
+import Fs
 import Helper.Fuzzy exposing (..)
 import Helper.Helper
     exposing
@@ -13,7 +14,6 @@ import Helper.Helper
         , getLast
         , pathBase
         , pathFileName
-        , toAbsolutePath
         , word
         )
 import Internal.Position exposing (Position, positionShiftLeft)
@@ -273,10 +273,10 @@ updateAutoCompleteEdit global buf =
                         "$$%exHistory"
 
                     else if String.startsWith ":o " s then
-                        global.cwd
+                        Fs.workingDir global.fs
 
                     else if String.startsWith ":b " s then
-                        global.cwd
+                        Fs.workingDir global.fs
 
                     else
                         s
@@ -284,20 +284,17 @@ updateAutoCompleteEdit global buf =
                             |> String.split " "
                             |> getLast
                             |> Maybe.withDefault ""
-                            |> toAbsolutePath
-                                global.pathSeperator
-                                global.homedir
-                                global.cwd
+                            |> Fs.absolutePath global.fs
 
                 ( getList, clearAutoComplete ) =
                     if isAutoCompleteStarted exbuf "$$%exHistory" then
-                        ( \a b c -> Cmd.none, False )
+                        ( \_ _ -> Cmd.none, False )
 
                     else if String.startsWith ":o " s then
-                        ( sendListAllFiles, False )
+                        ( \fs _ -> sendListAllFiles fs, False )
 
                     else if String.startsWith ":b " s then
-                        ( \a b c ->
+                        ( \_ _ ->
                             Task.succeed
                                 (global.buffers
                                     |> getBuffers
@@ -319,10 +316,10 @@ updateAutoCompleteEdit global buf =
                         ( sendListFiles, False )
 
                     else if String.startsWith ":cd " s then
-                        ( sendListDirectories, False )
+                        ( sendListDirs, False )
 
                     else
-                        ( \a b c -> Cmd.none, True )
+                        ( \_ _ -> Cmd.none, True )
             in
             if clearAutoComplete then
                 ( setExbuf buf newex (updateAutoComplete (always Nothing) exbuf)
@@ -337,12 +334,7 @@ updateAutoCompleteEdit global buf =
                 )
 
             else
-                ( buf
-                , getList
-                    global.service
-                    global.pathSeperator
-                    trigger
-                )
+                ( buf, getList global.fs trigger )
 
         _ ->
             ( filterAutoComplete True buf, Cmd.none )
@@ -383,7 +375,7 @@ startAutoCompleteFiles files global buf =
         Ex ({ exbuf } as ex) ->
             let
                 sep =
-                    global.pathSeperator
+                    Fs.pathSeperator global.fs
             in
             setExbuf buf
                 ex
@@ -395,7 +387,7 @@ startAutoCompleteFiles files global buf =
                     [ prefix, path ] ->
                         startAutoComplete
                             fileNameWordChars
-                            (toAbsolutePath sep global.homedir global.cwd path)
+                            (Fs.absolutePath global.fs path)
                             (String.length prefix)
                             files
                             ( 0

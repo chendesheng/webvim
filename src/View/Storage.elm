@@ -1,6 +1,7 @@
 module View.Storage exposing (renderStorage)
 
 import Dict exposing (Dict)
+import Fs
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Keyed
@@ -18,7 +19,7 @@ renderStorage : Global -> Html msg
 renderStorage global =
     div [ style "display" "none" ]
         ([ lazy saveRegisters global.registers
-         , lazy saveCwd global.cwd
+         , lazy saveCwd (Fs.workingDir global.fs)
          , div []
             (List.indexedMap
                 (\i s ->

@@ -22,6 +22,7 @@ module Model.Buffer exposing
 
 import Array as Array
 import Dict
+import Fs exposing (FileSystem)
 import Helper.Fuzzy exposing (FuzzyMatchItem)
 import Helper.Helper exposing (extname, filename, relativePath)
 import Internal.Position exposing (..)
@@ -36,12 +37,12 @@ import Model.View exposing (..)
 import Vim.AST as V exposing (VisualType(..))
 
 
-isLintEnabled : String -> String -> String -> Bool -> Bool
-isLintEnabled pathSeperator homedir name lint =
+isLintEnabled : FileSystem -> String -> Bool -> Bool
+isLintEnabled fs name lint =
     if lint && extname name == ".elm" then
         name
-            |> relativePath pathSeperator homedir
-            |> String.startsWith (".elm" ++ pathSeperator)
+            |> relativePath (Fs.pathSeperator fs) (Fs.homeDir fs)
+            |> String.startsWith (".elm" ++ Fs.pathSeperator fs)
             |> not
 
     else
@@ -171,8 +172,8 @@ isExMode mode =
             False
 
 
-bufferDecoder : String -> String -> Decode.Decoder Buffer
-bufferDecoder pathSeperator homedir =
+bufferDecoder : FileSystem -> Decode.Decoder Buffer
+bufferDecoder fs =
     Decode.map4
         (\id path syntax history ->
             let
@@ -191,11 +192,7 @@ bufferDecoder pathSeperator homedir =
                 , name = name ++ ext
                 , config =
                     { config
-                        | lint =
-                            isLintEnabled pathSeperator
-                                homedir
-                                (name ++ ext)
-                                config.lint
+                        | lint = isLintEnabled fs (name ++ ext) config.lint
                         , syntax = syntax
                     }
             }

@@ -11,6 +11,7 @@ module Model.Global exposing
 import Debouncers exposing (Debouncers, emptyDebouncers)
 import Dict exposing (Dict)
 import Font exposing (FontInfo)
+import Fs exposing (FileSystem)
 import Ime exposing (IME, emptyIme)
 import Internal.Jumps exposing (..)
 import Internal.Position exposing (..)
@@ -40,13 +41,11 @@ type alias Global =
     -}
     , window : Window Frame
     , buffers : Dict String LoadBuffer
-    , cwd : String
     , exHistory : List String
     , searchHistory : List String
     , service : String
-    , pathSeperator : String
+    , fs : FileSystem
     , fontInfo : FontInfo
-    , homedir : String
     , vimASTCache : Dict ( String, String ) ( V.AST, String )
     , size : Size
     , last :
@@ -87,17 +86,15 @@ emptyGlobal =
     , dotRegister = ""
     , ime = emptyIme
     , buffers = Dict.empty
-    , cwd = ""
     , exHistory = []
     , service = ""
-    , pathSeperator = "/"
+    , fs = Fs.invalidFileSystem
     , fontInfo =
         { widths = []
         , lineHeight = 0
         , size = 0
         , name = ""
         }
-    , homedir = ""
     , registers = Dict.empty
     , searchHistory = []
     , last =

@@ -1,5 +1,6 @@
 module Update.Lint exposing (onLint, sendLintOnTheFly, sendLintProject)
 
+import Fs
 import Helper.Helper exposing (..)
 import Http
 import Internal.Position
@@ -33,7 +34,7 @@ applyLintItems items buf global =
                 buf.path
 
             else
-                normalizePath global.pathSeperator file
+                normalizePath (Fs.pathSeperator global.fs) file
 
         normalizeRegion ( b, e_ ) =
             ( b
