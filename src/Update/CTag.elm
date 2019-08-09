@@ -49,27 +49,30 @@ ctagsParser sep =
 
 sendReadTags : String -> String -> String -> String -> Int -> String -> Cmd Msg
 sendReadTags url sep cwd path index name =
-    Http.getString (url ++ "/readtags?name=" ++ name ++ "&cwd=" ++ cwd)
-        |> Http.send
-            (\result ->
-                result
-                    |> Result.mapError httpErrorMessage
-                    |> Result.andThen
-                        (\s ->
-                            P.run (ctagsParser sep) s
-                                --|> Debug.log "ctags parse"
-                                |> Result.mapError
-                                    (always "parse result error")
-                                |> Result.andThen
-                                    (\locs ->
-                                        locs
-                                            |> pickLocation index
-                                            |> Result.fromMaybe
-                                                "parse result error"
-                                    )
-                        )
-                    |> ReadTags
-            )
+    Http.get
+        { url = url ++ "/readtags?name=" ++ name ++ "&cwd=" ++ cwd
+        , expect =
+            Http.expectString
+                (\result ->
+                    result
+                        |> Result.mapError httpErrorMessage
+                        |> Result.andThen
+                            (\s ->
+                                P.run (ctagsParser sep) s
+                                    --|> Debug.log "ctags parse"
+                                    |> Result.mapError
+                                        (always "parse result error")
+                                    |> Result.andThen
+                                        (\locs ->
+                                            locs
+                                                |> pickLocation index
+                                                |> Result.fromMaybe
+                                                    "parse result error"
+                                        )
+                            )
+                        |> ReadTags
+                )
+        }
 
 
 startJumpToTag : Maybe Int -> Editor -> ( Editor, Cmd Msg )

@@ -17,7 +17,6 @@ import Model.Lint exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Regex as Re
 import Update.Message exposing (BufferIdentifier, Msg(..))
-import Update.Service exposing (post)
 
 
 applyLintItems : List LintError -> Buffer -> Global -> Global
@@ -87,21 +86,25 @@ onLint ( bufId, version ) resp buf global =
 
 sendLintProject : String -> String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
 sendLintProject url sep bufId path version lines =
-    Http.getString (url ++ "/lint?path=" ++ path)
-        |> Http.send (parseLintResult sep path lines >> Lint ( bufId, version ))
+    Http.get
+        { url = url ++ "/lint?path=" ++ path
+        , expect =
+            Http.expectString <|
+                parseLintResult sep path lines
+                    >> Lint ( bufId, version )
+        }
 
 
 sendLintOnTheFly : String -> String -> String -> String -> Int -> B.TextBuffer -> Cmd Msg
 sendLintOnTheFly url sep bufId path version lines =
-    let
-        body =
-            Http.stringBody "text/plain" <| B.toString lines
-    in
-    post (url ++ "/lint?path=" ++ path) body
-        |> Http.send
-            (parseLintResult sep path lines
-                >> Lint ( bufId, version )
-            )
+    Http.post
+        { url = url ++ "/lint?path=" ++ path
+        , body = Http.stringBody "text/plain" <| B.toString lines
+        , expect =
+            Http.expectString <|
+                parseLintResult sep path lines
+                    >> Lint ( bufId, version )
+        }
 
 
 parseLintResult :

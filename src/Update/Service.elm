@@ -1,10 +1,7 @@
 module Update.Service exposing
     ( bootDecoder
-    , getBodyAndHeaders
     , lineDiffDecoder
     , parseFileList
-    , post
-    , postRespHeaders
     , sendCd
     , sendListAllFiles
     , sendListDirectories
@@ -31,7 +28,7 @@ import Model.Buffer exposing (..)
 import Model.BufferHistory exposing (emptyBufferHistory)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
-import Task
+import Task exposing (Task)
 import Update.Message exposing (Msg(..), TokenizeResponse(..))
 import Update.Tokenize exposing (sendTokenizeTask)
 import Vim.AST exposing (AST)
@@ -70,39 +67,25 @@ lineDiffDecoder =
         |> Decode.list
 
 
-getBodyAndHeaders : String -> Http.Request ( Dict String String, String )
-getBodyAndHeaders url =
-    Http.request
-        { method = "GET"
-        , headers = []
-        , url = url
-        , body = Http.emptyBody
-        , expect =
-            Http.expectStringResponse
-                (\response ->
-                    Ok ( response.headers, response.body )
-                )
-        , timeout = Nothing
-        , withCredentials = False
-        }
-
-
 sendReadBuffer : String -> Int -> Win.Path -> Buffer -> Cmd Msg
 sendReadBuffer url viewHeight framePath buf =
-    url
-        ++ "/read?path="
-        ++ buf.path
-        |> getBodyAndHeaders
-        |> Http.toTask
+    { method = "GET"
+    , headers = []
+    , url = url ++ "/read?path=" ++ buf.path
+    , body = Http.emptyBody
+    , resolver = Http.stringResolver httpStringResponse
+    , timeout = Nothing
+    }
+        |> Http.task
         |> Task.andThen
-            (\( headers, s_ ) ->
+            (\( headers, body ) ->
                 let
                     s =
-                        if String.endsWith lineBreak s_ then
-                            s_
+                        if String.endsWith lineBreak body then
+                            body
 
                         else
-                            s_ ++ lineBreak
+                            body ++ lineBreak
 
                     lines =
                         B.fromStringExpandTabs buf.config.tabSize 0 s
@@ -113,6 +96,13 @@ sendReadBuffer url viewHeight framePath buf =
 
                     tokenizeLines =
                         Tuple.first buf.view.cursor + viewHeight * 2
+
+                    response =
+                        { syntaxEnabled = True
+                        , lines = lines
+                        , syntax = Array.empty
+                        , lastModified = lastModified
+                        }
                 in
                 if buf.config.syntax then
                     sendTokenizeTask url
@@ -129,51 +119,22 @@ sendReadBuffer url viewHeight framePath buf =
                             (\res ->
                                 case res of
                                     TokenizeSuccess _ syntax ->
-                                        { syntaxEnabled = True
-                                        , lines = lines
-                                        , syntax = syntax
-                                        , lastModified = lastModified
-                                        }
+                                        { response | syntax = syntax }
 
                                     TokenizeError err ->
                                         if err == "noextension" then
-                                            { syntaxEnabled = False
-                                            , lines = lines
-                                            , syntax = Array.empty
-                                            , lastModified = lastModified
-                                            }
+                                            { response | syntaxEnabled = False }
 
                                         else
-                                            { syntaxEnabled = True
-                                            , lines = lines
-                                            , syntax = Array.empty
-                                            , lastModified = lastModified
-                                            }
+                                            response
 
                                     _ ->
-                                        { syntaxEnabled = True
-                                        , lines = lines
-                                        , syntax = Array.empty
-                                        , lastModified = lastModified
-                                        }
+                                        response
                             )
-                        |> Task.onError
-                            (\_ ->
-                                Task.succeed
-                                    { syntaxEnabled = True
-                                    , lines = lines
-                                    , syntax = Array.empty
-                                    , lastModified = lastModified
-                                    }
-                            )
+                        |> Task.onError (\_ -> Task.succeed response)
 
                 else
-                    Task.succeed
-                        { syntaxEnabled = False
-                        , lines = lines
-                        , syntax = Array.empty
-                        , lastModified = lastModified
-                        }
+                    Task.succeed { response | syntaxEnabled = False }
             )
         |> Task.attempt
             (\result ->
@@ -205,8 +166,8 @@ sendReadBuffer url viewHeight framePath buf =
                     Ok b ->
                         Read (Ok ( framePath, b ))
 
-                    Err ((Http.BadStatus resp) as err) ->
-                        case resp.status.code of
+                    Err ((Http.BadStatus code) as err) ->
+                        case code of
                             -- 404 is ok here, the buffer is newly created
                             404 ->
                                 Read (Ok ( framePath, buf ))
@@ -219,60 +180,24 @@ sendReadBuffer url viewHeight framePath buf =
             )
 
 
-post : String -> Http.Body -> Http.Request String
-post url body =
-    Http.request
-        { method = "POST"
-        , headers = []
-        , url = url
-        , body = body
-        , expect = Http.expectString
-        , timeout = Nothing
-        , withCredentials = False
-        }
-
-
-postRespHeaders :
-    String
-    -> Http.Body
-    -> Decode.Decoder a
-    -> Http.Request ( Dict String String, a )
-postRespHeaders url inputBody decoder =
-    Http.request
-        { method = "POST"
-        , headers = []
-        , url = url
-        , body = inputBody
-        , expect =
-            Http.expectStringResponse <|
-                \{ headers, body } ->
-                    case Decode.decodeString decoder body of
-                        Err decodeError ->
-                            Err (Decode.errorToString decodeError)
-
-                        Ok value ->
-                            Ok ( headers, value )
-        , timeout = Nothing
-        , withCredentials = False
-        }
-
-
 sendWriteBuffer : String -> String -> Buffer -> Cmd Msg
 sendWriteBuffer url path buf =
-    lineDiffDecoder
-        |> postRespHeaders
-            (url ++ "/write?path=" ++ path)
-            (Http.stringBody "text/plain" <| B.toString buf.lines)
-        |> Http.send
-            (\res ->
-                case res of
-                    Ok ( headers, patches ) ->
-                        Write <|
-                            Ok ( Dict.get "last-modified" headers |> Maybe.withDefault "", patches )
-
-                    Err s ->
-                        Write <| Err <| httpErrorMessage s
-            )
+    Http.post
+        { url = url ++ "/write?path=" ++ path
+        , body = Http.stringBody "text/plain" <| B.toString buf.lines
+        , expect =
+            Http.expectStringResponse
+                Write
+                (httpJsonResponse lineDiffDecoder
+                    >> Result.map
+                        (\( headers, patches ) ->
+                            ( Dict.get "last-modified" headers |> Maybe.withDefault ""
+                            , patches
+                            )
+                        )
+                    >> Result.mapError httpErrorMessage
+                )
+        }
 
 
 parseFileList : String -> Result Http.Error String -> Result String (List String)
@@ -290,8 +215,10 @@ parseFileList sep resp =
 
 sendListAllFiles : String -> String -> String -> Cmd Msg
 sendListAllFiles url sep cwd =
-    Http.getString (url ++ "/ls?cwd=" ++ cwd)
-        |> Http.send (parseFileList sep >> ListAllFiles)
+    Http.get
+        { url = url ++ "/ls?cwd=" ++ cwd
+        , expect = Http.expectString (parseFileList sep >> ListAllFiles)
+        }
 
 
 sendListFiles : String -> String -> String -> Cmd Msg
@@ -304,12 +231,15 @@ sendListFiles url sep cwd =
             else
                 Just <| s
     in
-    Http.getString (url ++ "/ld?cwd=" ++ cwd)
-        |> Http.send
-            (parseFileList sep
-                >> Result.map (List.filterMap trimSep)
-                >> ListFiles
-            )
+    Http.get
+        { url = url ++ "/ld?cwd=" ++ cwd
+        , expect =
+            Http.expectString
+                (parseFileList sep
+                    >> Result.map (List.filterMap trimSep)
+                    >> ListFiles
+                )
+        }
 
 
 sendListDirectories : String -> String -> String -> Cmd Msg
@@ -325,76 +255,87 @@ sendListDirectories url sep cwd =
             else
                 Nothing
     in
-    Http.getString (url ++ "/ld?cwd=" ++ cwd)
-        |> Http.send
-            (parseFileList sep
-                >> Result.map (List.filterMap trimSep)
-                >> ListDirectries
-            )
+    Http.get
+        { url = url ++ "/ld?cwd=" ++ cwd
+        , expect =
+            Http.expectString
+                (parseFileList sep
+                    >> Result.map (List.filterMap trimSep)
+                    >> ListDirectries
+                )
+        }
 
 
 sendReadClipboard : Bool -> Key -> String -> AST -> Cmd Msg
 sendReadClipboard replaying key url op =
-    Http.getString (url ++ "/clipboard")
-        |> Http.send
-            (Result.map
-                (\s ->
-                    { replaying = replaying
-                    , key = key
-                    , ast = op
-                    , s = s
-                    }
-                )
-                >> ReadClipboard
-            )
+    Http.get
+        { url = url ++ "/clipboard"
+        , expect =
+            Http.expectString <|
+                Result.map
+                    (\s ->
+                        { replaying = replaying
+                        , key = key
+                        , ast = op
+                        , s = s
+                        }
+                    )
+                    >> ReadClipboard
+        }
 
 
 sendWriteClipboard : String -> String -> Cmd Msg
 sendWriteClipboard url str =
-    Http.request
-        { method = "POST"
-        , headers = []
-        , url = url ++ "/clipboard"
+    Http.post
+        { url = url ++ "/clipboard"
         , body = Http.stringBody "text/plain" str
-        , expect = Http.expectStringResponse (\_ -> Ok ())
-        , timeout = Nothing
-        , withCredentials = False
+        , expect =
+            Http.expectJson
+                (\result ->
+                    WriteClipboard <|
+                        Result.mapError httpErrorMessage result
+                )
+                (Decode.succeed ())
         }
-        |> Http.send
-            (\result ->
-                WriteClipboard <|
-                    Result.mapError httpErrorMessage result
-            )
 
 
 sendSearch : String -> String -> String -> Cmd Msg
 sendSearch url cwd s =
-    Http.getString (url ++ "/search?s=" ++ s ++ "&cwd=" ++ cwd)
-        |> Http.send
-            (\res ->
-                SearchResult <|
-                    Result.mapError httpErrorMessage res
-            )
+    Http.get
+        { url = url ++ "/search?s=" ++ s ++ "&cwd=" ++ cwd
+        , expect =
+            Http.expectString
+                (\res ->
+                    SearchResult <|
+                        Result.mapError httpErrorMessage res
+                )
+        }
 
 
 sendCd : String -> String -> Cmd Msg
 sendCd url cwd =
-    Http.getString (url ++ "/cd?cwd=" ++ cwd)
-        |> Http.send
-            (\res ->
-                SetCwd <|
-                    Result.mapError httpErrorMessage res
-            )
+    Http.get
+        { url = url ++ "/cd?cwd=" ++ cwd
+        , expect =
+            Http.expectString
+                (\res ->
+                    SetCwd <|
+                        Result.mapError httpErrorMessage res
+                )
+        }
 
 
 sendMkDir : String -> String -> Cmd Msg
 sendMkDir url path =
-    Http.getString (url ++ "/mkdir?path=" ++ path)
-        |> Http.send
-            (Result.mapError httpErrorMessage
-                >> Result.map (always ())
-                >> MakeDir
-            )
+    Http.get
+        { url = url ++ "/mkdir?path=" ++ path
+        , expect =
+            Http.expectString
+                (Result.mapError httpErrorMessage
+                    >> Result.map (always ())
+                    >> MakeDir
+                )
+        }
 
 
 bootDecoder : Decode.Decoder ServerArgs

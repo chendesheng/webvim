@@ -95,12 +95,16 @@ parseTheme =
 
 sendBoot : String -> Cmd Message
 sendBoot service =
-    Http.get (service ++ "/boot") serverArgsDecoder
-        |> Http.send
-            (\result ->
-                InitServerArgs <|
-                    Result.mapError httpErrorMessage result
-            )
+    Http.get
+        { url = service ++ "/boot"
+        , expect =
+            Http.expectJson
+                (\result ->
+                    InitServerArgs <|
+                        Result.mapError httpErrorMessage result
+                )
+                serverArgsDecoder
+        }
 
 
 

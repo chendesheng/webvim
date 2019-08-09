@@ -13,7 +13,7 @@ module Update.Tokenize exposing
 import Array
 import Bitwise as Bit
 import Debouncers exposing (..)
-import Helper.Helper exposing (httpErrorMessage)
+import Helper.Helper exposing (httpErrorMessage, httpJsonResponse)
 import Http
 import Internal.Syntax exposing (Token, TokenType(..))
 import Internal.TextBuffer as B
@@ -97,23 +97,47 @@ sendTokenizeTask :
     String
     -> TokenizeRequest
     -> Task String TokenizeResponse
-sendTokenizeTask url { path, line, lines } =
-    tokenizeResponseDecoder line
-        |> Http.post
-            (url
+sendTokenizeTask url { bufId, version, path, line, lines } =
+    Http.task
+        { method = "Post"
+        , body = Http.stringBody "text/plain" lines
+        , headers = []
+        , timeout = Nothing
+        , url =
+            url
                 ++ "/tokenize?path="
                 ++ path
                 ++ "&line="
                 ++ String.fromInt line
-            )
-            (Http.stringBody "text/plain" lines)
-        |> Http.toTask
-        |> Task.mapError httpErrorMessage
+        , resolver =
+            Http.stringResolver <|
+                httpJsonResponse (tokenizeResponseDecoder line)
+                    >> Result.map Tuple.second
+                    >> Result.mapError httpErrorMessage
+        }
 
 
 sendTokenize : String -> TokenizeRequest -> Cmd Msg
-sendTokenize url ({ bufId, version } as req) =
-    Task.attempt (Tokenized ( bufId, version )) (sendTokenizeTask url req)
+sendTokenize url ({ bufId, version, path, line, lines } as req) =
+    Http.post
+        { url =
+            url
+                ++ "/tokenize?path="
+                ++ path
+                ++ "&line="
+                ++ String.fromInt line
+        , body = Http.stringBody "text/plain" lines
+        , expect =
+            Http.expectJson
+                (Result.mapError httpErrorMessage
+                    >> Tokenized ( bufId, version )
+                )
+                (tokenizeResponseDecoder line)
+        }
+
+
+
+--Task.attempt (Tokenized ( bufId, version )) (sendTokenizeTask url req)
 
 
 sendTokenizeLine : String -> TokenizeRequest -> Cmd Msg

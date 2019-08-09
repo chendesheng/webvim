@@ -15,6 +15,8 @@ module Helper.Helper exposing
     , fromListBy
     , getLast
     , httpErrorMessage
+    , httpJsonResponse
+    , httpStringResponse
     , inc
     , isAbsolutePath
     , isBetween
@@ -59,6 +61,7 @@ import Array as Array exposing (Array)
 import Char
 import Dict exposing (Dict)
 import Http
+import Json.Decode as Decode
 import Parser as P exposing ((|.), (|=), Parser)
 import Regex as Re exposing (Regex)
 import Task
@@ -633,15 +636,48 @@ httpErrorMessage err =
         Http.NetworkError ->
             "NetworkError"
 
-        Http.BadStatus { status, body } ->
-            if String.isEmpty body then
-                "NetworkError: " ++ String.fromInt status.code
+        Http.BadStatus code ->
+            "NetworkError: " ++ String.fromInt code
 
-            else
-                body
-
-        Http.BadPayload s _ ->
+        Http.BadBody s ->
             "BadPayload: " ++ s
+
+
+httpStringResponse : Http.Response String -> Result Http.Error ( Dict String String, String )
+httpStringResponse result =
+    case result of
+        Http.BadUrl_ url ->
+            Err <| Http.BadUrl url
+
+        Http.Timeout_ ->
+            Err <| Http.Timeout
+
+        Http.NetworkError_ ->
+            Err <| Http.NetworkError
+
+        Http.BadStatus_ metadata _ ->
+            Err <| Http.BadStatus metadata.statusCode
+
+        Http.GoodStatus_ metadata body ->
+            Ok ( metadata.headers, body )
+
+
+httpJsonResponse :
+    Decode.Decoder val
+    -> Http.Response String
+    -> Result Http.Error ( Dict String String, val )
+httpJsonResponse decoder response =
+    response
+        |> httpStringResponse
+        |> Result.andThen
+            (\( headers, body ) ->
+                case Decode.decodeString decoder body of
+                    Ok v ->
+                        Ok ( headers, v )
+
+                    Err _ ->
+                        Err <| Http.BadBody "cannot decode response"
+            )
 
 
 toAbsolutePath : String -> String -> String -> String -> String
