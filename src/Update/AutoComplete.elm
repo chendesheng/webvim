@@ -278,13 +278,18 @@ updateAutoCompleteEdit global buf =
                     else if String.startsWith ":b " s then
                         Fs.workingDir global.fs
 
-                    else
+                    else if String.startsWith ":cd " s || String.startsWith ":e " s then
                         s
                             |> String.trim
                             |> String.split " "
+                            |> List.drop 1
                             |> getLast
                             |> Maybe.withDefault ""
                             |> Fs.absolutePath global.fs
+                            |> pathBase (Fs.pathSeperator global.fs)
+
+                    else
+                        ""
 
                 ( getList, clearAutoComplete ) =
                     if isAutoCompleteStarted exbuf "$$%exHistory" then

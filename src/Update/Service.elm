@@ -189,8 +189,8 @@ sendListFiles fs cwd =
 
 
 sendListDirs : FileSystem -> String -> Cmd Msg
-sendListDirs fs cwd =
-    Fs.listDirs fs cwd
+sendListDirs fs dir =
+    Fs.listDirs fs dir
         |> Cmd.map ListDirs
 
 
