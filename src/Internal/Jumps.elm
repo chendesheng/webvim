@@ -3,7 +3,6 @@ module Internal.Jumps exposing
     , Location
     , applyPatchesToJumps
     , applyPatchesToLocations
-    , currentLocation
     , jumpBackward
     , jumpForward
     , saveJump
@@ -47,31 +46,36 @@ saveJump loc jumps =
         |> Zipper.insertBackward loc
 
 
-jumpForward : Jumps -> Jumps
+jumpForward : Jumps -> ( Jumps, Maybe Location )
 jumpForward jumps =
-    jumps
-        |> Zipper.moveForward
-        |> Maybe.withDefault jumps
+    let
+        maybeJumps =
+            Zipper.moveForward jumps
+    in
+    ( Maybe.withDefault jumps maybeJumps
+    , Maybe.andThen Zipper.getCurrent maybeJumps
+    )
 
 
-jumpBackward : Location -> Jumps -> Jumps
+jumpBackward : Location -> Jumps -> ( Jumps, Maybe Location )
 jumpBackward cursor jumps =
     if Zipper.isForwardsEmpty jumps then
-        jumps
+        ( jumps
             |> Zipper.filter (sameLine cursor >> not)
             |> Zipper.insert cursor
+        , jumps
             |> Zipper.moveBackward
-            |> Maybe.withDefault jumps
+            |> Maybe.andThen Zipper.getCurrent
+        )
 
     else
-        jumps
-            |> Zipper.moveBackward
-            |> Maybe.withDefault jumps
-
-
-currentLocation : Jumps -> Maybe Location
-currentLocation =
-    Zipper.getCurrent
+        let
+            maybeJumps =
+                Zipper.moveBackward jumps
+        in
+        ( Maybe.withDefault jumps maybeJumps
+        , Maybe.andThen Zipper.getCurrent maybeJumps
+        )
 
 
 applyPatchesToLocations : String -> List RegionChange -> List Location -> List Location

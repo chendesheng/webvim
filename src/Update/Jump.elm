@@ -16,14 +16,7 @@ import Helper.Helper
         , keepOneOrMore
         , resolvePath
         )
-import Internal.Jumps
-    exposing
-        ( Location
-        , currentLocation
-        , jumpBackward
-        , jumpForward
-        , saveJump
-        )
+import Internal.Jumps exposing (Location, jumpBackward, jumpForward, saveJump)
 import Internal.Position exposing (Position)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
@@ -87,10 +80,7 @@ jumpToPath isSaveJump path_ overrideCursor ({ global, buf } as ed) =
                 path_
 
             else
-                path_
-                    |> Debug.log "jumpToPath, path"
-                    |> Fs.absolutePath global.fs
-                    |> Debug.log "jumpToPath"
+                Fs.absolutePath global.fs path_
 
         global1 =
             if isSaveJump then
@@ -323,30 +313,29 @@ locationParser =
 jumpHistory : Bool -> Editor -> ( Editor, Cmd Msg )
 jumpHistory isForward ({ global, buf } as ed) =
     let
-        global1 =
-            global
-                |> updateJumps
-                    (\jumps ->
-                        if isForward then
-                            jumpForward jumps
+        jumps =
+            getJumps global
 
-                        else
-                            jumpBackward
-                                { path = buf.path
-                                , cursor = buf.view.cursor
-                                }
-                                jumps
-                    )
+        ( jumps1, maybeLoc ) =
+            if isForward then
+                jumpForward jumps
+
+            else
+                jumpBackward
+                    { path = buf.path
+                    , cursor = buf.view.cursor
+                    }
+                    jumps
+
+        ed1 =
+            { ed | global = updateJumps (\_ -> jumps1) global }
     in
-    case currentLocation <| getJumps global1 of
+    case maybeLoc of
         Just loc ->
-            jumpToLocation
-                False
-                loc
-                { ed | global = global1 }
+            jumpToLocation False loc ed1
 
         _ ->
-            ( ed, Cmd.none )
+            ( ed1, Cmd.none )
 
 
 jumpLastBuffer : Editor -> ( Editor, Cmd Msg )
