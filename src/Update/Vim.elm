@@ -765,12 +765,30 @@ runOperator count register operator ({ buf, global } as ed) =
                 yank count register rg ed
 
         V.Undo ->
-            ( updateBuffer Buf.undo ed, Cmd.none )
+            let
+                global1 =
+                    updateJumps
+                        (saveJump { path = buf.path, cursor = buf.view.cursor })
+                        global
+
+                buf1 =
+                    Buf.undo buf
+            in
+            ( { ed | global = global1, buf = buf1 }, Cmd.none )
 
         Redo ->
-            ed
-                |> updateBuffer (Buf.redo >> Buf.indentCursorToLineFirst)
-                |> cmdNone
+            let
+                global1 =
+                    updateJumps
+                        (saveJump { path = buf.path, cursor = buf.view.cursor })
+                        global
+
+                buf1 =
+                    buf
+                        |> Buf.redo
+                        |> Buf.indentCursorToLineFirst
+            in
+            ( { ed | global = global1, buf = buf1 }, Cmd.none )
 
         OpenNewLine forward ->
             ed

@@ -63,6 +63,7 @@ jumpBackward cursor jumps =
         ( jumps
             |> Zipper.filter (sameLine cursor >> not)
             |> Zipper.insert cursor
+            |> tryMoveBackward
         , jumps
             |> Zipper.moveBackward
             |> Maybe.andThen Zipper.getCurrent
@@ -76,6 +77,11 @@ jumpBackward cursor jumps =
         ( Maybe.withDefault jumps maybeJumps
         , Maybe.andThen Zipper.getCurrent maybeJumps
         )
+
+
+tryMoveBackward : Zipper a -> Zipper a
+tryMoveBackward zipper =
+    zipper |> Zipper.moveBackward |> Maybe.withDefault zipper
 
 
 applyPatchesToLocations : String -> List RegionChange -> List Location -> List Location
