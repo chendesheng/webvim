@@ -31,7 +31,7 @@ replaceRegion ch b e buf =
     let
         s =
             buf.lines
-                |> B.sliceRegion b e
+                |> B.substring b e
                 |> B.toString
                 |> Re.replace (regex "[^\u{000D}\n]") (always ch)
                 |> B.fromString

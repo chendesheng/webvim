@@ -39,7 +39,7 @@ applyCaseOperator count changeCase range global buf =
                 let
                     s =
                         buf1.lines
-                            |> B.sliceRegion b e
+                            |> B.substring b e
                             |> B.toString
 
                     replaceChar map buf_ =

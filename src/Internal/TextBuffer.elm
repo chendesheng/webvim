@@ -23,7 +23,6 @@ module Internal.TextBuffer exposing
     , patchToRegion
     , shiftPositionByRegionChange
     , sliceLines
-    , sliceRegion
     , substring
     , toString
     )
@@ -698,8 +697,3 @@ substring pos1 pos2 (TextBuffer buf) =
 sliceLines : Int -> Int -> TextBuffer -> TextBuffer
 sliceLines begin end (TextBuffer buf) =
     TextBuffer <| slice ( begin, 0 ) ( end, 0 ) buf
-
-
-sliceRegion : Position -> Position -> TextBuffer -> TextBuffer
-sliceRegion begin end (TextBuffer buf) =
-    TextBuffer <| slice begin end buf

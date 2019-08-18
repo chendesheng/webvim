@@ -296,7 +296,7 @@ repeatInserts oldMode buf =
                                         min bx ex
 
                                     inserts =
-                                        B.sliceRegion startCursor
+                                        B.substring startCursor
                                             ( Tuple.first buf.view.cursor
                                             , Tuple.second buf.view.cursor + 1
                                             )
