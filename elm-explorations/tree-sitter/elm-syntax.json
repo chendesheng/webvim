@@ -1,0 +1,39 @@
+{
+  "style": {
+    "module" : "mtk9",
+    "comma": "mtk9",
+    "double_dot": "mtk9",
+    "dot": "mtk9",
+    "colon": "mtk9",
+    "arrow": "mtk9",
+    "eq": "mtk9",
+    "let": "mtk9",
+    "in": "mtk9",
+    "then": "mtk9",
+    "if": "mtk9",
+    "else": "mtk9",
+    "case": "mtk9",
+    "of": "mtk9",
+    "pipe": "mtk9",
+    "operator_identifier": "mtk9",
+    "backslash": "mtk9",
+    "underscore": "mtk9",
+    "upper_case_identifier" : "mtk15",
+    "lower_case_identifier": "mtk7",
+    "line_comment": "mtk1 mtki",
+    "number_literal": "mtk6",
+    "string_constant_expr": "mtk12"
+  },
+  "comment": ["line_comment", "block_comment"],
+  "string": ["string_constant_expr"],
+  "pairs":
+    [{ "open": "left_parenthesis",
+      "close": "right_parenthesis"
+    },{ "open": "left_brace",
+    "close": "right_brace"
+    },{ "open": "left_square_bracket",
+      "close": "right_square_bracket"
+    },{ "open": "open_quote",
+    "close": "close_quote"
+    }]
+}

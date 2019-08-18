@@ -1,5 +1,5 @@
 node_modules
-elm-stuff/**
+elm-stuff
 dist/**
 font/**
 tags
@@ -7,7 +7,6 @@ tags
 index.html
 css/Icon.less
 css/preview.html
-tests/elm-stuff/
 .paket/paket.exe
 packages/
 .fake/
@@ -21,4 +20,3 @@ jquery.js
 .psc-ide-port
 tests/TestData.elm
 
-elm

@@ -8,6 +8,7 @@ const browserSync = require('browser-sync').create();
 const AsyncLock = require('async-lock');
 const os = require('os');
 const lock = new AsyncLock();
+const fs = require('fs');
 
 function log(s) {
   console.log(`[${new Date()}]: ${s}`);
@@ -64,8 +65,18 @@ gulp.task('js', function() {
 });
 
 gulp.task('test', async function() {
+  // I can't get elm-test work under elm 0.19.1
+  // use different elm.json and elm compiler for testing
+  fs.renameSync('elm.json', '.elm.json');
+  fs.renameSync('tests-elm.json', 'elm.json');
   await genTests();
-  await exec('elm-test');
+
+  // change elm.json back after 1 second
+  setTimeout(() => {
+    fs.renameSync('elm.json', 'tests-elm.json');
+    fs.renameSync('.elm.json', 'elm.json');
+  }, 3000);
+  await exec('elm-test --compiler=/usr/local/bin/elm19');
 });
 
 function startBackend(port) {

@@ -46,6 +46,7 @@ import Model exposing (..)
 import Model.Buffer exposing (..)
 import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
+import Model.View exposing (emptyView)
 import Parser as P exposing ((|.), (|=), Parser)
 import Regex as Re
 import Test exposing (..)
@@ -123,6 +124,12 @@ formatBuffer global =
                 --|> Debug.log "getActiveBuffer"
                 |> Maybe.withDefault emptyBuffer
 
+        view =
+            global.window
+                |> Win.getActiveFrame
+                |> Maybe.andThen Frame.getActiveView
+                |> Maybe.withDefault buf.view
+
         addPrefix prefix s =
             if String.isEmpty s then
                 ""
@@ -132,11 +139,11 @@ formatBuffer global =
 
         top =
             buf.lines
-                |> B.sliceLines 0 buf.view.scrollTop
+                |> B.sliceLines 0 view.scrollTop
                 |> B.mapLines (addPrefix "|       ")
 
         ( y, x ) =
-            buf.view.cursor
+            view.cursor
 
         --_ =
         --    Debug.log "buf.view" buf.view
@@ -145,14 +152,14 @@ formatBuffer global =
         --_ =
         --    Debug.log "middle" middle
         middle =
-            buf.view.lines
+            view.lines
                 |> List.sort
                 |> List.filterMap
                     (\n ->
                         B.getLine n buf.lines
                             |> Maybe.map (addPrefix "||      ")
                     )
-                |> List.take buf.view.size.height
+                |> List.take view.size.height
                 |> Array.fromList
 
         --middle1 =
@@ -163,7 +170,7 @@ formatBuffer global =
         bottom =
             buf.lines
                 |> B.sliceLines
-                    (buf.view.scrollTop + buf.view.size.height)
+                    (view.scrollTop + view.size.height)
                     (B.count buf.lines)
                 |> B.mapLines (addPrefix "|       ")
 
@@ -220,7 +227,7 @@ formatBuffer global =
                             )
 
                 _ ->
-                    case buf_.view.cursor of
+                    case view.cursor of
                         ( y_, x_ ) ->
                             [ ( y_, ( x_, x_ ) ) ]
 
@@ -309,24 +316,24 @@ newBuffer mode cursor height scrollTop text =
             createBuffer "" emptyGlobal
 
         view =
-            buf.view
-
-        view1 =
-            { view
+            { emptyView
                 | cursor = cursor
                 , cursorColumn = Tuple.second cursor
                 , scrollTop = scrollTop
-                , lines = rangeCount scrollTop (view.size.height + 2)
+                , lines = rangeCount scrollTop (height + 2)
             }
 
         window =
-            Win.initWindow (Frame.addOrActiveView view Frame.empty)
+            Frame.empty
+                |> Frame.resize { width = 100, height = height }
+                |> Frame.addOrActiveView view
+                |> Win.initWindow
     in
     Buf.addBuffer
         { buf
             | mode = mode
             , lines = lines
-            , view = view1
+            , view = view
         }
         { global | window = window }
 
