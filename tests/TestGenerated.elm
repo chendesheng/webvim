@@ -43,12 +43,16 @@ import Internal.Position exposing (Position)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Model exposing (..)
+import Model.Buffer exposing (..)
+import Model.Frame as Frame exposing (Frame)
+import Model.Global exposing (..)
 import Parser as P exposing ((|.), (|=), Parser)
 import Regex as Re
 import Test exposing (..)
-import Update exposing (initMode, update, updateActiveBuffer)
+import Update exposing (update, updateActiveBuffer)
 import Update.Buffer as Buf
 import Update.Message exposing (Msg(..))
+import Update.Vim exposing (initMode)
 import Vim.AST exposing (ModeName(..), VisualType(..))
 import Vim.Helper exposing (escapeKey, keyParser)
 
@@ -302,7 +306,7 @@ newBuffer mode cursor height scrollTop text =
                 )
 
         ( global, buf ) =
-            createBuffer "" { width = 100, height = height } emptyGlobal
+            createBuffer "" emptyGlobal
 
         view =
             buf.view
@@ -312,14 +316,13 @@ newBuffer mode cursor height scrollTop text =
                 | cursor = cursor
                 , cursorColumn = Tuple.second cursor
                 , scrollTop = scrollTop
-                , scrollTopPx = scrollTop * global.lineHeight
                 , lines = rangeCount scrollTop (view.size.height + 2)
             }
 
         window =
-            Win.initWindow view1
+            Win.initWindow (Frame.addOrActiveView view Frame.empty)
     in
-    Buf.addBuffer True
+    Buf.addBuffer
         { buf
             | mode = mode
             , lines = lines

@@ -366,7 +366,7 @@ renderBuffer path rect buf global =
                 (lazy5 renderVisual fontInfo scrollTop height mode lines
                     :: renderHighlights fontInfo scrollTop lines highlights
                     :: lazy5 renderLint buf.path fontInfo scrollTop lines lint.items
-                    :: lazy3 renderLines lines syntax view.lines
+                    :: lazy4 renderLines scrollTop lines view.syntax view.lines
                     :: renderCursor isActive fontInfo ime lines "" maybeCursor
                     :: renderMatchedCursor
                         isActive

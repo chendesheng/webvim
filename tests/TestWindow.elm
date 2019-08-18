@@ -90,7 +90,7 @@ h────v────v────1    50%
                             |> W.hsplit 0.5 2
                             |> W.vsplit 0.5 3
                             |> W.vsplit 0.5 4
-                            |> W.activeNextView
+                            |> W.activeNextFrame
                 in
                 Expect.equal (W.toString String.fromInt window)
                     (String.trim """
@@ -166,7 +166,7 @@ v────v────@1    50%
                             |> W.toList
                 in
                 Expect.equal list
-                    [ { view = 1
+                    [ { frame = 1
                       , rect =
                             { x = 0
                             , y = 0
@@ -176,7 +176,7 @@ v────v────@1    50%
                       , isActive = True
                       , path = [ LeftChild, LeftChild, LeftChild ]
                       }
-                    , { view = 4
+                    , { frame = 4
                       , rect =
                             { x = 0.25
                             , y = 0
@@ -186,7 +186,7 @@ v────v────@1    50%
                       , isActive = False
                       , path = [ RightChild, LeftChild, LeftChild ]
                       }
-                    , { view = 3
+                    , { frame = 3
                       , rect =
                             { x = 0.5
                             , y = 0
@@ -196,7 +196,7 @@ v────v────@1    50%
                       , isActive = False
                       , path = [ RightChild, LeftChild ]
                       }
-                    , { view = 2
+                    , { frame = 2
                       , rect =
                             { x = 0
                             , y = 0.5
@@ -215,7 +215,7 @@ v────v────@1    50%
                         W.initWindow 1
                             |> W.hsplit 0.5 2
                             |> W.vsplit 0.5 3
-                            |> W.activeNextView
+                            |> W.activeNextFrame
                 in
                 W.windowEncoder Encode.int win
                     |> Decode.decodeValue (W.windowDecoder Decode.int)

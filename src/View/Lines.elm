@@ -12,44 +12,59 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Lazy exposing (..)
 import Internal.Position exposing (Position)
-import Internal.Syntax exposing (Syntax, Token)
+import Internal.Syntax exposing (Syntax, Token, TokenType(..))
 import Internal.TextBuffer as B
 import Model.Buffer exposing (..)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
+import TreeSitter as TS
 import Update.Range exposing (visualRegions)
 import Vim.AST exposing (VisualType(..))
 
 
-renderTokens : List Token -> String -> Int -> List (Html msg)
-renderTokens spans line i =
+renderTokens : List Token -> String -> Int -> String -> List (Html msg)
+renderTokens spans line i lastClassName =
     case spans of
         sp :: rest ->
-            let
-                j =
-                    i + sp.length
+            if sp.length == 0 then
+                if i < 1000 then
+                    renderTokens rest line i sp.classname
 
-                -- FIXME: implement wrapping
-                j1 =
-                    Basics.min j 1000
-            in
-            span
-                [ class sp.classname ]
-                [ line
-                    |> String.slice i j1
-                    |> text
-                ]
-                :: (if j1 == j then
-                        renderTokens rest line j
+                else
+                    []
 
-                    else
-                        []
-                   )
+            else
+                let
+                    j =
+                        i + sp.length
+
+                    -- FIXME: implement wrapping
+                    j1 =
+                        Basics.min j 1000
+                in
+                span
+                    [ class sp.classname ]
+                    [ line
+                        |> String.slice i j1
+                        |> text
+                    ]
+                    :: (if j1 == j then
+                            renderTokens rest line j sp.classname
+
+                        else
+                            []
+                       )
 
         _ ->
-            -- this means we have broken syntax tokens
+            -- fill rest with last classname
             if i < String.length line then
-                [ span []
+                [ span
+                    (if String.isEmpty lastClassName then
+                        []
+
+                     else
+                        [ class lastClassName ]
+                    )
                     [ line
                         |> String.slice i (String.length line)
                         |> text
@@ -63,11 +78,38 @@ renderTokens spans line i =
 renderLine : List Token -> String -> Html msg
 renderLine tokens s =
     div []
-        (renderTokens tokens s 0)
+        (renderTokens tokens s 0 "")
 
 
-renderLines : B.TextBuffer -> Syntax -> List Int -> Html msg
-renderLines lines syntax viewLines =
+renderLines : Int -> B.TextBuffer -> Syntax -> List Int -> Html msg
+renderLines scrollTop lines syntax viewLines =
+    div
+        [ class "lines" ]
+        (List.map
+            (\lineNumber ->
+                div
+                    [ class "line"
+                    , style "top" <| rem lineNumber
+                    ]
+                    (case B.getLine lineNumber lines of
+                        Just text ->
+                            case Array.get (lineNumber - scrollTop) syntax of
+                                Just tokens ->
+                                    [ lazy2 renderLine tokens text ]
+
+                                _ ->
+                                    [ lazy2 renderLine [] text ]
+
+                        _ ->
+                            []
+                    )
+            )
+            viewLines
+        )
+
+
+renderLines2 : B.TextBuffer -> Syntax -> List Int -> Html msg
+renderLines2 lines syntax viewLines =
     div
         [ class "lines" ]
         (List.map

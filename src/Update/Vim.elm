@@ -29,7 +29,7 @@ import Fs
 import Helper.Helper exposing (..)
 import Ime exposing (..)
 import Internal.Jumps exposing (..)
-import Internal.Syntax exposing (Syntax)
+import Internal.Syntax exposing (Syntax, fromTreeSitter)
 import Internal.TextBuffer as B exposing (Patch(..))
 import Internal.Window as Win
 import Model exposing (..)
@@ -38,6 +38,7 @@ import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
 import Model.Size exposing (Size)
 import Model.View as View exposing (..)
+import TreeSitter as TS
 import Update.AutoComplete exposing (..)
 import Update.Buffer as Buf
 import Update.CTag exposing (..)
@@ -1082,9 +1083,20 @@ applyVimAST replaying key ast ({ buf } as ed) =
             )
         |> Tuple.mapSecond List.singleton
         |> doLint buf
-        |> doTokenize buf
+        --|> doTokenize buf
         |> doFocusIme ed
         |> Tuple.mapSecond Cmd.batch
+
+
+updateSyntax : Buffer -> View -> View
+updateSyntax buf view =
+    { view
+        | syntax =
+            fromTreeSitter
+                view.scrollTop
+                (view.scrollTop + view.size.height)
+                buf.treeSitter.tree
+    }
 
 
 applyDiff : Editor -> Editor
@@ -1114,10 +1126,30 @@ applyDiff ed =
                     buf.path
                     global1.lint.items
                     diff
+
+            s =
+                B.toString buf.lines
+
+            buf1 =
+                { buf
+                    | treeSitter =
+                        { parser = buf.treeSitter.parser
+                        , tree =
+                            TS.parse buf.treeSitter.parser
+                                (\arg ->
+                                    case arg.endIndex of
+                                        Just endIndex ->
+                                            String.slice arg.startIndex endIndex s
+
+                                        _ ->
+                                            String.dropLeft arg.startIndex s
+                                )
+                        }
+                }
         in
         { ed
             | buf =
-                { buf
+                { buf1
                     | history = { history | diff = [] }
                     , syntaxDirtyFrom =
                         diff
@@ -1131,9 +1163,12 @@ applyDiff ed =
                                             m
                                 )
                             |> List.minimum
-                            |> Maybe.map (min buf.syntaxDirtyFrom)
-                            |> Maybe.withDefault buf.syntaxDirtyFrom
-                    , view = applyDiffToView diff view
+                            |> Maybe.map (min buf1.syntaxDirtyFrom)
+                            |> Maybe.withDefault buf1.syntaxDirtyFrom
+                    , view =
+                        view
+                            |> applyDiffToView diff
+                            |> updateSyntax buf1
                 }
             , global =
                 { global1
@@ -1143,7 +1178,7 @@ applyDiff ed =
                         }
                     , locationList =
                         applyPatchesToLocations
-                            buf.path
+                            buf1.path
                             diff
                             global1.locationList
                 }

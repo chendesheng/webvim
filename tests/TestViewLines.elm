@@ -4,18 +4,15 @@ import Expect exposing (Expectation)
 import Fuzz
 import Helper.Helper exposing (rangeCount)
 import Internal.TextBuffer exposing (Patch(..), RegionChange(..), fromString)
-import Model
-    exposing
-        ( Buffer
-        , Editor
-        , emptyBuffer
-        , emptyGlobal
-        , updateBuffer
-        )
+import Model exposing (Editor, updateBuffer)
+import Model.Buffer exposing (..)
+import Model.Global exposing (..)
+import Model.View exposing (..)
 import Test exposing (..)
 import TextBuffer exposing (..)
-import Update exposing (applyDiff)
+import Update exposing (..)
 import Update.Buffer exposing (..)
+import Update.Vim exposing (applyDiff)
 
 
 resize : Int -> Editor -> Editor

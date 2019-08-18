@@ -20,3 +20,5 @@ jquery.js
 *.exe
 .psc-ide-port
 tests/TestData.elm
+
+elm

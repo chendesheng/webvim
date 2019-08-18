@@ -6,14 +6,8 @@ import Fuzz
 import Internal.Brackets exposing (pairBracketAt)
 import Internal.Syntax exposing (TokenType(..), iterateTokens)
 import Internal.TextBuffer as B exposing (Patch(..))
-import Model
-    exposing
-        ( Buffer
-        , BufferHistory
-        , emptyBuffer
-        , emptyBufferHistory
-        , emptyUndo
-        )
+import Model.Buffer exposing (..)
+import Model.BufferHistory exposing (..)
 import Test exposing (..)
 import TextBuffer exposing (..)
 import Update.Buffer exposing (..)

@@ -15,7 +15,7 @@ import Dict exposing (Dict)
 import Fs exposing (FileSystem)
 import Helper.Helper exposing (..)
 import Http
-import Internal.Syntax exposing (TokenType(..))
+import Internal.Syntax exposing (TokenType(..), fromTreeSitter)
 import Internal.TextBuffer as B exposing (Patch(..), lineBreak)
 import Internal.Window as Win
 import Json.Decode as Decode exposing (decodeString)
@@ -26,6 +26,7 @@ import Model.BufferHistory exposing (emptyBufferHistory)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Task exposing (Task)
+import TreeSitter as TS
 import Update.Message exposing (Msg(..), TokenizeResponse(..))
 import Update.Tokenize exposing (sendTokenizeTask)
 import Vim.AST exposing (AST)
@@ -67,71 +68,10 @@ lineDiffDecoder =
 sendReadBuffer : String -> FileSystem -> Int -> Win.Path -> Buffer -> Cmd Msg
 sendReadBuffer url fs viewHeight framePath buf =
     Fs.read fs buf.path
-        |> Task.andThen
-            (\result ->
-                case result of
-                    Just ( lastModified, body ) ->
-                        let
-                            s =
-                                if String.endsWith lineBreak body then
-                                    body
-
-                                else
-                                    body ++ lineBreak
-
-                            lines =
-                                B.fromStringExpandTabs buf.config.tabSize 0 s
-
-                            tokenizeLines =
-                                Tuple.first buf.view.cursor + viewHeight * 2
-
-                            response =
-                                { syntaxEnabled = buf.config.syntax
-                                , lines = lines
-                                , syntax = Array.empty
-                                , lastModified = lastModified
-                                }
-                        in
-                        if buf.config.syntax then
-                            sendTokenizeTask url
-                                { bufId = buf.id
-                                , path = buf.path
-                                , version = 0
-                                , line = 0
-                                , lines =
-                                    lines
-                                        |> B.sliceLines 0 tokenizeLines
-                                        |> B.toString
-                                }
-                                |> Task.map
-                                    (\res ->
-                                        case res of
-                                            TokenizeSuccess _ syntax ->
-                                                { response | syntax = syntax }
-
-                                            TokenizeError "noextension" ->
-                                                { response | syntaxEnabled = False }
-
-                                            _ ->
-                                                response
-                                    )
-                                |> Task.onError (\_ -> Task.succeed response)
-
-                        else
-                            Task.succeed response
-
-                    _ ->
-                        Task.succeed
-                            { syntaxEnabled = buf.config.syntax
-                            , lines = B.empty
-                            , syntax = Array.empty
-                            , lastModified = ""
-                            }
-            )
         |> Task.attempt
             (\result ->
                 case result of
-                    Ok { syntax, syntaxEnabled, lines, lastModified } ->
+                    Ok (Just ( lastModified, s )) ->
                         let
                             config =
                                 buf.config
@@ -142,22 +82,122 @@ sendReadBuffer url fs viewHeight framePath buf =
 
                                 else
                                     { emptyBufferHistory | lastModified = lastModified }
+
+                            lines =
+                                B.fromString s
                         in
                         ( framePath
                         , { buf
                             | lines = lines
-                            , config = { config | syntax = syntaxEnabled }
-                            , syntax = syntax
-                            , syntaxDirtyFrom = Array.length syntax
                             , history = history
                           }
                         )
                             |> Ok
                             |> Read
 
+                    Ok Nothing ->
+                        Read (Ok ( framePath, buf ))
+
                     Err err ->
                         Read (Err err)
             )
+
+
+
+--sendReadBuffer : String -> FileSystem -> Int -> Win.Path -> Buffer -> Cmd Msg
+--sendReadBuffer url fs viewHeight framePath buf =
+--    Fs.read fs buf.path
+--        |> Task.andThen
+--            (\result ->
+--                case result of
+--                    Just ( lastModified, body ) ->
+--                        let
+--                            s =
+--                                if String.endsWith lineBreak body then
+--                                    body
+--
+--                                else
+--                                    body ++ lineBreak
+--
+--                            lines =
+--                                B.fromStringExpandTabs buf.config.tabSize 0 s
+--
+--                            tokenizeLines =
+--                                Tuple.first buf.view.cursor + viewHeight * 2
+--
+--                            response =
+--                                { syntaxEnabled = buf.config.syntax
+--                                , lines = lines
+--                                , syntax = Array.empty
+--                                , lastModified = lastModified
+--                                }
+--                        in
+--                        if buf.config.syntax then
+--                            sendTokenizeTask url
+--                                { bufId = buf.id
+--                                , path = buf.path
+--                                , version = 0
+--                                , line = 0
+--                                , lines =
+--                                    lines
+--                                        |> B.sliceLines 0 tokenizeLines
+--                                        |> B.toString
+--                                }
+--                                |> Task.map
+--                                    (\res ->
+--                                        case res of
+--                                            TokenizeSuccess _ syntax ->
+--                                                { response | syntax = syntax }
+--
+--                                            TokenizeError "noextension" ->
+--                                                { response | syntaxEnabled = False }
+--
+--                                            _ ->
+--                                                response
+--                                    )
+--                                |> Task.onError (\_ -> Task.succeed response)
+--
+--                        else
+--                            Task.succeed response
+--
+--                    _ ->
+--                        Task.succeed
+--                            { syntaxEnabled = buf.config.syntax
+--                            , lines = B.empty
+--                            , syntax = Array.empty
+--                            , lastModified = ""
+--                            }
+--            )
+--        |> Task.attempt
+--            (\result ->
+--                case result of
+--                    Ok { syntax, syntaxEnabled, lines, lastModified } ->
+--                        let
+--                            config =
+--                                buf.config
+--
+--                            history =
+--                                if buf.history.lastModified == lastModified then
+--                                    buf.history
+--
+--                                else
+--                                    { emptyBufferHistory | lastModified = lastModified }
+--                        in
+--                        ( framePath
+--                        , { buf
+--                            | lines = lines
+--                            , config = { config | syntax = syntaxEnabled }
+--                            , syntax = syntax
+--                            , syntaxDirtyFrom = Array.length syntax
+--                            , history = history
+--                          }
+--                        )
+--                            |> Ok
+--                            |> Read
+--
+--                    Err err ->
+--                        Read (Err err)
+--            )
 
 
 sendWriteBuffer : FileSystem -> String -> Buffer -> Cmd Msg

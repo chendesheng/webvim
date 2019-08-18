@@ -5,9 +5,6 @@ module Update.Tokenize exposing
     , sendTokenizeTask
     , tokenizeBufferCmd
     , tokenizeLineCmd
-    , tokenizeResponseDecoder
-    , tokensParser
-    , unpackClass
     )
 
 import Array

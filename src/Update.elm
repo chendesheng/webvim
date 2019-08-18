@@ -2,25 +2,26 @@ module Update exposing (init, update, updateActiveBuffer)
 
 import Clipboard
 import Debouncers exposing (..)
-import Dict
+import Dict exposing (Dict)
 import Font exposing (FontInfo)
 import Fs
 import Helper.Helper exposing (..)
 import Http
 import Ime exposing (..)
 import Internal.Jumps exposing (..)
-import Internal.Syntax exposing (Syntax)
+import Internal.Syntax exposing (Syntax, fromTreeSitter)
 import Internal.TextBuffer as B exposing (Patch(..))
-import Internal.Window as Win
+import Internal.Window as Win exposing (Window)
 import Json.Decode as Decode
 import Model exposing (..)
 import Model.Buffer exposing (..)
-import Model.Frame as Frame
+import Model.Frame as Frame exposing (Frame)
 import Model.Global exposing (..)
 import Model.Lint exposing (..)
 import Model.LoadBuffer exposing (..)
 import Model.Size exposing (Size)
 import Model.View as View exposing (..)
+import TreeSitter as TS
 import Update.AutoComplete exposing (..)
 import Update.Buffer as Buf
 import Update.CTag exposing (..)
@@ -41,9 +42,16 @@ import Update.Vim exposing (..)
 updateGlobalAfterChange : Win.Path -> Buffer -> Global -> Buffer -> Global -> Global
 updateGlobalAfterChange path oldBuf oldGlobal buf global =
     let
+        view1 =
+            if oldBuf.view.scrollTop == buf.view.scrollTop then
+                buf.view
+
+            else
+                updateSyntax buf buf.view
+
         window =
             Win.updateFrame path
-                (Frame.updateView buf.id <| always buf.view)
+                (Frame.updateView buf.id <| always view1)
                 global.window
     in
     { global
@@ -336,9 +344,9 @@ onSearch result ed =
                                             )
                                             global.buffers
                                     , window =
-                                        resizeViews global.size
-                                            global.lineHeight
-                                            global.window
+                                        global.window
+                                            |> resizeViews global.size global.lineHeight
+                                            |> mapFrontViews global.buffers updateSyntax
                                 }
                         }
                     )
@@ -377,10 +385,35 @@ onRead result global =
     case result of
         Ok ( framePath, buf ) ->
             let
-                --_ =
-                --Debug.log "onRead" ( setActive, buf.path )
-                buf2 =
+                buf1 =
                     restoreBufferHistory buf
+
+                parser =
+                    buf1.name
+                        |> extname
+                        |> String.dropLeft 1
+                        |> TS.createParser
+                        |> Maybe.withDefault TS.dummyParser
+
+                s =
+                    B.toString buf1.lines
+
+                buf2 =
+                    { buf1
+                        | treeSitter =
+                            { parser = parser
+                            , tree =
+                                TS.parse parser
+                                    (\arg ->
+                                        case arg.endIndex of
+                                            Just endIndex ->
+                                                String.slice arg.startIndex endIndex s
+
+                                            _ ->
+                                                String.dropLeft arg.startIndex s
+                                    )
+                            }
+                    }
 
                 global2 =
                     Buf.addBuffer buf2 global
@@ -389,11 +422,7 @@ onRead result global =
                 | window =
                     Win.updateFrame
                         framePath
-                        (\frame ->
-                            Frame.addOrActiveView
-                                buf2.view
-                                frame
-                        )
+                        (Frame.addOrActiveView <| updateSyntax buf2 buf2.view)
                         global2.window
             }
 
@@ -452,10 +481,11 @@ onWrite result ({ buf, global } as ed) =
             ( ed1
             , Cmd.batch
                 [ lintCmd
-                , tokenizeBufferCmd
-                    ed1.buf.syntaxDirtyFrom
-                    ed1.global.service
-                    ed1.buf
+
+                --, tokenizeBufferCmd
+                --    ed1.buf.syntaxDirtyFrom
+                --    ed1.global.service
+                --    ed1.buf
                 ]
             )
 
@@ -467,6 +497,40 @@ onWrite result ({ buf, global } as ed) =
                 ed
             , Cmd.none
             )
+
+
+mapFrontViews : Dict String LoadBuffer -> (Buffer -> View -> View) -> Window Frame -> Window Frame
+mapFrontViews buffers fn window =
+    Win.mapFrame
+        (\frame _ ->
+            Frame.updateActiveView
+                (\view ->
+                    Dict.get view.bufId buffers
+                        |> Maybe.map
+                            (\buf ->
+                                case buf of
+                                    Loaded b ->
+                                        fn b view
+
+                                    _ ->
+                                        view
+                            )
+                        |> Maybe.withDefault view
+                )
+                frame
+        )
+        window
+
+
+updateSyntax : Buffer -> View -> View
+updateSyntax buf view =
+    { view
+        | syntax =
+            fromTreeSitter
+                view.scrollTop
+                (view.scrollTop + view.size.height)
+                buf.treeSitter.tree
+    }
 
 
 init : Flags -> String -> FontInfo -> Size -> ServerArgs -> ( Global, Cmd Msg )
@@ -491,26 +555,35 @@ init flags theme fontInfo size args =
         decodedBuffers =
             buffers
                 |> Decode.decodeValue
-                    (bufferDecoder fs |> Decode.list)
+                    (Decode.list <| bufferDecoder fs)
                 |> Result.map
                     (List.map <|
                         \b ->
                             if isTempBuffer b.path then
                                 ( b.id
-                                , { b
-                                    | config =
-                                        let
-                                            config =
-                                                b.config
-                                        in
-                                        { config | syntax = False }
-                                  }
+                                , b
                                     |> restoreBufferHistory
                                     |> Loaded
                                 )
 
                             else
-                                ( b.id, NotLoad b )
+                                let
+                                    parser =
+                                        b.path
+                                            |> extname
+                                            |> String.dropLeft 1
+                                            |> TS.createParser
+                                            |> Maybe.withDefault TS.dummyParser
+                                in
+                                ( b.id
+                                , NotLoad
+                                    { b
+                                        | treeSitter =
+                                            { parser = parser
+                                            , tree = TS.parse parser (always "")
+                                            }
+                                    }
+                                )
                     )
                 |> Result.withDefault [ ( "", Loaded emptyBuffer ) ]
 

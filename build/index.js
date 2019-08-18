@@ -66,9 +66,15 @@ function main() {
     exHistory: storageGetArray('exHistory', false) || [],
   };
 
-  // console.log("flags", flags);
-  Elm.Main.init({
-    flags,
+  const Parser = window.TreeSitter;
+  Parser.init().then(async () => {
+    const elmLang = await Parser.Language.load('dist/tree-sitter-elm.wasm');
+    window.treeSitterLangs = {elm: elmLang};
+
+    // console.log("flags", flags);
+    Elm.Main.init({
+      flags,
+    });
   });
 }
 

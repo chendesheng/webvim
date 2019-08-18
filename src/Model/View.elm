@@ -1,6 +1,7 @@
 module Model.View exposing
     ( View
     , applyDiffToView
+    , applyRegionChangeToView
     , correctCursor
     , correctPosition
     , emptyView
@@ -16,6 +17,7 @@ module Model.View exposing
 
 import Helper.Helper exposing (rangeCount)
 import Internal.Position exposing (Position, cursorDecoder, cursorEncoder)
+import Internal.Syntax exposing (Syntax, emptySyntax)
 import Internal.TextBuffer as B exposing (RegionChange(..), TextBuffer)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -34,6 +36,7 @@ type alias View =
     , gutterLines : List Int
     , size : Size
     , isActive : Bool
+    , syntax : Syntax
     }
 
 
@@ -50,6 +53,7 @@ emptyView =
     , gutterLines = rangeCount 0 3
     , size = { width = 1, height = 1 }
     , isActive = False
+    , syntax = emptySyntax
     }
 
 

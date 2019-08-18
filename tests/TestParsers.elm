@@ -6,10 +6,10 @@ import Internal.PositionClass
         ( parserBackwardCharRespectBackslash
         , parserForwardCharRespectBackslash
         )
-import Model exposing (TextSpan(..))
+import Model.Lint exposing (TextSpan(..))
 import Parser as P exposing ((|.), (|=), Parser)
 import Test exposing (..)
-import Update.Service exposing (syntaxErrorParser)
+import Update.Lint exposing (syntaxErrorParser)
 
 
 suite : Test

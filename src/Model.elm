@@ -47,6 +47,7 @@ import Model.Global exposing (..)
 import Model.LoadBuffer exposing (..)
 import Model.View exposing (..)
 import Set
+import TreeSitter as TS
 import Vim.AST as V exposing (VisualType(..))
 
 
@@ -86,10 +87,7 @@ createBuffer path global =
         | id = path
         , config =
             { config
-                | lint =
-                    isLintEnabled global.fs
-                        (name ++ ext)
-                        config.lint
+                | lint = isLintEnabled global.fs (name ++ ext) config.lint
                 , syntax = not <| isTempBuffer path
             }
         , path = path

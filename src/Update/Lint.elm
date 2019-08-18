@@ -1,4 +1,4 @@
-module Update.Lint exposing (onLint, sendLintOnTheFly, sendLintProject)
+module Update.Lint exposing (onLint, sendLintOnTheFly, sendLintProject, syntaxErrorParser)
 
 import Fs
 import Helper.Helper exposing (..)

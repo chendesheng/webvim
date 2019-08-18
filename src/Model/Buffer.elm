@@ -34,6 +34,7 @@ import Menu as Mu
 import Model.BufferConfig exposing (..)
 import Model.BufferHistory exposing (..)
 import Model.View exposing (..)
+import TreeSitter as TS
 import Vim.AST as V exposing (VisualType(..))
 
 
@@ -126,6 +127,10 @@ type alias Buffer =
     , continuation : String
     , dirtyIndent : Int
     , motionFailed : Bool
+    , treeSitter :
+        { parser : TS.Parser
+        , tree : TS.Tree
+        }
     }
 
 
@@ -147,6 +152,10 @@ emptyBuffer =
     -- insert mode auto indent, discard when input nothing and switch back to normal mode
     , dirtyIndent = 0
     , motionFailed = False
+    , treeSitter =
+        { parser = TS.dummyParser
+        , tree = TS.parse TS.dummyParser (always "")
+        }
     }
 
 
