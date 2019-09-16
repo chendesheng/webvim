@@ -81,19 +81,24 @@ writeFile req resp path = do
   fileStream <- liftEffect $ createWriteStream path
   case stripSuffix (Pattern ".elm") path of
     Just _ -> do
-      affLog ("elm-format :" <> path)
+      affLog ("elm-format: " <> path)
       format resp path inputStream outputStream fileStream "elm-format --stdin"
     _ ->
       case stripSuffix (Pattern ".js") path of
         Just _ -> do
           let cmd = if isWindows then "jsfmt.cmd" else "jsfmt"
-          affLog ("jsformat :" <> path)
+          affLog ("jsformat: " <> path)
           format resp path inputStream outputStream fileStream cmd
         _ -> do
-          affPipe inputStream fileStream
-          affWaitEnd inputStream
-          writeLastModified path resp
-          affWriteString outputStream "[]"
+          case stripSuffix (Pattern ".fs") path of
+            Just _ -> do
+              affLog ("fantomas: " <> path)
+              format resp path inputStream outputStream fileStream "/Users/chendesheng/.dotnet/tools/fantomas --stdin --stdout --pageWidth 90"
+            _ -> do
+              affPipe inputStream fileStream
+              affWaitEnd inputStream
+              writeLastModified path resp
+              affWriteString outputStream "[]"
     
   affEnd outputStream
 
