@@ -416,5 +416,6 @@ incrementSearchRegion mode =
 scrollingStyle : Int -> Int -> Int -> Int -> Int -> List (Attribute msg)
 scrollingStyle lineHeight topOffsetPx totalLines height scrollTop =
     [ style "top" <| px -(topOffsetPx + scrollTop * lineHeight)
-    , style "height" <| rem (totalLines + height)
+
+    --, style "height" <| rem (totalLines + height)
     ]
