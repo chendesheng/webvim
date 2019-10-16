@@ -404,14 +404,15 @@ onRead result global =
                             { parser = parser
                             , tree =
                                 TS.parse parser
-                                    (\arg ->
+                                    (\t arg ->
                                         case arg.endIndex of
                                             Just endIndex ->
-                                                String.slice arg.startIndex endIndex s
+                                                ( String.slice arg.startIndex endIndex s, t )
 
                                             _ ->
-                                                String.dropLeft arg.startIndex s
+                                                ( String.dropLeft arg.startIndex s, t )
                                     )
+                                    buf1.treeSitter.tree
                             }
                     }
 
@@ -580,7 +581,7 @@ init flags theme fontInfo size args =
                                     { b
                                         | treeSitter =
                                             { parser = parser
-                                            , tree = TS.parse parser (always "")
+                                            , tree = TS.parse parser (\t _ -> ( "", t )) b.treeSitter.tree
                                             }
                                     }
                                 )

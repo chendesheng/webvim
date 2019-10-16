@@ -56,8 +56,8 @@ type alias InputCallbackArgument =
     }
 
 
-type alias Input =
-    InputCallbackArgument -> String
+type alias Input text =
+    text -> InputCallbackArgument -> ( String, text )
 
 
 createParser : String -> Maybe Parser
@@ -65,12 +65,12 @@ createParser =
     Elm.Kernel.TreeSitter.createParser
 
 
-parse : Parser -> Input -> Tree
+parse : Parser -> Input text -> text -> Tree
 parse =
     Elm.Kernel.TreeSitter.parse
 
 
-incParse : Parser -> List Edit -> Input -> Tree -> ( Tree, List Range )
+incParse : Parser -> List Edit -> Input text -> Tree -> ( Tree, List Range )
 incParse =
     Elm.Kernel.TreeSitter.incParse
 

@@ -1136,14 +1136,15 @@ applyDiff ed =
                         { parser = buf.treeSitter.parser
                         , tree =
                             TS.parse buf.treeSitter.parser
-                                (\arg ->
+                                (\t arg ->
                                     case arg.endIndex of
                                         Just endIndex ->
-                                            String.slice arg.startIndex endIndex s
+                                            ( String.slice arg.startIndex endIndex s, t )
 
                                         _ ->
-                                            String.dropLeft arg.startIndex s
+                                            ( String.dropLeft arg.startIndex s, t )
                                 )
+                                buf.treeSitter.tree
                         }
                 }
         in

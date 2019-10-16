@@ -54,8 +54,8 @@ type alias InputCallbackArgument =
     }
 
 
-type alias Input =
-    InputCallbackArgument -> String
+type alias Input text =
+    text -> InputCallbackArgument -> ( String, text )
 
 
 createParser : String -> Maybe Parser
@@ -63,12 +63,12 @@ createParser _ =
     Nothing
 
 
-parse : Parser -> Input -> Tree
+parse : Parser -> Input text -> Tree
 parse _ _ =
     Tree
 
 
-incParse : Parser -> List Edit -> Input -> Tree -> ( Tree, List Range )
+incParse : Parser -> List Edit -> Input text -> Tree -> ( Tree, List Range )
 incParse _ _ _ _ =
     ( Tree, [] )
 

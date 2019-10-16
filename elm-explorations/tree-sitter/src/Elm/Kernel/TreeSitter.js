@@ -1,6 +1,5 @@
 /*
 
-import List exposing (foldl)
 import Elm.Kernel.Utils exposing(Tuple2)
 import Elm.Kernel.List exposing(fromArray, Cons, Nil)
 import Maybe exposing (Just, Nothing)
@@ -45,51 +44,45 @@ var _TreeSitter_createParser = function (name) {
   }
 };
 
-var _TreeSitter_parse = F2(function (parser, input) {
-  const tree = parser.__parser.parse(function (startIndex, startPosition, endIndex) {
-		return input({
+function parseHelper(parser, input, text, tree) {
+  var currentText = text;
+  return parser.__parser.parse(function (startIndex, startPosition, endIndex) {
+		var res = A2(input, currentText, {
 			startIndex,
-			startPosition: startPosition
-				? __Maybe_Just(__Utils_Tuple2(startPosition.row, startPosition.column))
-				: __Maybe_Nothing,
-			endIndex: endIndex != null
-				? __Maybe_Just(endIndex)
-				: __Maybe_Nothing,
+			startPosition: startPosition ? __Maybe_Just(toTuple(startPosition)) : __Maybe_Nothing,
+			endIndex: endIndex != null ? __Maybe_Just(endIndex) : __Maybe_Nothing,
 		});
-	});
-  return { $: 'treeSitter_tree', __tree: tree };
+    currentText = res.b;
+    return res.a;
+  }, tree);
+}
+
+var _TreeSitter_parse = F2(function (parser, input, text) {
+  return { $: 'treeSitter_tree', __tree: parseHelper(parser, input, text) };
 });
 
 function toTuple({ row, column }) {
 	return __Utils_Tuple2(row, column);
 }
 
-var _TreeSitter_incParse = F4(function (parser, edits, input, oldTree) {
-	const edittedOldTree = A3(
-		__List_foldl,
-		F2(function (edit, tree) {
-			tree.edit(Object.assign(edit, {
-				startPoisition : toTuple(edit.startPosition), 
-				newEndPoisition : toTuple(edit.newEndPosition), 
-				oldEndPoisition : toTuple(edit.oldEndPosition), 
-			}));
-			return tree;
-		}),
-		oldTree.__tree,
-		edits
-	);
-	const newTree = parser.__parser.parse(function ({ startIndex, startPoisition, endIndex }) {
-		return input({
-			startIndex,
-			startPoisition: startPoisition
-				? __Maybe_Just(toTuple(startPoisition))
-				: __Maybe_Nothing,
-			endIndex: endIndex != null
-				? __Maybe_Just(endIndex)
-				: __Maybe_Nothing,
-		});
-	}, edittedOldTree);
-	const ranges =
+function fromTuple(tp) {
+  return { row : tp.a, col : tp.b };
+}
+
+var _TreeSitter_incParse = F4(function (parser, edits, input, text, oldTreeObj) {
+  var oldTree = oldTreeObj.__tree;
+  for (var item = edits; item.b; item = item.b) // WHILE_CONS
+  {
+    var edit = item.a;
+    oldTree.edit(Object.assign(edit, {
+      startPoisition : fromTuple(edit.startPosition), 
+      newEndPoisition : fromTuple(edit.newEndPosition), 
+      oldEndPoisition : fromTuple(edit.oldEndPosition), 
+    }));
+  }
+
+  var newTree = parseHelper(parser, input, text, oldTree);
+	var ranges =
 		newTree
 			.getChangdRanges(oldTree)
 			.map(function (rg) {
@@ -98,7 +91,7 @@ var _TreeSitter_incParse = F4(function (parser, edits, input, oldTree) {
 					endPosition: toTuple(rg.endPoisition),
 				})
 			});
-	oldTree.delete();
+	oldTree.delete(); // This is not pure but I don't how to avoid
 	return __Utils_Tuple2({$:'treeSitter_tree', __tree: newTree}, __List_fromArray(ranges));
 });
 
@@ -194,4 +187,5 @@ var _TreeSitter_walkWithin = F5(function(start, end, reducer, tree, state) {
   cursor.delete();
   return state;
 });
+
 

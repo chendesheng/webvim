@@ -154,7 +154,7 @@ emptyBuffer =
     , motionFailed = False
     , treeSitter =
         { parser = TS.dummyParser
-        , tree = TS.parse TS.dummyParser (always "")
+        , tree = TS.parse TS.dummyParser (\t _ -> ( "", t )) (B.fromString B.lineBreak)
         }
     }
 
