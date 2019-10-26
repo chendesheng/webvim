@@ -9,13 +9,25 @@ import Maybe exposing (Just, Nothing)
 
 // PARSER
 
+var dummyCursor = {
+  gotoParent: function(){ return false },
+  gotoFirstChild: function() { return false },
+  gotoNextSibling: function() { return false },
+  delete: function() {},
+  startPosition: { row: 0, column: 0 },
+  endPosition: { row:0, column: 0 },
+  startIndex: 0,
+  endIndex: 0,
+  nodeType: '',
+};
 var _TreeSitter_dummyParser = {
   $: 'treeSitter_parser',
   __parser: {
-    parse: function() {
+    parse: function(lines, tree) {
       return {
         $: 'treeSitter_tree',
         __tree: {
+          walk: function() { return dummyCursor },
           rootNode: {
             childCount: 0,
             children: [],
@@ -57,7 +69,7 @@ function parseHelper(parser, input, text, tree) {
   }, tree);
 }
 
-var _TreeSitter_parse = F2(function (parser, input, text) {
+var _TreeSitter_parse = F3(function (parser, input, text) {
   return { $: 'treeSitter_tree', __tree: parseHelper(parser, input, text) };
 });
 
@@ -142,6 +154,8 @@ function comparePosition(y1, x1, y2, x2) {
 }
 
 var _TreeSitter_walkWithin = F5(function(start, end, reducer, tree, state) {
+  if(!tree.__tree || !tree.__tree.walk || typeof tree.__tree.walk !== 'function') return state;
+
   const cursor = tree.__tree.walk();
   let visitedChildren = false;
 
